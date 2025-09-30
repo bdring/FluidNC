@@ -287,8 +287,9 @@ namespace Kinematics {
 
     bool ParallelDelta::kinematics_homing(AxisMask& axisMask) {
         // only servos use custom homing. Steppers use limit switches
-        if (!_use_servos)
-            false;
+        if (!_use_servos) {
+            return false;
+        }
 
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;

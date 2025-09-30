@@ -133,7 +133,7 @@ static void show_setting(const char* name, const char* value, const char* descri
 void settings_restore(uint8_t restore_flag) {
     if (restore_flag & SettingsRestore::Wifi) {
         for (Setting* s : Setting::List) {
-            if (!s->getType() == WEBSET) {
+            if (!s->getType() != WEBSET) {
                 s->setDefault();
             }
         }

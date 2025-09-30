@@ -217,6 +217,7 @@ namespace Spindles {
                         down = _current_speed;
                         break;
                 }
+                break;
             case SpindleState::Cw:
                 switch (_current_state) {
                     case SpindleState::Unknown:
@@ -237,6 +238,7 @@ namespace Spindles {
                         up   = speed;
                         break;
                 }
+                break;
             case SpindleState::Ccw:
                 switch (_current_state) {
                     case SpindleState::Unknown:
@@ -257,6 +259,7 @@ namespace Spindles {
                         }
                         break;
                 }
+                break;
         }
         if (down) {
             dwell_ms(down < maxSpeed() ? _spindown_ms * down / maxSpeed() : _spindown_ms, DwellMode::SysSuspend);

@@ -39,7 +39,7 @@ void uart_register_input_pin(int uart_num, uint8_t pinnum, InputPin* object) {
 }
 
 static void uart_driver_n_install(void* arg) {
-    uart_port_t port = (uart_port_t)arg;
+    uart_port_t port = *((uart_port_t*)arg);
     if (port) {
         fnc_uart_driver_install(port, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
     } else {
@@ -50,7 +50,7 @@ static void uart_driver_n_install(void* arg) {
 void uart_init(int uart_num) {
     // We init UARTs on core 0 so the interrupt handler runs there,
     // thus avoiding conflict with the StepTimer interrupt
-    esp_ipc_call_blocking(0, uart_driver_n_install, (void*)uart_num);
+    esp_ipc_call_blocking(0, uart_driver_n_install, &uart_num);
     if (uart_num) {
         fnc_uart_set_data_callback((uart_port_t)uart_num, uart_data_callback);
     }
