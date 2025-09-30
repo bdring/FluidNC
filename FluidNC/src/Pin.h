@@ -115,8 +115,12 @@ public:
     inline int    index() { return _detail->_index; }
     inline bool   inverted() { return _detail->_inverted; }
 
-    inline void write(bool value) const { _detail->write(value); };
-    inline void synchronousWrite(bool value) const { _detail->synchronousWrite(value); };
+    // In principle, IRAM_ATTR would not be needed for inlined methods, but
+    // the compiler does not seem to actually inline these.  Adding IRAM_ATTR
+    // forces the non-inlined versions into IRAM to prevent crashes when a
+    // spindle state change happens in a stepping interrupt.
+    inline void IRAM_ATTR write(bool value) const { _detail->write(value); };
+    inline void IRAM_ATTR synchronousWrite(bool value) const { _detail->synchronousWrite(value); };
 
     inline void     setDuty(uint32_t duty) const { _detail->setDuty(duty); }
     inline uint32_t maxDuty() const { return _detail->maxDuty(); }
