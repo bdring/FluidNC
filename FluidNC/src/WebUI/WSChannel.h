@@ -34,7 +34,8 @@ namespace WebUI {
 
         uint32_t id() { return _clientNum; }
 
-        int rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
+        int      rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
+        uint32_t clientNum() { return _clientNum; };
 
         operator bool() const;
 
