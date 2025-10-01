@@ -163,18 +163,20 @@ float limit_acceleration_by_axis_maximum(float* unit_vec, bool is_jog) {
     float limit_value = SOME_LARGE_VALUE;
     auto  n_axis      = Axes::_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
-        auto axisSetting = Axes::_axis[idx];
+        auto  axisSetting = Axes::_axis[idx];
+        float acceleration;
+        if (is_jog)
+            acceleration = axisSetting->_acceleration * axisSetting->_jogAccelerationPercent / 100.0;
+        else
+            acceleration = axisSetting->_acceleration;
         if (unit_vec[idx] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[idx]));
+            limit_value = MIN(limit_value, fabsf(acceleration / unit_vec[idx]));
         }
     }
     // The acceleration setting is stored and displayed in units of mm/sec^2,
     // but used in units of mm/min^2.  It suffices to perform the conversion once on
     // exit, since the limit computation above is independent of units - it simply
     // finds the smallest value.
-    if(is_jog)
-        limit_value=limit_value/Axes::_jogAccelerationDivisor;
-
     return limit_value * secPerMinSq;
 }
 

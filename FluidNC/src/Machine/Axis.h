@@ -30,11 +30,12 @@ namespace Machine {
         Motor*  _motors[MAX_MOTORS_PER_AXIS];
         Homing* _homing = nullptr;
 
-        float _stepsPerMm   = 80.0f;
-        float _maxRate      = 1000.0f;
-        float _acceleration = 25.0f;
-        float _maxTravel    = 1000.0f;
-        bool  _softLimits   = false;
+        float _stepsPerMm             = 80.0f;
+        float _maxRate                = 1000.0f;
+        float _acceleration           = 25.0f;
+        float _maxTravel              = 1000.0f;
+        bool  _softLimits             = false;
+        float _jogAccelerationPercent = 100.0f;
 
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;

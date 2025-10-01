@@ -36,8 +36,6 @@ namespace Machine {
 
         static uint32_t _homing_runs;  // Number of Approach/Pulloff cycles
 
-        static float _jogAccelerationDivisor;
-
         static inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; }  // returns axis letter
 
         static inline size_t    motor_bit(size_t axis, size_t motor) { return motor ? axis + 16 : axis; }
