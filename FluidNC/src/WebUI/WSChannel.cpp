@@ -87,7 +87,7 @@ namespace WebUI {
             // To test this mechanism, try setting WS_MAX_QUEUED_MESSAGES to 2 and have 2 browsers on different PCs or your smartphone
             if (_server->client(_clientNum) && _server->client(_clientNum)->queueIsFull() && (millis() - _last_queue_full) > 1000) {
                 _last_queue_full = millis();
-                log_info_to(Uart0, "Websocket queue full while sending to cid#" << _clientNum << ", dropping");
+                log_debug_to(Uart0, "Websocket queue full while sending to cid#" << _clientNum << ", dropping");
             }
         }
         // No need to set active false, we continue to send and let the websocket drop if buffer is too high
@@ -181,7 +181,6 @@ namespace WebUI {
     }
 
     bool WSChannels::runGCode(int pageid, std::string_view cmd, std::string session) {
-        //log_info_to(Uart0, "runGCode session: " + session);
         WSChannel* wsChannel = getWSChannel(session);
         if (wsChannel) {
             if (cmd.length()) {
@@ -228,11 +227,11 @@ namespace WebUI {
         switch (type) {
             case WS_EVT_ERROR:
                 WSChannels::removeChannel(num);
-                log_info_to(Uart0, "WebSocket error cid#" << num << " total " << _wsChannels.size());
+                log_debug_to(Uart0, "WebSocket error cid#" << num << " total " << _wsChannels.size());
                 break;
             case WS_EVT_DISCONNECT:
                 WSChannels::removeChannel(num);
-                log_info_to(Uart0, "WebSocket disconnect cid#" << num << " total " << _wsChannels.size());
+                log_debug_to(Uart0, "WebSocket disconnect cid#" << num << " total " << _wsChannels.size());
                 break;
             case WS_EVT_CONNECT: {
                 WSChannel* wsChannel = new WSChannel(server, num, session);
@@ -265,9 +264,9 @@ namespace WebUI {
                     allChannels.registration(wsChannel);
                     _wsChannels[num]              = wsChannel;
                     _wsChannelsBySession[session] = wsChannel;
-                    log_info_to(Uart0,
-                                "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session << " total "
-                                                         << _wsChannels.size());
+                    log_debug_to(Uart0,
+                                 "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session << " total "
+                                                          << _wsChannels.size());
                 }
             } break;
             case WS_EVT_DATA: {
@@ -277,7 +276,6 @@ namespace WebUI {
                         //data[len]=0; // !!! this should not be safe? but was there before,
                         // will copy to a std::string of specified length to be on the safe side
                         std::string msg((const char*)data, len);
-                        //log_info_to(Uart0, msg);
                         if (msg.rfind("PING:", 0) == 0) {
                             std::string response("PING:60000:60000");
                             _wsChannels.at(num)->sendTXT(response);
@@ -291,7 +289,7 @@ namespace WebUI {
                 }
             } break;
             default:
-                log_info_to(Uart0, "WebSocket unexpected event! " << type);
+                log_debug_to(Uart0, "WebSocket unexpected event! " << type);
                 break;
         }
     }

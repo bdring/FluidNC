@@ -332,7 +332,6 @@ namespace WebUI {
         AsyncWebServerResponse* response = request->beginResponse(
             getContentType(path), file->size(), [file, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
                 if (!file) {
-                    //log_info_to(Uart0, "We should not have reached here"); // we do reach here in case of header request only
                     request->client()->close();
                     return 0;  //RESPONSE_TRY_AGAIN; // This only works for ChunkedResponse
                 }
@@ -1213,7 +1212,7 @@ namespace WebUI {
         }
         if ((millis() - start_time) > 10000) {
             uint32_t heapsize = xPortGetFreeHeapSize();
-            log_info("memory: " << heapsize << " min: " << heapLowWater);
+            log_debug("memory: " << heapsize << " min: " << heapLowWater);
             if (_socket_server) {
                 _socket_server->cleanupClients();
                 WSChannels::sendPing();
