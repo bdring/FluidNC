@@ -3,6 +3,7 @@
 
 #pragma once
 #include <string_view>
+#include <cstdint>
 
 namespace Pins {
     // Pin options are passed as PinOption object. This is a simple C++ forward iterator,

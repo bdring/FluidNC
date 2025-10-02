@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <string>
 
+#include <cstdint>
 // TODO - make ngc_param_id_t an enum, give names to numbered parameters where
 // possible
 typedef uint32_t ngc_param_id_t;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
 
 enum class UartData : uint8_t {
     Bits5 = 5,
