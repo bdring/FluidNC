@@ -8,14 +8,13 @@
 
 // cppcheck-suppress unusedFunction
 bool i2c_master_init(int bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_t frequency) {
-    i2c_config_t conf = {
-        .mode          = I2C_MODE_MASTER,
-        .sda_io_num    = (gpio_num_t)sda_pin,
-        .scl_io_num    = (gpio_num_t)scl_pin,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master        = { .clk_speed = frequency },
-    };
+    i2c_config_t conf     = {};
+    conf.mode             = I2C_MODE_MASTER;
+    conf.sda_io_num       = (gpio_num_t)sda_pin;
+    conf.scl_io_num       = (gpio_num_t)scl_pin;
+    conf.sda_pullup_en    = GPIO_PULLUP_ENABLE;
+    conf.scl_pullup_en    = GPIO_PULLUP_ENABLE;
+    conf.master.clk_speed = frequency;
 
     esp_err_t ret = i2c_param_config((i2c_port_t)bus_number, &conf);
     if (ret != ESP_OK) {

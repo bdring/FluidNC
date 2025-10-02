@@ -484,7 +484,8 @@ step_engine_t i2s_engine = {
     max_pulses_per_sec,
     set_timer_ticks,
     start_timer,
-    stop_timer
+    stop_timer,
+    NULL
 };
 // clang-format on
 REGISTER_STEP_ENGINE(I2S, &i2s_engine);

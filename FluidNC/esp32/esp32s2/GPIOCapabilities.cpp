@@ -15,7 +15,7 @@ namespace Pins {
                 return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::ADC | PinCapabilities::ISR | PinCapabilities::UART;
 
             default:
-                if ((index >= 0 && index <= 21) || index == 26 || (index >= 33 && index <= 45)) {
+                if ((index <= 21) || index == 26 || (index >= 33 && index <= 45)) {
                     return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::Output | PinCapabilities::PullUp |
                            PinCapabilities::PullDown | PinCapabilities::PWM | PinCapabilities::ISR | PinCapabilities::UART |
                            (index <= 20 ? PinCapabilities::ADC : PinCapabilities::None);

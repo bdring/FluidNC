@@ -85,12 +85,11 @@ PwmPin::PwmPin(pinnum_t gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio
     ledc_mode_t speedmode = LEDC_LOW_SPEED_MODE;
 #endif
 
-    ledc_timer_config_t ledc_timer = { .speed_mode      = speedmode,
-                                       .duty_resolution = ledc_timer_bit_t(bits),
-                                       .timer_num       = timer,
-                                       .freq_hz         = frequency,
-                                       .clk_cfg         = LEDC_DEFAULT_CLK,
-                                       /* .deconfigure     = false  */ };
+    ledc_timer_config_t ledc_timer = {};
+    ledc_timer.speed_mode          = speedmode;
+    ledc_timer.duty_resolution     = ledc_timer_bit_t(bits);
+    ledc_timer.timer_num           = timer;
+    ledc_timer.freq_hz             = frequency;
 
     uint8_t attempt = 0;
     for (attempt = 0; attempt < 5; ++attempt) {

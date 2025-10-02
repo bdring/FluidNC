@@ -9,8 +9,12 @@
 static TaskHandle_t wdt_task_handle = nullptr;
 
 static void get_wdt_task_handle() {
+#ifdef IDFBUILD
+    TaskHandle_t idle_0 = xTaskGetIdleTaskHandleForCore(0);
+#else
     TaskHandle_t idle_0 = xTaskGetIdleTaskHandleForCPU(0);
-    esp_err_t    err;
+#endif
+    esp_err_t err;
     err = esp_task_wdt_status(idle_0);
     switch (err) {
         case ESP_OK:

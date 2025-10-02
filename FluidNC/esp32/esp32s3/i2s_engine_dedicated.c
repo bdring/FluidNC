@@ -29,7 +29,6 @@ static int32_t _stepPulseEndTime;
 static uint32_t i2s_output_ = 0;
 static uint32_t i2s_pulse_  = 0;
 
-// dedic_gpio_bundle_handle_t bundle = NULL;
 struct dedic_gpio_bundle_t* bundle = NULL;
 
 static void setup_dedicated_gpios(pinnum_t bck_pin, pinnum_t data_pin, pinnum_t ws_pin) {
@@ -43,7 +42,6 @@ static void setup_dedicated_gpios(pinnum_t bck_pin, pinnum_t data_pin, pinnum_t 
         },
     };
     ESP_ERROR_CHECK(dedic_gpio_new_bundle(&bundle_config, &bundle));
-    uint32_t* b = (uint32_t*)bundle;
 }
 
 static inline __attribute__((always_inline)) void oneclock(int32_t data) {
@@ -276,7 +274,8 @@ static step_engine_t engine = {
     max_pulses_per_sec,
     set_timer_ticks,
     start_timer,
-    stop_timer
+    stop_timer,
+    NULL
 };
 
 REGISTER_STEP_ENGINE(I2S, &engine);

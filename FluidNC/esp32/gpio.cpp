@@ -20,7 +20,9 @@ bool IRAM_ATTR gpio_read(pinnum_t pin) {
 }
 
 void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown, bool opendrain) {
-    gpio_config_t conf = { .pin_bit_mask = (1ULL << pin), .intr_type = GPIO_INTR_DISABLE };
+    gpio_config_t conf {};
+    conf.pin_bit_mask = (1ULL << pin);
+    conf.intr_type    = GPIO_INTR_DISABLE;
 
     if (input) {
         conf.mode = (gpio_mode_t)((int)conf.mode | GPIO_MODE_DEF_INPUT);
@@ -73,13 +75,6 @@ void gpio_route(pinnum_t pin, uint32_t signal) {
 
 typedef uint64_t gpio_mask_t;
 
-// Can be used to display gpio_mask_t data for debugging
-static const char* g_to_hex(gpio_mask_t n) {
-    static char hexstr[24];
-    snprintf(hexstr, 22, "0x%llx", n);
-    return hexstr;
-}
-
 static gpio_mask_t gpios_inverted = 0;  // GPIOs that are active low
 static gpio_mask_t gpios_interest = 0;  // GPIOs with an action
 static gpio_mask_t gpios_current  = 0;  // The last GPIO action events that were sent
@@ -113,7 +108,7 @@ static void* gpioArgs[MAX_N_GPIO + 1];
 
 void gpio_set_event(int32_t gpio_num, void* arg, bool invert) {
     gpioArgs[gpio_num] = arg;
-    gpio_mask_t mask   = gpio_mask(gpio_num);
+
     gpios_update(gpios_interest, gpio_num, true);
     gpios_update(gpios_inverted, gpio_num, invert);
     gpio_set_rate_limit(gpio_num, 5);

@@ -84,7 +84,8 @@ static step_engine_t engine = {
     max_pulses_per_sec,
     set_timer_ticks,
     start_timer,
-    stop_timer
+    stop_timer,
+    NULL
 };
 
 REGISTER_STEP_ENGINE(Timed, &engine);

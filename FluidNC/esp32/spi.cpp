@@ -38,14 +38,13 @@ bool spi_init_bus(pinnum_t sck_pin, pinnum_t miso_pin, pinnum_t mosi_pin, bool d
     // gpio_set_pull_mode(gpio_num_t(miso_pin), GPIO_PULLUP_ONLY);
     // gpio_set_pull_mode(gpio_num_t(sck_pin), GPIO_PULLUP_ONLY);
 
-    spi_bus_config_t bus_cfg = {
-        .mosi_io_num     = mosi_pin,
-        .miso_io_num     = miso_pin,
-        .sclk_io_num     = sck_pin,
-        .quadwp_io_num   = -1,
-        .quadhd_io_num   = -1,
-        .max_transfer_sz = 4000,
-    };
+    spi_bus_config_t bus_cfg = {};
+    bus_cfg.mosi_io_num      = mosi_pin;
+    bus_cfg.miso_io_num      = miso_pin;
+    bus_cfg.sclk_io_num      = sck_pin;
+    bus_cfg.quadwp_io_num    = -1;
+    bus_cfg.quadhd_io_num    = -1;
+    bus_cfg.max_transfer_sz  = 4000;
 
     // Depends on the chip variant
     bool ok = !spi_bus_initialize(HSPI_HOST, &bus_cfg, dma ? SPI_DMA_CH_AUTO : SPI_DMA_DISABLED);

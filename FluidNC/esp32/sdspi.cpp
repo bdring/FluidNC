@@ -64,7 +64,12 @@ fail:
     return err;
 }
 
+// NOTE: SDSPI_HOST_DEFAULT is incomplete and will give a warning
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 sdmmc_host_t  host_config = SDSPI_HOST_DEFAULT();
+#pragma GCC diagnostic pop
+
 sdmmc_card_t* card        = NULL;
 const char*   base_path   = "/sd";
 

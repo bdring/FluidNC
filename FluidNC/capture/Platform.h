@@ -3,6 +3,13 @@
 #define WEAK_LINK
 #define IRAM_ATTR
 
+#ifndef likely
+#    define likely(x) (x)
+#endif
+#ifndef unlikely
+#    define unlikely(x) (x)
+#endif
+
 #define MAX_N_GPIO 40
 
 // #define WITH_MBEDTLS
