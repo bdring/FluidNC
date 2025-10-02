@@ -25,7 +25,7 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint
 // setting the timing according to dir_delay_us and pulse_delay_us.
 // Return the index of that RMT channel which will be presented to
 // set_step_pin() later.
-static int init_step_pin(pinnum_t step_pin, int step_inverted) {
+static uint32_t init_step_pin(pinnum_t step_pin, bool step_inverted) {
     static rmt_channel_t next_RMT_chan_num = RMT_CHANNEL_0;
     if (next_RMT_chan_num == RMT_CHANNEL_MAX) {
         return -1;
@@ -66,19 +66,19 @@ static int init_step_pin(pinnum_t step_pin, int step_inverted) {
 }
 
 // The direction pin is a GPIO that is accessed in the usual way
-static IRAM_ATTR void set_dir_pin(pinnum_t pin, int level) {
+static void IRAM_ATTR set_dir_pin(pinnum_t pin, bool level) {
     gpio_write(pin, level);
 }
 
 // The direction delay is handled by the RMT pulser
-static IRAM_ATTR void finish_dir() {}
+static void IRAM_ATTR finish_dir() {}
 
 // No need for any common setup before setting step pins
-static IRAM_ATTR void start_step() {}
+static void IRAM_ATTR start_step() {}
 
 // Restart the RMT which has already been configured
 // for the desired pulse length, polarity, and direction delay
-static IRAM_ATTR void set_step_pin(pinnum_t pin, int level) {
+static void IRAM_ATTR set_step_pin(pinnum_t pin, bool level) {
 #ifdef CONFIG_IDF_TARGET_ESP32
     RMT.conf_ch[pin].conf1.mem_rd_rst = 1;
     RMT.conf_ch[pin].conf1.mem_rd_rst = 0;
@@ -92,19 +92,19 @@ static IRAM_ATTR void set_step_pin(pinnum_t pin, int level) {
 }
 
 // This is a noop because the RMT channels do everything
-static IRAM_ATTR void finish_step() {}
+static void IRAM_ATTR finish_step() {}
 
 // This is a noop because the RMT channels take care
 // of the pulse trailing edges.
 // Return 1 (true) to tell Stepping.cpp that it can
 // skip the rest of the step pin deassertion process
-static IRAM_ATTR int start_unstep() {
+static bool IRAM_ATTR start_unstep() {
     return 1;
 }
 
 // This is a noop and will not be called because start_unstep()
 // returns 1
-static IRAM_ATTR void finish_unstep() {}
+static void IRAM_ATTR finish_unstep() {}
 
 // Possible speedup: If the direction delay were done explicitly
 // instead of baking it into the RMT timing, we might be able to

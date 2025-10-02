@@ -20,7 +20,7 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint
     return _pulse_delay_us;
 }
 
-static pinnum_t init_step_pin(pinnum_t step_pin, bool step_invert) {
+static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
     return step_pin;
 }
 
