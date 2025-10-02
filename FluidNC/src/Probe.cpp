@@ -37,6 +37,7 @@ void Probe::group(Configuration::HandlerBase& handler) {
     handler.item("toolsetter_pin", _toolsetterPin);
     handler.item("check_mode_start", _check_mode_start);
     handler.item("hard_stop", _hard_stop);
+    handler.item("probe_hard_limit", _probe_hard_limit);  // non probing motion protection
 }
 void protocol_do_probe(void* arg) {
     Probe* p = config->_probe;
@@ -49,6 +50,13 @@ void protocol_do_probe(void* arg) {
             sys.state = State::Idle;
         } else {
             protocol_do_motion_cancel();
+        }
+    } else if (p->tripped() && p->_probe_hard_limit) {
+        // trip if in homing, cycle or jog, but not probing
+        if ((sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Homing) &&
+            (gc_state.modal.motion != Motion::ProbeAway && gc_state.modal.motion != Motion::ProbeAwayNoError &&
+             gc_state.modal.motion != Motion::ProbeToward && gc_state.modal.motion != Motion::ProbeTowardNoError)) {
+            mc_critical(ExecAlarm::ProbeHardLimit);
         }
     }
 }
