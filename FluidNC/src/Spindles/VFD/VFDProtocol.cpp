@@ -50,7 +50,7 @@ namespace Spindles {
             bool          safetyPollingEnabled = impl->safety_polling();
 
             for (; true; delay_ms(instance->_poll_ms)) {
-                std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
+                std::atomic_thread_fence(std::memory_order_seq_cst);  // read fence for settings
                 response_parser parser = nullptr;
 
                 // First check if we should ask the VFD for the speed parameters as part of the initialization.

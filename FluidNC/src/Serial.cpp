@@ -63,7 +63,7 @@ static TaskHandle_t channelCheckTaskHandle = 0;
 void heapCheckTask(void* pvParameters) {
     static uint32_t heapSize = 0;
     while (true) {
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings and whatnot
+        std::atomic_thread_fence(std::memory_order_seq_cst);  // read fence for settings and whatnot
         uint32_t newHeapSize = xPortGetFreeHeapSize();
         if (newHeapSize != heapSize) {
             heapSize = newHeapSize;
