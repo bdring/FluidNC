@@ -115,7 +115,7 @@ extern const NoArgEvent homingButtonEvent;
 
 // extern const NoArgEvent statusReportEvent;
 
-extern xQueueHandle event_queue;
+extern QueueHandle_t event_queue;
 
 extern bool pollingPaused;
 

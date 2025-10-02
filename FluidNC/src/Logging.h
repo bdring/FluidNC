@@ -29,7 +29,7 @@ struct LogMessage {
 
 extern TaskHandle_t outputTask;
 
-extern xQueueHandle message_queue;
+extern QueueHandle_t message_queue;
 
 extern const EnumItem messageLevels2[];
 

@@ -19,7 +19,6 @@ struct QueueHandle {
 };
 
 using QueueHandle_t = QueueHandle*;
-using xQueueHandle  = QueueHandle_t;
 
 #define errQUEUE_FULL ((BaseType_t)0)
 #define queueSEND_TO_BACK ((BaseType_t)0)

@@ -93,7 +93,7 @@ static void request_safety_door() {
 
 TaskHandle_t outputTask = nullptr;
 
-xQueueHandle message_queue;
+QueueHandle_t message_queue;
 
 void drain_messages() {
     while (uxQueueMessagesWaiting(message_queue)) {
@@ -1221,7 +1221,7 @@ const NoArgEvent rtResetEvent { protocol_do_rt_reset };
 // Event statusReportEvent { protocol_do_status_report(XXX) };
 const ArgEvent alarmEvent { (void (*)(void*))protocol_do_alarm };
 
-xQueueHandle event_queue;
+QueueHandle_t event_queue;
 
 void protocol_init() {
     event_queue   = xQueueCreate(10, sizeof(EventItem));

@@ -15,7 +15,7 @@
 #include <freertos/queue.h>
 #include <atomic>  // fence
 
-xQueueHandle limit_sw_queue;  // used by limit switch debouncing
+QueueHandle_t limit_sw_queue;  // used by limit switch debouncing
 
 void limits_init() {
 #ifdef LATER  // We need to rethink debouncing

@@ -118,7 +118,7 @@ typedef void (*PendedFunction_t)(void* arg1, uint32_t arg2);
  * has been specified in milliseconds.  For example, if the timer must expire
  * after 100 ticks, then xTimerPeriodInTicks should be set to 100.
  * Alternatively, if the timer must expire after 500ms, then xPeriod can be set
- * to ( 500 / portTICK_PERIOD_MS ) provided configTICK_RATE_HZ is less than or
+ * to ( 500 / portTICK_PERIOD_MS ) provided configTICK_PERIOD_HZ is less than or
  * equal to 1000.  Time timer period must be greater than 0.
  *
  * @param xAutoReload If xAutoReload is set to pdTRUE then the timer will
@@ -264,7 +264,7 @@ TimerHandle_t xTimerCreate(const char* const       pcTimerName,
  * has been specified in milliseconds.  For example, if the timer must expire
  * after 100 ticks, then xTimerPeriodInTicks should be set to 100.
  * Alternatively, if the timer must expire after 500ms, then xPeriod can be set
- * to ( 500 / portTICK_PERIOD_MS ) provided configTICK_RATE_HZ is less than or
+ * to ( 500 / portTICK_PERIOD_MS ) provided configTICK_PERIOD_HZ is less than or
  * equal to 1000.  The timer period must be greater than 0.
  *
  * @param xAutoReload If xAutoReload is set to pdTRUE then the timer will
@@ -571,7 +571,7 @@ TaskHandle_t xTimerGetTimerDaemonTaskHandle(void) PRIVILEGED_FUNCTION;
  * that has been specified in milliseconds.  For example, if the timer must
  * expire after 100 ticks, then xNewPeriod should be set to 100.  Alternatively,
  * if the timer must expire after 500ms, then xNewPeriod can be set to
- * ( 500 / portTICK_PERIOD_MS ) provided configTICK_RATE_HZ is less than
+ * ( 500 / portTICK_PERIOD_MS ) provided configTICK_PERIOD_HZ is less than
  * or equal to 1000.
  *
  * @param xTicksToWait Specifies the time, in ticks, that the calling task should
@@ -955,7 +955,7 @@ TaskHandle_t xTimerGetTimerDaemonTaskHandle(void) PRIVILEGED_FUNCTION;
  * that has been specified in milliseconds.  For example, if the timer must
  * expire after 100 ticks, then xNewPeriod should be set to 100.  Alternatively,
  * if the timer must expire after 500ms, then xNewPeriod can be set to
- * ( 500 / portTICK_PERIOD_MS ) provided configTICK_RATE_HZ is less than
+ * ( 500 / portTICK_PERIOD_MS ) provided configTICK_PERIOD_HZ is less than
  * or equal to 1000.
  *
  * @param pxHigherPriorityTaskWoken The timer service/daemon task spends most
