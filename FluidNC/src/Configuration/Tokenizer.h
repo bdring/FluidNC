@@ -20,7 +20,7 @@ namespace Configuration {
         void parseValue();
 
     public:
-        int              _linenum;
+        uint32_t         _linenum;
         std::string_view _line;
 
         // Results:
@@ -31,7 +31,7 @@ namespace Configuration {
             TokenData() : _key(), _value(), _indent(-1), _state(TokenState::Bof) {}
             std::string_view _key;
             std::string_view _value;
-            int              _indent;
+            uint8_t          _indent;
 
             TokenState _state = TokenState::Bof;
         } _token;

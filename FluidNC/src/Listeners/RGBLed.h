@@ -9,10 +9,10 @@ namespace Listeners {
     class RGBLed : public SysListener {
         Adafruit_NeoPixel* pixels_ = nullptr;
 
-        Pin pin_;
-        int index_ = 0;
+        Pin      pin_;
+        uint32_t index_ = 0;
 
-        std::string getColor(int value) {
+        std::string getColor(int32_t value) {
             if (value == -1) {
                 return "none";
             } else {
@@ -22,7 +22,7 @@ namespace Listeners {
             }
         }
 
-        int parseColor(const std::string& value, int deft) {
+        int32_t parseColor(const std::string& value, int32_t deft) {
             if (value == "none") {  // no change
                 return -1;
             }
@@ -32,7 +32,7 @@ namespace Listeners {
                 return deft;
             }
 
-            int v = 0;
+            int32_t v = 0;
             for (int i = 0; i < 3; ++i) {
                 int x = 0;
                 for (int j = 0; j < 2; ++j) {
@@ -59,18 +59,18 @@ namespace Listeners {
             static_cast<RGBLed*>(userData)->handleChangeDetail(changes, state);
         }
 
-        int idle        = 0x007F00;
-        int alarm       = 0x7F0000;
-        int checkMode   = 0xb936bf;
-        int homing      = 0x501f00;
-        int cycle       = 0x7f4422;
-        int hold        = 0x777744;
-        int jog         = 0x007f3f;
-        int safetyDoor  = 0x3f7f00;
-        int sleep       = 0x001F00;
-        int configAlarm = 0x7f0000;
+        uint32_t idle        = 0x007F00;
+        uint32_t alarm       = 0x7F0000;
+        uint32_t checkMode   = 0xb936bf;
+        uint32_t homing      = 0x501f00;
+        uint32_t cycle       = 0x7f4422;
+        uint32_t hold        = 0x777744;
+        uint32_t jog         = 0x007f3f;
+        uint32_t safetyDoor  = 0x3f7f00;
+        uint32_t sleep       = 0x001F00;
+        uint32_t configAlarm = 0x7f0000;
 
-        void handleRGBString(Configuration::HandlerBase& handler, const char* name, int& value) {
+        void handleRGBString(Configuration::HandlerBase& handler, const char* name, uint32_t& value) {
             auto        old = value;
             std::string str = getColor(old);
             handler.item(name, str);

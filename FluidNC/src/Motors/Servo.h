@@ -23,6 +23,6 @@ namespace MotorDrivers {
 
     protected:
         static void update_servo(TimerHandle_t timer);
-        static void schedule_update(Servo* object, int interval);
+        static void schedule_update(Servo* object, uint32_t interval);
     };
 }

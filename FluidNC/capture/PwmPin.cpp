@@ -8,7 +8,7 @@
 #include "Driver/PwmPin.h"
 #include "Config.h"
 
-PwmPin::PwmPin(int gpio, bool invert, uint32_t frequency) : _gpio(gpio), _frequency(frequency) {
+PwmPin::PwmPin(pinnum_t gpio, bool invert, uint32_t frequency) : _gpio(gpio), _frequency(frequency) {
     uint8_t bits = 12;
     _period      = 1000000 / frequency;
 }

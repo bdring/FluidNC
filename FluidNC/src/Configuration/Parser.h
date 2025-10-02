@@ -25,13 +25,13 @@ namespace Configuration {
 
         std::string_view        stringValue() const;
         bool                    boolValue() const;
-        int                     intValue() const;
+        int32_t                 intValue() const;
         uint32_t                uintValue() const;
         std::vector<speedEntry> speedEntryValue() const;
         std::vector<float>      floatArray() const;
         float                   floatValue() const;
         Pin                     pinValue() const;
-        int                     enumValue(const EnumItem* e) const;
+        uint32_t                enumValue(const EnumItem* e) const;
         IPAddress               ipValue() const;
         void                    uartMode(UartData& wordLength, UartParity& parity, UartStop& stopBits) const;
     };

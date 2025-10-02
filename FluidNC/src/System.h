@@ -139,7 +139,7 @@ public:
            r_override_ = value;
     }
 
-    void IRAM_ATTR set_spindle_speed_ovr(int value) {
+    void IRAM_ATTR set_spindle_speed_ovr(uint32_t value) {
         dirty_             = SystemDirty(int(dirty_) | int(SystemDirty::SpindleSpeedOverride));
         spindle_speed_ovr_ = value;
     }

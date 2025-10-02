@@ -12,9 +12,9 @@ InputFile::InputFile(const char* defaultFs, const char* path) : FileStream(path,
   Returns Error::EOF on end of file.
   Returns other Error code on error, after displaying a message.
 */
-Error InputFile::readLine(char* line, int maxlen) {
-    int len = 0;
-    int c;
+Error InputFile::readLine(char* line, size_t maxlen) {
+    size_t len = 0;
+    int    c;
     while ((c = read()) >= 0) {
         if (len >= maxlen) {
             return Error::LineLengthExceeded;

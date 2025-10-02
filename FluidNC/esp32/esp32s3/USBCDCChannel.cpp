@@ -30,7 +30,7 @@ void cb(void* arg, esp_event_base_t base, int32_t id, void* data) {
     //   ::printf("Callback %p %d %d %p\n", arg, base, id, data);
 }
 
-static int state = 0;
+static uint32_t state = 0;
 
 static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     if (event_base == ARDUINO_USB_EVENTS) {
@@ -222,7 +222,7 @@ size_t USBCDCChannel::timedReadBytes(char* buffer, size_t length, TickType_t tim
 
     while (timeout) {
         if (_cdc.available()) {
-            int res = int(_cdc.read(buffer, length));
+            int32_t res = int32_t(_cdc.read(buffer, length));
             // If res < 0, no bytes were read
             return res < 0 ? 0 : res;
         }

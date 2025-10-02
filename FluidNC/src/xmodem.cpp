@@ -28,7 +28,7 @@
 /* this code needs standard functions memcpy() and memset()
    and input/output functions _inbyte() and _outbyte().
    the prototypes of the input/output functions are:
-     int _inbyte(uint16_t timeout); // msec timeout
+     int32_t _inbyte(uint16_t timeout); // msec timeout
      void _outbyte(int c);
  */
 
@@ -37,7 +37,7 @@
 static Channel* serialPort;
 static Print*   file;
 
-static int _inbyte(uint16_t timeout) {
+static int32_t _inbyte(uint16_t timeout) {
     uint8_t data;
     auto    res = serialPort->timedReadBytes(&data, 1, timeout);
     return res != 1 ? -1 : data;
@@ -71,10 +71,10 @@ static const uint16_t crc16tab[256] = {
 };
 
 uint16_t crc16_ccitt(const uint8_t* buf, size_t len) {
-    int      counter;
     uint16_t crc = 0;
-    for (counter = 0; counter < len; counter++)
+    while (len--) {
         crc = (crc << 8) ^ crc16tab[((crc >> 8) ^ *buf++) & 0x00FF];
+    }
     return crc;
 }
 
@@ -90,23 +90,25 @@ uint16_t crc16_ccitt(const uint8_t* buf, size_t len) {
 #define MAXRETRANS 25
 #define TRANSMIT_XMODEM_1K
 
-static int check(int crc, const uint8_t* buf, int sz) {
+static bool check(int crc, const uint8_t* buf, int sz) {
     if (crc) {
         uint16_t crc  = crc16_ccitt(buf, sz);
         uint16_t tcrc = (buf[sz] << 8) + buf[sz + 1];
-        if (crc == tcrc)
-            return 1;
+        if (crc == tcrc) {
+            return true;
+        }
     } else {
-        int     i;
+        size_t  i;
         uint8_t cks = 0;
         for (i = 0; i < sz; ++i) {
             cks += buf[i];
         }
-        if (cks == buf[sz])
-            return 1;
+        if (cks == buf[sz]) {
+            return true;
+        }
     }
 
-    return 0;
+    return false;
 }
 
 static void flushinput(void) {
@@ -151,18 +153,20 @@ static void write_packet(uint8_t* buf, size_t packet_len, size_t& total_len) {
     memcpy(held_packet, buf, packet_len);
     held_packet_len = packet_len;
 }
-int xmodemReceive(Channel* serial, FileStream* out) {
+int32_t xmodemReceive(Channel* serial, FileStream* out) {
     serialPort      = serial;
     file            = out;
     held_packet_len = 0;
 
     uint8_t  xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
     uint8_t* p;
-    int      bufsz = 0, crc = 0;
+    size_t   bufsz    = 0;
+    uint16_t crc      = 0;
     uint8_t  trychar  = 'C';
     uint8_t  packetno = 1;
-    int      i, c           = 0;
-    int      retry, retrans = MAXRETRANS;
+    size_t   i;
+    int32_t  c = 0;
+    size_t   retry, retrans = MAXRETRANS;
 
     size_t len = 0;
 
@@ -242,12 +246,14 @@ int xmodemReceive(Channel* serial, FileStream* out) {
 int xmodemTransmit(Channel* serial, FileStream* infile) {
     serialPort = serial;
 
-    uint8_t xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
-    int     bufsz, crc = -1;
-    uint8_t packetno = 1;
-    int     i, c = 0;
-    size_t  len = 0;
-    int     retry;
+    uint8_t  xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
+    size_t   bufsz;
+    uint16_t crc      = -1;
+    uint8_t  packetno = 1;
+    size_t   i;
+    int32_t  c   = 0;
+    size_t   len = 0;
+    size_t   retry;
 
     for (;;) {
         for (retry = 0; retry < 16; ++retry) {

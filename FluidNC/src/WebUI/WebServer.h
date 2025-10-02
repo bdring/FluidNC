@@ -97,7 +97,7 @@ namespace WebUI {
 
         static bool myStreamFile(const char* path, bool download = false);
 
-        static void pushError(int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
+        static void pushError(uint16_t code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
 
         static void cancelUpload();
         static void handleFileOps(const char* mountpoint);
@@ -111,21 +111,21 @@ namespace WebUI {
         static void uploadCheck();
 
         static void synchronousCommand(const char* cmd, bool silent, AuthenticationLevel auth_level);
-        static void websocketCommand(const char* cmd, int pageid, AuthenticationLevel auth_level);
+        static void websocketCommand(const char* cmd, int32_t pageid, AuthenticationLevel auth_level);
 
         static void sendFSError(Error err);
-        static void sendJSON(int code, const char* s);
-        static void sendJSON(int code, const std::string& s) {
+        static void sendJSON(uint16_t code, const char* s);
+        static void sendJSON(uint16_t code, const std::string& s) {
             sendJSON(code, s.c_str());
         }
         static void sendAuth(const char* status, const char* level, const char* user);
         static void sendAuthFailed();
-        static void sendStatus(int code, const char* str);
+        static void sendStatus(uint16_t code, const char* str);
 
-        static void sendWithOurAddress(const char* s, int code);
+        static void sendWithOurAddress(const char* s, uint16_t code);
         static void sendCaptivePortal();
         static void send404Page();
 
-        static int getPageid();
+        static int32_t getPageid();
     };
 }

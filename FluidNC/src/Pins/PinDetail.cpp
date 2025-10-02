@@ -10,7 +10,7 @@ namespace Pins {
     }
 
     // cppcheck-suppress unusedFunction
-    void IRAM_ATTR PinDetail::synchronousWrite(int high) {
+    void IRAM_ATTR PinDetail::synchronousWrite(bool high) {
         write(high);
     }
 }

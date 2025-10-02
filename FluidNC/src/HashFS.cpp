@@ -7,7 +7,7 @@
 
 std::map<std::string, std::string> HashFS::localFsHashes;
 
-static char hexNibble(int i) {
+static char hexNibble(uint8_t i) {
     return "0123456789ABCDEF"[i & 0xf];
 }
 
@@ -62,7 +62,7 @@ void HashFS::delete_file(const std::filesystem::path& path, bool report) {
 }
 
 bool HashFS::file_is_hashable(const std::filesystem::path& path) {
-    int count = 0;
+    uint32_t count = 0;
     for (auto it = path.begin(); it != path.end(); ++it) {
         ++count;
     }

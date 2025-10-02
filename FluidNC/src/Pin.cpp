@@ -72,8 +72,8 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
     }
 #endif
     if (string_util::starts_with_ignore_case(pin_type, "uart_channel")) {
-        auto num_str     = pin_type.substr(strlen("uart_channel"));
-        int  channel_num = -1;
+        auto   num_str     = pin_type.substr(strlen("uart_channel"));
+        int8_t channel_num = -1;
         std::from_chars(num_str.data(), num_str.data() + num_str.size(), channel_num);
         if (channel_num == -1 || channel_num > 2) {
             return "Bad uart_channel number";

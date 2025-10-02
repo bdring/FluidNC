@@ -24,7 +24,7 @@ bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin = -1, int wp_pin = -1
 void sd_deinit_slot() {}
 void sd_unmount() {}
 
-std::error_code sd_mount(int max_files) {
+std::error_code sd_mount(uint32_t max_files) {
     return {};
 };
 
@@ -57,6 +57,6 @@ int32_t getCpuTicks() {
 }
 
 #include "Driver/i2s_out.h"
-int i2s_out_init(i2s_out_init_t* params) {
-    return 0;
+void i2s_out_init(i2s_out_init_t* params) {
+    return;
 }

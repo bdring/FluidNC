@@ -35,8 +35,8 @@
 #    define CLOCK_FREQUENCY 80000000
 #endif
 
-static int allocateChannel() {
-    static int nextLedcChannel = 0;
+static uint8_t allocateChannel() {
+    static uint8_t nextLedcChannel = 0;
 
     // Increment by 2 because there are only 4 timers so only
     // four completely independent channels.  We could be
@@ -72,7 +72,7 @@ static uint8_t calc_pwm_precision(uint32_t frequency) {
     return ledcMaxBits;
 }
 
-PwmPin::PwmPin(int gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio), _frequency(frequency) {
+PwmPin::PwmPin(pinnum_t gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio), _frequency(frequency) {
     uint8_t bits       = calc_pwm_precision(frequency);
     _period            = (1 << bits) - 1;
     _channel           = allocateChannel();
@@ -92,7 +92,7 @@ PwmPin::PwmPin(int gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio), _f
                                        .clk_cfg         = LEDC_DEFAULT_CLK,
                                        /* .deconfigure     = false  */ };
 
-    int attempt = 0;
+    uint8_t attempt = 0;
     for (attempt = 0; attempt < 5; ++attempt) {
         if (ledc_timer_config(&ledc_timer) != ESP_OK) {
             log_error("ledc timer setup failed. Frequency: " << frequency << " hz; duty resolution: " << bits);
@@ -105,10 +105,10 @@ PwmPin::PwmPin(int gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio), _f
         Assert(false, "LEDC timer setup failed.");
     }
 
-    int maxFrequency = int(CLOCK_FREQUENCY / float(1 << bits));
-    log_info("Max frequency of LEDC set at " << maxFrequency << "; duty resolution: " << bits << "; channel " << int(_channel));
+    uint32_t maxFrequency = uint32_t(CLOCK_FREQUENCY / float(1 << bits));
+    log_info("Max frequency of LEDC set at " << maxFrequency << "; duty resolution: " << bits << "; channel " << _channel);
 
-    ledc_channel_config_t ledc_channel = { .gpio_num   = _gpio,
+    ledc_channel_config_t ledc_channel = { .gpio_num   = int(_gpio),
                                            .speed_mode = speedmode,
                                            .channel    = ledc_channel_t(_channel),
                                            .intr_type  = LEDC_INTR_DISABLE,
@@ -118,8 +118,7 @@ PwmPin::PwmPin(int gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio), _f
                                            .flags      = { .output_invert = isActiveLow } };
 
     if (ledc_channel_config(&ledc_channel) != ESP_OK) {
-        log_error("ledc channel setup failed. Frequency: " << frequency << " hz; duty resolution: " << bits
-                                                           << "; channel: " << int(_channel));
+        log_error("ledc channel setup failed. Frequency: " << frequency << " hz; duty resolution: " << bits << "; channel: " << _channel);
     }
 
     // We write 1 item to ensure the complete configuration is correct of both timer and ledc:

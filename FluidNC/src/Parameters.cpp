@@ -111,19 +111,19 @@ bool ngc_param_is_rw(ngc_param_id_t id) {
     return true;
 }
 
-static bool is_axis(int axis) {
+static bool is_axis(uint8_t axis) {
     return axis >= 0 && axis < MAX_N_AXIS;
 }
-static bool is_rotary(int axis) {
+static bool is_rotary(uint8_t axis) {
     return axis >= A_AXIS && axis <= C_AXIS;
 }
-static float to_inches(int axis, float value) {
+static float to_inches(uint8_t axis, float value) {
     if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
         return value * INCH_PER_MM;
     }
     return value;
 }
-static float to_mm(int axis, float value) {
+static float to_mm(uint8_t axis, float value) {
     if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
         return value * MM_PER_INCH;
     }
@@ -131,7 +131,7 @@ static float to_mm(int axis, float value) {
 }
 
 bool get_numbered_param(ngc_param_id_t id, float& result) {
-    int axis;
+    uint8_t axis;
     for (auto const& [key, coord_index] : axis_params) {
         axis = id - key;
         if (is_axis(axis)) {
@@ -229,7 +229,7 @@ bool get_config_item(const std::string& name, float& result) {
     return false;
 }
 
-int coord_values[] = { 540, 550, 560, 570, 580, 590, 591, 592, 593 };
+uint32_t coord_values[] = { 540, 550, 560, 570, 580, 590, 591, 592, 593 };
 
 bool get_system_param(const std::string& name, float& result) {
     std::string sysn;
@@ -491,7 +491,7 @@ bool set_named_param(const std::string& name, float value) {
 }
 
 bool set_numbered_param(ngc_param_id_t id, float value) {
-    int axis;
+    uint8_t axis;
     for (auto const& [key, coord_index] : axis_params) {
         axis = id - key;
         if (is_axis(axis)) {

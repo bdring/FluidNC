@@ -88,7 +88,7 @@ namespace Kinematics {
         auto n_axis = Axes::_numberAxis;
 
         // warn about axis soft limits
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (uint8_t axis = 0; axis < n_axis; axis++) {
             if (axes->_axis[axis]->_softLimits) {
                 log_config_error(" All soft_limits configured in axes should be false");
                 break;
@@ -238,7 +238,7 @@ namespace Kinematics {
         return true;
     }
 
-    void ParallelDelta::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
+    void ParallelDelta::motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) {
         //log_debug("motors_to_cartesian motors: (" << motors[0] << "," << motors[1] << "," << motors[2] << ")");
         //log_info("motors_to_cartesian rf:" << rf << " re:" << re << " f:" << f << " e:" << e);
 
@@ -297,7 +297,7 @@ namespace Kinematics {
         Axes::set_disable(false);
 
         // TODO deal with non kinematic axes above Z
-        for (int axis = 0; axis < 3; axis++) {
+        for (uint8_t axis = 0; axis < 3; axis++) {
             //set_motor_steps(axis, mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis));
             int32_t steps = mpos_to_steps(_homing_mpos, axis);
             set_motor_steps(axis, steps);

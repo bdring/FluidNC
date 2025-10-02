@@ -35,7 +35,7 @@ namespace Pins {
 
     // The write will not happen immediately; the data is queued for
     // delivery to the serial shift register chain via DMA and a FIFO
-    void IRAM_ATTR I2SOPinDetail::write(int high) {
+    void IRAM_ATTR I2SOPinDetail::write(bool high) {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
             i2s_out_write(_index, _inverted ^ (bool)high);
@@ -44,7 +44,7 @@ namespace Pins {
 
     // Write and wait for completion.  Not suitable for use from an ISR
     // cppcheck-suppress unusedFunction
-    void IRAM_ATTR I2SOPinDetail::synchronousWrite(int high) {
+    void IRAM_ATTR I2SOPinDetail::synchronousWrite(bool high) {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
 
@@ -53,7 +53,7 @@ namespace Pins {
         }
     }
 
-    int I2SOPinDetail::read() {
+    bool I2SOPinDetail::read() {
         auto raw = i2s_out_read(_index);
         return (bool)raw ^ _inverted;
     }

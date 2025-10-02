@@ -35,11 +35,11 @@ uint32_t i2s_frame_us;  // 1, 2 or 4
 
 static volatile uint32_t i2s_out_port_data = 0;
 
-static int i2s_out_initialized = 0;
+static bool i2s_out_initialized = 0;
 
-static pinnum_t i2s_out_ws_pin   = 255;
-static pinnum_t i2s_out_bck_pin  = 255;
-static pinnum_t i2s_out_data_pin = 255;
+static pinnum_t i2s_out_ws_pin   = INVALID_PINNUM;
+static pinnum_t i2s_out_bck_pin  = INVALID_PINNUM;
+static pinnum_t i2s_out_data_pin = INVALID_PINNUM;
 
 static inline void i2s_out_reset_tx_rx() {
     i2s_ll_tx_reset(&I2S0);
@@ -51,36 +51,33 @@ static inline void i2s_out_reset_fifo_without_lock() {
     i2s_ll_rx_reset_fifo(&I2S0);
 }
 
-static int i2s_out_gpio_attach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
+static void i2s_out_gpio_attach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
     // Route the i2s pins to the appropriate GPIO
     gpio_route(data, I2S0O_DATA_OUT23_IDX);
     gpio_route(bck, I2S0O_BCK_OUT_IDX);
     gpio_route(ws, I2S0O_WS_OUT_IDX);
-    return 0;
 }
 
 const int I2S_OUT_DETACH_PORT_IDX = 0x100;
 
-static int i2s_out_gpio_detach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
+static void i2s_out_gpio_detach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
     // Route the i2s pins to the appropriate GPIO
     gpio_route(ws, I2S_OUT_DETACH_PORT_IDX);
     gpio_route(bck, I2S_OUT_DETACH_PORT_IDX);
     gpio_route(data, I2S_OUT_DETACH_PORT_IDX);
-    return 0;
 }
 
-static int i2s_out_gpio_shiftout(uint32_t port_data) {
+static void i2s_out_gpio_shiftout(uint32_t port_data) {
     gpio_write(i2s_out_ws_pin, 0);
-    for (int i = 0; i < I2S_OUT_NUM_BITS; i++) {
+    for (size_t i = 0; i < I2S_OUT_NUM_BITS; i++) {
         gpio_write(i2s_out_data_pin, !!(port_data & (1 << (I2S_OUT_NUM_BITS - 1 - i))));
         gpio_write(i2s_out_bck_pin, 1);
         gpio_write(i2s_out_bck_pin, 0);
     }
     gpio_write(i2s_out_ws_pin, 1);  // Latch
-    return 0;
 }
 
-static int i2s_out_stop() {
+static void i2s_out_stop() {
     // stop TX module
     i2s_ll_tx_stop(&I2S0);
 
@@ -99,13 +96,11 @@ static int i2s_out_stop() {
     // Transmit recovery data to 74HC595
     uint32_t port_data = i2s_out_port_data;  // current expanded port value
     i2s_out_gpio_shiftout(port_data);
-
-    return 0;
 }
 
-static int i2s_out_start() {
+static void i2s_out_start() {
     if (!i2s_out_initialized) {
-        return -1;
+        return;
     }
 
     // Transmit recovery data to 74HC595
@@ -127,8 +122,6 @@ static int i2s_out_start() {
     // Wait for the first FIFO data to prevent the unintentional generation of 0 data
     delay_us(20);
     i2s_ll_tx_stop_on_fifo_empty(&I2S0, false);
-
-    return 0;
 }
 
 // The key FIFO parameters are FIFO_THRESHOLD and FIFO_RELOAD
@@ -182,9 +175,9 @@ uint8_t i2s_out_read(pinnum_t pin) {
     return !!(port_data & (1 << pin));
 }
 
-int i2s_out_init(i2s_out_init_t* init_param) {
+void i2s_out_init(i2s_out_init_t* init_param) {
     if (i2s_out_initialized) {
-        return -1;
+        return;
     }
 
     i2s_frame_us = init_param->min_pulse_us;
@@ -312,8 +305,6 @@ int i2s_out_init(i2s_out_init_t* init_param) {
 
     // Start the I2S peripheral
     i2s_out_start();
-
-    return 0;
 }
 
 // Interface to step engine
@@ -431,14 +422,14 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us, uint32_t f
     return _pulse_counts * i2s_frame_us;
 }
 
-static int init_step_pin(int step_pin, int step_invert) {
+static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
     return step_pin;
 }
 
 // This modifies a memory variable that contains the desired
 // pin states.  Later, that variable will be transferred to
 // the I2S FIFO to change all the affected pins at once.
-static IRAM_ATTR void set_dir_pin(int pin, int level) {
+static IRAM_ATTR void set_dir_pin(pinnum_t pin, bool level) {
     i2s_out_write(pin, level);
 }
 
@@ -456,7 +447,7 @@ static void IRAM_ATTR start_step() {
     _pulse_data = i2s_out_port_data;
 }
 
-static IRAM_ATTR void set_step_pin(int pin, int level) {
+static IRAM_ATTR void set_step_pin(pinnum_t pin, bool level) {
     uint32_t bit = 1 << pin;
     if (level) {
         _pulse_data |= bit;
@@ -467,8 +458,8 @@ static IRAM_ATTR void set_step_pin(int pin, int level) {
 
 static void IRAM_ATTR finish_step() {}
 
-static int IRAM_ATTR start_unstep() {
-    return 1;
+static bool IRAM_ATTR start_unstep() {
+    return true;  // Skip the rest of the step process
 }
 
 // Not called since start_unstep() returns 1

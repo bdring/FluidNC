@@ -162,7 +162,7 @@ namespace Kinematics {
 
       Convert the n_axis array of motor positions to cartesian in your code.
     */
-    void WallPlotter::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
+    void WallPlotter::motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) {
         // The motors start at zero, but effectively at zero_left, so we need to correct for the computation.
         // Note that the left motor runs backward.
         // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??

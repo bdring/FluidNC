@@ -83,7 +83,7 @@ void gc_sync_position() {
 static bool decode_format_string(const char* comment, size_t& index, size_t len, const char*& format) {
     // comment[index] is '%'
     const char* f   = comment + index;
-    int         rem = len - index;
+    size_t      rem = len - index;
     if (rem > 1 && f[1] == 'd') {
         ++index;
         format = "%.0f";
@@ -255,7 +255,7 @@ Error gc_execute_line(const char* input_line) {
     memset(&gc_block, 0, sizeof(parser_block_t));                  // Initialize the parser block struct.
     memcpy(&gc_block.modal, &gc_state.modal, sizeof(gc_modal_t));  // Copy current modes
     AxisCommand axis_command = AxisCommand::None;
-    size_t      axis_0, axis_1, axis_linear;
+    uint8_t     axis_0, axis_1, axis_linear;
     CoordIndex  coord_select = CoordIndex::G54;  // Tracks G10 P coordinate selection for execution
     // Initialize bitflag tracking variables for axis indices compatible operations.
     size_t axis_words = 0;  // XYZ tracking

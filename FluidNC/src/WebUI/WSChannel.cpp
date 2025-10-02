@@ -60,7 +60,7 @@ namespace WebUI {
             out    = (uint8_t*)_output_line.c_str();
             outlen = _output_line.length();
         }
-        int stat = _server->canSend(_clientNum);
+        auto stat = _server->canSend(_clientNum);
         if (stat < 0) {
             _active = false;
             return 0;
@@ -91,7 +91,7 @@ namespace WebUI {
         if (!_active) {
             return;
         }
-        int stat = _server->canSend(_clientNum);
+        auto stat = _server->canSend(_clientNum);
         if (stat < 0) {
             _active = false;
             log_debug_to(Console, "WebSocket is dead; closing");
@@ -111,7 +111,7 @@ namespace WebUI {
 
     WSChannel* WSChannels::_lastWSChannel = nullptr;
 
-    WSChannel* WSChannels::getWSChannel(int pageid) {
+    WSChannel* WSChannels::getWSChannel(uint32_t pageid) {
         WSChannel* wsChannel = nullptr;
         if (pageid != -1) {
             try {
@@ -154,7 +154,7 @@ namespace WebUI {
         }
     }
 
-    bool WSChannels::runGCode(int pageid, std::string_view cmd) {
+    bool WSChannels::runGCode(uint32_t pageid, std::string_view cmd) {
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
             if (cmd.length()) {
@@ -174,7 +174,7 @@ namespace WebUI {
         return true;  // Error - no websocket
     }
 
-    bool WSChannels::sendError(int pageid, std::string err) {
+    bool WSChannels::sendError(uint32_t pageid, std::string err) {
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
             return !wsChannel->sendTXT(err);

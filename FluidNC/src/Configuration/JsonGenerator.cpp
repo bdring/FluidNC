@@ -14,7 +14,7 @@
 
 namespace Configuration {
     JsonGenerator::JsonGenerator(JSONencoder& encoder) : _encoder(encoder) {
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+        std::atomic_thread_fence(std::memory_order_seq_cst);
     }
 
     void JsonGenerator::enter(const char* name) {
@@ -59,7 +59,7 @@ namespace Configuration {
         leave();
     }
 
-    void JsonGenerator::item(const char* name, int& value, const int32_t minValue, const int32_t maxValue) {
+    void JsonGenerator::item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) {
         enter(name);
         char buf[32];
         itoa(value, buf, 10);
@@ -147,9 +147,9 @@ namespace Configuration {
         leave();
     }
 
-    void JsonGenerator::item(const char* name, int& value, const EnumItem* e) {
+    void JsonGenerator::item(const char* name, uint32_t& value, const EnumItem* e) {
         enter(name);
-        int selected_val = 0;
+        int32_t selected_val = 0;
         //const char* str          = "unknown";
         for (auto e2 = e; e2->name; ++e2) {
             if (value == e2->value) {

@@ -29,7 +29,7 @@ namespace Kinematics {
         return _system->cartesian_to_motors(target, pl_data, position);
     }
 
-    void Kinematics::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
+    void Kinematics::motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) {
         Assert(_system != nullptr, "No kinematic system");
         return _system->motors_to_cartesian(cartesian, motors, n_axis);
     }

@@ -79,7 +79,7 @@ namespace Spindles {
         uint32_t _spinup_ms   = 0;
         uint32_t _spindown_ms = 0;
 
-        int _tool = -1;
+        int32_t _tool = -1;
 
         std::vector<Configuration::speedEntry> _speeds;
 

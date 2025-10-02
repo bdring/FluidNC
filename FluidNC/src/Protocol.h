@@ -130,7 +130,7 @@ void protocol_handle_events();
 void send_alarm(ExecAlarm alarm);
 void send_alarm_from_ISR(ExecAlarm alarm);
 
-inline void protocol_send_event(const Event* evt, int arg) {
+inline void protocol_send_event(const Event* evt, uint32_t arg) {
     protocol_send_event(evt, reinterpret_cast<void*>(arg));
 }
 

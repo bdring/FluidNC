@@ -82,7 +82,7 @@ void report_realtime_debug();
 
 void reportTaskStackSize(UBaseType_t& saved);
 
-void hex_msg(uint8_t* buf, const char* prefix, int len);
+void hex_msg(uint8_t* buf, const char* prefix, size_t len);
 
 #include "MyIOStream.h"
 

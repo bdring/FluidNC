@@ -16,13 +16,13 @@ namespace Pins {
         bool          _value = false;
 
     public:
-        ChannelPinDetail(UartChannel* channel, int number, const PinOptionsParser& options);
+        ChannelPinDetail(UartChannel* channel, pinnum_t index, const PinOptionsParser& options);
 
         PinCapabilities capabilities() const override;
 
         // I/O:
-        void          write(int high) override;
-        int           read() override;
+        void          write(bool high) override;
+        bool          read() override;
         void          setAttr(PinAttributes value, uint32_t frequency = 0) override;
         PinAttributes getAttr() const override;
         void          setDuty(uint32_t duty) override;

@@ -54,7 +54,7 @@ namespace Configuration {
     }
 
     // cppcheck-suppress unusedFunction
-    int Parser::intValue() const {
+    int32_t Parser::intValue() const {
         auto    value_token = string_util::trim(_token._value);
         int32_t int_value;
         if (string_util::from_decimal(value_token, int_value)) {
@@ -186,7 +186,7 @@ namespace Configuration {
     }
 
     // cppcheck-suppress unusedFunction
-    int Parser::enumValue(const EnumItem* e) const {
+    uint32_t Parser::enumValue(const EnumItem* e) const {
         auto token = string_util::trim(_token._value);
         for (; e->name; ++e) {
             if (string_util::equal_ignore_case(token, e->name)) {

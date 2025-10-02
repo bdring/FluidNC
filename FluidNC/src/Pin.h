@@ -109,10 +109,10 @@ public:
         Assert(_detail->capabilities().has(expectedBehavior), "Requested pin %s does not have the expected behavior.", name().c_str());
         return _detail->_index;
     }
-    inline int8_t driveStrength() const { return _detail->driveStrength(); }
-    inline bool   canStep() { return _detail->canStep(); }
-    inline int    index() { return _detail->_index; }
-    inline bool   inverted() { return _detail->_inverted; }
+    inline int8_t   driveStrength() const { return _detail->driveStrength(); }
+    inline bool     canStep() { return _detail->canStep(); }
+    inline pinnum_t index() { return _detail->_index; }
+    inline bool     inverted() { return _detail->_inverted; }
 
     // In principle, IRAM_ATTR would not be needed for inlined methods, but
     // the compiler does not seem to actually inline these.  Adding IRAM_ATTR

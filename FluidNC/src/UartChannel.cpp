@@ -5,7 +5,7 @@
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
 
-UartChannel::UartChannel(int num, bool addCR) : Channel("uart_channel", num, addCR) {
+UartChannel::UartChannel(uint8_t num, bool addCR) : Channel("uart_channel", num, addCR) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
     _active   = false;
 }
@@ -114,7 +114,7 @@ bool UartChannel::lineComplete(char* line, char c) {
 }
 
 int UartChannel::read() {
-    int c = _uart->read();
+    auto c = _uart->read();
     if (c == 0x11) {
         // 0x11 is XON.  If we receive that, it is a request to use software flow control
         _uart->setSwFlowControl(true, -1, -1);
@@ -138,7 +138,7 @@ size_t UartChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeo
         _queue.pop();
     }
 
-    int res = _uart->timedReadBytes(buffer, remlen, timeout);
+    auto res = _uart->timedReadBytes(buffer, remlen, timeout);
     // If res < 0, no bytes were read
     remlen -= (res < 0) ? 0 : res;
     return length - remlen;
@@ -156,7 +156,7 @@ void UartChannel::registerEvent(uint8_t pinnum, InputPin* obj) {
     _uart->registerInputPin(pinnum, obj);
 }
 
-bool UartChannel::setAttr(int index, bool* value, const std::string& attrString) {
+bool UartChannel::setAttr(uint8_t index, bool* value, const std::string& attrString) {
     out(attrString, "EXP:");
     _ackwait = 1;
     for (int i = 0; i < 20; i++) {

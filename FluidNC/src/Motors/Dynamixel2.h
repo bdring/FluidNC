@@ -23,7 +23,7 @@ namespace MotorDrivers {
 
         uint8_t _id = 255;
 
-        static int _timer_ms;
+        static int32_t _timer_ms;  // SdB: TODO FIXME This is asking for trouble; timer_ms is a name in Servo as well.
 
         static uint8_t _tx_message[100];  // outgoing to dynamixel
         static uint8_t _msg_index;
@@ -55,11 +55,11 @@ namespace MotorDrivers {
 
         static std::vector<Dynamixel2*> _instances;
 
-        int _axis_index;
+        uint8_t _axis_index;
 
         static Uart* _uart;
 
-        int _uart_num = -1;
+        int32_t _uart_num = -1;
 
         static bool _uart_started;
 

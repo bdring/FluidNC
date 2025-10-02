@@ -2,7 +2,7 @@
 
 using namespace Machine;
 
-SSD1306_I2C::SSD1306_I2C(uint8_t address, OLEDDISPLAY_GEOMETRY g, I2CBus* i2c, int frequency) :
+SSD1306_I2C::SSD1306_I2C(uint8_t address, OLEDDISPLAY_GEOMETRY g, I2CBus* i2c, uint32_t frequency) :
     _address(address), _i2c(i2c), _frequency(frequency), _error(false) {
     setGeometry(g);
 }

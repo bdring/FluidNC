@@ -308,7 +308,7 @@ namespace WebUI {
         delete file;
         return true;
     }
-    void Web_Server::sendWithOurAddress(const char* content, int code) {
+    void Web_Server::sendWithOurAddress(const char* content, uint16_t code) {
         auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
         std::string ipstr = IP_string(ip);
         if (_port != 80) {
@@ -438,7 +438,7 @@ namespace WebUI {
 #endif
 
     // WebUI sends a PAGEID arg to identify the websocket it is using
-    int Web_Server::getPageid() {
+    int32_t Web_Server::getPageid() {
         if (_webserver->hasArg("PAGEID")) {
             return _webserver->arg("PAGEID").toInt();
         }
@@ -469,7 +469,7 @@ namespace WebUI {
         }
         webClient.detachWS();
     }
-    void Web_Server::websocketCommand(const char* cmd, int pageid, AuthenticationLevel auth_level) {
+    void Web_Server::websocketCommand(const char* cmd, int32_t pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
             _webserver->send(401, "text/plain", "Authentication failed\n");
             return;
@@ -515,16 +515,16 @@ namespace WebUI {
         const char* smsg;
         std::string sUser, sPassword;
         const char* auths;
-        int         code            = 200;
+        uint16_t    code            = 200;
         bool        msg_alert_error = false;
         //disconnect can be done anytime no need to check credential
         if (_webserver->hasArg("DISCONNECT")) {
             std::string cookie(_webserver->header("Cookie").c_str());
-            int         pos = cookie.find("ESPSESSIONID=");
+            size_t      pos = cookie.find("ESPSESSIONID=");
             std::string sessionID;
             if (pos != std::string::npos) {
-                int pos2  = cookie.find(";", pos);
-                sessionID = cookie.substr(pos + strlen("ESPSESSIONID="), pos2);
+                size_t pos2 = cookie.find(";", pos);
+                sessionID   = cookie.substr(pos + strlen("ESPSESSIONID="), pos2);
             }
             ClearAuthIP(_webserver->client().remoteIP(), sessionID);
             _webserver->sendHeader("Set-Cookie", "ESPSESSIONID=0");
@@ -645,10 +645,10 @@ namespace WebUI {
         } else {
             if (auth_level != AuthenticationLevel::LEVEL_GUEST) {
                 std::string cookie(_webserver->header("Cookie").c_str());
-                int         pos = cookie.find("ESPSESSIONID=");
+                size_t      pos = cookie.find("ESPSESSIONID=");
                 std::string sessionID;
                 if (pos != std::string::npos) {
-                    int pos2                            = cookie.find(";", pos);
+                    size_t pos2                         = cookie.find(";", pos);
                     sessionID                           = cookie.substr(pos + strlen("ESPSESSIONID="), pos2);
                     AuthenticationIP* current_auth_info = GetAuth(_webserver->client().remoteIP(), sessionID.c_str());
                     if (current_auth_info != NULL) {
@@ -720,7 +720,7 @@ namespace WebUI {
     }
 
     //push error code and message to websocket.  Used by upload code
-    void Web_Server::pushError(int code, const char* st, bool web_error, uint16_t timeout) {
+    void Web_Server::pushError(uint16_t code, const char* st, bool web_error, uint16_t timeout) {
         if (_socket_server && st) {
             std::string s("ERROR:");
             s += std::to_string(code) + ":";
@@ -791,7 +791,7 @@ namespace WebUI {
         uploadCheck();
     }
 
-    void Web_Server::sendJSON(int code, const char* s) {
+    void Web_Server::sendJSON(uint16_t code, const char* s) {
         _webserver->sendHeader("Cache-Control", "no-cache");
         _webserver->send(200, "application/json", s);
     }
@@ -811,7 +811,7 @@ namespace WebUI {
         sendJSON(200, s);
     }
 
-    void Web_Server::sendStatus(int code, const char* status) {
+    void Web_Server::sendStatus(uint16_t code, const char* status) {
         std::string s;
         JSONencoder j(&s);
         j.begin();
@@ -1000,7 +1000,7 @@ namespace WebUI {
             } else if (action == "deletedir") {
                 stdfs::path dirpath { fpath / filename };
                 log_debug("Deleting directory " << dirpath);
-                int count = stdfs::remove_all(dirpath, ec);
+                size_t count = stdfs::remove_all(dirpath, ec);
                 if (count > 0) {
                     sstatus = filename + " deleted";
                     HashFS::report_change();
@@ -1067,7 +1067,7 @@ namespace WebUI {
         j.member("total", formatBytes(totalspace));
         j.member("used", formatBytes(usedspace + 1));
 
-        uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
+        uint8_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
 
         j.member("occupation", percent);
         j.member("status", sstatus);
@@ -1154,7 +1154,7 @@ namespace WebUI {
 
             // Check size
             if (filesize) {
-                uint32_t actual_size;
+                size_t actual_size;
                 try {
                     actual_size = stdfs::file_size(filepath);
                 } catch (const Error err) { actual_size = 0; }
@@ -1301,7 +1301,7 @@ namespace WebUI {
     const char* Web_Server::create_session_ID() {
         static char sessionID[17];
         //reset SESSIONID
-        for (int i = 0; i < 17; i++) {
+        for (size_t i = 0; i < 17; i++) {
             sessionID[i] = '\0';
         }
         //get time

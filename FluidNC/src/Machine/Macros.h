@@ -9,7 +9,7 @@
 // #include <algorithm>  // std::replace()
 
 class MacroEvent : public Event {
-    int _num;
+    uint8_t _num;
 
 public:
     MacroEvent(int num) : _num(num) {}
@@ -25,7 +25,7 @@ class Macro;
 namespace Machine {
     class Macros : public Configuration::Configurable {
     public:
-        static const int n_macros = 4;
+        static const uint8_t n_macros = 4;
 
         static Macro _macro[];
         static Macro _startup;
@@ -62,7 +62,7 @@ namespace Machine {
 
         Macro* _macro;
 
-        Error readLine(char* line, int maxlen);
+        Error readLine(char* line, size_t maxlen);
         void  end_message();
 
     public:

@@ -29,8 +29,8 @@ public:
 private:
     FluidPath(const char* name, const char* fs, std::error_code*);
 
-    static int _refcnt;
-    bool       _isSD = false;
+    static uint32_t _refcnt;
+    bool            _isSD = false;
 };
 
 #include <Print.h>

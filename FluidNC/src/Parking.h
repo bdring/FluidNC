@@ -15,12 +15,12 @@
 class Parking : public Configuration::Configurable {
 private:
     // Configuration
-    bool  _enable       = false;
-    float _target_mpos  = -5.0;
-    float _pullout      = 5.0;
-    float _rate         = 800.0;
-    float _pullout_rate = 250.0;
-    int   _axis         = 2;  // Default to Z
+    bool     _enable       = false;
+    float    _target_mpos  = -5.0;
+    float    _pullout      = 5.0;
+    float    _rate         = 800.0;
+    float    _pullout_rate = 250.0;
+    uint32_t _axis         = 2;  // Default to Z
 
     // local variables
     float parking_target[MAX_N_AXIS];

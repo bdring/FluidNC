@@ -716,7 +716,7 @@ void Stepper::prep_buffer() {
         // fStepperTimer is in units of timerTicks/sec, so the dimensional analysis is
         // timerTicks/sec * 60 sec/minute * minutes = timerTicks
         uint32_t timerTicks = uint32_t(ceilf((Machine::Stepping::fStepperTimer * 60) * inv_rate));  // (timerTicks/step)
-        int      level;
+        uint8_t  level;
 
         // Compute step timing and multi-axis smoothing level.
         for (level = 0; level < maxAmassLevel; level++) {

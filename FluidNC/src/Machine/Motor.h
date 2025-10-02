@@ -21,11 +21,11 @@ namespace Machine {
         LimitPin _posLimitPin;
         LimitPin _allLimitPin;
 
-        int _axis;
-        int _motorNum;
+        uint8_t _axis;
+        uint8_t _motorNum;
 
     public:
-        Motor(int axis, int motorNum);
+        Motor(uint8_t axis, uint8_t motorNum);
 
         MotorDrivers::MotorDriver* _driver  = nullptr;
         float                      _pulloff = 1.0f;  // mm
@@ -38,7 +38,7 @@ namespace Machine {
         bool hasSwitches();
         bool isReal();
         void makeDualSwitches();
-        void limitOtherAxis(int axis);
+        void limitOtherAxis(uint8_t axis);
         void init();
         void config_motor();
         ~Motor();

@@ -49,7 +49,7 @@ typedef struct {
   Initialize I2S out by parameters.
   return -1 ... already initialized
 */
-int i2s_out_init(i2s_out_init_t* init_param);
+void i2s_out_init(i2s_out_init_t* init_param);
 
 /*
   Read a bit state from the internal pin state var.

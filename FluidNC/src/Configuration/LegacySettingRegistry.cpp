@@ -19,7 +19,7 @@ namespace Configuration {
         if (isLegacySetting(str)) {
             auto start = str;
 
-            int value = 0;
+            uint32_t value = 0;
             ++str;
 
             while (*str && *str >= '0' && *str <= '9') {
@@ -40,7 +40,7 @@ namespace Configuration {
         }
     }
 
-    void LegacySettingRegistry::tryLegacy(int index, const char* value) {
+    void LegacySettingRegistry::tryLegacy(uint32_t index, const char* value) {
         bool handled = false;
         for (auto it : instance().handlers_) {
             if (it->index() == index) {

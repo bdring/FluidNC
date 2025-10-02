@@ -257,9 +257,9 @@ public:
     // Return a pointer to the array
     const float* get() { return _currentValue; }
     // Get an individual component
-    const float get(int axis) { return _currentValue[axis]; }
+    const float get(uint8_t axis) { return _currentValue[axis]; }
     // Set an individual component
-    void set(int axis, float value) { _currentValue[axis] = value; }
+    void set(uint8_t axis, float value) { _currentValue[axis] = value; }
 
     void set(float* value);
 };
@@ -271,8 +271,8 @@ private:
     std::string _defaultValue;
     std::string _currentValue;
     std::string _storedValue;
-    int         _minLength;
-    int         _maxLength;
+    int32_t     _minLength;
+    int32_t     _maxLength;
     void        _setStoredValue(const char* s);
 
 public:
@@ -282,8 +282,8 @@ public:
                   const char*   grblName,
                   const char*   name,
                   const char*   defVal,
-                  int           min,
-                  int           max);
+                  int32_t       min,
+                  int32_t       max);
 
     StringSetting(type_t type, permissions_t permissions, const char* grblName, const char* name, const char* defVal) :
         StringSetting(NULL, type, permissions, grblName, name, defVal, 0, 0) {};

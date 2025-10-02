@@ -25,7 +25,7 @@ namespace Machine {
 
     uint32_t Axes::_homing_runs = 2;  // Number of Approach/Pulloff cycles
 
-    int Axes::_numberAxis = 0;
+    uint8_t Axes::_numberAxis = 0;
 
     Axis* Axes::_axis[MAX_N_AXIS] = { nullptr };
 
@@ -61,8 +61,8 @@ namespace Machine {
         config_motors();
     }
 
-    void IRAM_ATTR Axes::set_disable(int axis, bool disable) {
-        for (int motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+    void IRAM_ATTR Axes::set_disable(uint8_t axis, bool disable) {
+        for (uint8_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
             auto m = _axis[axis]->_motors[motor];
             if (m) {
                 m->_driver->set_disable(disable);
@@ -73,7 +73,7 @@ namespace Machine {
     }
 
     void IRAM_ATTR Axes::set_disable(bool disable) {
-        for (int axis = 0; axis < _numberAxis; axis++) {
+        for (uint8_t axis = 0; axis < _numberAxis; axis++) {
             set_disable(axis, disable);
         }
 
@@ -113,7 +113,7 @@ namespace Machine {
     }
 
     void Axes::config_motors() {
-        for (int axis = 0; axis < _numberAxis; ++axis) {
+        for (uint8_t axis = 0; axis < _numberAxis; ++axis) {
             _axis[axis]->config_motors();
         }
     }
@@ -121,8 +121,8 @@ namespace Machine {
     // Some small helpers to find the axis index and axis motor index for a given motor. This
     // is helpful for some motors that need this info, as well as debug information.
     size_t Axes::findAxisIndex(const MotorDrivers::MotorDriver* const driver) {
-        for (int i = 0; i < _numberAxis; ++i) {
-            for (int j = 0; j < Axis::MAX_MOTORS_PER_AXIS; ++j) {
+        for (uint8_t i = 0; i < _numberAxis; ++i) {
+            for (uint8_t j = 0; j < Axis::MAX_MOTORS_PER_AXIS; ++j) {
                 if (_axis[i] != nullptr && _axis[i]->hasMotor(driver)) {
                     return i;
                 }
@@ -134,9 +134,9 @@ namespace Machine {
     }
 
     size_t Axes::findAxisMotor(const MotorDrivers::MotorDriver* const driver) {
-        for (int i = 0; i < _numberAxis; ++i) {
+        for (uint8_t i = 0; i < _numberAxis; ++i) {
             if (_axis[i] != nullptr && _axis[i]->hasMotor(driver)) {
-                for (int j = 0; j < Axis::MAX_MOTORS_PER_AXIS; ++j) {
+                for (uint8_t j = 0; j < Axis::MAX_MOTORS_PER_AXIS; ++j) {
                     auto m = _axis[i]->_motors[j];
                     if (m && m->_driver == driver) {
                         return j;
@@ -196,7 +196,7 @@ namespace Machine {
     std::string Axes::maskToNames(AxisMask mask) {
         std::string retval("");
         auto        n_axis = _numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (uint8_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(mask, axis)) {
                 retval += _names[axis];
             }
@@ -206,14 +206,14 @@ namespace Machine {
     std::string Axes::motorMaskToNames(MotorMask mask) {
         std::string retval("");
         auto        n_axis = _numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (uint8_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(mask, axis)) {
                 retval += " ";
                 retval += _names[axis];
             }
         }
         mask >>= 16;
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (uint8_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(mask, axis)) {
                 retval += " ";
                 retval += _names[axis];
@@ -225,10 +225,10 @@ namespace Machine {
 
     MotorMask Axes::hardLimitMask() {
         MotorMask mask = 0;
-        for (int axis = 0; axis < _numberAxis; ++axis) {
+        for (uint8_t axis = 0; axis < _numberAxis; ++axis) {
             auto a = _axis[axis];
 
-            for (int motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; ++motor) {
+            for (uint8_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; ++motor) {
                 auto m = a->_motors[motor];
                 if (m && m->_hardLimits) {
                     set_bitnum(mask, axis);
@@ -241,7 +241,7 @@ namespace Machine {
     bool Axes::namesToMask(const char* names, AxisMask& mask) {
         bool       retval   = true;
         const auto lenNames = strlen(names);
-        for (int i = 0; i < lenNames; i++) {
+        for (uint8_t i = 0; i < lenNames; i++) {
             char        axisName = toupper(names[i]);
             const char* pos      = strchr(_names, axisName);
             if (!pos) {
@@ -255,7 +255,7 @@ namespace Machine {
     }
 
     Axes::~Axes() {
-        for (int i = 0; i < MAX_N_AXIS; ++i) {
+        for (uint8_t i = 0; i < MAX_N_AXIS; ++i) {
             if (_axis[i] != nullptr) {
                 delete _axis[i];
             }

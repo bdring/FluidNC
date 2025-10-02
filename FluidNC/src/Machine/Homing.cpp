@@ -536,10 +536,10 @@ namespace Machine {
         nextCycle();
     }
 
-    AxisMask Homing::axis_mask_from_cycle(int cycle) {
+    AxisMask Homing::axis_mask_from_cycle(uint32_t cycle) {
         AxisMask axisMask = 0;
         auto     n_axis   = Axes::_numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (uint8_t axis = 0; axis < n_axis; axis++) {
             auto axisConfig = Axes::_axis[axis];
             auto homing     = axisConfig->_homing;
             if (homing && homing->_cycle == cycle) {

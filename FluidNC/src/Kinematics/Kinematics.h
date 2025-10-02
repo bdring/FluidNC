@@ -37,7 +37,7 @@ namespace Kinematics {
         void init_position();
 
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
-        void motors_to_cartesian(float* cartesian, float* motors, int n_axis);
+        void motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis);
         bool transform_cartesian_to_motors(float* motors, float* cartesian);
 
         void constrain_jog(float* target, plan_line_data_t* pl_data, float* position);
@@ -77,7 +77,7 @@ namespace Kinematics {
             return false;
         }
 
-        virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis) = 0;
+        virtual void motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) = 0;
 
         virtual bool transform_cartesian_to_motors(float* motors, float* cartesian) = 0;
 

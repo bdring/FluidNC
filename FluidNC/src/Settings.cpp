@@ -180,7 +180,7 @@ const char* IntSetting::getDefaultString() {
 const char* IntSetting::getStringValue() {
     static char strval[32];
 
-    int currentSettingValue;
+    int32_t currentSettingValue;
     if (_currentIsNvm) {
         if (std::numeric_limits<int32_t>::min() == _storedValue) {
             currentSettingValue = _defaultValue;
@@ -208,8 +208,8 @@ StringSetting::StringSetting(const char*   description,
                              const char*   grblName,
                              const char*   name,
                              const char*   defVal,
-                             int           min,
-                             int           max) :
+                             int32_t       min,
+                             int32_t       max) :
     Setting(description, type, permissions, grblName, name),
     _defaultValue(defVal), _currentValue(defVal), _minLength(min), _maxLength(max) {
     load();
@@ -332,7 +332,7 @@ Error EnumSetting::setStringValue(std::string_view s) {
             showList();
             return Error::BadNumberFormat;
         }
-        int num;
+        int32_t num;
         // Disallow non-numeric characters in string
         auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.length(), num);
         if (ec != std::errc()) {

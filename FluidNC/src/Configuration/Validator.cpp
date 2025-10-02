@@ -12,7 +12,7 @@
 namespace Configuration {
     Validator::Validator() {
         // Read fence for config. Shouldn't be necessary, but better safe than sorry.
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+        std::atomic_thread_fence(std::memory_order_seq_cst);
     }
 
     void Validator::enterSection(const char* name, Configurable* value) {

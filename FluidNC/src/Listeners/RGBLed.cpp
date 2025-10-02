@@ -24,8 +24,8 @@ namespace Listeners {
 
     void RGBLed::handleChangeDetail(SystemDirty changes, const system_t& state) {
         if ((int(changes) & int(SystemDirty::State)) != 0) {
-            int index = index_;
-            int value = -1;
+            uint32_t index = index_;
+            int32_t value = -1;
 
             switch (state.state()) {
                 case State::Idle:

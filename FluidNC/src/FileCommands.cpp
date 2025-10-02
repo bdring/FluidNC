@@ -99,8 +99,8 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
 
     std::string_view args(parameter);
 
-    int firstline = 0;
-    int lastline  = 0;
+    uint32_t firstline = 0;
+    uint32_t lastline  = 0;
 
     std::string_view line_range;
     // Syntax: firstline:lastline,filename  or lastline,filename
@@ -145,7 +145,7 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
     } else {
         char  fileLine[255];
         Error res;
-        for (int linenum = 0; linenum < lastline && (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
+        for (uint32_t linenum = 0; linenum < lastline && (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
             if (linenum >= firstline) {
                 j.string(fileLine);
             }
@@ -601,11 +601,11 @@ static Error xmodem_receive(const char* value, AuthenticationLevel auth_level, C
     pollingPaused = true;
     bool oldCr    = out.setCr(false);
     delay_ms(1000);
-    int size = xmodemReceive(&out, outfile);
+    int len = xmodemReceive(&out, outfile);
     out.setCr(oldCr);
     pollingPaused = false;
-    if (size >= 0) {
-        log_info("Received " << size << " bytes to file " << outfile->path());
+    if (len >= 0) {
+        log_info("Received " << len << " bytes to file " << outfile->path());
     } else {
         log_info("Reception failed or was canceled");
     }
@@ -613,7 +613,7 @@ static Error xmodem_receive(const char* value, AuthenticationLevel auth_level, C
     delete outfile;
     HashFS::rehash_file(fname);
 
-    return size < 0 ? Error::UploadFailed : Error::Ok;
+    return len < 0 ? Error::UploadFailed : Error::Ok;
 }
 
 static Error xmodem_send(const char* value, AuthenticationLevel auth_level, Channel& out) {
@@ -630,15 +630,15 @@ static Error xmodem_send(const char* value, AuthenticationLevel auth_level, Chan
     }
     bool oldCr = out.setCr(false);
     log_info("Sending " << value << " via XModem");
-    int size = xmodemTransmit(&out, infile);
+    int len = xmodemTransmit(&out, infile);
     out.setCr(oldCr);
     delete infile;
-    if (size >= 0) {
-        log_info("Sent " << size << " bytes");
+    if (len >= 0) {
+        log_info("Sent " << len << " bytes");
     } else {
         log_info("Sending failed or was canceled");
     }
-    return size < 0 ? Error::DownloadFailed : Error::Ok;
+    return len < 0 ? Error::DownloadFailed : Error::Ok;
 }
 
 static Error restart(const char* parameter, AuthenticationLevel auth_level, Channel& out) {

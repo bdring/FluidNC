@@ -18,7 +18,7 @@ SDCard::SDCard() : _state(State::Idle) {}
 void SDCard::init() {
     static bool init_message = true;  // used to show messages only once.
     pinnum_t    csPin;
-    int         csFallback;
+    pinnum_t    csFallback;
 
     if (_cs.defined()) {
         if (!config->_spi->defined()) {
@@ -29,8 +29,8 @@ void SDCard::init() {
         }
         _cs.setAttr(Pin::Attr::Output);
         csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-    } else if ((csFallback = sd_fallback_cs->get()) != -1) {
-        csPin = static_cast<pinnum_t>(csFallback);
+    } else if ((csFallback = sd_fallback_cs->get()) != INVALID_PINNUM) {
+        csPin = csFallback;
         log_info("Using fallback CS pin " << int(csPin));
     } else {
         log_debug("See http://wiki.fluidnc.com/en/config/sd_card#sdfallbackcs-access-sd-without-a-config-file");

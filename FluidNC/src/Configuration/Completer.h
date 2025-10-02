@@ -10,7 +10,7 @@ namespace Configuration {
     class Completer : public Configuration::HandlerBase {
     private:
         std::string _key;
-        int         _reqMatch;
+        uint32_t    _reqMatch;
         char*       _matchedStr;
         std::string _currentPath;
 
@@ -21,9 +21,9 @@ namespace Configuration {
         bool matchesUninitialized(const char* name) override { return false; }
 
     public:
-        Completer(const char* key, int requestedMatch, char* matchedStr);
+        Completer(const char* key, uint32_t requestedMatch, char* matchedStr);
 
-        int _numMatches;
+        uint32_t _numMatches;
 
         void item(const char* name);
         void item(const char* name, bool& value) override { item(name); }
@@ -38,7 +38,7 @@ namespace Configuration {
         void item(const char* name, Pin& value) { item(name); }
         void item(const char* name, Macro& value) { item(name); }
         void item(const char* name, IPAddress& value) override { item(name); }
-        void item(const char* name, int& value, const EnumItem* e) override { item(name); }
+        void item(const char* name, uint32_t& value, const EnumItem* e) override { item(name); }
 
         HandlerType handlerType() override { return HandlerType::Completer; }
 

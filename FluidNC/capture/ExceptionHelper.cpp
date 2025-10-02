@@ -76,12 +76,12 @@ public:
         ret.load_size    = mi.SizeOfImage;
 
         GetModuleFileNameExW(process, module, temp, sizeof(temp) / sizeof(WCHAR));
-        for (int i = 0; i < buffer_length; ++i) {
+        for (size_t i = 0; i < buffer_length; ++i) {
             temp2[i] = char(temp[i]);
         }
         ret.image_name = temp2;
         GetModuleBaseNameW(process, module, temp, sizeof(temp));
-        for (int i = 0; i < buffer_length; ++i) {
+        for (size_t i = 0; i < buffer_length; ++i) {
             temp2[i] = char(temp[i]);
         }
         ret.module_name = temp2;
@@ -148,7 +148,7 @@ void DumpStackTrace(std::ostringstream& builder) {
 
     // Build the string:
     bool foundCreateException = false;
-    for (int n = 0; n < 10 && frame.AddrPC.Offset != 0; ++n) {
+    for (size_t n = 0; n < 10 && frame.AddrPC.Offset != 0; ++n) {
         if (frame.AddrPC.Offset != 0) {
             std::string fnName = symbol(process, frame.AddrPC.Offset).undecorated_name();
 

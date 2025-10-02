@@ -238,9 +238,9 @@ namespace Extenders {
     }
 
     // ISR's:
-    void I2CPinExtenderBase::attachInterrupt(pinnum_t index, void (*callback)(void*, bool), void* arg, int mode) {
-        int device    = index / 16;
-        int pinNumber = index % 16;
+    void I2CPinExtenderBase::attachInterrupt(pinnum_t index, void (*callback)(void*, bool), void* arg, uint8_t mode) {
+        uint8_t  device    = index / 16;
+        pinnum_t pinNumber = index % 16;
 
         Assert(_isrData[device]._isrCallback[pinNumber] == nullptr, "You can only set a single ISR for pin %d", index);
 
@@ -251,8 +251,8 @@ namespace Extenders {
     }
 
     void I2CPinExtenderBase::detachInterrupt(pinnum_t index) {
-        int device    = index / 16;
-        int pinNumber = index % 16;
+        uint8_t  device    = index / 16;
+        pinnum_t pinNumber = index % 16;
 
         _isrData[device]._isrCallback[pinNumber] = nullptr;
         _isrData[device]._isrArgument[pinNumber] = nullptr;

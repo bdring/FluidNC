@@ -4,7 +4,7 @@
 #include "ExtPinDetail.h"
 
 namespace Pins {
-    ExtPinDetail::ExtPinDetail(int device, pinnum_t index, const PinOptionsParser& options) :
+    ExtPinDetail::ExtPinDetail(uint32_t device, pinnum_t index, const PinOptionsParser& options) :
         PinDetail(index), _device(device), _capabilities(PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::ISR),
         _attributes(Pins::PinAttributes::Undefined) {
         // User defined pin capabilities
@@ -24,18 +24,18 @@ namespace Pins {
     }
 
     // I/O:
-    void ExtPinDetail::write(int high) {
+    void ExtPinDetail::write(bool high) {
         Assert(_owner != nullptr, "Cannot write to uninitialized pin");
         _owner->writePin(_index, high);
     }
 
-    void ExtPinDetail::synchronousWrite(int high) {
+    void ExtPinDetail::synchronousWrite(bool high) {
         Assert(_owner != nullptr, "Cannot write to uninitialized pin");
         _owner->writePin(_index, high);
         _owner->flushWrites();
     }
 
-    int ExtPinDetail::read() {
+    bool ExtPinDetail::read() {
         Assert(_owner != nullptr, "Cannot read from uninitialized pin");
         return _owner->readPin(_index);
     }
@@ -73,7 +73,7 @@ namespace Pins {
     }
 
 #if 0
-    void ExtPinDetail::attachInterrupt(void (*callback)(void*, bool), void* arg, int mode) {
+    void ExtPinDetail::attachInterrupt(void (*callback)(void*, bool), void* arg, uint8_t mode) {
         Assert(_owner != nullptr, "Cannot attach ISR on uninitialized pin");
         _owner->attachInterrupt(_index, callback, arg, mode);
     }

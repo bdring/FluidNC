@@ -136,7 +136,7 @@ namespace Spindles {
             auto minSpeedAllowed = dev_speed > _slop ? (dev_speed - _slop) : 0;
             auto maxSpeedAllowed = dev_speed + _slop;
 
-            int       unchanged = 0;
+            uint32_t  unchanged = 0;
             const int limit     = 20;  // 20 * 0.5s = 10 sec
             auto      last      = _sync_dev_speed;
 

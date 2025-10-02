@@ -212,7 +212,7 @@ namespace WebUI {
 
         void wifi_stats(JSONencoder& j) {
             j.id_value_object("Sleep mode", WiFi.getSleep() ? "Modem" : "None");
-            int mode = WiFi.getMode();
+            auto mode = WiFi.getMode();
             if (mode != WIFI_OFF) {
                 //Is OTA available ?
                 size_t flashsize = 0;
@@ -343,7 +343,7 @@ namespace WebUI {
 
         void status_report(Channel& out) {
             log_stream(out, "Sleep mode: " << (WiFi.getSleep() ? "Modem" : "None"));
-            int mode = WiFi.getMode();
+            auto mode = WiFi.getMode();
             if (mode != WIFI_OFF) {
                 //Is OTA available ?
                 size_t flashsize = 0;
@@ -888,7 +888,7 @@ namespace WebUI {
 
             // An initial async scanNetworks was issued at startup, so there
             // is a good chance that scan information is already available.
-            int n;
+            int32_t n;
             while (true) {
                 n = WiFi.scanComplete();
                 if (n >= 0) {  // Scan completed with n results

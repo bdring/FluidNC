@@ -36,14 +36,14 @@ namespace Machine {
 
         static uint32_t _homing_runs;  // Number of Approach/Pulloff cycles
 
-        static inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; }  // returns axis letter
+        static inline char axisName(uint8_t index) { return index < MAX_N_AXIS ? _names[index] : '?'; }  // returns axis letter
 
         static inline size_t    motor_bit(size_t axis, size_t motor) { return motor ? axis + 16 : axis; }
         static inline AxisMask  motors_to_axes(MotorMask motors) { return (motors & 0xffff) | (motors >> 16); }
         static inline MotorMask axes_to_motors(AxisMask axes) { return axes | (axes << 16); }
 
-        static int   _numberAxis;
-        static Axis* _axis[MAX_N_AXIS];
+        static uint8_t _numberAxis;
+        static Axis*   _axis[MAX_N_AXIS];
 
         // Some small helpers to find the axis index and axis motor number for a given motor. This
         // is helpful for some motors that need this info, as well as debug information.
@@ -72,7 +72,7 @@ namespace Machine {
         // The return value is a bitmask of axes that can home
         static MotorMask set_homing_mode(AxisMask homing_mask, bool isHoming);
 
-        static void set_disable(int axis, bool disable);
+        static void set_disable(uint8_t axis, bool disable);
         static void set_disable(bool disable);
         static void step(uint8_t step_mask, uint8_t dir_mask);
         static void unstep();

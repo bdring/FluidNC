@@ -11,7 +11,7 @@
 #include <atomic>
 
 namespace Configuration {
-    Completer::Completer(const char* key, int reqMatch, char* matchedStr) :
+    Completer::Completer(const char* key, uint32_t reqMatch, char* matchedStr) :
         _key(key), _reqMatch(reqMatch), _matchedStr(matchedStr), _currentPath("/"), _numMatches(0) {}
 
     void Completer::addCandidate(std::string fullName) {
@@ -68,8 +68,8 @@ static bool isInitialSubstringCI(const char* key, const char* test) {
 // matchnum is the index of the match that we will return
 // matchname is the matchnum'th match
 
-int num_initial_matches(const char* key, int keylen, int matchnum, char* matchname) {
-    int nfound = 0;
+uint32_t num_initial_matches(const char* key, uint32_t keylen, uint32_t matchnum, char* matchname) {
+    uint32_t nfound = 0;
 
     if (key[0] == '/') {
         char keycstr[100];

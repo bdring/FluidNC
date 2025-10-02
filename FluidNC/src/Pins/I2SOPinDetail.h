@@ -23,9 +23,9 @@ namespace Pins {
         PinCapabilities capabilities() const override;
 
         // I/O:
-        void          write(int high) override;
-        void          synchronousWrite(int high) override;
-        int           read() override;
+        void          write(bool high) override;
+        void          synchronousWrite(bool high) override;
+        bool          read() override;
         void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
 

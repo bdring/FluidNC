@@ -123,13 +123,13 @@ namespace Kinematics {
       The status command uses motors_to_cartesian() to convert
       motor positions to cartesian X,Y,Z... coordinates.
     */
-    void CoreXY::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
+    void CoreXY::motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) {
         // apply the forward kinemetics to the machine coordinates
         // https://corexy.com/theory.html
         cartesian[X_AXIS] = 0.5 * (motors[X_AXIS] + motors[Y_AXIS]) / _x_scaler;
         cartesian[Y_AXIS] = 0.5 * (motors[X_AXIS] - motors[Y_AXIS]);
 
-        for (int axis = Z_AXIS; axis < n_axis; axis++) {
+        for (uint8_t axis = Z_AXIS; axis < n_axis; axis++) {
             cartesian[axis] = motors[axis];
         }
     }

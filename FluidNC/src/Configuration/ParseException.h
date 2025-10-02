@@ -5,16 +5,16 @@
 
 namespace Configuration {
     class ParseException {
-        int               _linenum = 0;
+        uint32_t          _linenum = 0;
         const std::string _description;
 
     public:
         ParseException()                      = default;
         ParseException(const ParseException&) = default;
 
-        ParseException(int linenum, const char* description) : _linenum(linenum), _description(description) {}
+        ParseException(uint32_t linenum, const char* description) : _linenum(linenum), _description(description) {}
 
-        inline int                LineNumber() const { return _linenum; }
+        inline uint32_t           LineNumber() const { return _linenum; }
         inline const std::string& What() const { return _description; }
     };
 }

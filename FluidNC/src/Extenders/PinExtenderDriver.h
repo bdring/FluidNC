@@ -21,7 +21,7 @@ namespace Extenders {
         virtual bool IRAM_ATTR readPin(pinnum_t index)                            = 0;
         virtual void IRAM_ATTR flushWrites()                                      = 0;
 
-        virtual void attachInterrupt(pinnum_t index, void (*callback)(void*, bool), void* arg, int mode);
+        virtual void attachInterrupt(pinnum_t index, void (*callback)(void*, bool), void* arg, uint8_t mode);
         virtual void detachInterrupt(pinnum_t index);
 
         // Name is required for the configuration factory to work.

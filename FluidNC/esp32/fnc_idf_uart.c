@@ -560,7 +560,7 @@ static int UART_ISR_ATTR fnc_uart_find_pattern_from_last(uint8_t* buf, int lengt
 static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void* param) {
     uart_obj_t*    p_uart           = (uart_obj_t*)param;
     uint8_t        uart_num         = p_uart->uart_num;
-    int            rx_fifo_len      = 0;
+    uint32_t       rx_fifo_len      = 0;
     uint32_t       uart_intr_status = 0;
     uart_event_t   uart_event;
     portBASE_TYPE  HPTaskAwoken = 0;

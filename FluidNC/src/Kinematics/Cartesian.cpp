@@ -254,7 +254,7 @@ namespace Kinematics {
         return mc_move_motors(target, pl_data);
     }
 
-    void Cartesian::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
+    void Cartesian::motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) {
         // Motor space is cartesian space, so we do no transform.
         copyAxes(cartesian, motors);
     }

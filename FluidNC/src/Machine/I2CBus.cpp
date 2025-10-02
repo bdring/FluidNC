@@ -7,7 +7,7 @@
 #    include "Driver/fluidnc_i2c.h"
 
 namespace Machine {
-    I2CBus::I2CBus(int busNumber) : _busNumber(busNumber) {}
+    I2CBus::I2CBus(uint32_t busNumber) : _busNumber(busNumber) {}
 
     void I2CBus::validate() {
         if (_sda.defined() || _scl.defined()) {
@@ -34,7 +34,7 @@ namespace Machine {
             log_error("I2C init failed");
         }
 
-        int nDevices = 0;
+        uint8_t nDevices = 0;
         log_info("Scanning...");
         for (uint8_t address = 1; address < 127; address++) {
             uint8_t buf[1];
@@ -69,7 +69,7 @@ namespace Machine {
         return i2c_read(_busNumber, address, data, count);
     }
 #    if 0
-    I2CBus::I2CBus(int busNumber) : _busNumber(busNumber) {}
+    I2CBus::I2CBus(uint8_t busNumber) : _busNumber(busNumber) {}
 
     void I2CBus::validate() {
         if (_sda.defined() || _scl.defined()) {
@@ -100,7 +100,7 @@ namespace Machine {
         }
         i2c->begin(int(sdaPin), int(sclPin), _frequency);
 
-        int nDevices = 0;
+        uint8_t nDevices = 0;
         log_info("Scanning...");
         for (uint8_t address = 1; address < 127; address++) {
             i2c->beginTransmission(address);

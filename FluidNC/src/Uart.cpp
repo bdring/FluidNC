@@ -78,11 +78,11 @@ const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParit
     return "";
 }
 
-Uart::Uart(int uart_num) : _uart_num(uart_num), _name("uart") {
+Uart::Uart(uint8_t uart_num) : _uart_num(uart_num), _name("uart") {
     _name += std::to_string(uart_num);
 }
 
-void Uart::changeMode(unsigned long baud, UartData dataBits, UartParity parity, UartStop stopBits) {
+void Uart::changeMode(uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits) {
     uart_mode(_uart_num, baud, dataBits, parity, stopBits);
 }
 void Uart::restoreMode() {
@@ -101,7 +101,7 @@ void Uart::exitPassthrough() {
 }
 
 // This version is used for the initial console UART where we do not want to change the pins
-void Uart::begin(unsigned long baud, UartData dataBits, UartStop stopBits, UartParity parity) {
+void Uart::begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity parity) {
     //    uart_driver_delete(_uart_num);
     changeMode(baud, dataBits, parity, stopBits);
 
@@ -176,7 +176,7 @@ void Uart::getSwFlowControl(bool& enabled, int& xon_threshold, int& xoff_thresho
 bool Uart::setHalfDuplex() {
     return uart_half_duplex(_uart_num);
 }
-bool Uart::setPins(int tx_pin, int rx_pin, int rts_pin, int cts_pin) {
+bool Uart::setPins(pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts_pin, pinnum_t cts_pin) {
     return uart_pins(_uart_num, tx_pin, rx_pin, rts_pin, cts_pin);
 }
 bool Uart::flushTxTimed(TickType_t ticks) {

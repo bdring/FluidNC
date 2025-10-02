@@ -10,10 +10,10 @@ namespace Pins {
         return PinCapabilities::Error;
     }
 
-    void IRAM_ATTR ErrorPinDetail::write(int high) {
+    void IRAM_ATTR ErrorPinDetail::write(bool high) {
         log_error("Cannot write to pin " << _description.c_str() << ". The config is incorrect.");
     }
-    int ErrorPinDetail::read() {
+    bool ErrorPinDetail::read() {
         log_error("Cannot read from pin " << _description.c_str() << ". The config is incorrect.");
         return false;
     }

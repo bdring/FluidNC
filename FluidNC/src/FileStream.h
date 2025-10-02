@@ -47,8 +47,8 @@ public:
 
     size_t readBytes(char* buffer, size_t length) { return read((uint8_t*)buffer, length); }
 
-    size_t read(char* buffer, size_t length);  // read chars from stream into buffer
-    size_t read(uint8_t* buffer, size_t length) { return read((char*)buffer, length); }
+    int read(char* buffer, size_t length);  // read chars from stream into buffer
+    int read(uint8_t* buffer, size_t length) { return read((char*)buffer, length); }
 
     size_t write(uint8_t c) override;
     size_t write(const uint8_t* buffer, size_t length) override;

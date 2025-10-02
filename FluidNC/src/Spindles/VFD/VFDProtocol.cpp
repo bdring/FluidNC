@@ -39,8 +39,8 @@ namespace Spindles {
 
         // The communications task
         void VFDProtocol::vfd_cmd_task(void* pvParameters) {
-            static bool unresponsive = false;  // to pop off a message once each time it becomes unresponsive
-            static int  pollidx      = -1;
+            static bool    unresponsive = false;  // to pop off a message once each time it becomes unresponsive
+            static int32_t pollidx      = -1;
 
             VFDSpindle*   instance = static_cast<VFDSpindle*>(pvParameters);
             auto          impl     = instance->detail_;
@@ -144,7 +144,7 @@ namespace Spindles {
                 }
 
                 // Assume for the worst, and retry...
-                int retry_count = 0;
+                uint8_t retry_count = 0;
                 for (; retry_count < instance->_retries; ++retry_count) {
                     // Flush the UART and write the data:
                     uart.flush();
@@ -265,14 +265,14 @@ namespace Spindles {
         // It then added the CRC to those last 2 bytes
         // full_msg_len This is the length of the message including the 2 crc bytes
         // Source: https://ctlsys.com/support/how_to_compute_the_modbus_rtu_message_crc/
-        uint16_t VFDProtocol::ModRTU_CRC(uint8_t* buf, int msg_len) {
+        uint16_t VFDProtocol::ModRTU_CRC(uint8_t* buf, size_t msg_len) {
             uint16_t crc = 0xFFFF;
-            for (int pos = 0; pos < msg_len; pos++) {
+            for (size_t pos = 0; pos < msg_len; pos++) {
                 crc ^= uint16_t(buf[pos]);  // XOR byte into least sig. byte of crc.
 
-                for (int i = 8; i != 0; i--) {  // Loop over each bit
-                    if ((crc & 0x0001) != 0) {  // If the LSB is set
-                        crc >>= 1;              // Shift right and XOR 0xA001
+                for (uint8_t i = 8; i != 0; i--) {  // Loop over each bit
+                    if ((crc & 0x0001) != 0) {      // If the LSB is set
+                        crc >>= 1;                  // Shift right and XOR 0xA001
                         crc ^= 0xA001;
                     } else {        // Else LSB is not set
                         crc >>= 1;  // Just shift right

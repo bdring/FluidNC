@@ -32,7 +32,7 @@ namespace Spindles {
 
     protected:
         // The constructor sets these
-        int      _uart_num  = -1;
+        int32_t  _uart_num  = -1;
         Uart*    _uart      = nullptr;
         uint8_t  _modbus_id = 1;
         uint8_t  _debug     = 0;

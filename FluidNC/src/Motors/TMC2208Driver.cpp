@@ -50,7 +50,7 @@ namespace MotorDrivers {
         tmc2208->rms_current(run_i, TrinamicBase::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping
-        int usteps = _microsteps == 1 ? 0 : _microsteps;
+        int32_t usteps = _microsteps == 1 ? 0 : _microsteps;
         tmc2208->microsteps(usteps);
 
         // This driver does not support multiple modes

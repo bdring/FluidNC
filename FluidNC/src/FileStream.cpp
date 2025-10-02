@@ -28,7 +28,7 @@ int FileStream::peek() {
 
 void FileStream::flush() {}
 
-size_t FileStream::read(char* buffer, size_t length) {
+int FileStream::read(char* buffer, size_t length) {
     return fread(buffer, 1, length, _fd);
 }
 

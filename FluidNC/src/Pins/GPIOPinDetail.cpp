@@ -11,7 +11,7 @@
 namespace Pins {
     std::vector<bool> GPIOPinDetail::_claimed(MAX_N_GPIO, false);
 
-    void GPIOPinDetail::setDriveStrength(int n, PinAttributes attr) {
+    void GPIOPinDetail::setDriveStrength(uint8_t n, PinAttributes attr) {
         Assert(_capabilities.has(PinCapabilities::Output), "Drive strength only applies to output pins");
         _attributes    = _attributes | attr;
         _driveStrength = n;
@@ -78,18 +78,18 @@ namespace Pins {
         return _capabilities;
     }
 
-    void IRAM_ATTR GPIOPinDetail::write(int high) {
+    void IRAM_ATTR GPIOPinDetail::write(bool high) {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
             if (!_attributes.has(PinAttributes::Output)) {
                 log_error(toString());
             }
             Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", toString().c_str());
-            int value = _inverted ^ (bool)high;
+            bool value = _inverted ^ (bool)high;
             gpio_write(_index, value);
         }
     }
-    int IRAM_ATTR GPIOPinDetail::read() {
+    bool IRAM_ATTR GPIOPinDetail::read() {
         auto raw = gpio_read(_index);
         return (bool)raw ^ _inverted;
     }

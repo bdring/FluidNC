@@ -9,16 +9,16 @@ class JSONencoder {
 private:
     static const int MAX_JSON_LEVEL = 16;
 
-    bool _encapsulate = false;
-    int  level;
-    int  count[MAX_JSON_LEVEL];
-    void add(char c);
-    void comma_line();
-    void comma();
-    void inc_level();
-    void dec_level();
-    void indent();
-    void line();
+    bool     _encapsulate = false;
+    uint32_t level;
+    uint32_t count[MAX_JSON_LEVEL];
+    void     add(char c);
+    void     comma_line();
+    void     comma();
+    void     inc_level();
+    void     dec_level();
+    void     indent();
+    void     line();
 
     void quoted(const char* s);
 
@@ -51,7 +51,7 @@ public:
     // member() creates a "tag":"value" element
     void member(const char* tag, const char* value);
     void member(const char* tag, const std::string& value);
-    void member(const char* tag, int value);
+    void member(const char* tag, int32_t value);
 
     // begin_array() starts a "tag":[  array element
     void begin_array(const char* tag);
@@ -94,10 +94,10 @@ public:
     //  I => 0 .. 2^31-1
     void begin_webui(const std::string name, const char* type, const std::string& val) { begin_webui(name, type, val.c_str()); }
     void begin_webui(const std::string name, const char* type, const char* val);
-    void begin_webui(const std::string name, const char* type, const int val);
-    void begin_webui(const std::string name, const char* type, const char* val, int min, int max);
+    void begin_webui(const std::string name, const char* type, const int32_t val);
+    void begin_webui(const std::string name, const char* type, const char* val, int32_t min, int32_t max);
 
     void id_value_object(const char* id, const char* value);
     void id_value_object(const char* id, const std::string& value);
-    void id_value_object(const char* id, int value);
+    void id_value_object(const char* id, int32_t value);
 };

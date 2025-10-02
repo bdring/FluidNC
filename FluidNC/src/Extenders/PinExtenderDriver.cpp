@@ -5,8 +5,10 @@
 
 namespace Extenders {
 
-    void PinExtenderDriver::attachInterrupt(pinnum_t index, void (*callback)(void*, bool), void* arg, int mode) {
+    void PinExtenderDriver::attachInterrupt(pinnum_t index, void (*callback)(void*, bool), void* arg, uint8_t mode) {
         Assert(false, "Interrupts are not supported by pin extender for pin %d", index);
     }
-    void PinExtenderDriver::detachInterrupt(pinnum_t index) { Assert(false, "Interrupts are not supported by pin extender"); }
+    void PinExtenderDriver::detachInterrupt(pinnum_t index) {
+        Assert(false, "Interrupts are not supported by pin extender");
+    }
 }

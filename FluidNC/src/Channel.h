@@ -47,7 +47,7 @@ public:
 
     static constexpr int maxLine = 255;
 
-    int _message_level = MsgLevelVerbose;
+    uint32_t _message_level = MsgLevelVerbose;
 
 protected:
     std::string _name;
@@ -90,10 +90,10 @@ protected:
 public:
     explicit Channel(const std::string& name, bool addCR = false);
     explicit Channel(const char* name, bool addCR = false);
-    Channel(const char* name, int num, bool addCR = false);
+    Channel(const char* name, uint8_t num, bool addCR = false);
     virtual ~Channel() = default;
 
-    int _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
+    int8_t _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
     virtual void       init() {}
     virtual void       handle() {}

@@ -44,7 +44,7 @@ void make_coordinate(CoordIndex index, const char* name) {
     }
 }
 
-void float_proxy(int axis, int grbl_number, const char* name, float* varp) {
+void float_proxy(uint8_t axis, uint32_t grbl_number, const char* name, float* varp) {
     // The two strings allocated below are intentionally not freed
     char* grbl_name = new char[4];
     snprintf(grbl_name, 4, "%d", grbl_number + axis);
@@ -102,19 +102,19 @@ void make_proxies() {
 
     // We do this with multiple loops so the setting numbers are displayed in the expected order
     auto n_axis = Axes::_numberAxis;
-    for (int axis = n_axis - 1; axis >= 0; --axis) {
+    for (uint8_t axis = n_axis - 1; axis >= 0; --axis) {
         float_proxy(axis, 130, "Grbl/MaxTravel/", &(config->_axes->_axis[axis]->_maxTravel));
     }
 
-    for (int axis = n_axis - 1; axis >= 0; --axis) {
+    for (uint8_t axis = n_axis - 1; axis >= 0; --axis) {
         float_proxy(axis, 120, "Grbl/Acceleration/", &(config->_axes->_axis[axis]->_acceleration));
     }
 
-    for (int axis = n_axis - 1; axis >= 0; --axis) {
+    for (uint8_t axis = n_axis - 1; axis >= 0; --axis) {
         float_proxy(axis, 110, "Grbl/MaxRate/", &(config->_axes->_axis[axis]->_maxRate));
     }
 
-    for (int axis = n_axis - 1; axis >= 0; --axis) {
+    for (uint8_t axis = n_axis - 1; axis >= 0; --axis) {
         float_proxy(axis, 100, "Grbl/Resolution/", &(config->_axes->_axis[axis]->_stepsPerMm));
     }
 

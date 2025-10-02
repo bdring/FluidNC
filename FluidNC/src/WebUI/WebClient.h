@@ -24,7 +24,7 @@ namespace WebUI {
         void sendLine(MsgLevel level, const std::string* line) override;
         void sendLine(MsgLevel level, const std::string& line) override;
 
-        void sendError(int code, const std::string& line);
+        void sendError(uint16_t code, const std::string& line);
 
         bool anyOutput() { return _header_sent; }
 

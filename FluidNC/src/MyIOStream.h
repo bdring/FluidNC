@@ -30,17 +30,8 @@ inline Print& operator<<(Print& lhs, const std::string& v) {
     return lhs;
 }
 
-inline Print& operator<<(Print& lhs, int v) {
-    lhs.print(v);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, unsigned int v) {
-    lhs.print(v);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, uint64_t v) {
+template <typename T>
+inline Print& operator<<(Print& lhs, T v) {
     lhs.print(v);
     return lhs;
 }
@@ -61,10 +52,10 @@ inline Print& operator<<(Print& lhs, IPAddress v) {
 }
 
 class setprecision {
-    int precision;
+    uint8_t precision;
 
 public:
-    explicit setprecision(int p) : precision(p) {}
+    explicit setprecision(uint8_t p) : precision(p) {}
 
     inline void Write(Print& stream, float f) const { stream.print(f, precision); }
     inline void Write(Print& stream, double d) const { stream.print(d, precision); }

@@ -36,7 +36,7 @@ namespace Pins {
     public:
         bool is(const char* option) const;
 
-        int iValue() const;
+        int32_t iValue() const;
 
         inline const std::string_view operator()() { return _option; }
         inline const std::string_view value() { return _value; }

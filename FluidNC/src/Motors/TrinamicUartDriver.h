@@ -43,7 +43,7 @@ namespace MotorDrivers {
 
         Pin _cs_pin;
 
-        int _uart_num = -1;
+        int32_t _uart_num = -1;
 
         static bool _uart_started;
         void        config_message() override;

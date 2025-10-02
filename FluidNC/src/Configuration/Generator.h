@@ -19,7 +19,7 @@ namespace Configuration {
         Generator(const Generator&)            = delete;
         Generator& operator=(const Generator&) = delete;
 
-        int      indent_;
+        uint8_t  indent_;
         Channel& dst_;
         bool     lastIsNewline_ = false;
 
@@ -40,7 +40,7 @@ namespace Configuration {
         HandlerType handlerType() override { return HandlerType::Generator; }
 
     public:
-        Generator(Channel& dst, int indent = 0);
+        Generator(Channel& dst, uint8_t indent = 0);
 
         void send_item(const char* name, const std::string& value) {
             LogStream s(dst_, "");
@@ -61,7 +61,7 @@ namespace Configuration {
             }
         }
 
-        void item(const char* name, int& value, const int32_t minValue, const int32_t maxValue) override {
+        void item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) override {
             send_item(name, std::to_string(value));
         }
 
@@ -117,7 +117,7 @@ namespace Configuration {
         void item(const char* name, Macro& value) override { send_item(name, value.get()); }
 
         void item(const char* name, IPAddress& value) override { send_item(name, IP_string(value)); }
-        void item(const char* name, int& value, const EnumItem* e) override {
+        void item(const char* name, uint32_t& value, const EnumItem* e) override {
             const char* str = "unknown";
             for (; e->name; ++e) {
                 if (value == e->value) {

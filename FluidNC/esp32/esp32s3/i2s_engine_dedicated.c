@@ -19,12 +19,12 @@
 #include "driver/dedic_gpio.h"
 #include "hal/cpu_ll.h"
 
-static int i2s_out_initialized = 0;
+static bool i2s_out_initialized = 0;
 
 static uint32_t _pulse_delay_us;
 static uint32_t _dir_delay_us;
 
-static int _stepPulseEndTime;
+static int32_t _stepPulseEndTime;
 
 static uint32_t i2s_output_ = 0;
 static uint32_t i2s_pulse_  = 0;
@@ -59,7 +59,7 @@ static inline __attribute__((always_inline)) void oneclock(int32_t data) {
     __asm__ __volatile__("nop");
 }
 
-static int IRAM_ATTR i2s_out_gpio_shiftout(uint32_t port_data) {
+static void IRAM_ATTR i2s_out_gpio_shiftout(uint32_t port_data) {
     // With int32_t, the high bit can be tested with <0
     int32_t data = port_data;
 
@@ -138,7 +138,6 @@ static int IRAM_ATTR i2s_out_gpio_shiftout(uint32_t port_data) {
     data <<= 1;
 
     cpu_ll_write_dedic_gpio_mask(4, 4);  // WS 1
-    return 0;
 }
 
 void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
@@ -159,9 +158,9 @@ uint8_t IRAM_ATTR i2s_out_read(pinnum_t pin) {
     return !!(port_data & (1 << pin));
 }
 
-int i2s_out_init(i2s_out_init_t* init_param) {
+void i2s_out_init(i2s_out_init_t* init_param) {
     if (i2s_out_initialized) {
-        return -1;
+        return;
     }
 
     if (init_param->ws_drive_strength != -1) {
@@ -178,8 +177,6 @@ int i2s_out_init(i2s_out_init_t* init_param) {
 
     i2s_out_gpio_shiftout(init_param->init_val);
     i2s_output_ = init_param->init_val;
-
-    return 0;
 }
 
 static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*callback)(void)) {
@@ -189,11 +186,11 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint
     return _pulse_delay_us;
 }
 
-static int init_step_pin(int step_pin, int step_invert) {
+static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
     return step_pin;
 }
 
-static void IRAM_ATTR set_pin(int pin, int level) {
+static void IRAM_ATTR set_pin(pinnum_t pin, bool level) {
     if (level) {
         i2s_output_ |= (1 << pin);
     } else {
@@ -202,7 +199,7 @@ static void IRAM_ATTR set_pin(int pin, int level) {
     i2s_out_gpio_shiftout(i2s_output_);
 }
 
-static void IRAM_ATTR set_step_pin(int pin, int level) {
+static void IRAM_ATTR set_step_pin(pinnum_t pin, bool level) {
     if (level) {
         i2s_pulse_ |= (1 << pin);
     } else {
@@ -228,11 +225,11 @@ static void IRAM_ATTR finish_step() {
     i2s_out_gpio_shiftout(i2s_output_ ^ i2s_pulse_);
 }
 
-static int IRAM_ATTR start_unstep() {
+static bool IRAM_ATTR start_unstep() {
     spinUntil(_stepPulseEndTime);
     i2s_out_gpio_shiftout(i2s_output_);
     i2s_pulse_ = 0;
-    return 0;
+    return false;
 }
 
 // This is a noop because each gpio_write() takes effect immediately,

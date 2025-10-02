@@ -4,8 +4,8 @@
 #include "ChannelPinDetail.h"
 
 namespace Pins {
-    ChannelPinDetail::ChannelPinDetail(UartChannel* channel, int number, const PinOptionsParser& options) :
-        PinDetail(number), _channel(channel) {
+    ChannelPinDetail::ChannelPinDetail(UartChannel* channel, pinnum_t index, const PinOptionsParser& options) :
+        PinDetail(index), _channel(channel) {
         for (auto opt : options) {
             if (opt.is("pu")) {
                 setAttr(PinAttributes::PullUp);
@@ -23,7 +23,7 @@ namespace Pins {
         return PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::PWM | PinCapabilities::Void;
     }
 
-    void IRAM_ATTR ChannelPinDetail::write(int high) {
+    void IRAM_ATTR ChannelPinDetail::write(bool high) {
         if (high == _value) {
             return;
         }
@@ -39,7 +39,7 @@ namespace Pins {
         _channel->writeUTF8(0x10000 + (_index << 10) + duty);
     }
 
-    int ChannelPinDetail::read() {
+    bool ChannelPinDetail::read() {
         return _value;
     }
     void ChannelPinDetail::setAttr(PinAttributes attr, uint32_t frequency) {

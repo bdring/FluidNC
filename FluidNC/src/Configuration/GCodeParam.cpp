@@ -100,7 +100,7 @@ namespace Configuration {
         }
     }
 
-    void GCodeParam::item(const char* name, int& value, const EnumItem* e) {
+    void GCodeParam::item(const char* name, uint32_t& value, const EnumItem* e) {
         if (is(name)) {
             isHandled_ = true;
             if (_get) {

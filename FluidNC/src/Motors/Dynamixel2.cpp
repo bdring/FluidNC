@@ -29,7 +29,7 @@ namespace MotorDrivers {
     std::vector<Dynamixel2*> Dynamixel2::_instances;
     bool                     Dynamixel2::_has_errors = false;
 
-    int Dynamixel2::_timer_ms = 75;
+    int32_t Dynamixel2::_timer_ms = 75;
 
     uint8_t Dynamixel2::_tx_message[100];  // send to dynamixel
     uint8_t Dynamixel2::_rx_message[50];   // received from dynamixel

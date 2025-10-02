@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 
 // Usage:
 //
@@ -14,11 +15,11 @@ struct EnumItem {
     EnumItem() {}
 
     // Set enumItem with a default value as last item in the EnumItem array. This is the terminator.
-    explicit EnumItem(int defaultValue) : value(defaultValue), name(nullptr) {}
+    explicit EnumItem(uint32_t defaultValue) : value(defaultValue), name(nullptr) {}
 
     // Other items are here.
-    EnumItem(int val, const char* n) : value(val), name(n) {}
+    EnumItem(uint32_t val, const char* n) : value(val), name(n) {}
 
-    int         value;
+    uint32_t    value;
     const char* name;
 };

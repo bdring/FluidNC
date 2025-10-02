@@ -10,7 +10,7 @@ namespace Pins {
         PinDetail* _implementation;
 
         uint32_t _lastEvent;
-        int      _eventCount;
+        uint8_t  _eventCount;
         bool     _isHigh;
 
         struct CallbackHandler {
@@ -33,8 +33,8 @@ namespace Pins {
         PinCapabilities capabilities() const override { return _implementation->capabilities(); }
 
         // I/O:
-        void          write(int high) override;
-        int           read() override;
+        void          write(bool high) override;
+        bool          read() override;
         void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
 

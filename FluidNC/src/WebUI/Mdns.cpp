@@ -28,7 +28,7 @@ namespace WebUI {
     void Mdns::deinit() {
         mdns_free();
     }
-    void Mdns::add(const char* service, const char* proto, int port) {
+    void Mdns::add(const char* service, const char* proto, uint16_t port) {
         if (WiFi.getMode() == WIFI_STA && _enable->get()) {
             mdns_service_add(NULL, service, proto, port, NULL, 0);
         }

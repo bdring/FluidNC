@@ -85,7 +85,7 @@ namespace WebUI {
         out(s, tag);
     }
 
-    void WebClient::sendError(int code, const std::string& line) {
+    void WebClient::sendError(uint16_t code, const std::string& line) {
         if (_webserver) {
             _webserver->send(code, "text/plain", line.c_str());
         }

@@ -130,7 +130,7 @@
 
     If you then set 12000 RPM, it calculates the frequency:
 
-        int targetFrequency = targetRPM * PD005 / MaxRPM = targetRPM * PD005 / (PD005 * PD144 / 50) = 
+        uint32_t targetFrequency = targetRPM * PD005 / MaxRPM = targetRPM * PD005 / (PD005 * PD144 / 50) = 
                               targetRPM * 50 / PD144 = 12000 * 50 / 3000 = 200
 
     If the frequency is -say- 25 Hz, Huanyang wants us to send 2500 (eg. 25.00 Hz).
@@ -188,7 +188,7 @@ namespace Spindles {
             // Frequency comes from a conversion of revolutions per second to revolutions per minute
             // (factor of 60) and a factor of 2 from counting the number of poles. E.g. rpm * 120 / 100.
 
-            // int targetFrequency = targetRPM * PD005 / MaxRPM
+            // uint32_t targetFrequency = targetRPM * PD005 / MaxRPM
             // = targetRPM * PD005 / (PD005 * PD144 / 50)
             // = targetRPM * 50 / PD144
             //

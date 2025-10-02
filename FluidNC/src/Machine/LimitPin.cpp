@@ -9,7 +9,7 @@
 #include "Protocol.h"  // protocol_send_event_from_ISR()
 
 namespace Machine {
-    LimitPin::LimitPin(int axis, int motor, int direction, bool& pHardLimits) :
+    LimitPin::LimitPin(uint8_t axis, uint8_t motor, int8_t direction, bool& pHardLimits) :
         EventPin(&limitEvent, "Limit"), _axis(axis), _motorNum(motor), _pHardLimits(pHardLimits) {
         const char* sDir;
         // Select one or two bitmask variables to receive the switch data
@@ -99,7 +99,7 @@ namespace Machine {
         _bitmask = Axes::axes_to_motors(Axes::motors_to_axes(_bitmask));
     }
 
-    void LimitPin::setExtraMotorLimit(int axis, int motorNum) {
+    void LimitPin::setExtraMotorLimit(uint8_t axis, uint8_t motorNum) {
         _pExtraLimited = Stepping::limit_var(axis, motorNum);
     }
 }
