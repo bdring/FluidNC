@@ -15,7 +15,7 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
     uint8_t shaResult[32];
 
     try {
-        FileStream inFile { ipath.u8string(), "r" };
+        FileStream inFile { ipath.string(), "r" };
         uint8_t    buf[512];
         size_t     len;
 
@@ -35,7 +35,7 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
         inFile.read(shaResult, 32);
 #endif
     } catch (const Error err) {
-        log_debug("Cannot hash file " << ipath.u8string());
+        log_debug("Cannot hash file " << ipath.string());
         return Error::FsFailedOpenFile;
     }
 
@@ -55,7 +55,7 @@ void HashFS::report_change() {
 }
 
 void HashFS::delete_file(const std::filesystem::path& path, bool report) {
-    localFsHashes.erase(path.filename().u8string());
+    localFsHashes.erase(path.filename().string());
     if (report) {
         report_change();
     }
@@ -82,7 +82,7 @@ void HashFS::rehash_file(const std::filesystem::path& path, bool report) {
         if (hashFile(path, hash) != Error::Ok) {
             delete_file(path, false);
         } else {
-            localFsHashes[path.filename().u8string()] = hash;
+            localFsHashes[path.filename().string()] = hash;
         }
     }
     if (report) {
@@ -105,7 +105,7 @@ void HashFS::hash_all() {
 
     auto iter = stdfs::directory_iterator { lfspath, ec };
     if (ec) {
-        log_error(lfspath.u8string() << " " << ec.message());
+        log_error(lfspath.string() << " " << ec.message());
         return;
     }
     for (auto const& dir_entry : iter) {
@@ -117,7 +117,7 @@ void HashFS::hash_all() {
 std::string HashFS::hash(const std::filesystem::path& path, bool useCacheOnly /*= false*/) {
     if (file_is_hashable(path)) {
         std::map<std::string, std::string>::const_iterator it;
-        it = localFsHashes.find(path.filename().u8string());
+        it = localFsHashes.find(path.filename().string());
         if (it != localFsHashes.end()) {
             return it->second;
         }

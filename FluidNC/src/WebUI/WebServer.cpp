@@ -999,7 +999,7 @@ namespace WebUI {
                 }
             } else if (action == "deletedir") {
                 stdfs::path dirpath { fpath / filename };
-                log_debug("Deleting directory " << dirpath);
+                log_debug("Deleting directory " << dirpath.string().c_str());
                 size_t count = stdfs::remove_all(dirpath, ec);
                 if (count > 0) {
                     sstatus = filename + " deleted";
@@ -1049,8 +1049,8 @@ namespace WebUI {
                 j.begin_array("files");
                 for (auto const& dir_entry : iter) {
                     j.begin_object();
-                    j.member("name", dir_entry.path().filename().u8string());
-                    j.member("shortname", dir_entry.path().filename().u8string());
+                    j.member("name", dir_entry.path().filename().string());
+                    j.member("shortname", dir_entry.path().filename().string());
                     j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
                     j.member("datetime", "");
                     j.end_object();
