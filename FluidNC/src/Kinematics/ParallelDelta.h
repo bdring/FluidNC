@@ -47,7 +47,8 @@ namespace Kinematics {
                                  float             center[3],
                                  float             radius,
                                  size_t            caxes[3],
-                                 bool              is_clockwise_arc) override;
+                                 bool              is_clockwise_arc,
+                                 int               pword_rotations) override;
 
         void releaseMotors(AxisMask axisMask, MotorMask motors) override;
 

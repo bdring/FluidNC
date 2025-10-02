@@ -123,7 +123,7 @@ namespace Kinematics {
 
     // TO DO. This is not supported yet. Other levels of protection will prevent "damage"
     bool ParallelDelta::invalid_arc(
-        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc, int pword_rotations) {
         return false;
     }
 
