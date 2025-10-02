@@ -70,6 +70,7 @@ enum class ExecAlarm : uint8_t {
     Init                  = 15,
     ExpanderReset         = 16,
     GCodeError            = 17,
+    ProbeHardLimit        = 18,
 };
 
 extern volatile ExecAlarm lastAlarm;
