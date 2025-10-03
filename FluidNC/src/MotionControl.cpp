@@ -137,7 +137,7 @@ void mc_arc(float*            target,
 
     // The first two axes are the circle plane and the third is the orthogonal plane
     size_t caxes[3] = { axis_0, axis_1, axis_linear };
-    if (config->_kinematics->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc)) {
+    if (config->_kinematics->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc, pword_rotations)) {
         return;
     }
 
