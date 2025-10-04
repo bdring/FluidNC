@@ -420,10 +420,10 @@ Error UserCommand::action(const char* value, AuthenticationLevel auth_level, Cha
 Coordinates* coords[CoordIndex::End];
 
 bool Coordinates::load() {
-    size_t len;
+    size_t len = 6 * sizeof(float);  // 6 is old MAX_N_AXIS
     switch (nvs_get_blob(Setting::_handle, _name, _currentValue, &len)) {
         case ESP_OK:
-            return true;
+            break;
         case ESP_ERR_NVS_INVALID_LENGTH:
             // This could happen if the stored value is longer than the buffer.
             // That is highly unlikely since we always store MAX_N_AXIS coordinates.
@@ -431,12 +431,32 @@ bool Coordinates::load() {
             // value was stored.  We don't flag it as an error, but rather
             // accept the initial coordinates and ignore the residue.
             // We could issue a warning message if we were so inclined.
-            return true;
+            break;
         case ESP_ERR_NVS_INVALID_NAME:
         case ESP_ERR_NVS_INVALID_HANDLE:
         default:
             return false;
     }
+#if MAX_N_AXIS == 9
+    len = 3 * sizeof(float);
+    switch (nvs_get_blob(Setting::_handle, (std::string("UVW") + _name).c_str(), &_currentValue[6], &len)) {
+        case ESP_OK:
+            break;
+        case ESP_ERR_NVS_INVALID_LENGTH:
+            // This could happen if the stored value is longer than the buffer.
+            // That is highly unlikely since we always store MAX_N_AXIS coordinates.
+            // It would indicate that we have decreased MAX_N_AXIS since the
+            // value was stored.  We don't flag it as an error, but rather
+            // accept the initial coordinates and ignore the residue.
+            break;
+        case ESP_ERR_NVS_INVALID_NAME:
+        case ESP_ERR_NVS_INVALID_HANDLE:
+        default:
+            _currentValue[6] = _currentValue[7] = _currentValue[8] = 0;
+            return false;
+    }
+#endif
+    return true;
 };
 
 void Coordinates::set(float value[MAX_N_AXIS]) {
@@ -444,7 +464,10 @@ void Coordinates::set(float value[MAX_N_AXIS]) {
     if (FORCE_BUFFER_SYNC_DURING_NVS_WRITE) {
         protocol_buffer_synchronize();
     }
-    nvs_set_blob(Setting::_handle, _name, _currentValue, sizeof(_currentValue));
+    nvs_set_blob(Setting::_handle, _name, _currentValue, 6 * sizeof(float));
+#if MAX_N_AXIS == 9
+    nvs_set_blob(Setting::_handle, (std::string("UVW") + _name).c_str(), &_currentValue[6], 3 * sizeof(float));
+#endif
 }
 
 IPaddrSetting::IPaddrSetting(
