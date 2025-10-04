@@ -29,7 +29,6 @@ const int MAX_MESSAGE_LINE = 256;
 
 // Axis array index values. Must start with 0 and be continuous.
 // Note: You set the number of axes used by changing MAX_N_AXIS.
-// Be sure to define pins or servos in the machine definition file.
 const int X_AXIS = 0;  // Axis indexing value.
 const int Y_AXIS = 1;
 const int Z_AXIS = 2;
@@ -40,22 +39,10 @@ const int U_AXIS = 6;
 const int V_AXIS = 7;
 const int W_AXIS = 8;
 
-
 const std::unordered_set<int> LINEAR_AXES = { X_AXIS, Y_AXIS, Z_AXIS, U_AXIS, V_AXIS, W_AXIS };
 const std::unordered_set<int> ROTARY_AXES = { A_AXIS, B_AXIS, C_AXIS };
 
-static constexpr const char*  AXES_LABELS = "XYZABCUVW";
-static constexpr const char*  AXES_LABELS_LOWER = "xyzabcuvw";
-
-// static constexpr const char*  ROTARY_AXES_NAMES = "ABC";
-// static constexpr const char*  LINEAR_AXES_NAMES = "XYZUVW";
-
-// const int X2_AXIS = (X_AXIS + MAX_N_AXIS + 1);
-// const int Y2_AXIS = (Y_AXIS + MAX_N_AXIS + 1);
-// const int Z2_AXIS = (Z_AXIS + MAX_N_AXIS + 1);
-// const int A2_AXIS = (A_AXIS + MAX_N_AXIS + 1);
-// const int B2_AXIS = (B_AXIS + MAX_N_AXIS + 1);
-// const int C2_AXIS = (C_AXIS + MAX_N_AXIS + 1);
+static constexpr const char* AXES_LABELS = "XYZABCUVW";
 
 const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
 

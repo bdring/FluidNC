@@ -227,7 +227,6 @@ enum class GCodeWord : uint8_t {
     V = 21,  // 8th Axis
     W = 22,  // 9th Axis
 
-
 };
 
 // GCode parser position updating flags
