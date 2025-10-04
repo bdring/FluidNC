@@ -576,10 +576,22 @@ Error gc_execute_line(const char* input_line) {
                         mg_word_bit                 = ModalGroup::MG12;
                         break;
                     case 59:
-                        gc_block.modal.coord_select = CoordIndex::G59;
-                        mg_word_bit                 = ModalGroup::MG12;
+                        switch (mantissa) {
+                            case 0:
+                                gc_block.modal.coord_select = CoordIndex::G59;
+                                break;
+                            case 10:
+                                gc_block.modal.coord_select = CoordIndex::G59_1;
+                                break;
+                            case 20:
+                                gc_block.modal.coord_select = CoordIndex::G59_2;
+                                break;
+                            case 30:
+                                gc_block.modal.coord_select = CoordIndex::G59_3;
+                                break;
+                        }
+                        mg_word_bit = ModalGroup::MG12;
                         break;
-                        // NOTE: G59.x are not supported.
                     case 61:
                         if (mantissa != 0) {
                             return Error::GcodeUnsupportedCommand;  // [G61.1 not supported]

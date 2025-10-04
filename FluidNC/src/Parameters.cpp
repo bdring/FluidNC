@@ -67,10 +67,10 @@ const std::map<const ngc_param_id_t, CoordIndex> axis_params = {
     { 5281, CoordIndex::G57 },
     { 5301, CoordIndex::G58 },
     { 5321, CoordIndex::G59 },
-    // { 5341, CoordIndex::G59_1 },  // Not implemented
-    // { 5361, CoordIndex::G59_2 },  // Not implemented
-    // { 5381, CoordIndex::G59_3 },  // Not implemented
-    // { 5401, CoordIndex::TLO },
+    { 5341, CoordIndex::G59_1 },
+    { 5361, CoordIndex::G59_2 },
+    { 5381, CoordIndex::G59_3 },
+    { 5401, CoordIndex::TLO },
 };
 
 const std::map<const std::string, int> work_positions = {
@@ -80,9 +80,9 @@ const std::map<const std::string, int> work_positions = {
     { "_a", 3 },
     { "_b", 4 },
     { "_c", 5 },
-    //    { "_u", 0},
-    //    { "_v", 0},
-    //    { "_w", 0},
+    { "_u", 0},
+    { "_v", 0},
+    { "_w", 0},
 };
 const std::map<const std::string, int> machine_positions = {
     { "_abs_x", 0 },
@@ -91,9 +91,9 @@ const std::map<const std::string, int> machine_positions = {
     { "_abs_a", 3 },
     { "_abs_b", 4 },
     { "_abs_c", 5 },
-    //    { "_abs_u", 0},
-    //    { "_abs_v", 0},
-    //    { "_abs_w", 0},
+    { "_abs_u", 0},
+    { "_abs_v", 0},
+    { "_abs_w", 0},
 };
 
 const std::array<const std::string, 6> unsupported_sys = {

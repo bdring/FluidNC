@@ -247,11 +247,9 @@ enum CoordIndex : uint16_t {
     G57,
     G58,
     G59,
-    // To support 9 work coordinate systems it would be necessary to define
-    // the following 3 and modify GCode.cpp to support G59.1, G59.2, G59.3
-    // G59_1,
-    // G59_2,
-    // G59_3,
+    G59_1,
+    G59_2,
+    G59_3,
     NWCSystems,
     G28 = NWCSystems,  // Home0
     G30,               // Home1

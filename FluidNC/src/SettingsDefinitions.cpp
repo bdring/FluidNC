@@ -73,6 +73,9 @@ void make_settings() {
     make_coordinate(CoordIndex::G57, "G57");
     make_coordinate(CoordIndex::G58, "G58");
     make_coordinate(CoordIndex::G59, "G59");
+    make_coordinate(CoordIndex::G59_1, "G59.1");
+    make_coordinate(CoordIndex::G59_2, "G59.2");
+    make_coordinate(CoordIndex::G59_3, "G59.3");
     make_coordinate(CoordIndex::G28, "G28");
     make_coordinate(CoordIndex::G30, "G30");
     make_coordinate(CoordIndex::G92, "G92");
