@@ -1,5 +1,13 @@
 #pragma once
 
+#include <esp_attr.h>
+#include <esp_compiler.h>
+
+#define IRAM IRAM_ATTR
+#define INLINE inline __attribute__((always_inline))
+
+#define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
+
 #define WEAK_LINK __attribute__((weak))
 #define WITH_MBEDTLS
 
@@ -24,3 +32,8 @@ const int BAUD_RATE = 115200;
 inline void platform_preinit() {
     disableCore0WDT();
 }
+
+#ifdef IDFBUILD
+// Compatibility for older compilers versions.
+#    define memory_order_seq_cst seq_cst
+#endif

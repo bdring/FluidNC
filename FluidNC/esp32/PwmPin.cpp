@@ -90,6 +90,7 @@ PwmPin::PwmPin(pinnum_t gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio
     ledc_timer.duty_resolution     = ledc_timer_bit_t(bits);
     ledc_timer.timer_num           = timer;
     ledc_timer.freq_hz             = frequency;
+    ledc_timer.clk_cfg             = LEDC_DEFAULT_CLK;
 
     uint8_t attempt = 0;
     for (attempt = 0; attempt < 5; ++attempt) {

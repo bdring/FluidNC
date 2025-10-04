@@ -42,9 +42,6 @@ namespace Spindles {
             data.rx_length = 6;
 
             uint16_t speed = (uint32_t(dev_speed) * 10000L) / uint32_t(_maxRPM);
-            if (speed < 0) {
-                speed = 0;
-            }
             if (speed > 10000) {
                 speed = 10000;
             }

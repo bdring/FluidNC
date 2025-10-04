@@ -25,6 +25,9 @@
 
 #include <esp_ota_ops.h>
 
+// For modern compilers, we need some different function calls. Rather than
+// attempting to rewrite everything, let's just define the problem away:
+
 namespace WebUI {
     enum WiFiStartupMode {
         WiFiOff = 0,
@@ -258,9 +261,7 @@ namespace WebUI {
                         j.id_value_object("Phy Mode", modeName);
                         j.id_value_object("Channel", WiFi.channel());
 
-                        tcpip_adapter_dhcp_status_t dhcp_status;
-                        tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
-                        j.id_value_object("IP Mode", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static"));
+                        j.id_value_object("IP Mode", _sta_mode->getStringValue());
                         j.id_value_object("IP", IP_string(WiFi.localIP()));
                         j.id_value_object("Gateway", IP_string(WiFi.gatewayIP()));
                         j.id_value_object("Mask", IP_string(WiFi.subnetMask()));
@@ -305,28 +306,24 @@ namespace WebUI {
 
                     j.id_value_object("Authentication", mode);
                     j.id_value_object("Max Connections", conf.ap.max_connection);
-
-                    tcpip_adapter_dhcp_status_t dhcp_status;
-                    tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
-                    j.id_value_object("DHCP Server", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped"));
-
                     j.id_value_object("IP", IP_string(WiFi.softAPIP()));
 
-                    tcpip_adapter_ip_info_t ip_AP;
-                    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
-                    j.id_value_object("Gateway", IP_string(IPAddress(ip_AP.gw.addr)));
-                    j.id_value_object("Mask", IP_string(IPAddress(ip_AP.netmask.addr)));
+                    // Retrieving the configured gateway and netmask from the Arduino WiFi class
+                    // is very tricky, so we just regurgitate the values that we passed in when
+                    // starting the AP
+                    j.id_value_object("Gateway", IP_string(WiFi.softAPIP()));
+                    j.id_value_object("Mask", "255.255.255.0");
 
-                    wifi_sta_list_t          station;
-                    tcpip_adapter_sta_list_t tcpip_sta_list;
+                    wifi_sta_list_t      station;
+                    esp_netif_sta_list_t netif_sta_list;
                     esp_wifi_ap_get_sta_list(&station);
-                    tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
+                    esp_netif_get_sta_list(&station, &netif_sta_list);
                     j.id_value_object("Connected channels", station.num);
 
-                    for (int i = 0; i < station.num; i++) {
+                    for (size_t i = 0; i < station.num; i++) {
                         j.id_value_object("",
-                                          std::string("") + mac2str(tcpip_sta_list.sta[i].mac) + " " +
-                                              IP_string(IPAddress(tcpip_sta_list.sta[i].ip.addr)));
+                                          std::string("") + mac2str(netif_sta_list.sta[i].mac) + " " +
+                                              IP_string(IPAddress(netif_sta_list.sta[i].ip.addr)));
                     }
                     j.id_value_object("Disabled Mode", std::string("STA (") + WiFi.macAddress().c_str() + ")");
                     break;
@@ -386,9 +383,7 @@ namespace WebUI {
                         log_stream(out, "Phy Mode: " << phyModeName);
                         log_stream(out, "Channel: " << WiFi.channel());
 
-                        tcpip_adapter_dhcp_status_t dhcp_status;
-                        tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
-                        log_stream(out, "IP Mode: " << (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static"));
+                        log_stream(out, "IP Mode: " << _sta_mode->getStringValue());
                         log_stream(out, "IP: " << IP_string(WiFi.localIP()));
                         log_stream(out, "Gateway: " << IP_string(WiFi.gatewayIP()));
                         log_stream(out, "Mask: " << IP_string(WiFi.subnetMask()));
@@ -435,26 +430,24 @@ namespace WebUI {
                     log_stream(out, "Authentication: " << mode);
                     log_stream(out, "Max Connections: " << conf.ap.max_connection);
 
-                    tcpip_adapter_dhcp_status_t dhcp_status;
-                    tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
-                    log_stream(out, "DHCP Server: " << (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped"));
-
                     log_stream(out, "IP: " << IP_string(WiFi.softAPIP()));
 
-                    tcpip_adapter_ip_info_t ip_AP;
-                    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
-                    log_stream(out, "Gateway: " << IP_string(IPAddress(ip_AP.gw.addr)));
-                    log_stream(out, "Mask: " << IP_string(IPAddress(ip_AP.netmask.addr)));
+                    // Retrieving the configured gateway and netmask from the Arduino WiFi class
+                    // is very tricky, so we just regurgitate the values that we passed in when
+                    // starting the AP
+                    log_stream(out, "Gateway: " << IP_string(IPAddress(WiFi.softAPIP())));
+                    log_stream(out, "Mask: 255.255.255.0");
 
-                    wifi_sta_list_t          station;
-                    tcpip_adapter_sta_list_t tcpip_sta_list;
+                    wifi_sta_list_t      station;
+                    esp_netif_sta_list_t netif_sta_list;
                     esp_wifi_ap_get_sta_list(&station);
-                    tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
+                    esp_netif_get_sta_list(&station, &netif_sta_list);
                     log_stream(out, "Connected channels: " << station.num);
 
-                    for (int i = 0; i < station.num; i++) {
-                        log_stream(out, mac2str(tcpip_sta_list.sta[i].mac) << " " << IP_string(IPAddress(tcpip_sta_list.sta[i].ip.addr)));
+                    for (size_t i = 0; i < station.num; i++) {
+                        log_stream(out, mac2str(netif_sta_list.sta[i].mac) << " " << IP_string(IPAddress(netif_sta_list.sta[i].ip.addr)));
                     }
+
                     print_mac(out, "Disabled Mode: STA", WiFi.macAddress().c_str());
                     break;
                 case WIFI_AP_STA:  //we should not be in this state but just in case ....
@@ -614,49 +607,49 @@ namespace WebUI {
 
         /**
      * WiFi events
-     * SYSTEM_EVENT_WIFI_READY               < WiFi ready
-     * SYSTEM_EVENT_SCAN_DONE                < finish scanning AP
-     * SYSTEM_EVENT_STA_START                < station start
-     * SYSTEM_EVENT_STA_STOP                 < station stop
-     * SYSTEM_EVENT_STA_CONNECTED            < station connected to AP
-     * SYSTEM_EVENT_STA_DISCONNECTED         < station disconnected from AP
-     * SYSTEM_EVENT_STA_AUTHMODE_CHANGE      < the auth mode of AP connected by station changed
-     * SYSTEM_EVENT_STA_GOT_IP               < station got IP from connected AP
-     * SYSTEM_EVENT_STA_LOST_IP              < station lost IP and the IP is reset to 0
-     * SYSTEM_EVENT_STA_WPS_ER_SUCCESS       < station wps succeeds in enrollee mode
-     * SYSTEM_EVENT_STA_WPS_ER_FAILED        < station wps fails in enrollee mode
-     * SYSTEM_EVENT_STA_WPS_ER_TIMEOUT       < station wps timeout in enrollee mode
-     * SYSTEM_EVENT_STA_WPS_ER_PIN           < station wps pin code in enrollee mode
-     * SYSTEM_EVENT_AP_START                 < soft-AP start
-     * SYSTEM_EVENT_AP_STOP                  < soft-AP stop
-     * SYSTEM_EVENT_AP_STACONNECTED          < a station connected to soft-AP
-     * SYSTEM_EVENT_AP_STADISCONNECTED       < a station disconnected from soft-AP
-     * SYSTEM_EVENT_AP_PROBEREQRECVED        < Receive probe request packet in soft-AP interface
-     * SYSTEM_EVENT_GOT_IP6                  < station or ap or ethernet interface v6IP addr is preferred
-     * SYSTEM_EVENT_ETH_START                < ethernet start
-     * SYSTEM_EVENT_ETH_STOP                 < ethernet stop
-     * SYSTEM_EVENT_ETH_CONNECTED            < ethernet phy link up
-     * SYSTEM_EVENT_ETH_DISCONNECTED         < ethernet phy link down
-     * SYSTEM_EVENT_ETH_GOT_IP               < ethernet got IP from connected AP
+     * WIFI_EVENT_WIFI_READY               < WiFi ready
+     * WIFI_EVENT_SCAN_DONE                < finish scanning AP
+     * WIFI_EVENT_STA_START                < station start
+     * WIFI_EVENT_STA_STOP                 < station stop
+     * WIFI_EVENT_STA_CONNECTED            < station connected to AP
+     * WIFI_EVENT_STA_DISCONNECTED         < station disconnected from AP
+     * WIFI_EVENT_STA_AUTHMODE_CHANGE      < the auth mode of AP connected by station changed
+     * IP_EVENT_STA_GOT_IP                 < station got IP from connected AP
+     * IP_EVENT_STA_LOST_IP                < station lost IP and the IP is reset to 0
+     * WIFI_EVENT_STA_WPS_ER_SUCCESS        < station wps succeeds in enrollee mode
+     * WIFI_EVENT_STA_WPS_ER_FAILED         < station wps fails in enrollee mode
+     * WIFI_EVENT_STA_WPS_ER_TIMEOUT        < station wps timeout in enrollee mode
+     * WIFI_EVENT_STA_WPS_ER_PIN            < station wps pin code in enrollee mode
+     * WIFI_EVENT_AP_START                  < soft-AP start
+     * WIFI_EVENT_AP_STOP                   < soft-AP stop
+     * WIFI_EVENT_AP_STACONNECTED           < a station connected to soft-AP
+     * WIFI_EVENT_AP_STADISCONNECTED        < a station disconnected from soft-AP
+     * WIFI_EVENT_AP_PROBEREQRECVED         < Receive probe request packet in soft-AP interface
+     * SYSTEM_EVENT_GOT_IP6                 < station or ap or ethernet interface v6IP addr is preferred
+     * SYSTEM_EVENT_ETH_START               < ethernet start
+     * SYSTEM_EVENT_ETH_STOP                < ethernet stop
+     * SYSTEM_EVENT_ETH_CONNECTED           < ethernet phy link up
+     * SYSTEM_EVENT_ETH_DISCONNECTED        < ethernet phy link down
+     * IP_EVENT_ETH_GOT_IP                  < ethernet got IP from connected AP
      * SYSTEM_EVENT_MAX
      */
 
         static void WiFiEvent(WiFiEvent_t event) {
             static bool disconnect_seen = false;
             switch (event) {
-                case SYSTEM_EVENT_STA_GOT_IP:
+                case IP_EVENT_STA_GOT_IP:
                     break;
-                case SYSTEM_EVENT_STA_DISCONNECTED:
+                case WIFI_EVENT_STA_DISCONNECTED:
                     if (!disconnect_seen) {
                         log_info_to(Console, "WiFi Disconnected");
                         disconnect_seen = true;
                     }
                     break;
-                case SYSTEM_EVENT_STA_START:
+                case WIFI_EVENT_STA_START:
                     break;
-                case SYSTEM_EVENT_STA_STOP:
+                case WIFI_EVENT_STA_STOP:
                     break;
-                case SYSTEM_EVENT_STA_CONNECTED:
+                case WIFI_EVENT_STA_CONNECTED:
                     disconnect_seen = false;
                     log_info_to(Console, "WiFi STA Connected");
                     break;
@@ -969,6 +962,7 @@ namespace WebUI {
                         delay_ms(100);
                     }
                     // fall through to fallback to AP mode
+                    [[fallthrough]];
                 case WiFiAP:
                     if (StartAP()) {
                         goto wifi_on;

@@ -14,6 +14,11 @@
 
 // #define WITH_MBEDTLS
 
+#define IRAM
+#define INLINE __forceinline
+
+#define PACK(__Declaration__) __pragma(pack(push, 1)) __Declaration__ __pragma(pack(pop))
+
 #define MAX_N_SDCARD 0
 #define MAX_N_UARTS 2
 #define MAX_N_I2SO 0

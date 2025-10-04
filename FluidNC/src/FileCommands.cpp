@@ -222,9 +222,8 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
     } else {
         j.begin_member("result");
 
-        char  fileLine[101];
-        Error res;
-        int   len;
+        char fileLine[101];
+        int  len;
 
         while ((len = theFile->read(fileLine, 100)) > 0) {
             fileLine[len] = '\0';
@@ -309,10 +308,10 @@ static Error listFilesystem(const char* fs, const char* value, AuthenticationLev
         auto      space = stdfs::space(fpath);
         for (auto const& dir_entry : iter) {
             if (dir_entry.is_directory()) {
-                log_stream(out, "[DIR:" << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename().string());
+                log_stream(out, "[DIR:" << std::string(iter.depth(), ' ') << dir_entry.path().filename().string());
             } else {
                 log_stream(out,
-                           "[FILE: " << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename().string()
+                           "[FILE: " << std::string(iter.depth(), ' ') << dir_entry.path().filename().string()
                                      << "|SIZE:" << dir_entry.file_size());
             }
         }
@@ -320,7 +319,7 @@ static Error listFilesystem(const char* fs, const char* value, AuthenticationLev
         auto freeBytes  = space.available;
         auto usedBytes  = totalBytes - freeBytes;
         log_stream(out,
-                   "[" << fpath.string().c_str() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
+                   "[" << fpath.string() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
                        << " Total:" << formatBytes(totalBytes));
     } catch (std::filesystem::filesystem_error const& ex) {
         log_error_to(out, ex.what());

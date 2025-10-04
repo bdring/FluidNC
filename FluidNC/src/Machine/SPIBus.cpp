@@ -19,11 +19,10 @@ namespace Machine {
     }
 
     void SPIBus::init() {
-        pinnum_t mosiPin           = 23;
-        pinnum_t misoPin           = 19;
-        pinnum_t sckPin            = 18;
-        int8_t   sckDriveDtrength  = -1;
-        int8_t   mosiDriveDtrength = -1;
+        // XXX FIXME These default pins are correct only for ESP32, not ESP32-S3 and others
+        pinnum_t mosiPin = 23;
+        pinnum_t misoPin = 19;
+        pinnum_t sckPin  = 18;
 
         if (_miso.defined() || _mosi.defined() || _sck.defined()) {  // validation ensures the rest is also defined.
             log_info("SPI SCK:" << _sck.name() << " MOSI:" << _mosi.name() << " MISO:" << _miso.name());

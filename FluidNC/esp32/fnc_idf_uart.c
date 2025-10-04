@@ -3,81 +3,73 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <string.h>
-#include "esp_types.h"
-#include "esp_attr.h"
-#include "esp_intr_alloc.h"
-#include "esp_log.h"
-#include "esp_err.h"
-#include "esp_check.h"
-#include "malloc.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
-#include "freertos/ringbuf.h"
-#include "hal/uart_hal.h"
-#include "hal/gpio_hal.h"
-#include "soc/uart_periph.h"
-#include "soc/rtc_cntl_reg.h"
-#include "driver/uart.h"
-#include "fnc_idf_uart.h"
-#include "driver/gpio.h"
-#include "driver/uart_select.h"
-#include "driver/periph_ctrl.h"
-#include "sdkconfig.h"
-#include "esp_rom_gpio.h"
+#ifndef IDFBUILD
 
-#if 0
-#    if CONFIG_IDF_TARGET_ESP32
-#        include "esp32/clk.h"
-#    elif CONFIG_IDF_TARGET_ESP32S2
-#        include "esp32s2/clk.h"
-#    elif CONFIG_IDF_TARGET_ESP32S3
-#        include "esp32s3/clk.h"
-#    elif CONFIG_IDF_TARGET_ESP32C3
-#        include "esp32c3/clk.h"
-#    elif CONFIG_IDF_TARGET_ESP32H2
-#        include "esp32h2/clk.h"
+#    include <string.h>
+#    include "esp_types.h"
+#    include "esp_attr.h"
+#    include "esp_intr_alloc.h"
+#    include "esp_log.h"
+#    include "esp_err.h"
+#    include "esp_check.h"
+#    include "malloc.h"
+#    include "freertos/FreeRTOS.h"
+#    include "freertos/semphr.h"
+#    include "freertos/ringbuf.h"
+#    include "hal/uart_hal.h"
+#    include "hal/gpio_hal.h"
+#    include "soc/uart_periph.h"
+#    include "soc/rtc_cntl_reg.h"
+#    include "driver/uart.h"
+#    include "fnc_idf_uart.h"
+#    include "driver/gpio.h"
+#    include "driver/uart_select.h"
+#    include "driver/periph_ctrl.h"
+#    include "sdkconfig.h"
+#    include "esp_rom_gpio.h"
+
+// NOTE: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/migration-guides/release-5.x/5.0/system.html
+// esp_clk is deprecated! We have to do something with this eventually!
+#    include <esp_private/esp_clk.h>
+
+#    ifdef CONFIG_UART_ISR_IN_IRAM
+#        define UART_ISR_ATTR IRAM_ATTR
+#        define UART_MALLOC_CAPS (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
+#    else
+#        define UART_ISR_ATTR
+#        define UART_MALLOC_CAPS MALLOC_CAP_DEFAULT
 #    endif
-#endif
 
-#ifdef CONFIG_UART_ISR_IN_IRAM
-#    define UART_ISR_ATTR IRAM_ATTR
-#    define UART_MALLOC_CAPS (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
-#else
-#    define UART_ISR_ATTR
-#    define UART_MALLOC_CAPS MALLOC_CAP_DEFAULT
-#endif
-
-#define XOFF (0x13)
-#define XON (0x11)
+#    define XOFF (0x13)
+#    define XON (0x11)
 
 static const char* UART_TAG = "uart";
 
-#define UART_EMPTY_THRESH_DEFAULT (10)
-#define UART_FULL_THRESH_DEFAULT (120)
-#define UART_TOUT_THRESH_DEFAULT (10)
-#define UART_CLKDIV_FRAG_BIT_WIDTH (3)
-#define UART_TX_IDLE_NUM_DEFAULT (0)
-#define UART_PATTERN_DET_QLEN_DEFAULT (10)
-#define UART_MIN_WAKEUP_THRESH (UART_LL_MIN_WAKEUP_THRESH)
+#    define UART_EMPTY_THRESH_DEFAULT (10)
+#    define UART_FULL_THRESH_DEFAULT (120)
+#    define UART_TOUT_THRESH_DEFAULT (10)
+#    define UART_CLKDIV_FRAG_BIT_WIDTH (3)
+#    define UART_TX_IDLE_NUM_DEFAULT (0)
+#    define UART_PATTERN_DET_QLEN_DEFAULT (10)
+#    define UART_MIN_WAKEUP_THRESH (UART_LL_MIN_WAKEUP_THRESH)
 
-#define UART_INTR_CONFIG_FLAG                                                                                                              \
-    ((UART_INTR_RXFIFO_FULL) | (UART_INTR_RXFIFO_TOUT) | (UART_INTR_RXFIFO_OVF) | (UART_INTR_BRK_DET) | (UART_INTR_PARITY_ERR))
+#    define UART_INTR_CONFIG_FLAG                                                                                                          \
+        ((UART_INTR_RXFIFO_FULL) | (UART_INTR_RXFIFO_TOUT) | (UART_INTR_RXFIFO_OVF) | (UART_INTR_BRK_DET) | (UART_INTR_PARITY_ERR))
 
-#define UART_ENTER_CRITICAL_ISR(mux) portENTER_CRITICAL_ISR(mux)
-#define UART_EXIT_CRITICAL_ISR(mux) portEXIT_CRITICAL_ISR(mux)
-#define UART_ENTER_CRITICAL(mux) portENTER_CRITICAL(mux)
-#define UART_EXIT_CRITICAL(mux) portEXIT_CRITICAL(mux)
+#    define UART_ENTER_CRITICAL_ISR(mux) portENTER_CRITICAL_ISR(mux)
+#    define UART_EXIT_CRITICAL_ISR(mux) portEXIT_CRITICAL_ISR(mux)
+#    define UART_ENTER_CRITICAL(mux) portENTER_CRITICAL(mux)
+#    define UART_EXIT_CRITICAL(mux) portEXIT_CRITICAL(mux)
 
 // Check actual UART mode set
-#define UART_IS_MODE_SET(uart_number, mode) ((p_uart_obj[uart_number]->uart_mode == mode))
+#    define UART_IS_MODE_SET(uart_number, mode) ((p_uart_obj[uart_number]->uart_mode == mode))
 
-#define UART_CONTEX_INIT_DEF(uart_num)                                                                                                     \
-    { .hal.dev = UART_LL_GET_HW(uart_num), .spinlock = portMUX_INITIALIZER_UNLOCKED, .hw_enabled = false, }
+#    define UART_CONTEX_INIT_DEF(uart_num)                                                                                                 \
+        { .hal.dev = UART_LL_GET_HW(uart_num), .spinlock = portMUX_INITIALIZER_UNLOCKED, .hw_enabled = false, }
 
-#if SOC_UART_SUPPORT_RTC_CLK
-#    define RTC_ENABLED(uart_num) (BIT(uart_num))
-#endif
+#    if SOC_UART_SUPPORT_RTC_CLK
+#        define RTC_ENABLED(uart_num) (BIT(uart_num))
+#    endif
 
 typedef struct {
     uart_event_type_t type; /*!< UART TX data type */
@@ -130,7 +122,7 @@ typedef struct {
     SemaphoreHandle_t            tx_fifo_sem;                /*!< UART TX FIFO semaphore*/
     SemaphoreHandle_t            tx_done_sem;                /*!< UART TX done semaphore*/
     SemaphoreHandle_t            tx_brk_sem;                 /*!< UART TX send break done semaphore*/
-#if CONFIG_UART_ISR_IN_IRAM
+#    if CONFIG_UART_ISR_IN_IRAM
     void* event_queue_storage;
     void* event_queue_struct;
     void* rx_ring_buf_storage;
@@ -142,7 +134,7 @@ typedef struct {
     void* tx_fifo_sem_struct;
     void* tx_done_sem_struct;
     void* tx_brk_sem_struct;
-#endif
+#    endif
 } uart_obj_t;
 
 typedef struct {
@@ -156,14 +148,14 @@ static uart_obj_t* p_uart_obj[UART_NUM_MAX] = { 0 };
 static uart_context_t uart_context[UART_NUM_MAX] = {
     UART_CONTEX_INIT_DEF(UART_NUM_0),
     UART_CONTEX_INIT_DEF(UART_NUM_1),
-#if UART_NUM_MAX > 2
+#    if UART_NUM_MAX > 2
     UART_CONTEX_INIT_DEF(UART_NUM_2),
-#endif
+#    endif
 };
 
 static portMUX_TYPE uart_selectlock = portMUX_INITIALIZER_UNLOCKED;
 
-#if SOC_UART_SUPPORT_RTC_CLK
+#    if SOC_UART_SUPPORT_RTC_CLK
 
 static uint8_t      rtc_enabled      = 0;
 static portMUX_TYPE rtc_num_spinlock = portMUX_INITIALIZER_UNLOCKED;
@@ -187,7 +179,7 @@ static void rtc_clk_disable(uart_port_t uart_num) {
     }
     portEXIT_CRITICAL(&rtc_num_spinlock);
 }
-#endif
+#    endif
 
 static void fnc_uart_module_enable(uart_port_t uart_num) {
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
@@ -197,13 +189,13 @@ static void fnc_uart_module_enable(uart_port_t uart_num) {
             // Workaround for ESP32C3: enable core reset
             // before enabling uart module clock
             // to prevent uart output garbage value.
-#if SOC_UART_REQUIRE_CORE_RESET
+#    if SOC_UART_REQUIRE_CORE_RESET
             uart_hal_set_reset_core(&(uart_context[uart_num].hal), true);
             periph_module_reset(uart_periph_signal[uart_num].module);
             uart_hal_set_reset_core(&(uart_context[uart_num].hal), false);
-#else
+#    else
             periph_module_reset(uart_periph_signal[uart_num].module);
-#endif
+#    endif
         }
         uart_context[uart_num].hw_enabled = true;
     }
@@ -497,11 +489,11 @@ esp_err_t fnc_uart_param_config(uart_port_t uart_num, const uart_config_t* uart_
     ESP_RETURN_ON_FALSE((uart_config->flow_ctrl < UART_HW_FLOWCTRL_MAX), ESP_FAIL, UART_TAG, "hw_flowctrl mode error");
     ESP_RETURN_ON_FALSE((uart_config->data_bits < UART_DATA_BITS_MAX), ESP_FAIL, UART_TAG, "data bit error");
     fnc_uart_module_enable(uart_num);
-#if SOC_UART_SUPPORT_RTC_CLK
+#    if SOC_UART_SUPPORT_RTC_CLK
     if (uart_config->source_clk == UART_SCLK_RTC) {
         rtc_clk_enable(uart_num);
     }
-#endif
+#    endif
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
     uart_hal_init(&(uart_context[uart_num].hal), uart_num);
     uart_hal_set_sclk(&(uart_context[uart_num].hal), uart_config->source_clk);
@@ -730,21 +722,21 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void* param) {
                                 //some of the characters are read out in last interrupt
                                 //                            uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
                             } else {
-#if 0
+#    if 0
                             uart_pattern_enqueue(uart_num,
                                                  pat_idx <= -1 ?
                                                      //can not find the pattern in buffer,
                                                      p_uart->rx_buffered_len + p_uart->rx_stash_len :
                                                      // find the pattern in buffer
                                                      p_uart->rx_buffered_len + pat_idx);
-#endif
+#    endif
                             }
                             UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
                             if ((p_uart->event_queue != NULL) &&
                                 (pdFALSE == xQueueSendFromISR(p_uart->event_queue, (void*)&uart_event, &HPTaskAwoken))) {
-#ifndef CONFIG_UART_ISR_IN_IRAM  //Only log if ISR is not in IRAM
-                                ESP_EARLY_LOGV(UART_TAG, "UART event queue full");
-#endif
+#    ifndef CONFIG_UART_ISR_IN_IRAM  //Only log if ISR is not in IRAM
+                                ESP_LOGI(UART_TAG, "UART event queue full");
+#    endif
                             }
                         }
                         uart_event.type = UART_BUFFER_FULL;
@@ -866,9 +858,9 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void* param) {
 
         if (uart_event.type != UART_EVENT_MAX && p_uart->event_queue) {
             if (pdFALSE == xQueueSendFromISR(p_uart->event_queue, (void*)&uart_event, &HPTaskAwoken)) {
-#ifndef CONFIG_UART_ISR_IN_IRAM  //Only log if ISR is not in IRAM
-                ESP_EARLY_LOGV(UART_TAG, "UART event queue full");
-#endif
+#    ifndef CONFIG_UART_ISR_IN_IRAM  //Only log if ISR is not in IRAM
+                ESP_LOGI(UART_TAG, "UART event queue full");
+#    endif
             }
         }
     }
@@ -877,11 +869,14 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void* param) {
     }
 }
 
+typedef TickType_t portTickType;
+
 /**************************************************************/
 esp_err_t fnc_uart_wait_tx_done(uart_port_t uart_num, TickType_t ticks_to_wait) {
     ESP_RETURN_ON_FALSE((uart_num < UART_NUM_MAX), ESP_FAIL, UART_TAG, "uart_num error");
     ESP_RETURN_ON_FALSE((p_uart_obj[uart_num]), ESP_FAIL, UART_TAG, "uart driver error");
-    BaseType_t   res;
+    BaseType_t res;
+
     portTickType ticks_start = xTaskGetTickCount();
     //Take tx_mux
     res = xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (portTickType)ticks_to_wait);
@@ -1195,7 +1190,7 @@ static void fnc_uart_free_driver_obj(uart_obj_t* uart_obj) {
     if (uart_obj->tx_ring_buf) {
         vRingbufferDelete(uart_obj->tx_ring_buf);
     }
-#if CONFIG_UART_ISR_IN_IRAM
+#    if CONFIG_UART_ISR_IN_IRAM
     free(uart_obj->event_queue_storage);
     free(uart_obj->event_queue_struct);
     free(uart_obj->tx_ring_buf_storage);
@@ -1207,7 +1202,7 @@ static void fnc_uart_free_driver_obj(uart_obj_t* uart_obj) {
     free(uart_obj->tx_brk_sem_struct);
     free(uart_obj->tx_done_sem_struct);
     free(uart_obj->tx_fifo_sem_struct);
-#endif
+#    endif
     free(uart_obj);
 }
 
@@ -1216,7 +1211,7 @@ static uart_obj_t* fnc_uart_alloc_driver_obj(int event_queue_size, int tx_buffer
     if (!uart_obj) {
         return NULL;
     }
-#if CONFIG_UART_ISR_IN_IRAM
+#    if CONFIG_UART_ISR_IN_IRAM
     if (event_queue_size > 0) {
         uart_obj->event_queue_storage = heap_caps_calloc(event_queue_size, sizeof(uart_event_t), UART_MALLOC_CAPS);
         uart_obj->event_queue_struct  = heap_caps_calloc(1, sizeof(StaticQueue_t), UART_MALLOC_CAPS);
@@ -1267,7 +1262,7 @@ static uart_obj_t* fnc_uart_alloc_driver_obj(int event_queue_size, int tx_buffer
         !uart_obj->tx_fifo_sem) {
         goto err;
     }
-#else
+#    else
     if (event_queue_size > 0) {
         uart_obj->event_queue = xQueueCreate(event_queue_size, sizeof(uart_event_t));
         if (!uart_obj->event_queue) {
@@ -1290,7 +1285,7 @@ static uart_obj_t* fnc_uart_alloc_driver_obj(int event_queue_size, int tx_buffer
         !uart_obj->tx_fifo_sem) {
         goto err;
     }
-#endif
+#    endif
     return uart_obj;
 
 err:
@@ -1301,24 +1296,24 @@ err:
 esp_err_t fnc_uart_driver_install(
     uart_port_t uart_num, int rx_buffer_size, int tx_buffer_size, int event_queue_size, QueueHandle_t* uart_queue, int intr_alloc_flags) {
     esp_err_t r;
-#ifdef CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
+#    ifdef CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
     ESP_RETURN_ON_FALSE(
         (uart_num != CONFIG_ESP_CONSOLE_UART_NUM), ESP_FAIL, UART_TAG, "UART used by GDB-stubs! Please disable GDB in menuconfig.");
-#endif  // CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
+#    endif  // CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
     ESP_RETURN_ON_FALSE((uart_num < UART_NUM_MAX), ESP_FAIL, UART_TAG, "uart_num error");
     ESP_RETURN_ON_FALSE((rx_buffer_size > SOC_UART_FIFO_LEN), ESP_FAIL, UART_TAG, "uart rx buffer length error");
     ESP_RETURN_ON_FALSE((tx_buffer_size > SOC_UART_FIFO_LEN) || (tx_buffer_size == 0), ESP_FAIL, UART_TAG, "uart tx buffer length error");
-#if CONFIG_UART_ISR_IN_IRAM
+#    if CONFIG_UART_ISR_IN_IRAM
     if ((intr_alloc_flags & ESP_INTR_FLAG_IRAM) == 0) {
         ESP_LOGI(UART_TAG, "ESP_INTR_FLAG_IRAM flag not set while CONFIG_UART_ISR_IN_IRAM is enabled, flag updated");
         intr_alloc_flags |= ESP_INTR_FLAG_IRAM;
     }
-#else
+#    else
     if ((intr_alloc_flags & ESP_INTR_FLAG_IRAM) != 0) {
         ESP_LOGW(UART_TAG, "ESP_INTR_FLAG_IRAM flag is set while CONFIG_UART_ISR_IN_IRAM is not enabled, flag updated");
         intr_alloc_flags &= ~ESP_INTR_FLAG_IRAM;
     }
-#endif
+#    endif
 
     if (p_uart_obj[uart_num] == NULL) {
         p_uart_obj[uart_num] = fnc_uart_alloc_driver_obj(event_queue_size, tx_buffer_size, rx_buffer_size);
@@ -1395,13 +1390,13 @@ esp_err_t fnc_uart_driver_delete(uart_port_t uart_num) {
     fnc_uart_free_driver_obj(p_uart_obj[uart_num]);
     p_uart_obj[uart_num] = NULL;
 
-#if SOC_UART_SUPPORT_RTC_CLK
+#    if SOC_UART_SUPPORT_RTC_CLK
     uart_sclk_t sclk = 0;
     uart_hal_get_sclk(&(uart_context[uart_num].hal), &sclk);
     if (sclk == UART_SCLK_RTC) {
         rtc_clk_disable(uart_num);
     }
-#endif
+#    endif
     fnc_uart_module_disable(uart_num);
     return ESP_OK;
 }
@@ -1442,3 +1437,61 @@ void fnc_uart_set_data_callback(uart_port_t uart_num, uart_data_callback_t uart_
         p_uart_obj[uart_num]->uart_data_callback = (uart_data_callback_t)uart_data_callback;
     }
 }
+
+#else
+
+#    include "fnc_idf_uart.h"
+#    include <driver/uart.h>
+#    include <driver/uart_select.h>
+
+// From uart.c (components/esp_driver_uart/src/uart.c):
+
+#    include <freertos/FreeRTOS.h>
+#    include <freertos/queue.h>
+
+#    define BUF_SIZE 1024
+
+uart_data_callback_t uart_callbacks[UART_NUM_MAX] = { 0 };
+QueueHandle_t        queues[UART_NUM_MAX];
+
+static void uart_event_task(void* pvParameters) {
+    int                  port = *((int*)pvParameters);
+    uart_data_callback_t cb   = uart_callbacks[port];
+
+    uart_event_t event;
+    uint8_t*     dtmp = (uint8_t*)malloc(BUF_SIZE);
+    for (;;) {
+        //Waiting for UART event.
+        if (xQueueReceive(queues[port], (void*)&event, (TickType_t)portMAX_DELAY)) {
+            if (event.type == UART_DATA) {
+                uart_read_bytes(port, dtmp, event.size, portMAX_DELAY);
+                int size = event.size;
+                (*cb)(port, dtmp, &size);
+            }
+        }
+    }
+    free(dtmp);
+    dtmp = NULL;
+    vTaskDelete(NULL);
+}
+
+esp_err_t fnc_uart_driver_install(
+    uart_port_t uart_num, int rx_buffer_size, int tx_buffer_size, int queue_size, QueueHandle_t* uart_queue, int intr_alloc_flags) {
+    assert(uart_queue == NULL);
+    return uart_driver_install(uart_num, rx_buffer_size, tx_buffer_size, BUF_SIZE * 2, &queues[uart_num], intr_alloc_flags);
+}
+
+void fnc_uart_set_data_callback(uart_port_t uart_num, uart_data_callback_t uart_data_callback) {
+    static int num;  // keep alive for a bit. Yuck but it works.
+    num = uart_num;
+    if (uart_callbacks[(int)uart_num] == NULL) {
+        //Create a task to handler UART event from ISR -- TODO FIXME: Which core?
+        xTaskCreate(uart_event_task, "uart_event_task", 3072, &num, 12, NULL);
+    }
+
+    // TODO FIXME: uart_callback is not something that's always there. Some people suggest using a task and then looping - but that's really silly.
+    // It's a bit foolish, but I suppose we really need to copy-paste the implementation here and extend it with the callback. :-(
+    uart_callbacks[(int)uart_num] = uart_data_callback;
+}
+
+#endif

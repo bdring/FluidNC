@@ -6,7 +6,7 @@
 PATHS_TO_SEARCH = ['FluidNC']
 HEADER_EXT = ['.h', '.inl']
 SOURCE_EXT = ['.c', '.cpp']
-OTHER_EXT = ['.ino', '.md']
+OTHER_EXT = ['.ino', '.md', '.txt']
 TEST_IGNORE = ['I2SOut.cpp','I2SOut.h']
 
 import os, uuid
@@ -134,7 +134,11 @@ class Generator:
 			return
 		elif path.find('\\test\\') >= 0:
 			return
-			
+		elif path.find('/managed_components/') >= 0:
+			return
+		elif path.find('\\managed_components\\') >= 0:
+			return
+            
 		(root, ext) = os.path.splitext(path)
 		if ext in HEADER_EXT:
 			self.Headers.add(path)

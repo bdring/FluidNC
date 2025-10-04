@@ -1242,12 +1242,12 @@ namespace WebUI {
     static bool endsWithCI(const char* suffix, const char* test) {
         size_t slen = strlen(suffix);
         size_t tlen = strlen(test);
-        if (slen > tlen) {
+        if (slen > tlen || slen == 0) {
             return false;
         }
         const char* s = suffix + slen;
         const char* t = test + tlen;
-        while (--s != s) {
+        while (--s != suffix) {
             if (tolower(*s) != tolower(*--t)) {
                 return false;
             }

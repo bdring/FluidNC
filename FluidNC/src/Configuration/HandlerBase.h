@@ -10,6 +10,7 @@
 #include "SpindleDatatypes.h"
 #include "UartTypes.h"
 #include "Macro.h"
+#include "Platform.h"
 
 #include <IPAddress.h>
 #include <string>

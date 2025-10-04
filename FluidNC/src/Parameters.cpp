@@ -135,8 +135,6 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
     for (auto const& [key, coord_index] : axis_params) {
         axis = id - key;
         if (is_axis(axis)) {
-            const float* p = coords[coord_index]->get();
-
             result = to_inches(axis, coords[coord_index]->get(axis));
             return true;
         }

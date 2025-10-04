@@ -24,3 +24,8 @@ const int BAUD_RATE = 115200;
 inline void platform_preinit() {
     disableCore0WDT();
 }
+
+#ifdef IDFBUILD
+// Compatibility for older compilers versions.
+#    define memory_order_seq_cst seq_cst
+#endif

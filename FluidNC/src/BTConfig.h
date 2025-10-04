@@ -3,12 +3,17 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
-#include "Configuration/Configurable.h"
-#include "lineedit.h"
-#include "Module.h"
-#include "Settings.h"
 
-#include <BluetoothSerial.h>
+#include <sdkconfig.h>
+
+#ifdef CONFIG_BT_ENABLED  // BT enabled in SDKConfig
+
+#    include "Configuration/Configurable.h"
+#    include "lineedit.h"
+#    include "Module.h"
+#    include "Settings.h"
+
+#    include <BluetoothSerial.h>
 
 const char* const DEFAULT_BT_NAME = "FluidNC";
 
@@ -84,3 +89,5 @@ namespace WebUI {
         }
     };
 }
+
+#endif

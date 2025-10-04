@@ -58,8 +58,6 @@
 std::mutex AllChannels::_mutex_general;
 std::mutex AllChannels::_mutex_pollLine;
 
-static TaskHandle_t channelCheckTaskHandle = 0;
-
 void heapCheckTask(void* pvParameters) {
     static uint32_t heapSize = 0;
     while (true) {
@@ -71,8 +69,8 @@ void heapCheckTask(void* pvParameters) {
         }
         vTaskDelay(3000 / portTICK_PERIOD_MS);  // Yield to other tasks
 
-        static UBaseType_t uxHighWaterMark = 0;
 #ifdef DEBUG_TASK_STACK
+        static UBaseType_t uxHighWaterMark = 0;
         reportTaskStackSize(uxHighWaterMark);
 #endif
     }

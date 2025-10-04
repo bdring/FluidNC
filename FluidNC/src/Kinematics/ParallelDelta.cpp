@@ -291,9 +291,6 @@ namespace Kinematics {
             return false;
         }
 
-        auto axes   = config->_axes;
-        auto n_axis = axes->_numberAxis;
-
         Axes::set_disable(false);
 
         // TODO deal with non kinematic axes above Z

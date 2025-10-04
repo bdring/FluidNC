@@ -17,12 +17,12 @@ namespace Machine {
 
 namespace Machine {
     class Motor : public Configuration::Configurable {
+        uint8_t _axis;
+        uint8_t _motorNum;
+
         LimitPin _negLimitPin;
         LimitPin _posLimitPin;
         LimitPin _allLimitPin;
-
-        uint8_t _axis;
-        uint8_t _motorNum;
 
     public:
         Motor(uint8_t axis, uint8_t motorNum);

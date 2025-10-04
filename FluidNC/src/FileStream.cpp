@@ -53,7 +53,7 @@ void FileStream::setup(const char* mode) {
 
     if (!_fd) {
         bool opening = strcmp(mode, "w");
-        log_verbose("Cannot " << (opening ? "open" : "create") << " file " << _fpath.string().c_str());
+        log_verbose("Cannot " << (opening ? "open" : "create") << " file " << _fpath.string());
         throw opening ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;
     }
     _size = stdfs::file_size(_fpath);

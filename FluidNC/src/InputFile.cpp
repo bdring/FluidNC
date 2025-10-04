@@ -42,7 +42,7 @@ void InputFile::ack(Error status) {
             // Do not stop on unsupported commands because most senders do not stop.
             // Stop the file job on other errors
             notifyf("File job error", "Error:%d in %s at line: %d", status, name(), lineNumber());
-            _pending_error == status;
+            _pending_error = status;
         }
     }
 }

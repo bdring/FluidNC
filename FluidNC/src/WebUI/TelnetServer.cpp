@@ -73,7 +73,7 @@ namespace WebUI {
 
         //check if there are any new clients
         if (_wifiServer->hasClient()) {
-            WiFiClient* tcpClient = new WiFiClient(_wifiServer->available());
+            WiFiClient* tcpClient = new WiFiClient(_wifiServer->accept());
             if (!tcpClient) {
                 log_error("Creating telnet client failed");
             }

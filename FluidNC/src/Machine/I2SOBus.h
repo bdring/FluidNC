@@ -11,8 +11,6 @@ namespace Machine {
     class I2SOBus : public Configuration::Configurable {
         static const int NUMBER_PINS = 32;
 
-        //        uint32_t portData_;
-
     public:
         I2SOBus() = default;
 
@@ -28,8 +26,6 @@ namespace Machine {
 
         void init();
         void push();
-
-        //        inline int read(int index) { return !!(portData_ & bitnum_to_mask(index)); }
 
         ~I2SOBus() = default;
     };

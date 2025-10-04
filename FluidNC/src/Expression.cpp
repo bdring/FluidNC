@@ -88,6 +88,8 @@ static void report_param_error(Error err) {
         case Error::ExpressionArgumentOutOfRange:
             log_error("Argument out of range");
             break;
+        default:
+            break;
     }
 }
 

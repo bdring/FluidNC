@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "lineedit.h"
+#include <cstdio>
 
 Lineedit::Lineedit(Print* _out, char* line, size_t linelen) : out(_out), needs_reecho(false), startaddr(line), maxaddr(line + linelen) {
     restart();
@@ -136,7 +137,7 @@ bool Lineedit::already_in_history(const char* adr, uint32_t len) {
 void Lineedit::add_to_history(const char* adr, uint32_t len) {
     validate_history();
     if (len && !already_in_history(adr, len)) {
-        uint32_t i;
+        int32_t  i;
         uint32_t new_length;
 
         len += 1;  // Room for null

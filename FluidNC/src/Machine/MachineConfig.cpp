@@ -211,7 +211,6 @@ namespace Machine {
     }
 
     void MachineConfig::load_yaml(std::string_view input) {
-        bool successful = false;
         try {
             Configuration::Parser        parser(input);
             Configuration::ParserHandler handler(parser);

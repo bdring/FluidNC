@@ -3,9 +3,11 @@
 
 #include "USBCDCChannel.h"
 
-#include "Machine/MachineConfig.h"  // config
-#include "Serial.h"                 // allChannels
-#include "esp32-hal-tinyusb.h"      // usb_persist_restart
+#ifdef CONFIG_ESP_CONSOLE_USB_CDC
+
+#    include "Machine/MachineConfig.h"  // config
+#    include "Serial.h"                 // allChannels
+#    include "esp32-hal-tinyusb.h"      // usb_persist_restart
 
 // There are two compiler flags that control how the Arduino framework predefines USB CDC serial class instances.
 // If ARDUINO_USB_MODE is 1, the TinyUSB variant is preferred, and
@@ -25,7 +27,7 @@ USBCDCChannel::USBCDCChannel(bool addCR) : Channel("usbcdc", addCR), _cdc(TUSBCD
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
 }
 
-#include "esp_event.h"
+#    include "esp_event.h"
 void cb(void* arg, esp_event_base_t base, int32_t id, void* data) {
     //   ::printf("Callback %p %d %d %p\n", arg, base, id, data);
 }
@@ -67,12 +69,12 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
                 state |= ((!!data->line_state.rts) << 1) + (!!data->line_state.dtr);
                 state &= 0xfff;
 
-#if 0
+#    if 0
                 ::putchar(((state >> 8) & 0xf) + '0');
                 ::putchar(((state >> 4) & 0xf) + '0');
                 ::putchar((state & 0xf) + '0');
                 ::putchar('\n');
-#endif
+#    endif
 
                 // A sequence of transitions from R1D1 to R0D0 to R1D0
                 if (state == 0x302) {
@@ -83,16 +85,16 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
                 }
             } break;
             case ARDUINO_USB_CDC_LINE_CODING_EVENT:
-#if 0
+#    if 0
                 ::printf("CDC LINE CODING: bit_rate: %u, data_bits: %u, stop_bits: %u, parity: %u\n\n",
                          data->line_coding.bit_rate,
                          data->line_coding.data_bits,
                          data->line_coding.stop_bits,
                          data->line_coding.parity);
-#endif
+#    endif
                 break;
             case ARDUINO_USB_CDC_RX_EVENT:
-#if 0
+#    if 0
                 ::printf("CDC RX [%u]:\n", data->rx.len);
                 {
                     uint8_t buf[data->rx.len];
@@ -100,7 +102,7 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
                     ::printf("%.*s", buf, len);
                 }
                 ::printf("\n");
-#endif
+#    endif
                 break;
             case ARDUINO_USB_CDC_RX_OVERFLOW_EVENT:
                 ::printf("CDC RX Overflow of %d bytes\n", data->rx_overflow.dropped_bytes);
@@ -232,3 +234,9 @@ size_t USBCDCChannel::timedReadBytes(char* buffer, size_t length, TickType_t tim
     }
     return 0;
 }
+
+#else
+
+NullChannel CDCChannel;
+
+#endif

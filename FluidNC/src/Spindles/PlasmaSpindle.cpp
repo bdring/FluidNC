@@ -54,7 +54,6 @@ namespace Spindles {
             return;  // Block during abort.
         }
 
-        uint32_t dev_speed = speed;  // no mapping
         if (state == SpindleState::Disable) {
             _arc_on = false;
             set_enable(false);

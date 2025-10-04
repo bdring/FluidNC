@@ -198,4 +198,17 @@ void loop() {
 
 void WEAK_LINK machine_init() {}
 
+#    ifdef IDFBUILD
+
+extern "C" {
+void app_main() {
+    setup();
+    while (1) {
+        loop();
+    }
+}
+}
+
+#    endif
+
 #endif

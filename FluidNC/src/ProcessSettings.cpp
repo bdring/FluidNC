@@ -37,9 +37,6 @@
 // WA Readable as user and admin, writable as admin
 
 static Error switchInchMM(const char* value, AuthenticationLevel auth_level, Channel& out);
-
-static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_level, Channel& out);
-
 static Error report_init_message_cmd(const char* value, AuthenticationLevel auth_level, Channel& out);
 
 #ifdef ENABLE_AUTHENTICATION
@@ -134,7 +131,7 @@ static void show_setting(const char* name, const char* value, const char* descri
 void settings_restore(uint8_t restore_flag) {
     if (restore_flag & SettingsRestore::Wifi) {
         for (Setting* s : Setting::List) {
-            if (!s->getType() != WEBSET) {
+            if (s->getType() != WEBSET) {
                 s->setDefault();
             }
         }
@@ -162,13 +159,6 @@ void settings_restore(uint8_t restore_flag) {
         report_wco_counter = 0;  // force next report to include WCO
     }
     log_info("Position offsets reset done");
-}
-
-// Get settings values from non volatile storage into memory
-static void load_settings() {
-    for (Setting* s : Setting::List) {
-        s->load();
-    }
 }
 
 extern void make_settings();
@@ -829,10 +819,6 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
         channel = nullptr;  // Leave channel null if not found
     }
 
-    bool     flow;
-    uint16_t xon_threshold;
-    uint16_t xoff_threshold;
-
     if (channel) {
         channel->pause();
     }
@@ -840,8 +826,6 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
 
     const int buflen = 256;
     uint8_t   buffer[buflen];
-    size_t    upstream_len;
-    size_t    downstream_len;
 
     TickType_t last_ticks = xTaskGetTickCount();
 
@@ -1147,7 +1131,6 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
     // indicating a display operation, we allow partial matches
     // and display every possibility.  This only applies to the
     // text form of the name, not to the nnn and ESPnnn forms.
-    Error retval = Error::InvalidStatement;
     if (value.empty()) {
         bool found = false;
         for (Setting* s : Setting::List) {
@@ -1203,6 +1186,7 @@ Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_
         if (gc_state.skip_blocks) {
             return Error::Ok;
         }
+
         return settings_execute_line(line, channel, auth_level);
     }
     // Everything else is gcode. Block if in alarm or jog mode.

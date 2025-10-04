@@ -21,7 +21,7 @@ private:
 
     bool setPins(pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts_pin = -1, pinnum_t cts_pin = -1);
 
-    int _uart_num = 0;  // Hardware UART engine number
+    uint32_t _uart_num = 0;  // Hardware UART engine number
 
     bool _sw_flowcontrol_enabled = false;
     int  _xon_threshold          = 0;
@@ -54,7 +54,7 @@ public:
     // Name is required for the configuration factory to work.
     std::string name() { return _name; }
 
-    Uart(uint8_t uart_num = -1);
+    Uart(uint32_t uart_num = -1);
     void begin();
     void begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity parity);
 

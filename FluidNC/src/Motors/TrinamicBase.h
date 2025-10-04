@@ -5,7 +5,7 @@
 
 #include "StandardStepper.h"
 #include "EnumItem.h"
-#include <cstdint>       // MUST be before TMCStepper.h
+#include <cstdint>       // Must be before TMCStepper.h
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 
 namespace MotorDrivers {

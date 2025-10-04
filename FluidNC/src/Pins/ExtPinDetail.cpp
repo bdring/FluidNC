@@ -51,8 +51,6 @@ namespace Pins {
 
         _attributes = value;
 
-        bool activeLow = _attributes.has(PinAttributes::ActiveLow);
-
         if (_owner == nullptr) {
             auto ext = config->_extenders;
             if (ext != nullptr && ext->_pinDrivers[_device] != nullptr && ext->_pinDrivers[_device]->_driver != nullptr) {

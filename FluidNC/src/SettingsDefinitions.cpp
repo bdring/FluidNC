@@ -36,9 +36,8 @@ const enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
 EnumSetting* gcode_echo;
 
 void make_coordinate(CoordIndex index, const char* name) {
-    float coord_data[MAX_N_AXIS] = { 0.0 };
-    auto  coord                  = new Coordinates(name);
-    coords[index]                = coord;
+    auto coord    = new Coordinates(name);
+    coords[index] = coord;
     if (!coord->load()) {
         coords[index]->setDefault();
     }
@@ -54,12 +53,12 @@ void float_proxy(uint8_t axis, uint32_t grbl_number, const char* name, float* va
 
     // Creation of any setting inserts it into the settings list, so we
     // do not need to keep the pointer here
-    auto proxy = new FloatProxySetting(grbl_name, fluidnc_name, varp);
+    new FloatProxySetting(grbl_name, fluidnc_name, varp);
 }
 
 #define INT_PROXY(number, name, configvar)                                                                                                 \
     {                                                                                                                                      \
-        auto dummy = new IntProxySetting(number, name, [](MachineConfig const& config) { return configvar; });                             \
+        new IntProxySetting(number, name, [](MachineConfig const& config) { return configvar; });                                          \
     }
 
 void make_settings() {
@@ -102,19 +101,19 @@ void make_proxies() {
 
     // We do this with multiple loops so the setting numbers are displayed in the expected order
     auto n_axis = Axes::_numberAxis;
-    for (uint8_t axis = n_axis - 1; axis >= 0; --axis) {
+    for (int8_t axis = n_axis - 1; axis >= 0; --axis) {
         float_proxy(axis, 130, "Grbl/MaxTravel/", &(config->_axes->_axis[axis]->_maxTravel));
     }
 
-    for (uint8_t axis = n_axis - 1; axis >= 0; --axis) {
+    for (int8_t axis = n_axis - 1; axis >= 0; --axis) {
         float_proxy(axis, 120, "Grbl/Acceleration/", &(config->_axes->_axis[axis]->_acceleration));
     }
 
-    for (uint8_t axis = n_axis - 1; axis >= 0; --axis) {
+    for (int8_t axis = n_axis - 1; axis >= 0; --axis) {
         float_proxy(axis, 110, "Grbl/MaxRate/", &(config->_axes->_axis[axis]->_maxRate));
     }
 
-    for (uint8_t axis = n_axis - 1; axis >= 0; --axis) {
+    for (int8_t axis = n_axis - 1; axis >= 0; --axis) {
         float_proxy(axis, 100, "Grbl/Resolution/", &(config->_axes->_axis[axis]->_stepsPerMm));
     }
 

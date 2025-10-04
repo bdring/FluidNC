@@ -78,7 +78,7 @@ const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParit
     return "";
 }
 
-Uart::Uart(uint8_t uart_num) : _uart_num(uart_num), _name("uart") {
+Uart::Uart(uint32_t uart_num) : _uart_num(uart_num), _name("uart") {
     _name += std::to_string(uart_num);
 }
 

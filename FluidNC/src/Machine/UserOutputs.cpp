@@ -24,7 +24,6 @@ namespace Machine {
         }
 
         for (int i = 0; i < MaxUserAnalogPin; ++i) {
-            uint8_t resolution_bits;
             Pin&    pin = _analogOutput[i];
             if (pin.defined()) {
                 pin.setAttr(Pin::Attr::PWM, _analogFrequency[i]);

@@ -1,5 +1,10 @@
 #include "USBCDCChannel.h"
+
+#ifdef CONFIG_ESP_CONSOLE_USB_CDC
+
 USBCDCChannel CDCChannel(true);
+
+#endif
 
 #include "UartChannel.h"
 

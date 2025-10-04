@@ -14,8 +14,7 @@ namespace Spindles {
     // ========================= Spindle ==================================
 
     void Spindle::init_atc() {
-        ATCs::ATC* candidate = nullptr;
-        auto       atcs      = ATCs::ATCFactory::objects();
+        auto atcs = ATCs::ATCFactory::objects();
         for (auto a : atcs) {
             if (_atc_name == a->name()) {
                 _atc      = a;

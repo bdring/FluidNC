@@ -265,7 +265,6 @@ Error gc_execute_line(const char* input_line) {
     uint32_t value_words   = 0;  // Tracks value words.
 
     bool jogMotion            = false;
-    bool checkMantissa        = false;
     bool clockwiseArc         = false;
     bool probeExplicit        = false;
     bool probeAway            = false;
@@ -1315,6 +1314,7 @@ Error gc_execute_line(const char* input_line) {
                     break;
                 case Motion::CwArc:
                     clockwiseArc = true;  // No break intentional.
+                    [[fallthrough]];
                 case Motion::CcwArc:
                     // [G2/3 Errors All-Modes]: Feed rate undefined.
                     // [G2/3 Radius-Mode Errors]: No axis words in selected plane. Target point is same as current.
@@ -1465,6 +1465,7 @@ Error gc_execute_line(const char* input_line) {
                 case Motion::ProbeTowardNoError:
                 case Motion::ProbeAwayNoError:
                     probeNoError = true;  // No break intentional.
+                    [[fallthrough]];
                 case Motion::ProbeToward:
                 case Motion::ProbeAway:
                     if ((gc_block.modal.motion == Motion::ProbeAway) || (gc_block.modal.motion == Motion::ProbeAwayNoError)) {

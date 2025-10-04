@@ -8,20 +8,20 @@
 #include <algorithm>
 
 class InputPin;
-void uart_register_input_pin(uint8_t uart_num, uint8_t pinnum, InputPin* object) {}
+void uart_register_input_pin(uint32_t uart_num, uint8_t pinnum, InputPin* object) {}
 
-inline std::string uart_key(uint8_t uart_num) {
+inline std::string uart_key(uint32_t uart_num) {
     std::ostringstream key;
     key << "uart." << uart_num;
 
     return key.str();
 }
 
-void uart_discard_input(uint8_t uart_num) {}
+void uart_discard_input(uint32_t uart_num) {}
 
-void uart_init(uint8_t uart_num) {}
+void uart_init(uint32_t uart_num) {}
 
-int uart_buflen(uint8_t uart_num) {
+int uart_buflen(uint32_t uart_num) {
     auto        key = uart_key(uart_num);
     const auto& val = Inputs::instance().get(key);
     return val.size();
@@ -29,7 +29,7 @@ int uart_buflen(uint8_t uart_num) {
 
 extern int inchar();
 
-int uart_read(uint8_t uart_num, uint8_t* buf, size_t len, uint32_t timeout_ms) {
+int uart_read(uint32_t uart_num, uint8_t* buf, size_t len, uint32_t timeout_ms) {
     auto        key = uart_key(uart_num);
     const auto& val = Inputs::instance().get(key);
     auto        max = std::min(size_t(len), val.size());
@@ -41,7 +41,7 @@ int uart_read(uint8_t uart_num, uint8_t* buf, size_t len, uint32_t timeout_ms) {
     return int(max);
 }
 
-int uart_write(uint8_t uart_num, const uint8_t* buf, size_t len) {
+int uart_write(uint32_t uart_num, const uint8_t* buf, size_t len) {
     auto key = uart_key(uart_num);
     auto val = Inputs::instance().get(key);
     for (size_t i = 0; i < len; ++i) {
@@ -51,26 +51,26 @@ int uart_write(uint8_t uart_num, const uint8_t* buf, size_t len) {
     return int(len);
 }
 
-void uart_mode(uint8_t uart_num, uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits) {}
+void uart_mode(uint32_t uart_num, uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits) {}
 
-bool uart_half_duplex(uint8_t uart_num) {
+bool uart_half_duplex(uint32_t uart_num) {
     return true;
 }
 
-void uart_xon(uint8_t uart_num) {}
+void uart_xon(uint32_t uart_num) {}
 
-void uart_xoff(uint8_t uart_num) {}
+void uart_xoff(uint32_t uart_num) {}
 
-void uart_sw_flow_control(uint8_t uart_num, bool on, uint32_t xon_threshold, uint32_t xoff_threshold) {}
+void uart_sw_flow_control(uint32_t uart_num, bool on, uint32_t xon_threshold, uint32_t xoff_threshold) {}
 
-bool uart_pins(uint8_t uart_num, pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts_pin, pinnum_t cts_pin) {
+bool uart_pins(uint32_t uart_num, pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts_pin, pinnum_t cts_pin) {
     return false;
 }
 
-int uart_bufavail(uint8_t uart_num) {
+int uart_bufavail(uint32_t uart_num) {
     return 128 - uart_buflen(uart_num);
 }
 
-bool uart_wait_output(uint8_t uart_num, uint32_t timeout_ms) {
+bool uart_wait_output(uint32_t uart_num, uint32_t timeout_ms) {
     return true;
 }

@@ -58,9 +58,6 @@ volatile bool runLimitLoop;  // Interface to show_limits()
 
 static void protocol_exec_rt_suspend();
 
-static char line[LINE_BUFFER_SIZE];     // Line to be executed. Zero-terminated.
-static char comment[LINE_BUFFER_SIZE];  // Line to be executed. Zero-terminated.
-
 // Spindle stop override control states.
 struct SpindleStopBits {
     uint8_t enabled : 1;
@@ -288,7 +285,8 @@ void protocol_main_loop() {
             }
 
             Channel* out_channel = Job::leader ? Job::leader : activeChannel;
-            Error    status_code = execute_line(activeLine, *out_channel, AuthenticationLevel::LEVEL_GUEST);
+
+            Error status_code = execute_line(activeLine, *out_channel, AuthenticationLevel::LEVEL_GUEST);
 
             // Tell the channel that the line has been processed.
             // If the line was aborted, the channel could be invalid
@@ -339,7 +337,7 @@ void protocol_main_loop() {
             // This prevents a cycle where the reporting itself consumes some heap and triggers another
             // report, but the true minimum is reported eventually, and large drops are reported immediately.
             if ((heapLowWater < heapLowWaterReported - 2048) || (ticksSinceReported > tickLimit)) {
-                log_warn("Low memory: " << heapLowWater << " bytes");
+                //                log_warn("Low memory: " << heapLowWater << " bytes");
                 heapLowWaterReported   = heapLowWater;
                 heapLowWaterReportTime = getCpuTicks();
             }
@@ -567,6 +565,9 @@ void protocol_do_motion_cancel() {
         case State::Hold:
         case State::SafetyDoor:
             break;
+
+        default:
+            break;
     }
 
     auto suspend             = sys.suspend();
@@ -607,6 +608,9 @@ static void protocol_do_feedhold() {
         case State::Jog:
             protocol_cancel_jogging();
             return;  // Do not change the state to Hold
+
+        default:
+            break;
     }
     set_state(State::Hold);
 }
@@ -708,6 +712,9 @@ static void protocol_do_sleep() {
         case State::Homing:
         case State::SafetyDoor:
             break;
+
+        default:
+            break;
     }
     set_state(State::Sleep);
 }
@@ -788,6 +795,8 @@ static void protocol_do_cycle_start() {
         case State::Cycle:
         case State::Jog:
             break;
+        default:
+            break;
     }
 }
 
@@ -846,6 +855,7 @@ void protocol_do_cycle_stop() {
                 break;
             }
             // Fall through
+            [[fallthrough]];
         case State::ConfigAlarm:
         case State::Alarm:
             break;
@@ -878,6 +888,8 @@ void protocol_do_cycle_stop() {
             break;
         case State::Homing:
             Machine::Homing::cycleStop();
+            break;
+        default:  // Held, Critical
             break;
     }
 }
@@ -920,6 +932,7 @@ void protocol_exec_rt_system() {
         case State::CheckMode:
         case State::Idle:
         case State::Sleep:
+        default:  // Held, Critical
             break;
         case State::Cycle:
         case State::Hold:
@@ -1192,13 +1205,17 @@ void protocol_do_pin_inactive(void* vpEventPin) {
     }
 }
 
+void report_realtime_status_wrap(void* arg) {
+    return report_realtime_status(*(Channel*)arg);
+}
+
 const ArgEvent feedOverrideEvent { protocol_do_feed_override };
 const ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 const ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
 const ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
 const ArgEvent limitEvent { protocol_do_limit };
 const ArgEvent faultPinEvent { protocol_do_fault_pin };
-const ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
+const ArgEvent reportStatusEvent { report_realtime_status_wrap };
 const ArgEvent pinActiveEvent { protocol_do_pin_active };
 const ArgEvent pinInactiveEvent { protocol_do_pin_inactive };
 
