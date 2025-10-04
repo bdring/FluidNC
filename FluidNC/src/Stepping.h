@@ -73,7 +73,7 @@ namespace Machine {
         static void beginLowLatency();
         static void endLowLatency();
 
-        static void step(uint8_t step_mask, uint8_t dir_mask);
+        static void step(uint16_t step_mask, uint16_t dir_mask);
         static void unstep();
 
         // Used to stop a motor quickly when a limit switch is hit
