@@ -7,6 +7,7 @@
 #include <IPAddress.h>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 std::string IP_string(uint32_t ipaddr);
 
@@ -30,12 +31,26 @@ inline Print& operator<<(Print& lhs, const std::string& v) {
     return lhs;
 }
 
-template <typename T>
-inline Print& operator<<(Print& lhs, T v) {
+#if 1
+// This handles all types that are forms of integers
+template <typename Integer, std::enable_if_t<std::is_integral<Integer>::value, bool> = true>
+inline Print& operator<<(Print& lhs, Integer v) {
     lhs.print(v);
     return lhs;
 }
-
+// This handles enums
+template <typename Enum, std::enable_if_t<std::is_enum<Enum>::value, bool> = true>
+inline Print& operator<<(Print& lhs, Enum v) {
+    lhs.print(v);
+    return lhs;
+}
+#else
+template <typename Integer>
+inline Print& operator<<(Print& lhs, Integer v) {
+    lhs.print(v);
+    return lhs;
+}
+#endif
 inline Print& operator<<(Print& lhs, float v) {
     lhs.print(v, 3);
     return lhs;
