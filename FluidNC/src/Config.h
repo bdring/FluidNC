@@ -14,20 +14,6 @@
 
 // IMPORTANT: Any changes here require recompilation.
 
-/*
-ESP 32 Notes
-
-Some features should not be changed. See notes below.
-
-*/
-
-// It is no longer necessary to edit this file to choose
-// a machine configuration; edit machine.h instead
-// machine.h is #included below, after some definitions
-// that the machine file might choose to undefine.
-
-const int MAX_MESSAGE_LINE = 256;
-
 const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
 
 //Connect to your local AP with these credentials
@@ -153,15 +139,6 @@ const int N_ARC_CORRECTION = 12;  // Integer (1-255)
 // NOTE: Be very careful when adjusting this value. It should always be greater than 1.2e-7 but not too
 // much greater than this. The default setting should capture most, if not all, full arc error situations.
 const double ARC_ANGULAR_TRAVEL_EPSILON = 5E-7;  // Float (radians)
-
-// Serial send and receive buffer size. The receive buffer is often used as another streaming
-// buffer to store incoming blocks to be processed when ready. Most streaming
-// interfaces will character count and track each block send to each block response. So,
-// increase the receive buffer if a deeper receive buffer is needed for streaming and available
-// memory allows. The send buffer primarily handles messages. Only increase if large
-// messages are sent and the system begins to stall, waiting to send the rest of the message.
-// #define RX_BUFFER_SIZE 128 // (1-254) Uncomment to override defaults in serial.h
-// #define TX_BUFFER_SIZE 100 // (1-254)
 
 // Writing to non-volatile storage (NVS) can take a long time and interfere with timely instruction
 // execution, causing problems for the stepper ISRs and serial comm ISRs and subsequent loss of
