@@ -18,7 +18,7 @@ private:
     static constexpr int _ack_timeout = 2000;
 
 public:
-    UartChannel(uint8_t num, bool addCR = false);
+    UartChannel(objnum_t num, bool addCR = false);
 
     void init() override;
     void init(Uart* uart);
@@ -42,7 +42,7 @@ public:
     uint32_t uart_num() { return _uart_num; }
     Uart*    uart() { return _uart; }
 
-    bool setAttr(uint8_t index, bool* valuep, const std::string& s);
+    bool setAttr(pinnum_t index, bool* valuep, const std::string& s);
 
     void out(const std::string& s, const char* tag) override;
     void out_acked(const std::string& s, const char* tag) override;

@@ -5,7 +5,7 @@
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
 
-UartChannel::UartChannel(uint8_t num, bool addCR) : Channel("uart_channel", num, addCR) {
+UartChannel::UartChannel(objnum_t num, bool addCR) : Channel("uart_channel", num, addCR) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
     _active   = false;
 }
@@ -152,14 +152,14 @@ void UartChannel::out_acked(const std::string& s, const char* tag) {
     log_stream(*this, "[" << tag << s);
 }
 
-void UartChannel::registerEvent(uint8_t pinnum, InputPin* obj) {
+void UartChannel::registerEvent(pinnum_t pinnum, InputPin* obj) {
     _uart->registerInputPin(pinnum, obj);
 }
 
-bool UartChannel::setAttr(uint8_t index, bool* value, const std::string& attrString) {
+bool UartChannel::setAttr(pinnum_t index, bool* value, const std::string& attrString) {
     out(attrString, "EXP:");
     _ackwait = 1;
-    for (int i = 0; i < 20; i++) {
+    for (size_t i = 0; i < 20; i++) {
         pollLine(nullptr);
         if (_ackwait < 1) {
             return _ackwait == 0;

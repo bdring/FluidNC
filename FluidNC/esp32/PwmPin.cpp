@@ -35,8 +35,8 @@
 #    define CLOCK_FREQUENCY 80000000
 #endif
 
-static uint8_t allocateChannel() {
-    static uint8_t nextLedcChannel = 0;
+static objnum_t allocateChannel() {
+    static objnum_t nextLedcChannel = 0;
 
     // Increment by 2 because there are only 4 timers so only
     // four completely independent channels.  We could be
@@ -92,7 +92,7 @@ PwmPin::PwmPin(pinnum_t gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio
     ledc_timer.freq_hz             = frequency;
     ledc_timer.clk_cfg             = LEDC_DEFAULT_CLK;
 
-    uint8_t attempt = 0;
+    size_t attempt = 0;
     for (attempt = 0; attempt < 5; ++attempt) {
         if (ledc_timer_config(&ledc_timer) != ESP_OK) {
             log_error("ledc timer setup failed. Frequency: " << frequency << " hz; duty resolution: " << bits);
@@ -136,8 +136,8 @@ void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
 
     // We might be able to use ledc_duty_config() which is IRAM_ATTR
 
-    uint8_t c  = _channel & 7;
-    bool    on = duty != 0;
+    objnum_t c  = _channel & 7;
+    bool     on = duty != 0;
 
 #ifdef SOC_LEDC_SUPPORT_HS_MODE
     // Only ESP32 has LEDC_HIGH_SPEED_MODE with 8 channels per group

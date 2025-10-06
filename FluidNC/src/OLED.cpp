@@ -109,12 +109,12 @@ void OLED::show_limits(bool probe, const bool* limits) {
     if (_state == "Alarm") {
         return;
     }
-    for (uint8_t axis = X_AXIS; axis < 3; axis++) {
+    for (axis_t axis = X_AXIS; axis < 3; axis++) {
         draw_checkbox(80, 27 + (axis * 10), 7, 7, limits[axis]);
     }
 }
 void OLED::show_file() {
-    uint8_t pct = uint8_t(_percent);
+    Percent pct = Percent(_percent);
     if (_filename.length() == 0) {
         return;
     }
@@ -156,10 +156,10 @@ void OLED::show_dro(const float* axes, bool isMpos, bool* limits) {
 
     _oled->setFont(ArialMT_Plain_10);
     uint8_t oled_y_pos;
-    for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         oled_y_pos = ((_height == 64) ? 24 : 17) + (axis * 10);
 
-        std::string axis_msg(1, Machine::Axes::_names[axis]);
+        std::string axis_msg(Machine::Axes::axisName(axis));
         if (_width == 128) {
             axis_msg += ":";
         } else {
@@ -214,7 +214,7 @@ void OLED::parse_numbers(std::string s, float* nums, uint8_t maxnums) {
 void OLED::parse_axes(std::string s, float* axes) {
     size_t pos     = 0;
     size_t nextpos = -1;
-    size_t axis    = 0;
+    axis_t axis    = X_AXIS;
     do {
         nextpos  = s.find_first_of(",", pos);
         auto num = s.substr(pos, nextpos - pos);

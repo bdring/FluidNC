@@ -48,13 +48,13 @@ namespace Machine {
 
     AxisMask Homing::_unhomed_axes = 0;  // Bitmap of axes whose position is unknown
 
-    bool Homing::axis_is_homed(size_t axis) {
+    bool Homing::axis_is_homed(axis_t axis) {
         return bitnum_is_false(_unhomed_axes, axis);
     }
-    void Homing::set_axis_homed(size_t axis) {
+    void Homing::set_axis_homed(axis_t axis) {
         clear_bitnum(_unhomed_axes, axis);
     }
-    void Homing::set_axis_unhomed(size_t axis) {
+    void Homing::set_axis_unhomed(axis_t axis) {
         set_bitnum(_unhomed_axes, axis);
     }
     void Homing::set_all_axes_unhomed() {
@@ -170,7 +170,7 @@ namespace Machine {
 
         AxisMask axesMask = 0;
         // Find the axis that will take the longest
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 0)) && bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 1))) {
                 continue;
             }
@@ -271,7 +271,7 @@ namespace Machine {
         // take the longest time to reach its max range at its seek rate, preserving
         // the speeds of the axes.
 
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(axesMask, axis)) {
                 if (phase == Machine::Homing::Phase::FastApproach) {
                     // For fast approach the vector direction is determined by the rates
@@ -420,7 +420,7 @@ namespace Machine {
 
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_false(squaredAxes, axis)) {
                 continue;
             }
@@ -442,7 +442,7 @@ namespace Machine {
         std::string homedAxes;
         log_debug("mpos was " << mpos[0] << "," << mpos[1] << "," << mpos[2]);
         // Replace coordinates homed axes with the homing values.
-        for (size_t axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(_cycleAxes, axis)) {
                 auto homing = axes->_axis[axis]->_homing;
                 if (homing) {
@@ -468,7 +468,7 @@ namespace Machine {
     static std::string axisNames(AxisMask axisMask) {
         std::string retval = "";
         auto        n_axis = Axes::_numberAxis;
-        for (size_t axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 retval += Machine::Axes::_names[axis];
             }
@@ -494,7 +494,7 @@ namespace Machine {
 
         // Find any cycles that set the m_pos without motion
         auto n_axis = Axes::_numberAxis;
-        for (int axis = X_AXIS; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             auto homing = Axes::_axis[axis]->_homing;
             if (homing && homing->_cycle == set_mpos_only) {
                 if (axisMask == 0 || axisMask & 1 << axis) {
@@ -542,7 +542,7 @@ namespace Machine {
     AxisMask Homing::axis_mask_from_cycle(uint32_t cycle) {
         AxisMask axisMask = 0;
         auto     n_axis   = Axes::_numberAxis;
-        for (uint8_t axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             auto axisConfig = Axes::_axis[axis];
             auto homing     = axisConfig->_homing;
             if (homing && homing->_cycle == cycle) {

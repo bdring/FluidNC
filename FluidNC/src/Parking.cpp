@@ -192,7 +192,7 @@ void Parking::restore_coolant() {
 
 void Parking::group(Configuration::HandlerBase& handler) {
     handler.item("enable", _enable);
-    handler.item("axis", _axis, axisType);
+    handler.item("axis", _axis);
     handler.item("target_mpos_mm", _target_mpos);
     handler.item("rate_mm_per_min", _rate);
     handler.item("pullout_distance_mm", _pullout, 0, 3e38);

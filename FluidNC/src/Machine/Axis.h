@@ -15,13 +15,13 @@ namespace MotorDrivers {
 
 namespace Machine {
     class Axis : public Configuration::Configurable {
-        uint8_t _axis;
-        uint8_t motorsWithSwitches();
+        axis_t  _axis;
+        motor_t motorsWithSwitches();
 
     public:
-        Axis(uint8_t currentAxis) : _axis(currentAxis) {
-            for (int i = 0; i < MAX_MOTORS_PER_AXIS; ++i) {
-                _motors[i] = nullptr;
+        Axis(axis_t currentAxis) : _axis(currentAxis) {
+            for (motor_t motor = 0; motor < MAX_MOTORS_PER_AXIS; ++motor) {
+                _motors[motor] = nullptr;
             }
         }
 

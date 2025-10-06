@@ -5,7 +5,7 @@
 namespace MotorDrivers {
     class StandardStepper : public MotorDriver {
     public:
-        //StandardStepper(size_t axis_index, Pin step_pin, Pin dir_pin, Pin disable_pin);
+        //StandardStepper(axis_t axis_index, Pin step_pin, Pin dir_pin, Pin disable_pin);
 
         StandardStepper(const char* name) : MotorDriver(name) {}
 

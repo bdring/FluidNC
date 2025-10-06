@@ -21,7 +21,7 @@ void uart_data_callback(uart_port_t uart_num, uint8_t* buf, uint32_t* len) {
         }
         if (last[uart_num]) {
             --out;
-            uint8_t pinnum = c & (PINNUM_MAX - 1);
+            pinnum_t pinnum = c & (PINNUM_MAX - 1);
             protocol_send_event_from_ISR(last[uart_num] == 0xc4 ? &pinInactiveEvent : &pinActiveEvent, (void*)objects[uart_num][pinnum]);
             last[uart_num] = 0;
         } else {

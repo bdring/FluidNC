@@ -145,8 +145,8 @@ static void gcode_comment_msg(const char* comment) {
     }
 }
 
-static std::optional<WaitOnInputMode> validate_wait_on_input_mode_value(uint8_t);
-static Error                          gc_wait_on_input(bool is_digital, uint8_t input_number, WaitOnInputMode mode, float timeout);
+static std::optional<WaitOnInputMode> validate_wait_on_input_mode_value(objnum_t);
+static Error                          gc_wait_on_input(bool is_digital, objnum_t input_number, WaitOnInputMode mode, float timeout);
 
 // Edit GCode line in-place, removing whitespace and comments and
 // converting to uppercase
@@ -255,11 +255,11 @@ Error gc_execute_line(const char* input_line) {
     memset(&gc_block, 0, sizeof(parser_block_t));                  // Initialize the parser block struct.
     memcpy(&gc_block.modal, &gc_state.modal, sizeof(gc_modal_t));  // Copy current modes
     AxisCommand axis_command = AxisCommand::None;
-    uint8_t     axis_0, axis_1, axis_linear;
+    axis_t      axis_0, axis_1, axis_linear;
     CoordIndex  coord_select = CoordIndex::G54;  // Tracks G10 P coordinate selection for execution
     // Initialize bitflag tracking variables for axis indices compatible operations.
-    size_t axis_words = 0;  // XYZ tracking
-    size_t ijk_words  = 0;  // IJK tracking
+    AxisMask axis_words = 0;  // XYZ tracking
+    size_t   ijk_words  = 0;  // IJK tracking
     // Initialize command and value words and parser flags variables.
     uint32_t command_words = 0;  // Tracks G and M command words. Also used for modal group violations.
     uint32_t value_words   = 0;  // Tracks value words.
@@ -574,8 +574,21 @@ Error gc_execute_line(const char* input_line) {
                         mg_word_bit                 = ModalGroup::MG12;
                         break;
                     case 59:
-                        gc_block.modal.coord_select = CoordIndex::G59;
-                        mg_word_bit                 = ModalGroup::MG12;
+                        switch (mantissa) {
+                            case 0:
+                                gc_block.modal.coord_select = CoordIndex::G59;
+                                break;
+                            case 10:
+                                gc_block.modal.coord_select = CoordIndex::G59_1;
+                                break;
+                            case 20:
+                                gc_block.modal.coord_select = CoordIndex::G59_2;
+                                break;
+                            case 30:
+                                gc_block.modal.coord_select = CoordIndex::G59_3;
+                                break;
+                        }
+                        mg_word_bit = ModalGroup::MG12;
                         break;
                         // NOTE: G59.x are not supported.
                     case 61:
@@ -1085,9 +1098,9 @@ Error gc_execute_line(const char* input_line) {
     // [12. Set length units ]: N/A
     // Pre-convert XYZ coordinate values to millimeters, if applicable.
     if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
-        for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
-            if ((idx < A_AXIS || idx > C_AXIS) && bitnum_is_true(axis_words, idx)) {
-                gc_block.values.xyz[idx] *= MM_PER_INCH;
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {  // Axes indices are consistent, so loop may be used.
+            if ((axis < A_AXIS || axis > C_AXIS) && bitnum_is_true(axis_words, axis)) {
+                gc_block.values.xyz[axis] *= MM_PER_INCH;
             }
         }
     }
@@ -1170,19 +1183,19 @@ Error gc_execute_line(const char* input_line) {
             coords[coord_select]->get(coord_data);
 
             // Pre-calculate the coordinate data changes.
-            for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
+            for (axis_t axis = X_AXIS; axis < n_axis; axis++) {  // Axes indices are consistent, so loop may be used.
                 // Update axes defined only in block. Always in machine coordinates. Can change non-active system.
-                if (bitnum_is_true(axis_words, idx)) {
+                if (bitnum_is_true(axis_words, axis)) {
                     if (gc_block.values.l == 20) {
                         // L20: Update coordinate system axis at current position (with modifiers) with programmed value
                         // WPos = MPos - WCS - G92 - TLO  ->  WCS = MPos - G92 - TLO - WPos
-                        coord_data[idx] = gc_state.position[idx] - gc_state.coord_offset[idx] - gc_block.values.xyz[idx];
-                        if (idx == TOOL_LENGTH_OFFSET_AXIS) {
-                            coord_data[idx] -= gc_state.tool_length_offset;
+                        coord_data[axis] = gc_state.position[axis] - gc_state.coord_offset[axis] - gc_block.values.xyz[axis];
+                        if (axis == TOOL_LENGTH_OFFSET_AXIS) {
+                            coord_data[axis] -= gc_state.tool_length_offset;
                         }
                     } else {
                         // L2: Update coordinate system axis to programmed value.
-                        coord_data[idx] = gc_block.values.xyz[idx];
+                        coord_data[axis] = gc_block.values.xyz[axis];
                     }
                 }  // Else, keep current stored value.
             }
@@ -1195,15 +1208,15 @@ Error gc_execute_line(const char* input_line) {
             }
             // Update axes defined only in block. Offsets current system to defined value. Does not update when
             // active coordinate system is selected, but is still active unless G92.1 disables it.
-            for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
-                if (bitnum_is_true(axis_words, idx)) {
+            for (axis_t axis = X_AXIS; axis < n_axis; axis++) {  // Axes indices are consistent, so loop may be used.
+                if (bitnum_is_true(axis_words, axis)) {
                     // WPos = MPos - WCS - G92 - TLO  ->  G92 = MPos - WCS - TLO - WPos
-                    gc_block.values.xyz[idx] = gc_state.position[idx] - block_coord_system[idx] - gc_block.values.xyz[idx];
-                    if (idx == TOOL_LENGTH_OFFSET_AXIS) {
-                        gc_block.values.xyz[idx] -= gc_state.tool_length_offset;
+                    gc_block.values.xyz[axis] = gc_state.position[axis] - block_coord_system[axis] - gc_block.values.xyz[axis];
+                    if (axis == TOOL_LENGTH_OFFSET_AXIS) {
+                        gc_block.values.xyz[axis] -= gc_state.tool_length_offset;
                     }
                 } else {
-                    gc_block.values.xyz[idx] = gc_state.coord_offset[idx];
+                    gc_block.values.xyz[axis] = gc_state.coord_offset[axis];
                 }
             }
             gc_ngc_changed(CoordIndex::G92);
@@ -1215,21 +1228,21 @@ Error gc_execute_line(const char* input_line) {
             // NOTE: Tool offsets may be appended to these conversions when/if this feature is added.
             if (axis_command != AxisCommand::ToolLengthOffset) {  // TLO block any axis command.
                 if (axis_words) {
-                    for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
-                        if (bitnum_is_false(axis_words, idx)) {
-                            gc_block.values.xyz[idx] = gc_state.position[idx];  // No axis word in block. Keep same axis position.
+                    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {  // Axes indices are consistent, so loop may be used to save flash space.
+                        if (bitnum_is_false(axis_words, axis)) {
+                            gc_block.values.xyz[axis] = gc_state.position[axis];  // No axis word in block. Keep same axis position.
                         } else {
                             // Update specified value according to distance mode or ignore if absolute override is active.
                             // NOTE: G53 is never active with G28/30 since they are in the same modal group.
                             if (gc_block.non_modal_command != NonModal::AbsoluteOverride) {
                                 // Apply coordinate offsets based on distance mode.
                                 if (!nonmodalG38 && gc_block.modal.distance == Distance::Absolute) {
-                                    gc_block.values.xyz[idx] += block_coord_system[idx] + gc_state.coord_offset[idx];
-                                    if (idx == TOOL_LENGTH_OFFSET_AXIS) {
-                                        gc_block.values.xyz[idx] += gc_state.tool_length_offset;
+                                    gc_block.values.xyz[axis] += block_coord_system[axis] + gc_state.coord_offset[axis];
+                                    if (axis == TOOL_LENGTH_OFFSET_AXIS) {
+                                        gc_block.values.xyz[axis] += gc_state.tool_length_offset;
                                     }
                                 } else {  // Incremental mode
-                                    gc_block.values.xyz[idx] += gc_state.position[idx];
+                                    gc_block.values.xyz[axis] += gc_state.position[axis];
                                 }
                             }
                         }
@@ -1249,9 +1262,9 @@ Error gc_execute_line(const char* input_line) {
                     }
                     if (axis_words) {
                         // Move only the axes specified in secondary move.
-                        for (size_t idx = 0; idx < n_axis; idx++) {
-                            if (!(axis_words & bitnum_to_mask(idx))) {
-                                coord_data[idx] = gc_state.position[idx];
+                        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+                            if (!(axis_words & bitnum_to_mask(axis))) {
+                                coord_data[axis] = gc_state.position[axis];
                             }
                         }
                     } else {
@@ -1437,9 +1450,10 @@ Error gc_execute_line(const char* input_line) {
                         clear_bits(value_words, (bitnum_to_mask(GCodeWord::I) | bitnum_to_mask(GCodeWord::J) | bitnum_to_mask(GCodeWord::K)));
                         // Convert IJK values to proper units.
                         if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
-                            for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
-                                if (ijk_words & bitnum_to_mask(idx)) {
-                                    gc_block.values.ijk[idx] *= MM_PER_INCH;
+                            for (axis_t axis = X_AXIS; axis < n_axis;
+                                 axis++) {  // Axes indices are consistent, so loop may be used to save flash space.
+                                if (ijk_words & bitnum_to_mask(axis)) {
+                                    gc_block.values.ijk[axis] *= MM_PER_INCH;
                                 }
                             }
                         }
@@ -1727,7 +1741,7 @@ Error gc_execute_line(const char* input_line) {
         }
     }
     if (gc_block.modal.io_control == IoControl::WaitOnInput) {
-        auto const validate_input_number = [&](const float input_number) -> std::optional<uint8_t> {
+        auto const validate_input_number = [&](const float input_number) -> std::optional<objnum_t> {
             if (input_number < 0) {
                 return std::nullopt;
             }
@@ -1738,7 +1752,7 @@ Error gc_execute_line(const char* input_line) {
                     return std::nullopt;
                 }
             }
-            return (uint8_t)input_number;
+            return (objnum_t)input_number;
         };
         auto const maybe_input_number = validate_input_number(isWaitOnInputDigital ? gc_block.values.p : gc_block.values.e);
         if (!maybe_input_number.has_value()) {
@@ -1974,7 +1988,7 @@ Error gc_execute_line(const char* input_line) {
    group 13 = {G61.1, G64} path control mode (G61 is supported)
 */
 
-static std::optional<WaitOnInputMode> validate_wait_on_input_mode_value(uint8_t value) {
+static std::optional<WaitOnInputMode> validate_wait_on_input_mode_value(objnum_t value) {
     switch (value) {
         case 0:
             return WaitOnInputMode::Immediate;
@@ -1998,7 +2012,7 @@ struct overloaded : Ts... {
 template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
 
-static Error gc_wait_on_input(bool is_digital, uint8_t input_number, WaitOnInputMode mode, float timeout) {
+static Error gc_wait_on_input(bool is_digital, objnum_t input_number, WaitOnInputMode mode, float timeout) {
     // TODO - only Immediate read mode is supported
     if (mode == WaitOnInputMode::Immediate) {
         auto const result = is_digital ? config->_userInputs->readDigitalInput(input_number) :

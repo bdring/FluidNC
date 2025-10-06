@@ -39,6 +39,7 @@ namespace Configuration {
         void item(const char* name, Macro& value) { item(name); }
         void item(const char* name, IPAddress& value) override { item(name); }
         void item(const char* name, uint32_t& value, const EnumItem* e) override { item(name); }
+        void item(const char* name, axis_t& value) override { item(name); }
 
         HandlerType handlerType() override { return HandlerType::Completer; }
 

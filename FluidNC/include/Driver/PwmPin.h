@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
+#include "Config.h"
 #include "Driver/fluidnc_gpio.h"
 // PWM driver interface
 #include <stdint.h>
@@ -16,8 +17,8 @@ public:
     void setDuty(uint32_t duty);
 
 private:
-    uint32_t _gpio;
+    pinnum_t _gpio;
     uint32_t _frequency;
-    uint8_t  _channel;
+    objnum_t _channel;
     uint32_t _period;
 };

@@ -527,7 +527,11 @@ namespace WebUI {
                 j.member("FlashFileSystem", "LittleFS");
                 j.member("HostPath", "/");
                 j.member("Time", "none");
-                j.member("Axisletters", Axes::_names);
+                std::string axisLetters;
+                for (axis_t axis; axis < Axes::_numberAxis; axis++) {
+                    axisLetters += Axes::axisName(axis);
+                }
+                j.member("Axisletters", axisLetters);
                 j.end_object();
                 j.end();
                 return Error::Ok;

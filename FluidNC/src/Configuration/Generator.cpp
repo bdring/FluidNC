@@ -5,6 +5,7 @@
 #include "Generator.h"
 
 #include "Configurable.h"
+#include "Machine/Axes.h"  // Axes
 
 #include <cstring>
 #include <cstdio>
@@ -39,6 +40,10 @@ namespace Configuration {
         enter(name);
         value->group(*this);
         leave();
+    }
+
+    void Generator::item(const char* name, axis_t& value) {
+        send_item(name, Machine::Axes::axisName(value));
     }
 
 }

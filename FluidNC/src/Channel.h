@@ -31,7 +31,7 @@
 
 class Channel : public Stream {
 private:
-    void pin_event(uint32_t pinnum, bool active);
+    void pin_event(pinnum_t pinnum, bool active);
 
     static constexpr int PinACK = 0xB2;
     static constexpr int PinNAK = 0xB3;
@@ -90,7 +90,7 @@ protected:
 public:
     explicit Channel(const std::string& name, bool addCR = false);
     explicit Channel(const char* name, bool addCR = false);
-    Channel(const char* name, uint8_t num, bool addCR = false);
+    Channel(const char* name, objnum_t num, bool addCR = false);
     virtual ~Channel() = default;
 
     int8_t _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
@@ -192,7 +192,7 @@ public:
     virtual void out_acked(const std::string& s, const char* tag);
 
     void ready();
-    void registerEvent(uint8_t pinnum, InputPin* obj);
+    void registerEvent(pinnum_t pinnum, InputPin* obj);
 
     size_t lineNumber() { return _line_number; }
     void   setLineNumber(size_t line_number) { _line_number = line_number; }

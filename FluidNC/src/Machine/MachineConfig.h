@@ -132,7 +132,7 @@ extern Machine::MachineConfig* config;
 template <typename T>
 void copyAxes(T* dest, T* src) {
     auto n_axis = Axes::_numberAxis;
-    for (size_t axis = 0; axis < n_axis; axis++) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         dest[axis] = src[axis];
     }
 }

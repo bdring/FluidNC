@@ -58,6 +58,7 @@ namespace Configuration {
         virtual void item(const char* name, IPAddress& value) = 0;
 
         virtual void item(const char* name, uint32_t& value, const EnumItem* e) = 0;
+        virtual void item(const char* name, axis_t& value)                      = 0;
 
         virtual void item(const char* name, std::string& value, const int minLength = 0, const int maxLength = 255) = 0;
 

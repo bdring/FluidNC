@@ -73,12 +73,12 @@ namespace Machine {
 
 }
 
-Stepping::motor_t* Stepping::axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS] = { nullptr };
+Stepping::motor_pins_t* Stepping::axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS] = { nullptr };
 
-void Stepping::assignMotor(uint8_t axis, uint8_t motor, pinnum_t step_pin, bool step_invert, pinnum_t dir_pin, bool dir_invert) {
+void Stepping::assignMotor(axis_t axis, motor_t motor, pinnum_t step_pin, bool step_invert, pinnum_t dir_pin, bool dir_invert) {
     step_pin = step_engine->init_step_pin(step_pin, step_invert);
 
-    motor_t* m               = new motor_t;
+    auto m                   = new motor_pins_t;
     axis_motors[axis][motor] = m;
     m->step_pin              = step_pin;
     m->step_invert           = step_invert;
@@ -94,49 +94,49 @@ void Stepping::assignMotor(uint8_t axis, uint8_t motor, pinnum_t step_pin, bool 
 
 int32_t Stepping::axis_steps[MAX_N_AXIS] = { 0 };
 
-bool* Stepping::limit_var(uint8_t axis, uint8_t motor) {
+bool* Stepping::limit_var(axis_t axis, motor_t motor) {
     auto m = axis_motors[axis][motor];
     return m ? &(m->limited) : nullptr;
 }
 
-void Stepping::block(uint8_t axis, uint8_t motor) {
+void Stepping::block(axis_t axis, motor_t motor) {
     auto m = axis_motors[axis][motor];
     if (m) {
         m->blocked = true;
     }
 }
 
-void Stepping::unblock(uint8_t axis, uint8_t motor) {
+void Stepping::unblock(axis_t axis, motor_t motor) {
     auto m = axis_motors[axis][motor];
     if (m) {
         m->blocked = false;
     }
 }
 
-void Stepping::limit(uint8_t axis, uint8_t motor) {
+void Stepping::limit(axis_t axis, motor_t motor) {
     auto m = axis_motors[axis][motor];
     if (m) {
         m->limited = true;
     }
 }
-void Stepping::unlimit(uint8_t axis, uint8_t motor) {
+void Stepping::unlimit(axis_t axis, motor_t motor) {
     auto m = axis_motors[axis][motor];
     if (m) {
         m->limited = false;
     }
 }
 
-void IRAM_ATTR Stepping::step(uint8_t step_mask, uint8_t dir_mask) {
+void IRAM_ATTR Stepping::step(AxisMask step_mask, AxisMask dir_mask) {
     // Set the direction pins, but optimize for the common
     // situation where the direction bits haven't changed.
-    static uint8_t previous_dir_mask = 255;  // should never be this value
-    if (previous_dir_mask == 255) {
+    static AxisMask previous_dir_mask = 65535;  // should never be this value
+    if (previous_dir_mask == 65535) {
         // Set all the direction bits the first time
         previous_dir_mask = ~dir_mask;
     }
 
     if (dir_mask != previous_dir_mask) {
-        for (size_t axis = 0; axis < Axes::_numberAxis; axis++) {
+        for (axis_t axis = X_AXIS; axis < Axes::_numberAxis; axis++) {
             bool dir     = bitnum_is_true(dir_mask, axis);
             bool old_dir = bitnum_is_true(previous_dir_mask, axis);
             if (dir != old_dir) {
@@ -156,7 +156,7 @@ void IRAM_ATTR Stepping::step(uint8_t step_mask, uint8_t dir_mask) {
     step_engine->start_step();
 
     // Turn on step pulses for motors that are supposed to step now
-    for (size_t axis = 0; axis < Axes::_numberAxis; axis++) {
+    for (axis_t axis = X_AXIS; axis < Axes::_numberAxis; axis++) {
         if (bitnum_is_true(step_mask, axis)) {
             auto increment = bitnum_is_true(dir_mask, axis) ? -1 : 1;
             axis_steps[axis] += increment;
@@ -176,7 +176,7 @@ void IRAM_ATTR Stepping::unstep() {
     if (step_engine->start_unstep()) {
         return;
     }
-    for (size_t axis = 0; axis < Axes::_numberAxis; axis++) {
+    for (axis_t axis = X_AXIS; axis < Axes::_numberAxis; axis++) {
         for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
             auto m = axis_motors[axis][motor];
             if (m) {

@@ -5,6 +5,7 @@
 #include "JsonGenerator.h"
 
 #include "Configurable.h"
+#include "Machine/Axes.h"  // Axes
 
 #include <cstring>
 #include <cstdio>
@@ -170,4 +171,21 @@ namespace Configuration {
         _encoder.end_object();
         leave();
     }
+
+    void JsonGenerator::item(const char* name, axis_t& value) {
+        enter(name);
+        axis_t selected_val = value;
+
+        _encoder.begin_webui(_currentPath, "B", selected_val);
+        _encoder.begin_array("O");
+        for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
+            _encoder.begin_object();
+            _encoder.member(Machine::Axes::axisName(axis), axis);
+            _encoder.end_object();
+        }
+        _encoder.end_array();
+        _encoder.end_object();
+        leave();
+    }
+
 }

@@ -28,9 +28,9 @@ namespace Machine {
         static AxisMask unhomed_axes();
         static AxisMask direction_mask;
 
-        static void set_axis_homed(size_t axis);
-        static void set_axis_unhomed(size_t axis);
-        static bool axis_is_homed(size_t axis);
+        static void set_axis_homed(axis_t axis);
+        static void set_axis_unhomed(axis_t axis);
+        static bool axis_is_homed(axis_t axis);
         static void set_all_axes_homed();
         static void set_all_axes_unhomed();
 

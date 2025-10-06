@@ -8,7 +8,7 @@
 #include <algorithm>
 
 class InputPin;
-void uart_register_input_pin(uint32_t uart_num, uint8_t pinnum, InputPin* object) {}
+void uart_register_input_pin(uint32_t uart_num, pinnum_t pinnum, InputPin* object) {}
 
 inline std::string uart_key(uint32_t uart_num) {
     std::ostringstream key;

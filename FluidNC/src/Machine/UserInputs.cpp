@@ -36,7 +36,7 @@ namespace Machine {
         }
     }
 
-    UserInputs::ReadInputResult UserInputs::readDigitalInput(uint8_t input_number) {
+    UserInputs::ReadInputResult UserInputs::readDigitalInput(objnum_t input_number) {
         if (input_number >= MaxUserDigitalPin) {
             return Error::PParamMaxExceeded;
         }
@@ -47,7 +47,7 @@ namespace Machine {
         return input.pin.read();
     }
 
-    UserInputs::ReadInputResult UserInputs::readAnalogInput(uint8_t input_number) {
+    UserInputs::ReadInputResult UserInputs::readAnalogInput(objnum_t input_number) {
         // TODO - analog pins are read the same as digital.
         if (input_number >= MaxUserAnalogPin) {
             return Error::PParamMaxExceeded;

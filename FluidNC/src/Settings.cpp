@@ -410,8 +410,23 @@ Error UserCommand::action(const char* value, AuthenticationLevel auth_level, Cha
 Coordinates* coords[CoordIndex::End];
 
 bool Coordinates::load() {
-    size_t len;
-    return !nvs.get_blob(_name, _currentValue, &len);
+    size_t len = U_AXIS * sizeof(float);  // 6 is old MAX_N_AXIS
+    if (nvs.get_blob(_name, _currentValue, &len)) {
+        return false;
+    }
+    // If this is a UVW build, try to get additional coordinate data
+    // The UVW data is stored separately to work around a bug in old
+    // builds that could overrun the memory buffer if the stored blob
+    // is too large.
+    if (MAX_N_AXIS > U_AXIS) {
+        len = (MAX_N_AXIS - U_AXIS) * sizeof(float);
+        if (nvs.get_blob((std::string("UVW") + _name).c_str(), &_currentValue[U_AXIS], &len)) {
+            for (axis_t axis = U_AXIS; axis < MAX_N_AXIS; axis++) {
+                _currentValue[axis] = 0;
+            }
+        }
+    }
+    return true;
 };
 
 void Coordinates::set(float value[MAX_N_AXIS]) {

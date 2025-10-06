@@ -166,10 +166,10 @@ const float secPerMinSq = 60.0 * 60.0;  // Seconds Per Minute Squared, for accel
 float limit_acceleration_by_axis_maximum(float* unit_vec) {
     float limit_value = SOME_LARGE_VALUE;
     auto  n_axis      = Axes::_numberAxis;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        auto axisSetting = Axes::_axis[idx];
-        if (unit_vec[idx] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[idx]));
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        auto axisSetting = Axes::_axis[axis];
+        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
+            limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[axis]));
         }
     }
     // The acceleration setting is stored and displayed in units of mm/sec^2,
@@ -182,10 +182,10 @@ float limit_acceleration_by_axis_maximum(float* unit_vec) {
 float limit_rate_by_axis_maximum(float* unit_vec) {
     float limit_value = SOME_LARGE_VALUE;
     auto  n_axis      = Axes::_numberAxis;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        auto axisSetting = Axes::_axis[idx];
-        if (unit_vec[idx] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, fabsf(axisSetting->_maxRate / unit_vec[idx]));
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        auto axisSetting = Axes::_axis[axis];
+        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
+            limit_value = MIN(limit_value, fabsf(axisSetting->_maxRate / unit_vec[axis]));
         }
     }
     return limit_value;

@@ -220,7 +220,7 @@ Channel* pollChannels(char* line) {
     // planner buffer starvation due to not calling Stepper::prep_buffer()
     // frequently enough, which is normally called periodically at the end
     // of protocol_exec_rt_system() via protocol_execute_realtime().
-    static uint8_t counter = 0;
+    static uint_fast8_t counter = 0;
     if (line) {
         counter = 0;
     }

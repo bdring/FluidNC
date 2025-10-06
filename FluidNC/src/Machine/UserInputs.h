@@ -32,8 +32,8 @@ namespace Machine {
         void group(Configuration::HandlerBase& handler) override;
 
         using ReadInputResult = std::variant<bool, Error>;
-        ReadInputResult readDigitalInput(uint8_t input_number);
-        ReadInputResult readAnalogInput(uint8_t input_number);
+        ReadInputResult readDigitalInput(objnum_t input_number);
+        ReadInputResult readAnalogInput(objnum_t input_number);
     };
 
 }  // namespace Machine

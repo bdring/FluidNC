@@ -6,6 +6,7 @@
 #include "Report.h"
 #include "Protocol.h"  // send_line()
 #include "string_util.h"
+#include "Machine/Axes.h"  // axisType
 
 #include <cstdlib>
 #include <atomic>
@@ -175,6 +176,30 @@ namespace Configuration {
                     Assert(false, "Provided enum value %s is not valid", newValue_);
                 }
             }
+        }
+    }
+
+    void RuntimeSetting::item(const char* name, axis_t& value) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (newValue_.empty()) {
+                log_stream(out_, setting_prefix() << Machine::Axes::axisName(value));
+                return;
+            }
+            if (isdigit(newValue_.front())) {  // if the first char is a number. assume it is an index of a webui enum list
+                int32_t indexVal = 0;
+                string_util::from_decimal(newValue_, indexVal);
+                value     = static_cast<axis_t>(indexVal);
+                newValue_ = Machine::Axes::axisName(value);
+                return;
+            }
+            axis_t axis = Machine::Axes::axisNum(newValue_);
+            if (axis != INVALID_AXIS) {
+                value = axis;
+                return;
+            }
+
+            Assert(false, "Invalid axis name", newValue_);
         }
     }
 

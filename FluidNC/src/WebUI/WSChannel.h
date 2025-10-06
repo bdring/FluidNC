@@ -15,7 +15,7 @@ class WebSocketsServer;
 namespace WebUI {
     class WSChannel : public Channel {
     public:
-        WSChannel(WebSocketsServer* server, uint8_t clientNum);
+        WSChannel(WebSocketsServer* server, objnum_t clientNum);
 
         size_t write(uint8_t c);
         size_t write(const uint8_t* buffer, size_t size);
@@ -26,7 +26,7 @@ namespace WebUI {
 
         void flush(void) override {}
 
-        uint8_t id() { return _clientNum; }
+        objnum_t id() { return _clientNum; }
 
         int rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
 
@@ -41,7 +41,7 @@ namespace WebUI {
 
     private:
         WebSocketsServer* _server;
-        uint8_t           _clientNum;
+        objnum_t          _clientNum;
 
         std::string _output_line;
 
@@ -53,20 +53,20 @@ namespace WebUI {
 
     class WSChannels {
     private:
-        static std::map<uint8_t, WSChannel*> _wsChannels;
-        static std::list<WSChannel*>         _webWsChannels;
+        static std::map<objnum_t, WSChannel*> _wsChannels;
+        static std::list<WSChannel*>          _webWsChannels;
 
         static WSChannel* _lastWSChannel;
         static WSChannel* getWSChannel(uint32_t pageid);
 
     public:
         static void removeChannel(WSChannel* channel);
-        static void removeChannel(uint8_t num);
+        static void removeChannel(objnum_t num);
 
         static bool runGCode(uint32_t pageid, std::string_view cmd);
         static bool sendError(uint32_t pageid, std::string error);
         static void sendPing();
-        static void handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
-        static void handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
+        static void handleEvent(WebSocketsServer* server, objnum_t num, uint8_t type, uint8_t* payload, size_t length);
+        static void handlev3Event(WebSocketsServer* server, objnum_t num, uint8_t type, uint8_t* payload, size_t length);
     };
 }

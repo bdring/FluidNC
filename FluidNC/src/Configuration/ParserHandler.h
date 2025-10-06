@@ -100,6 +100,20 @@ namespace Configuration {
             }
         }
 
+        void item(const char* name, axis_t& value) override {
+            if (_parser.is(name)) {
+                auto token = string_util::trim(_parser.stringValue());
+                if (token.length()) {
+                    axis_t axis = Machine::Axes::axisNum(token);
+                    if (axis != INVALID_AXIS) {
+                        value = axis;
+                        return;
+                    }
+                }
+                value = X_AXIS;
+            }
+        }
+
         void item(const char* name, bool& value) override {
             if (_parser.is(name)) {
                 value = _parser.boolValue();

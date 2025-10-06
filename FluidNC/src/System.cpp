@@ -34,24 +34,24 @@ void system_reset() {
     report_wco_counter = 0;
 }
 
-float steps_to_mpos(int32_t steps, size_t axis) {
+float steps_to_mpos(int32_t steps, axis_t axis) {
     return float(steps / Axes::_axis[axis]->_stepsPerMm);
 }
-int32_t mpos_to_steps(float mpos, size_t axis) {
+int32_t mpos_to_steps(float mpos, axis_t axis) {
     return lroundf(mpos * Axes::_axis[axis]->_stepsPerMm);
 }
 
 void motor_steps_to_mpos(float* position, int32_t* steps) {
-    float motor_mpos[MAX_N_AXIS];
-    auto  a      = config->_axes;
-    auto  n_axis = a ? a->_numberAxis : 0;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        motor_mpos[idx] = steps_to_mpos(steps[idx], idx);
+    float  motor_mpos[MAX_N_AXIS];
+    auto   a      = config->_axes;
+    axis_t n_axis = a ? a->_numberAxis : X_AXIS;
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        motor_mpos[axis] = steps_to_mpos(steps[axis], axis);
     }
     config->_kinematics->motors_to_cartesian(position, motor_mpos, n_axis);
 }
 
-void set_motor_steps(size_t axis, int32_t steps) {
+void set_motor_steps(axis_t axis, int32_t steps) {
     Stepping::setSteps(axis, steps);
 }
 
@@ -59,19 +59,19 @@ void set_motor_steps_from_mpos(float* mpos) {
     auto  n_axis = Axes::_numberAxis;
     float motor_steps[n_axis];
     config->_kinematics->transform_cartesian_to_motors(motor_steps, mpos);
-    for (size_t axis = 0; axis < n_axis; axis++) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         set_motor_steps(axis, mpos_to_steps(motor_steps[axis], axis));
     }
 }
 
-int32_t get_axis_motor_steps(size_t axis) {
+int32_t get_axis_motor_steps(axis_t axis) {
     return Stepping::getSteps(axis);
 }
 
 void get_motor_steps(int32_t* motor_steps) {
     auto axes   = config->_axes;
     auto n_axis = axes->_numberAxis;
-    for (size_t axis = 0; axis < n_axis; axis++) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         motor_steps[axis] = Stepping::getSteps(axis);
     }
 }
@@ -92,11 +92,11 @@ float* get_mpos() {
 float* get_wco() {
     static float wco[MAX_N_AXIS];
     auto         n_axis = Axes::_numberAxis;
-    for (int idx = 0; idx < n_axis; idx++) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         // Apply work coordinate offsets and tool length offset to current position.
-        wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];
-        if (idx == TOOL_LENGTH_OFFSET_AXIS) {
-            wco[idx] += gc_state.tool_length_offset;
+        wco[axis] = gc_state.coord_system[axis] + gc_state.coord_offset[axis];
+        if (axis == TOOL_LENGTH_OFFSET_AXIS) {
+            wco[axis] += gc_state.tool_length_offset;
         }
     }
     return wco;

@@ -324,18 +324,18 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         copyAxes(position_steps, pl.position);
     }
     auto n_axis = Axes::_numberAxis;
-    for (size_t idx = 0; idx < n_axis; idx++) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.
         // Also, compute individual axes distance for move and prep unit vector calculations.
         // NOTE: Computes true distance from converted step values.
-        target_steps[idx]       = mpos_to_steps(target[idx], idx);
-        block->steps[idx]       = labs(target_steps[idx] - position_steps[idx]);
-        block->step_event_count = MAX(block->step_event_count, block->steps[idx]);
-        delta_mm                = steps_to_mpos((target_steps[idx] - position_steps[idx]), idx);
-        unit_vec[idx]           = delta_mm;  // Store unit vector numerator
+        target_steps[axis]      = mpos_to_steps(target[axis], axis);
+        block->steps[axis]      = labs(target_steps[axis] - position_steps[axis]);
+        block->step_event_count = MAX(block->step_event_count, block->steps[axis]);
+        delta_mm                = steps_to_mpos((target_steps[axis] - position_steps[axis]), axis);
+        unit_vec[axis]          = delta_mm;  // Store unit vector numerator
         // Set direction bits. Bit enabled always means direction is negative.
         if (delta_mm < 0.0) {
-            block->direction_bits |= bitnum_to_mask(idx);
+            block->direction_bits |= bitnum_to_mask(axis);
         }
     }
     // Bail if this is a zero-length block. Highly unlikely to occur.
@@ -389,9 +389,9 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         // change the overall maximum entry speed conditions of all blocks.
         float junction_unit_vec[MAX_N_AXIS];
         float junction_cos_theta = 0.0;
-        for (size_t idx = 0; idx < n_axis; idx++) {
-            junction_cos_theta -= pl.previous_unit_vec[idx] * unit_vec[idx];
-            junction_unit_vec[idx] = unit_vec[idx] - pl.previous_unit_vec[idx];
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+            junction_cos_theta -= pl.previous_unit_vec[axis] * unit_vec[axis];
+            junction_unit_vec[axis] = unit_vec[axis] - pl.previous_unit_vec[axis];
         }
         // NOTE: Computed without any expensive trig, sin() or acos(), by trig half angle identity of cos(theta).
         if (junction_cos_theta > 0.999999) {

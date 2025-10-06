@@ -10,7 +10,7 @@ namespace MotorDrivers {
         void config_message() override;
         void update() override;
 
-        static constexpr uint8_t _update_rate_ms = 50;
+        static constexpr int _update_rate_ms = 50;
 
         float    _off_percent  = 0.0;
         float    _pull_percent = 100.0;

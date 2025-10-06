@@ -48,7 +48,7 @@ bool limits_startup_check() {  // return true if there is a hard limit error.
     MotorMask lim_pin_state = limits_get_state();
     if (lim_pin_state) {
         auto n_axis = Axes::_numberAxis;
-        for (size_t axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             for (size_t motor = 0; motor < 2; motor++) {
                 if (bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, motor))) {
                     log_warn("Active limit switch on " << Axes::axisName(axis) << " axis motor " << motor);
@@ -73,8 +73,8 @@ bool soft_limit = false;
 // Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,
 // the workspace volume is in all negative space, and the system is in normal operation.
 // NOTE: Used by jogging to limit travel within soft-limit volume.
-void limit_error(size_t axis, float coordinate) {
-    log_info("Soft limit on " << Machine::Axes::_names[axis] << " target:" << coordinate);
+void limit_error(axis_t axis, float coordinate) {
+    log_info("Soft limit on " << Machine::Axes::axisName(axis) << " target:" << coordinate);
 
     limit_error();
 }
@@ -98,7 +98,7 @@ void limit_error() {
     mc_critical(ExecAlarm::SoftLimit);
 }
 
-float limitsMaxPosition(size_t axis) {
+float limitsMaxPosition(axis_t axis) {
     auto axisConfig = Axes::_axis[axis];
     auto homing     = axisConfig->_homing;
     auto mpos       = homing ? homing->_mpos : 0;
@@ -107,7 +107,7 @@ float limitsMaxPosition(size_t axis) {
     return (!homing || homing->_positiveDirection) ? mpos : mpos + maxtravel;
 }
 
-float limitsMinPosition(size_t axis) {
+float limitsMinPosition(axis_t axis) {
     auto axisConfig = Axes::_axis[axis];
     auto homing     = axisConfig->_homing;
     auto mpos       = homing ? homing->_mpos : 0;

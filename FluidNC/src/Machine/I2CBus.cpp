@@ -34,7 +34,7 @@ namespace Machine {
             log_error("I2C init failed");
         }
 
-        uint8_t nDevices = 0;
+        objnum_t nDevices = 0;
         log_info("Scanning...");
         for (uint8_t address = 1; address < 127; address++) {
             uint8_t buf[1];
@@ -100,7 +100,7 @@ namespace Machine {
         }
         i2c->begin(int(sdaPin), int(sclPin), _frequency);
 
-        uint8_t nDevices = 0;
+        objnum_t nDevices = 0;
         log_info("Scanning...");
         for (uint8_t address = 1; address < 127; address++) {
             i2c->beginTransmission(address);

@@ -25,7 +25,7 @@
 #include "Limit.h"  // limitsMinPosition
 namespace MotorDrivers {
     std::string MotorDriver::axisName() const {
-        return std::string(1, Axes::axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";
+        return std::string(Axes::axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";
     }
 
     void MotorDriver::debug_message() {}
@@ -34,13 +34,13 @@ namespace MotorDrivers {
         return true;
     };  // true = OK
 
-    size_t MotorDriver::axis_index() const {
+    axis_t MotorDriver::axis_index() const {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
-        return size_t(Axes::findAxisIndex(this));
+        return Axes::findAxisIndex(this);
     }
-    size_t MotorDriver::dual_axis_index() const {
+    motor_t MotorDriver::dual_axis_index() const {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
-        return size_t(Axes::findAxisMotor(this));
+        return Axes::findAxisMotor(this);
     }
     void IRAM_ATTR MotorDriver::set_disable(bool disable) {}
 }

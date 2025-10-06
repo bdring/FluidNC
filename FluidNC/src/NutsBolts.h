@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include "Types.h"
 #include "Logging.h"
 #include "Driver/delay_usecs.h"
 
@@ -18,7 +19,7 @@ enum class DwellMode : uint8_t {
 
 const float SOME_LARGE_VALUE = 1.0E+38f;
 
-static inline uint8_t toMotor2(uint8_t axis) {
+static inline motor_t toMotor2(axis_t axis) {
     return axis + MAX_N_AXIS;
 }
 

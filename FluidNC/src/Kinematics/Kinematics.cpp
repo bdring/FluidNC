@@ -19,7 +19,7 @@ namespace Kinematics {
     }
 
     bool Kinematics::invalid_arc(
-        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, axis_t caxes[3], bool is_clockwise_arc) {
         Assert(_system != nullptr, "No kinematic system");
         return _system->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc);
     }
@@ -29,7 +29,7 @@ namespace Kinematics {
         return _system->cartesian_to_motors(target, pl_data, position);
     }
 
-    void Kinematics::motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) {
+    void Kinematics::motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) {
         Assert(_system != nullptr, "No kinematic system");
         return _system->motors_to_cartesian(cartesian, motors, n_axis);
     }

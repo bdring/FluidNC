@@ -62,11 +62,11 @@ namespace Spindles {
     }
 
     void Spindle::setupSpeeds(uint32_t max_dev_speed) {
-        uint8_t nsegments = _speeds.size() - 1;
+        size_t nsegments = _speeds.size() - 1;
         if (nsegments < 1) {
             return;
         }
-        uint8_t i;
+        size_t i;
 
         SpindleSpeed offset;
         uint32_t     scaler;
@@ -175,8 +175,8 @@ namespace Spindles {
         if (speed == 0) {
             return _speeds[0].offset;
         }
-        uint8_t num_segments = _speeds.size() - 1;
-        uint8_t i;
+        size_t num_segments = _speeds.size() - 1;
+        size_t i;
         for (i = 0; i < num_segments; i++) {
             if (speed < _speeds[i + 1].speed) {
                 break;

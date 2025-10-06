@@ -13,7 +13,7 @@
 
 Channel::Channel(const std::string& name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
 Channel::Channel(const char* name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
-Channel::Channel(const char* name, uint8_t num, bool addCR) : _name(name) {
+Channel::Channel(const char* name, objnum_t num, bool addCR) : _name(name) {
     _name += std::to_string(num);
     _linelen = 0;
     _addCR   = addCR;
@@ -147,7 +147,7 @@ void Channel::autoReport() {
     }
 }
 
-void Channel::pin_event(uint32_t pinnum, bool active) {
+void Channel::pin_event(pinnum_t pinnum, bool active) {
     auto input_pin = _pins.at(pinnum);
     protocol_send_event(active ? &pinActiveEvent : &pinInactiveEvent, input_pin);
 }
@@ -257,7 +257,7 @@ void Channel::out_acked(const std::string& s, const char* tag) {
 
 void Channel::ready() {}
 
-void Channel::registerEvent(uint8_t pinnum, InputPin* obj) {
+void Channel::registerEvent(pinnum_t pinnum, InputPin* obj) {
     _pins[pinnum] = obj;
 }
 

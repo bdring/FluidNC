@@ -111,6 +111,17 @@ namespace Configuration {
         }
     }
 
+    void GCodeParam::item(const char* name, axis_t& value) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (_get) {
+                _iovalue = float(value);
+            } else {
+                value = static_cast<axis_t>(_iovalue);
+            }
+        }
+    }
+
     void GCodeParam::item(const char* name, std::vector<speedEntry>& value) {
         if (is(name)) {
             error();

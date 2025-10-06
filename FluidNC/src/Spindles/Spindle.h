@@ -57,14 +57,14 @@ namespace Spindles {
         std::string  atc_info() { return _atc_info; };
 
         // Used by Protocol.cpp to restore the state during a restart
-        virtual void    setState(SpindleState state, uint32_t speed) = 0;
-        SpindleState    get_state() { return _current_state; };
-        void            stop() { setState(SpindleState::Disable, 0); }
-        virtual void    config_message() = 0;
-        virtual bool    isRateAdjusted();
-        virtual bool    use_delay_settings() const { return true; }
-        virtual uint8_t get_current_tool_num() { return _current_tool; }
-        virtual bool    tool_change(uint32_t tool_number, bool pre_select, bool set_tool);
+        virtual void   setState(SpindleState state, uint32_t speed) = 0;
+        SpindleState   get_state() { return _current_state; };
+        void           stop() { setState(SpindleState::Disable, 0); }
+        virtual void   config_message() = 0;
+        virtual bool   isRateAdjusted();
+        virtual bool   use_delay_settings() const { return true; }
+        virtual tool_t get_current_tool_num() { return _current_tool; }
+        virtual bool   tool_change(uint32_t tool_number, bool pre_select, bool set_tool);
 
         virtual void setSpeedfromISR(uint32_t dev_speed) = 0;
 
@@ -112,7 +112,7 @@ namespace Spindles {
         virtual ~Spindle() {}
 
     protected:
-        uint8_t _current_tool = 0;
+        tool_t _current_tool = 0;
     };
 
     using SpindleFactory = Configuration::GenericFactory<Spindle>;

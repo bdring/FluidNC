@@ -88,7 +88,7 @@ namespace Kinematics {
         auto n_axis = Axes::_numberAxis;
 
         // warn about axis soft limits
-        for (uint8_t axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (axes->_axis[axis]->_softLimits) {
                 log_config_error(" All soft_limits configured in axes should be false");
                 break;
@@ -103,7 +103,7 @@ namespace Kinematics {
         float cartesian[MAX_N_AXIS] = { 0.0, 0.0, 0.0 };
         // Calculate the Z offset at the arm zero angles ...
         // Z offset is the z distance from the motor axes to the end effector axes at zero angle
-        motors_to_cartesian(cartesian, angles, 3);  // Sets the cartesian values
+        motors_to_cartesian(cartesian, angles, A_AXIS);  // Sets the cartesian values
         log_info("  Z Offset:" << cartesian[Z_AXIS]);
     }
 
@@ -123,7 +123,7 @@ namespace Kinematics {
 
     // TO DO. This is not supported yet. Other levels of protection will prevent "damage"
     bool ParallelDelta::invalid_arc(
-        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, axis_t caxes[3], bool is_clockwise_arc) {
         return false;
     }
 
@@ -238,7 +238,7 @@ namespace Kinematics {
         return true;
     }
 
-    void ParallelDelta::motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) {
+    void ParallelDelta::motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) {
         //log_debug("motors_to_cartesian motors: (" << motors[0] << "," << motors[1] << "," << motors[2] << ")");
         //log_info("motors_to_cartesian rf:" << rf << " re:" << re << " f:" << f << " e:" << e);
 
@@ -294,7 +294,7 @@ namespace Kinematics {
         Axes::set_disable(false);
 
         // TODO deal with non kinematic axes above Z
-        for (uint8_t axis = 0; axis < 3; axis++) {
+        for (axis_t axis = X_AXIS; axis < 3; axis++) {
             //set_motor_steps(axis, mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis));
             int32_t steps = mpos_to_steps(_homing_mpos, axis);
             set_motor_steps(axis, steps);

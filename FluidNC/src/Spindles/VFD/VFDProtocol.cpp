@@ -146,7 +146,7 @@ namespace Spindles {
                 }
 
                 // Assume for the worst, and retry...
-                uint8_t retry_count = 0;
+                size_t retry_count = 0;
                 for (; retry_count < instance->_retries; ++retry_count) {
                     // Flush the UART and write the data:
                     uart.flush();
@@ -272,9 +272,9 @@ namespace Spindles {
             for (size_t pos = 0; pos < msg_len; pos++) {
                 crc ^= uint16_t(buf[pos]);  // XOR byte into least sig. byte of crc.
 
-                for (uint8_t i = 8; i != 0; i--) {  // Loop over each bit
-                    if ((crc & 0x0001) != 0) {      // If the LSB is set
-                        crc >>= 1;                  // Shift right and XOR 0xA001
+                for (size_t i = 8; i != 0; i--) {  // Loop over each bit
+                    if ((crc & 0x0001) != 0) {     // If the LSB is set
+                        crc >>= 1;                 // Shift right and XOR 0xA001
                         crc ^= 0xA001;
                     } else {        // Else LSB is not set
                         crc >>= 1;  // Just shift right

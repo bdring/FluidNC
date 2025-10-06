@@ -41,9 +41,6 @@ void settings_restore(uint8_t restore_flag);
 // kinds of data.  Code that accesses settings should use only these
 // generic functions and should not use derived classes directly.
 
-enum {
-    NO_AXIS = 255,
-};
 typedef enum : uint8_t {
     GRBL = 1,  // Classic GRBL settings like $100
     EXTENDED,  // Settings added by early versions of Grbl_Esp32
@@ -61,8 +58,6 @@ typedef enum : uint8_t {
     WU,  // Readable and writable as user and admin
     WA,  // Readable as user and admin, writable as admin
 } permissions_t;
-
-typedef uint8_t axis_t;
 
 class Word {
 protected:
@@ -116,7 +111,7 @@ class Setting : public Word {
 private:
 protected:
     // group_t _group;
-    axis_t      _axis = NO_AXIS;
+    axis_t      _axis = INVALID_AXIS;
     const char* _keyName;
 
 public:
@@ -257,9 +252,9 @@ public:
     // Return a pointer to the array
     const float* get() { return _currentValue; }
     // Get an individual component
-    const float get(uint8_t axis) { return _currentValue[axis]; }
+    const float get(axis_t axis) { return _currentValue[axis]; }
     // Set an individual component
-    void set(uint8_t axis, float value) { _currentValue[axis] = value; }
+    void set(axis_t axis, float value) { _currentValue[axis] = value; }
 
     void set(float* value);
 };

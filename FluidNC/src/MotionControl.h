@@ -33,9 +33,9 @@ void mc_arc(float*            target,
             float*            position,
             float*            offset,
             float             radius,
-            uint8_t           axis_0,
-            uint8_t           axis_1,
-            uint8_t           axis_linear,
+            axis_t            axis_0,
+            axis_t            axis_1,
+            axis_t            axis_linear,
             bool              is_clockwise_arc,
             uint32_t          pword_rotations);
 
@@ -43,7 +43,7 @@ void mc_arc(float*            target,
 bool mc_dwell(int32_t milliseconds);
 
 // Perform tool length probe cycle. Requires probe switch.
-GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, bool no_error, uint8_t offsetAxis, float offset);
+GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, bool no_error, AxisMask offsetAxis, float offset);
 
 // Handles updating the override control state.
 void mc_override_ctrl_update(Override override_state);

@@ -13,7 +13,7 @@
 namespace WebUI {
     class WSChannels;
 
-    WSChannel::WSChannel(WebSocketsServer* server, uint8_t clientNum) : Channel("websocket"), _server(server), _clientNum(clientNum) {}
+    WSChannel::WSChannel(WebSocketsServer* server, objnum_t clientNum) : Channel("websocket"), _server(server), _clientNum(clientNum) {}
 
     int WSChannel::read() {
         if (!_active) {
@@ -106,8 +106,8 @@ namespace WebUI {
 
     WSChannel::~WSChannel() {}
 
-    std::map<uint8_t, WSChannel*> WSChannels::_wsChannels;
-    std::list<WSChannel*>         WSChannels::_webWsChannels;
+    std::map<objnum_t, WSChannel*> WSChannels::_wsChannels;
+    std::list<WSChannel*>          WSChannels::_webWsChannels;
 
     WSChannel* WSChannels::_lastWSChannel = nullptr;
 
@@ -132,7 +132,7 @@ namespace WebUI {
         return wsChannel;
     }
 
-    void WSChannels::removeChannel(uint8_t num) {
+    void WSChannels::removeChannel(objnum_t num) {
         try {
             WSChannel* wsChannel = _wsChannels.at(num);
             _webWsChannels.remove(wsChannel);
@@ -191,7 +191,7 @@ namespace WebUI {
         }
     }
 
-    void WSChannels::handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
+    void WSChannels::handleEvent(WebSocketsServer* server, objnum_t num, uint8_t type, uint8_t* payload, size_t length) {
         switch (type) {
             case WStype_DISCONNECTED:
                 log_debug_to(Console, "WebSocket disconnect " << num);
@@ -234,7 +234,7 @@ namespace WebUI {
         }
     }
 
-    void WSChannels::handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
+    void WSChannels::handlev3Event(WebSocketsServer* server, objnum_t num, uint8_t type, uint8_t* payload, size_t length) {
         switch (type) {
             case WStype_DISCONNECTED:
                 printf("WebSocket disconnect %d\n", num);
@@ -266,7 +266,7 @@ namespace WebUI {
                         server->broadcastTXT(s.c_str());
                     }
 
-                    for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++)
+                    for (size_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++)
                         if (i != num && server->clientIsConnected(i)) {
                             server->disconnect(i);
                         }

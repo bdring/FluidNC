@@ -128,15 +128,15 @@ void mc_arc(float*            target,
             float*            position,
             float*            offset,
             float             radius,
-            uint8_t           axis_0,
-            uint8_t           axis_1,
-            uint8_t           axis_linear,
+            axis_t            axis_0,
+            axis_t            axis_1,
+            axis_t            axis_linear,
             bool              is_clockwise_arc,
             uint32_t          pword_rotations) {
     float center[3] = { position[axis_0] + offset[axis_0], position[axis_1] + offset[axis_1], 0 };
 
     // The first two axes are the circle plane and the third is the orthogonal plane
-    size_t caxes[3] = { axis_0, axis_1, axis_linear };
+    axis_t caxes[3] = { axis_0, axis_1, axis_linear };
     if (config->_kinematics->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc)) {
         return;
     }
@@ -280,7 +280,7 @@ bool probe_succeeded = false;
 
 // Perform tool length probe cycle. Requires probe switch.
 // NOTE: Upon probe failure, the program will be stopped and placed into ALARM state.
-GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, bool no_error, uint8_t offsetAxis, float offset) {
+GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, bool no_error, AxisMask offsetAxis, float offset) {
     if (!config->_probe->exists()) {
         log_error("Probe pin is not configured");
         return GCUpdatePos::None;
@@ -356,7 +356,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
 
             motor_steps_to_mpos(probe_contact, probe_steps);
             coords[gc_state.modal.coord_select]->get(coord_data);  // get a copy of the current coordinate offsets
-            for (int axis = 0; axis < n_axis; axis++) {            // find the axis specified. There should only be one.
+            for (axis_t axis = X_AXIS; axis < n_axis; axis++) {    // find the axis specified. There should only be one.
                 if (offsetAxis & (1 << axis)) {
                     coord_data[axis] = probe_contact[axis] - offset;
                     break;

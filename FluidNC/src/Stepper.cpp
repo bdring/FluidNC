@@ -30,7 +30,7 @@ static bool awake = false;
 struct st_block_t {
     uint32_t steps[MAX_N_AXIS];
     uint32_t step_event_count;
-    uint8_t  direction_bits;
+    AxisMask direction_bits;
     bool     is_pwm_rate_adjusted;  // Tracks motions that require constant laser power/rate
 };
 static volatile st_block_t* st_block_buffer = nullptr;
@@ -66,10 +66,8 @@ typedef struct {
 
     uint32_t counter[MAX_N_AXIS];  // Counter variables for the bresenham line tracer
 
-    uint8_t  step_bits;     // Stores out_bits output to complete the step pulse delay
-    uint8_t  execute_step;  // Flags step execution for each interrupt.
-    uint8_t  step_outbits;  // The next stepping-bits to be output
-    uint8_t  dir_outbits;
+    AxisMask step_outbits;  // The next stepping-bits to be output
+    AxisMask dir_outbits;
     uint32_t steps[MAX_N_AXIS];
 
     uint16_t             step_count;        // Steps remaining in line segment motion
@@ -220,14 +218,14 @@ bool IRAM_ATTR Stepper::pulse_func() {
                 st.exec_block_index = st.exec_segment->st_block_index;
                 st.exec_block       = &st_block_buffer[st.exec_block_index];
                 // Initialize Bresenham line and distance counters
-                for (int axis = 0; axis < n_axis; axis++) {
+                for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
                     st.counter[axis] = st.exec_block->step_event_count >> 1;
                 }
             }
 
             st.dir_outbits = st.exec_block->direction_bits;
             // Adjust Bresenham axis increment counters according to AMASS level.
-            for (int axis = 0; axis < n_axis; axis++) {
+            for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
                 st.steps[axis] = st.exec_block->steps[axis] >> st.exec_segment->amass_level;
             }
             // Set real-time spindle output as segment is loaded, just prior to the first step.
@@ -249,7 +247,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
         }
     }
 
-    for (int axis = 0; axis < n_axis; axis++) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         // Execute step displacement profile by Bresenham line algorithm
         st.counter[axis] += st.steps[axis];
         if (st.counter[axis] > st.exec_block->step_event_count) {
@@ -409,14 +407,13 @@ void Stepper::prep_buffer() {
                 // segment buffer finishes the prepped block, but the stepper ISR is still executing it.
                 st_prep_block                 = &st_block_buffer[prep.st_block_index];
                 st_prep_block->direction_bits = pl_block->direction_bits;
-                uint8_t idx;
-                auto    n_axis = Axes::_numberAxis;
+                auto n_axis                   = Axes::_numberAxis;
 
                 // Bit-shift multiply all Bresenham data by the max AMASS level so that
                 // we never divide beyond the original data anywhere in the algorithm.
                 // If the original data is divided, we can lose a step from integer roundoff.
-                for (idx = 0; idx < n_axis; idx++) {
-                    st_prep_block->steps[idx] = pl_block->steps[idx] << maxAmassLevel;
+                for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+                    st_prep_block->steps[axis] = pl_block->steps[axis] << maxAmassLevel;
                 }
                 st_prep_block->step_event_count = pl_block->step_event_count << maxAmassLevel;
 

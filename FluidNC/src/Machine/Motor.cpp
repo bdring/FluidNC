@@ -10,7 +10,7 @@
 #include "Axes.h"
 
 namespace Machine {
-    Motor::Motor(uint8_t axis, uint8_t motorNum) :
+    Motor::Motor(axis_t axis, motor_t motorNum) :
         _axis(axis), _motorNum(motorNum), _negLimitPin(axis, motorNum, -1, _hardLimits), _posLimitPin(axis, motorNum, 1, _hardLimits),
         _allLimitPin(axis, motorNum, 0, _hardLimits) {}
 
@@ -59,7 +59,7 @@ namespace Machine {
     }
 
     // Used for CoreXY when one limit switch should stop multiple motors
-    void Motor::limitOtherAxis(uint8_t axis) {
+    void Motor::limitOtherAxis(axis_t axis) {
         _negLimitPin.setExtraMotorLimit(axis, _motorNum);
         _posLimitPin.setExtraMotorLimit(axis, _motorNum);
         _allLimitPin.setExtraMotorLimit(axis, _motorNum);

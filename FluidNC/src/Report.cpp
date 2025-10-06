@@ -79,10 +79,10 @@ static const int axesStringLen  = coordStringLen * MAX_N_AXIS;
 static std::string report_util_axis_values(const float* axis_value) {
     std::ostringstream msg;
     auto               n_axis = Axes::_numberAxis;
-    for (size_t idx = 0; idx < n_axis; idx++) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         uint8_t decimals;
-        float   value = axis_value[idx];
-        if (idx >= A_AXIS && idx <= C_AXIS) {
+        float   value = axis_value[axis];
+        if (axis >= A_AXIS && axis <= C_AXIS) {
             // Rotary axes are in degrees so mm vs inch is not
             // relevant.  Three decimal places is probably overkill
             // for rotary axes but we use 3 in case somebody wants
@@ -97,7 +97,7 @@ static std::string report_util_axis_values(const float* axis_value) {
             }
         }
         msg << std::fixed << std::setprecision(decimals) << value;
-        if (idx < (n_axis - 1)) {
+        if (axis < (n_axis - 1)) {
             msg << ",";
         }
     }
@@ -426,8 +426,8 @@ void report_echo_line_received(const char* line, Channel& channel) {
 void mpos_to_wpos(float* position) {
     float* wco    = get_wco();
     auto   n_axis = Axes::_numberAxis;
-    for (int idx = 0; idx < n_axis; idx++) {
-        position[idx] -= wco[idx];
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        position[axis] -= wco[axis];
     }
 }
 
@@ -481,7 +481,7 @@ void report_recompute_pin_string() {
     MotorMask lim_pin_state = limits_get_state();
     if (lim_pin_state) {
         auto n_axis = Axes::_numberAxis;
-        for (size_t axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) ||
                 bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
                 report_pin_string += Axes::axisName(axis);

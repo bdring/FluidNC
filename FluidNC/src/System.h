@@ -177,11 +177,11 @@ extern int32_t probe_steps[MAX_N_AXIS];  // Last probe position in machine coord
 
 void system_reset();
 
-float   steps_to_mpos(int32_t steps, size_t axis);
-int32_t mpos_to_steps(float mpos, size_t axis);
+float   steps_to_mpos(int32_t steps, axis_t axis);
+int32_t mpos_to_steps(float mpos, axis_t axis);
 
-int32_t  get_axis_motor_steps(size_t axis);
-void     set_motor_steps(size_t axis, int32_t steps);
+int32_t  get_axis_motor_steps(axis_t axis);
+void     set_motor_steps(axis_t axis, int32_t steps);
 void     set_motor_steps_from_mpos(float* mpos);
 int32_t* get_motor_steps();
 void     get_motor_steps(int32_t* steps);

@@ -13,7 +13,7 @@ namespace Kinematics {
     // Initialize the machine position
     void Cartesian::init_position() {
         auto n_axis = Axes::_numberAxis;
-        for (size_t axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             set_motor_steps(axis, 0);  // Set to zeros
         }
     }
@@ -24,12 +24,12 @@ namespace Kinematics {
     // circle plane axis, caxes[1] is the second circle plane axis, and caxes[2] is the
     // orthogonal plane.  So for G17 mode, caxes[] is { 0, 1, 2} for { X, Y, Z}.  G18 is {2, 0, 1} i.e. {Z, X, Y}, and G19 is {1, 2, 0} i.e. {Y, Z, X}
     bool Cartesian::invalid_arc(
-        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, axis_t caxes[3], bool is_clockwise_arc) {
         pl_data->limits_checked = true;
 
         auto axes = config->_axes;
         // Handle the orthogonal axis first to get it out of the way.
-        size_t the_axis = caxes[2];
+        auto the_axis = caxes[2];
         if (axes->_axis[the_axis]->_softLimits) {
             float amin = std::min(position[the_axis], target[the_axis]);
             if (amin < limitsMinPosition(the_axis)) {
@@ -183,7 +183,7 @@ namespace Kinematics {
         float*    current_position = get_mpos();
         MotorMask lim_pin_state    = limits_get_state();
 
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             auto axisSetting = axes->_axis[axis];
             // If the axis is moving from the current location and soft limits are on.
             if (axisSetting->_softLimits && target[axis] != current_position[axis]) {
@@ -195,7 +195,7 @@ namespace Kinematics {
                     if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
                         bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
                         target[axis] = current_position[axis];  // cancel the move on this axis
-                        log_debug("Soft limit violation on " << Machine::Axes::_names[axis]);
+                        log_debug("Soft limit violation on " << Machine::Axes::axisName(axis));
                         continue;
                     }
                     float jog_dist = target[axis] - current_position[axis];
@@ -209,7 +209,7 @@ namespace Kinematics {
                     if (posLimited != negLimited) {  // XOR, because ambiguous (both) is OK
                         if ((negLimited && (jog_dist < 0)) || (posLimited && (jog_dist > 0))) {
                             target[axis] = current_position[axis];  // cancel the move on this axis
-                            log_debug("Jog into active switch blocked on " << Machine::Axes::_names[axis]);
+                            log_debug("Jog into active switch blocked on " << Machine::Axes::axisName(axis));
                             continue;
                         }
                     }
@@ -239,7 +239,7 @@ namespace Kinematics {
         auto axes   = config->_axes;
         auto n_axis = Axes::_numberAxis;
 
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             float coordinate = cartesian[axis];
             if (axes->_axis[axis]->_softLimits && (coordinate < limitsMinPosition(axis) || coordinate > limitsMaxPosition(axis))) {
                 limit_error(axis, coordinate);
@@ -254,7 +254,7 @@ namespace Kinematics {
         return mc_move_motors(target, pl_data);
     }
 
-    void Cartesian::motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) {
+    void Cartesian::motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) {
         // Motor space is cartesian space, so we do no transform.
         copyAxes(cartesian, motors);
     }
@@ -292,13 +292,13 @@ namespace Kinematics {
     void Cartesian::releaseMotors(AxisMask axisMask, MotorMask motors) {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 0))) {
-                    Stepping::unlimit(axis, 0);
+                    Stepping::unlimit(axis, MOTOR0);
                 }
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 1))) {
-                    Stepping::unlimit(axis, 1);
+                    Stepping::unlimit(axis, MOTOR1);
                 }
             }
         }

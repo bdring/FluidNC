@@ -61,6 +61,12 @@ namespace Configuration {
             }
         }
 
+        void send_item(const char* name, char value) {
+            std::string s;
+            s = value;
+            send_item(name, s);
+        }
+
         void item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) override {
             send_item(name, std::to_string(value));
         }
@@ -127,5 +133,6 @@ namespace Configuration {
             }
             send_item(name, str);
         }
+        void item(const char* name, axis_t& value) override;
     };
 }

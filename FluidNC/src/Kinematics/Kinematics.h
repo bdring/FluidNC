@@ -37,13 +37,13 @@ namespace Kinematics {
         void init_position();
 
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
-        void motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis);
+        void motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis);
         bool transform_cartesian_to_motors(float* motors, float* cartesian);
 
         void constrain_jog(float* target, plan_line_data_t* pl_data, float* position);
         bool invalid_line(float* target);
         bool invalid_arc(
-            float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc);
+            float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, axis_t caxes[3], bool is_clockwise_arc);
 
         bool canHome(AxisMask axisMask);
         bool kinematics_homing(AxisMask axisMask);
@@ -73,11 +73,11 @@ namespace Kinematics {
         virtual void constrain_jog(float* cartesian, plan_line_data_t* pl_data, float* position) {}
         virtual bool invalid_line(float* cartesian) { return false; }
         virtual bool invalid_arc(
-            float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+            float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, axis_t caxes[3], bool is_clockwise_arc) {
             return false;
         }
 
-        virtual void motors_to_cartesian(float* cartesian, float* motors, uint8_t n_axis) = 0;
+        virtual void motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) = 0;
 
         virtual bool transform_cartesian_to_motors(float* motors, float* cartesian) = 0;
 

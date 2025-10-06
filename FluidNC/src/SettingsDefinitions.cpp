@@ -43,13 +43,13 @@ void make_coordinate(CoordIndex index, const char* name) {
     }
 }
 
-void float_proxy(uint8_t axis, uint32_t grbl_number, const char* name, float* varp) {
+void float_proxy(axis_t axis, uint32_t grbl_number, const char* name, float* varp) {
     // The two strings allocated below are intentionally not freed
     char* grbl_name = new char[4];
     snprintf(grbl_name, 4, "%d", grbl_number + axis);
 
     char* fluidnc_name = new char[strlen(name) + 2];
-    sprintf(fluidnc_name, "%s%c", name, Axes::axisName(axis));
+    sprintf(fluidnc_name, "%s%s", name, Axes::axisName(axis));
 
     // Creation of any setting inserts it into the settings list, so we
     // do not need to keep the pointer here
@@ -75,6 +75,16 @@ void make_settings() {
     make_coordinate(CoordIndex::G28, "G28");
     make_coordinate(CoordIndex::G30, "G30");
     make_coordinate(CoordIndex::G92, "G92");
+    if (MAX_N_AXIS > U_AXIS) {
+        make_coordinate(CoordIndex::G59_1, "G59.1");
+    }
+    if (MAX_N_AXIS > V_AXIS) {
+        make_coordinate(CoordIndex::G59_2, "G59.2");
+    }
+    if (MAX_N_AXIS > W_AXIS) {
+        make_coordinate(CoordIndex::G59_3, "G59.3");
+    }
+
     make_coordinate(CoordIndex::TLO, "TLO");
 
     message_level = new EnumSetting("Which Messages", EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels);
@@ -100,22 +110,28 @@ void make_proxies() {
     // which are derived from MachineConfig settings.
 
     // We do this with multiple loops so the setting numbers are displayed in the expected order
-    auto n_axis = Axes::_numberAxis;
-    for (int8_t axis = n_axis - 1; axis >= 0; --axis) {
-        float_proxy(axis, 130, "Grbl/MaxTravel/", &(config->_axes->_axis[axis]->_maxTravel));
-    }
+    auto   n_axis = Axes::_numberAxis;
+    axis_t axis;
 
-    for (int8_t axis = n_axis - 1; axis >= 0; --axis) {
-        float_proxy(axis, 120, "Grbl/Acceleration/", &(config->_axes->_axis[axis]->_acceleration));
-    }
+    axis = n_axis;
+    do {
+        float_proxy(axis, 130, "Grbl/MaxTravel/", &(config->_axes->_axis[--axis]->_maxTravel));
+    } while (axis);
 
-    for (int8_t axis = n_axis - 1; axis >= 0; --axis) {
-        float_proxy(axis, 110, "Grbl/MaxRate/", &(config->_axes->_axis[axis]->_maxRate));
-    }
+    axis = n_axis;
+    do {
+        float_proxy(axis, 120, "Grbl/Acceleration/", &(config->_axes->_axis[--axis]->_acceleration));
+    } while (axis);
 
-    for (int8_t axis = n_axis - 1; axis >= 0; --axis) {
-        float_proxy(axis, 100, "Grbl/Resolution/", &(config->_axes->_axis[axis]->_stepsPerMm));
-    }
+    axis = n_axis;
+    do {
+        float_proxy(axis, 110, "Grbl/MaxRate/", &(config->_axes->_axis[--axis]->_maxRate));
+    } while (axis);
+
+    axis = n_axis;
+    do {
+        float_proxy(axis, 100, "Grbl/Resolution/", &(config->_axes->_axis[--axis]->_stepsPerMm));
+    } while (axis);
 
     INT_PROXY("32", "Grbl/LaserMode", spindle->isRateAdjusted())
 

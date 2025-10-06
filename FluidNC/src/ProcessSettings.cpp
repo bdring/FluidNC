@@ -398,7 +398,7 @@ static Error home(AxisMask axisMask, Channel& out) {
     if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
         // if there is a cycle it is the axis from $H<axis>
         auto n_axis = Axes::_numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 auto axisConfig     = Axes::_axis[axis];
                 auto homing         = axisConfig->_homing;
@@ -489,15 +489,24 @@ static Error home_b(const char* value, AuthenticationLevel auth_level, Channel& 
 static Error home_c(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(C_AXIS), out);
 }
+static Error home_u(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    return home(bitnum_to_mask(U_AXIS), out);
+}
+static Error home_v(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    return home(bitnum_to_mask(V_AXIS), out);
+}
+static Error home_w(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    return home(bitnum_to_mask(W_AXIS), out);
+}
 static std::string limit_set(uint32_t mask) {
     const char* motor0AxisName = "xyzabc";
     std::string s;
-    for (int axis = 0; axis < MAX_N_AXIS; axis++) {
-        s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? char(motor0AxisName[axis]) : ' ';
+    for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
+        s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? tolower(Machine::Axes::axisName(axis)[0]) : ' ';
     }
     const char* motor1AxisName = "XYZABC";
-    for (int axis = 0; axis < MAX_N_AXIS; axis++) {
-        s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 1)) ? char(motor1AxisName[axis]) : ' ';
+    for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
+        s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 1)) ? toupper(Machine::Axes::axisName(axis)[0]) : ' ';
     }
     return s;
 }
@@ -659,14 +668,12 @@ static Error motor_control(const char* value, bool disable) {
         return Error::InvalidStatement;
     }
 
-    for (int i = 0; i < Axes::_numberAxis; i++) {
-        char axisName = axes->axisName(i);
-
-        if (strchr(value, axisName) || strchr(value, tolower(axisName))) {
-            log_info((disable ? "Dis" : "En") << "abling " << axisName << " motors");
-            axes->set_disable(i, disable);
-        }
+    axis_t axis = Machine::Axes::axisNum(value);
+    if (axis == INVALID_AXIS) {
+        return Error::InvalidValue;
     }
+    log_info((disable ? "Dis" : "En") << "abling " << value << " motors");
+    axes->set_disable(axis, disable);
     return Error::Ok;
 }
 static Error motor_disable(const char* value, AuthenticationLevel auth_level, Channel& out) {
@@ -753,7 +760,7 @@ static Error showGPIOs(const char* value, AuthenticationLevel auth_level, Channe
 static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, Channel& out) {
     uint32_t    timeout = 2000;
     std::string uart_name("auto");
-    int8_t      uart_num;
+    objnum_t    uart_num;
 
     if (value) {
         std::string_view rest(value);
@@ -1003,6 +1010,9 @@ void make_user_commands() {
     new UserCommand("HA", "Home/A", home_a, allowConfigStates);
     new UserCommand("HB", "Home/B", home_b, allowConfigStates);
     new UserCommand("HC", "Home/C", home_c, allowConfigStates);
+    new UserCommand("HU", "Home/U", home_u, allowConfigStates);
+    new UserCommand("HV", "Home/V", home_v, allowConfigStates);
+    new UserCommand("HW", "Home/W", home_w, allowConfigStates);
 
     new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
     new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);

@@ -28,17 +28,17 @@ namespace Machine {
         volatile uint32_t* _negLimits = nullptr;
 
     public:
-        LimitPin(uint8_t axis, uint8_t motorNum, int8_t direction, bool& phardLimits);
+        LimitPin(axis_t axis, motor_t motorNum, int8_t direction, bool& phardLimits);
 
         void trigger(bool active) override;
 
         void makeDualMask();  // makes this a mask for motor0 and motor1
-        void setExtraMotorLimit(uint8_t axis, uint8_t motorNum);
+        void setExtraMotorLimit(axis_t axis, motor_t motorNum);
 
         bool isHard() { return _pHardLimits; }
         void init();
 
-        uint8_t _axis;
-        uint8_t _motorNum;
+        axis_t  _axis;
+        motor_t _motorNum;
     };
 }

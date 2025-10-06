@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "Types.h"
 #include "Platform.h"
 
 // This file contains compile-time configuration choices.  Most users will not need
@@ -25,19 +26,7 @@ Some features should not be changed. See notes below.
 // machine.h is #included below, after some definitions
 // that the machine file might choose to undefine.
 
-const int MAX_N_AXIS = 6;
-
 const int MAX_MESSAGE_LINE = 256;
-
-// Axis array index values. Must start with 0 and be continuous.
-// Note: You set the number of axes used by changing MAX_N_AXIS.
-// Be sure to define pins or servos in the machine definition file.
-const int X_AXIS = 0;  // Axis indexing value.
-const int Y_AXIS = 1;
-const int Z_AXIS = 2;
-const int A_AXIS = 3;
-const int B_AXIS = 4;
-const int C_AXIS = 5;
 
 const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
 
@@ -133,7 +122,7 @@ const int ACCELERATION_TICKS_PER_SECOND = 100;
 // Sets which axis the tool length offset is applied. Assumes the spindle is always parallel with
 // the selected axis with the tool oriented toward the negative direction. In other words, a positive
 // tool length offset value is subtracted from the current location.
-const int TOOL_LENGTH_OFFSET_AXIS = Z_AXIS;  // Default z-axis. Valid values are X_AXIS, Y_AXIS, or Z_AXIS.
+const axis_t TOOL_LENGTH_OFFSET_AXIS = Z_AXIS;  // Default z-axis. Valid values are X_AXIS, Y_AXIS, or Z_AXIS.
 
 // Minimum planner junction speed. Sets the default minimum junction speed the planner plans to at
 // every buffer block junction, except for starting from rest and end of the buffer, which are always

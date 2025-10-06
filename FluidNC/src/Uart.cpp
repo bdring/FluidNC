@@ -212,6 +212,6 @@ void Uart::flushRx() {
     uart_discard_input(_uart_num);
 }
 
-void Uart::registerInputPin(uint8_t pinnum, InputPin* pin) {
+void Uart::registerInputPin(pinnum_t pinnum, InputPin* pin) {
     uart_register_input_pin(_uart_num, pinnum, pin);
 }
