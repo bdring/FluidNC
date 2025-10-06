@@ -211,8 +211,8 @@ namespace Machine {
             }
         }
         // Senders might assume 3 axes in reports
-        if (_numberAxis < axis_t(3)) {
-            _numberAxis = axis_t(3);
+        if (_numberAxis < A_AXIS) {
+            _numberAxis = A_AXIS;
         }
 
         for (axis_t axis = X_AXIS; axis < _numberAxis; ++axis) {

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <unordered_set>
 
 typedef uint_fast8_t  motor_t;    // Motor number
 typedef uint_fast16_t AxisMask;   // Bits indexed by axis number
@@ -34,8 +33,9 @@ axis_t  operator++(axis_t& axis, int);
 axis_t& operator--(axis_t& axis);
 axis_t  operator--(axis_t& axis, int);
 
-const std::unordered_set<int> linear_axes = { X_AXIS, Y_AXIS, Z_AXIS, U_AXIS, V_AXIS, W_AXIS };
-const std::unordered_set<int> rotary_axes = { A_AXIS, B_AXIS, C_AXIS };
+inline bool is_linear(axis_t axis) {
+    return axis < A_AXIS || axis > C_AXIS;
+}
 
 const motor_t MOTOR0        = 0;
 const motor_t MOTOR1        = 1;

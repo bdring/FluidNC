@@ -82,19 +82,19 @@ static std::string report_util_axis_values(const float* axis_value) {
     for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         uint8_t decimals;
         float   value = axis_value[axis];
-        if (axis >= A_AXIS && axis <= C_AXIS) {
-            // Rotary axes are in degrees so mm vs inch is not
-            // relevant.  Three decimal places is probably overkill
-            // for rotary axes but we use 3 in case somebody wants
-            // to use ABC as linear axes in mm.
-            decimals = 3;
-        } else {
+        if (is_linear(axis)) {
             if (config->_reportInches) {
                 value /= MM_PER_INCH;
                 decimals = 4;  // Report inches to 4 decimal places
             } else {
                 decimals = 3;  // Report mm to 3 decimal places
             }
+        } else {
+            // Rotary axes are in degrees so mm vs inch is not
+            // relevant.  Three decimal places is probably overkill
+            // for rotary axes but we use 3 in case somebody wants
+            // to use ABC as linear axes in mm.
+            decimals = 3;
         }
         msg << std::fixed << std::setprecision(decimals) << value;
         if (axis < (n_axis - 1)) {

@@ -114,17 +114,14 @@ bool ngc_param_is_rw(ngc_param_id_t id) {
 static bool is_axis(axis_t axis) {
     return axis >= 0 && axis < MAX_N_AXIS;
 }
-static bool is_rotary(axis_t axis) {
-    return rotary_axes.find(axis) != rotary_axes.end();
-}
 static float to_inches(axis_t axis, float value) {
-    if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
+    if (is_linear(axis) && gc_state.modal.units == Units::Inches) {
         return value * INCH_PER_MM;
     }
     return value;
 }
 static float to_mm(axis_t axis, float value) {
-    if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
+    if (is_linear(axis) && gc_state.modal.units == Units::Inches) {
         return value * MM_PER_INCH;
     }
     return value;

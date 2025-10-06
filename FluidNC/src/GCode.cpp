@@ -1096,10 +1096,10 @@ Error gc_execute_line(const char* input_line) {
     }
 
     // [12. Set length units ]: N/A
-    // Pre-convert XYZ coordinate values to millimeters, if applicable.
+    // Pre-convert XYZ and UVW coordinate values to millimeters, if applicable.
     if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
         for (axis_t axis = X_AXIS; axis < n_axis; axis++) {  // Axes indices are consistent, so loop may be used.
-            if ((axis < A_AXIS || axis > C_AXIS) && bitnum_is_true(axis_words, axis)) {
+            if (is_linear(axis) && bitnum_is_true(axis_words, axis)) {
                 gc_block.values.xyz[axis] *= MM_PER_INCH;
             }
         }

@@ -434,7 +434,13 @@ void Coordinates::set(float value[MAX_N_AXIS]) {
     if (FORCE_BUFFER_SYNC_DURING_NVS_WRITE) {
         protocol_buffer_synchronize();
     }
-    nvs.set_blob(_name, _currentValue, sizeof(_currentValue));
+    size_t len = U_AXIS * sizeof(float);  // 6 is old MAX_N_AXIS
+    nvs.set_blob(_name, _currentValue, len);
+
+    if (MAX_N_AXIS == 9) {
+        len = (MAX_N_AXIS - U_AXIS) * sizeof(float);
+        nvs.set_blob((std::string("UVW") + _name).c_str(), &_currentValue[U_AXIS], len);
+    }
 }
 
 IPaddrSetting::IPaddrSetting(
