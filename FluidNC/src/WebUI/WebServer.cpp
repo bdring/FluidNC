@@ -1399,5 +1399,5 @@ namespace WebUI {
         return AuthenticationLevel::LEVEL_GUEST;
     }
 #endif
-    ModuleFactory::InstanceBuilder<Web_Server> __attribute__((init_priority(108))) web_server_module("wifi", true);
+    ModuleFactory::InstanceBuilder<Web_Server> __attribute__((init_priority(108))) web_server_module("webserver", true);
 }
