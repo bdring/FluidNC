@@ -311,7 +311,7 @@ namespace Spindles {
             },
         };
         void GenericProtocol::afterParse() {
-            string_util::trim(_model);
+            _model = string_util::trim(_model);
             for (auto const& vfd : VFDtypes) {
                 if (string_util::equal_ignore_case(_model, vfd.name)) {
                     log_debug("Using predefined ModbusVFD " << vfd.name);

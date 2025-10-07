@@ -58,7 +58,7 @@ static bool can_read_float_param(ngc_param_id_t id) {
 const std::map<const ngc_param_id_t, CoordIndex> axis_params = {
     { 5161, CoordIndex::G28 },
     { 5181, CoordIndex::G30 },
-    // { 5211, CoordIndex::G92 },  // Non-persisent, handled specially
+    { 5211, CoordIndex::G92 },  // Non-persisent, handled specially
     { 5221, CoordIndex::G54 },
     { 5241, CoordIndex::G55 },
     { 5261, CoordIndex::G56 },
@@ -136,6 +136,18 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
     for (auto const& [key, coord_index] : axis_params) {
         axis = axis_from_id(id, key);
         if (is_axis(axis)) {
+            if (coord_index == CoordIndex::G92) {  //special case non-volatile G92
+                result = to_inches(axis, gc_state.coord_offset[axis]);
+                return true;
+            }
+
+            if (coord_index == CoordIndex::TLO) {  //special case non-volatile TLO Z only
+                if (axis == Z_AXIS) {
+                    result = to_inches(axis, gc_state.tool_length_offset);
+                }
+                return (axis == Z_AXIS);
+            }
+
             result = to_inches(axis, coords[coord_index]->get(axis));
             return true;
         }
@@ -148,12 +160,6 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
         motor_steps_to_mpos(probe_position, probe_steps);
         result = to_inches(axis, probe_position[axis]);
         return true;
-    }
-
-    // Non-volatile G92
-    axis = axis_from_id(id, 5211);
-    if (is_axis(axis)) {
-        result = to_inches(axis, gc_state.coord_offset[axis]);
     }
 
     if (id == 5220) {
