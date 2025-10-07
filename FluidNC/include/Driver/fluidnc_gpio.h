@@ -8,8 +8,8 @@ extern "C" {
 #endif
 
 #include "stdint.h"
-typedef uint8_t pinnum_t;
-#define INVALID_PINNUM 255
+typedef int8_t pinnum_t;
+#define INVALID_PINNUM -1
 
 // GPIO interface
 

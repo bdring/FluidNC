@@ -49,7 +49,7 @@ public:
 
     void getExpanderId();
 
-    void registerEvent(uint8_t pinnum, InputPin* obj);
+    void registerEvent(pinnum_t pinnum, InputPin* obj);
 
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {
