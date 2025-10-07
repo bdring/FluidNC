@@ -35,20 +35,19 @@ const enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
 
 EnumSetting* gcode_echo;
 
-void make_coordinate(CoordIndex index, const char* name) {
+void make_coordinate(CoordIndex index, const char* name, bool is_saved) {
     float coord_data[MAX_N_AXIS] = { 0.0 };
     auto  coord                  = new Coordinates(name);
 
     coords[index] = coord;
 
-    if (index != CoordIndex::TLO) {
+    if (is_saved) {
         if (!coord->load()) {
             coords[index]->setDefault();
         }
     } else {
         coords[index]->setDefault();
     }
-
 }
 
 void float_proxy(int axis, int grbl_number, const char* name, float* varp) {
@@ -74,16 +73,16 @@ void make_settings() {
 
     // Propagate old coordinate system data to the new format if necessary.
     // G54 - G59 work coordinate systems, G28, G30 reference positions, etc
-    make_coordinate(CoordIndex::G54, "G54");
-    make_coordinate(CoordIndex::G55, "G55");
-    make_coordinate(CoordIndex::G56, "G56");
-    make_coordinate(CoordIndex::G57, "G57");
-    make_coordinate(CoordIndex::G58, "G58");
-    make_coordinate(CoordIndex::G59, "G59");
-    make_coordinate(CoordIndex::G28, "G28");
-    make_coordinate(CoordIndex::G30, "G30");
-    make_coordinate(CoordIndex::G92, "G92");
-    make_coordinate(CoordIndex::TLO, "TLO");
+    make_coordinate(CoordIndex::G54, "G54", true);
+    make_coordinate(CoordIndex::G55, "G55", true);
+    make_coordinate(CoordIndex::G56, "G56", true);
+    make_coordinate(CoordIndex::G57, "G57", true);
+    make_coordinate(CoordIndex::G58, "G58", true);
+    make_coordinate(CoordIndex::G59, "G59", true);
+    make_coordinate(CoordIndex::G28, "G28", true);
+    make_coordinate(CoordIndex::G30, "G30", true);
+    make_coordinate(CoordIndex::G92, "G92", false);
+    make_coordinate(CoordIndex::TLO, "TLO", false);
 
     message_level = new EnumSetting("Which Messages", EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels);
 

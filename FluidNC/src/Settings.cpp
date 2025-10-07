@@ -441,7 +441,7 @@ void Coordinates::set(float value[MAX_N_AXIS]) {
     if (FORCE_BUFFER_SYNC_DURING_NVS_WRITE) {
         protocol_buffer_synchronize();
     }
-    if (_name != "TLO") {
+    if (is_saved) {
         nvs_set_blob(Setting::_handle, _name, _currentValue, sizeof(_currentValue));
     }
 }

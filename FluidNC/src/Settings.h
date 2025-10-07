@@ -152,12 +152,8 @@ public:
 
     ~Setting() {}
     Setting(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName);
-    axis_t getAxis() {
-        return _axis;
-    }
-    void setAxis(axis_t axis) {
-        _axis = axis;
-    }
+    axis_t getAxis() { return _axis; }
+    void   setAxis(axis_t axis) { _axis = axis; }
 
     // load() reads the backing store to get the current
     // value of the setting.  This could be slow so it
@@ -171,9 +167,7 @@ public:
 
     virtual Error       setStringValue(std::string_view s) = 0;
     virtual const char* getStringValue()                   = 0;
-    virtual const char* getCompatibleValue() {
-        return getStringValue();
-    }
+    virtual const char* getCompatibleValue() { return getStringValue(); }
     virtual const char* getDefaultString() = 0;
 };
 
@@ -204,8 +198,7 @@ public:
                int32_t       defVal,
                int32_t       minVal,
                int32_t       maxVal,
-               bool          currentIsNvm = false) :
-        IntSetting(NULL, type, permissions, grblName, name, defVal, minVal, maxVal, currentIsNvm) {}
+               bool currentIsNvm = false) : IntSetting(NULL, type, permissions, grblName, name, defVal, minVal, maxVal, currentIsNvm) {}
 
     void        load();
     void        setDefault();
@@ -258,6 +251,7 @@ public:
 
     const char* getName() { return _name; }
     bool        load();
+    bool        is_saved = true;  // is saved to NVS
 
     void setDefault() {
         float zeros[MAX_N_AXIS] = {
@@ -386,8 +380,7 @@ public:
                const char*   name,
                Error (*action)(const char*, AuthenticationLevel, Channel& out),
                bool (*cmdChecker)() = notIdleOrAlarm) :
-        Command(description, type, permissions, grblName, name, cmdChecker),
-        _action(action) {}
+        Command(description, type, permissions, grblName, name, cmdChecker), _action(action) {}
 
     Error action(const char* value, AuthenticationLevel auth_level, Channel& out);
 };
@@ -401,10 +394,8 @@ public:
                 const char* name,
                 Error (*action)(const char*, AuthenticationLevel, Channel&),
                 bool (*cmdChecker)(),
-                permissions_t auth        = WG,
-                bool          synchronous = true) :
-        Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker, synchronous),
-        _action(action) {}
+                permissions_t auth = WG,
+                bool synchronous   = true) : Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker, synchronous), _action(action) {}
 
     Error action(const char* value, AuthenticationLevel auth_level, Channel& response);
 };
@@ -414,8 +405,7 @@ public:
                      const char* name,
                      Error (*action)(const char*, AuthenticationLevel, Channel&),
                      bool (*cmdChecker)(),
-                     permissions_t auth = WG) :
-        UserCommand(grblName, name, action, cmdChecker, auth, false) {}
+                     permissions_t auth = WG) : UserCommand(grblName, name, action, cmdChecker, auth, false) {}
 };
 
 // Execute the startup script lines stored in non-volatile storage upon initialization
