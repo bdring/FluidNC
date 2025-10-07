@@ -62,9 +62,8 @@ gc_modal_t modal_defaults = {
 
 void gc_init() {
     // Reset parser state:
-    auto save_tlo = gc_state.tool_length_offset;  // we want TLO to persist until reboot.
+
     memset(&gc_state, 0, sizeof(parser_state_t));
-    gc_state.tool_length_offset = save_tlo;
 
     // Load default G54 coordinate system.
     gc_state.modal          = modal_defaults;
@@ -1117,9 +1116,7 @@ Error gc_execute_line(const char* input_line) {
     if (axis_command == AxisCommand::ToolLengthOffset) {  // Indicates called in block.
         gc_ngc_changed(CoordIndex::TLO);
         if (gc_block.modal.tool_length == ToolLengthOffset::EnableDynamic) {
-            if (axis_words ^ bitnum_to_mask(TOOL_LENGTH_OFFSET_AXIS)) {
-                return Error::GcodeG43DynamicAxisError;
-            }
+            gc_ngc_changed(CoordIndex::TLO);
         }
     }
     // [15. Coordinate system selection ]: *N/A. Error, if cutter radius comp is active.
@@ -1190,9 +1187,7 @@ Error gc_execute_line(const char* input_line) {
                         // L20: Update coordinate system axis at current position (with modifiers) with programmed value
                         // WPos = MPos - WCS - G92 - TLO  ->  WCS = MPos - G92 - TLO - WPos
                         coord_data[axis] = gc_state.position[axis] - gc_state.coord_offset[axis] - gc_block.values.xyz[axis];
-                        if (axis == TOOL_LENGTH_OFFSET_AXIS) {
-                            coord_data[axis] -= gc_state.tool_length_offset;
-                        }
+                        coord_data[axis] -= gc_state.tool_length_offset[axis];
                     } else {
                         // L2: Update coordinate system axis to programmed value.
                         coord_data[axis] = gc_block.values.xyz[axis];
@@ -1212,9 +1207,7 @@ Error gc_execute_line(const char* input_line) {
                 if (bitnum_is_true(axis_words, axis)) {
                     // WPos = MPos - WCS - G92 - TLO  ->  G92 = MPos - WCS - TLO - WPos
                     gc_block.values.xyz[axis] = gc_state.position[axis] - block_coord_system[axis] - gc_block.values.xyz[axis];
-                    if (axis == TOOL_LENGTH_OFFSET_AXIS) {
-                        gc_block.values.xyz[axis] -= gc_state.tool_length_offset;
-                    }
+                    gc_block.values.xyz[axis] -= gc_state.tool_length_offset[axis];
                 } else {
                     gc_block.values.xyz[axis] = gc_state.coord_offset[axis];
                 }
@@ -1238,9 +1231,7 @@ Error gc_execute_line(const char* input_line) {
                                 // Apply coordinate offsets based on distance mode.
                                 if (!nonmodalG38 && gc_block.modal.distance == Distance::Absolute) {
                                     gc_block.values.xyz[axis] += block_coord_system[axis] + gc_state.coord_offset[axis];
-                                    if (axis == TOOL_LENGTH_OFFSET_AXIS) {
-                                        gc_block.values.xyz[axis] += gc_state.tool_length_offset;
-                                    }
+                                    gc_block.values.xyz[axis] += gc_state.tool_length_offset[axis];
                                 } else {  // Incremental mode
                                     gc_block.values.xyz[axis] += gc_state.position[axis];
                                 }
@@ -1788,13 +1779,18 @@ Error gc_execute_line(const char* input_line) {
     // axis of the block XYZ value array.
     if (axis_command == AxisCommand::ToolLengthOffset) {  // Indicates a change.
         gc_state.modal.tool_length = gc_block.modal.tool_length;
-        if (gc_state.modal.tool_length == ToolLengthOffset::Cancel) {  // G49
-            gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS] = 0.0;
-        }
         // else G43.1
-        if (gc_state.tool_length_offset != gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS]) {
-            gc_state.tool_length_offset = gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS];
+        for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
+            if (gc_state.modal.tool_length == ToolLengthOffset::Cancel) {
+                gc_state.tool_length_offset[idx] = 0.0;
+            } else {
+                if (bitnum_is_true(axis_words, idx)) {
+                    gc_state.tool_length_offset[idx] = gc_block.values.xyz[idx];
+                }
+            }
         }
+
+        coords[CoordIndex::TLO]->set(gc_state.tool_length_offset);
     }
     // [15. Coordinate system selection ]:
     if (gc_state.modal.coord_select != gc_block.modal.coord_select) {

@@ -95,9 +95,7 @@ float* get_wco() {
     for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         // Apply work coordinate offsets and tool length offset to current position.
         wco[axis] = gc_state.coord_system[axis] + gc_state.coord_offset[axis];
-        if (axis == TOOL_LENGTH_OFFSET_AXIS) {
-            wco[axis] += gc_state.tool_length_offset;
-        }
+        wco[axis] += gc_state.tool_length_offset[axis];
     }
     return wco;
 }

@@ -205,18 +205,6 @@ void report_g92(Channel& channel) {}
 void report_tlo(Channel& channel) {}
 
 void report_ngc_coord(CoordIndex coord, Channel& channel) {
-    if (coord == CoordIndex::TLO) {  // Non-persistent tool length offset
-        float   tlo      = gc_state.tool_length_offset;
-        uint8_t decimals = 3;
-        if (config->_reportInches) {
-            tlo *= INCH_PER_MM;
-            decimals = 4;
-        }
-        std::ostringstream msg;
-        msg << std::fixed << std::setprecision(decimals) << tlo;
-        log_stream(channel, "[TLO:" << msg.str());
-        return;
-    }
     if (coord == CoordIndex::G92) {  // Non-persistent G92 offset
         log_stream(channel, "[G92:" << report_util_axis_values(gc_state.coord_offset));
         return;

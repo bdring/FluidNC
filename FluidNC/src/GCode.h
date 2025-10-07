@@ -308,8 +308,8 @@ struct parser_state_t {
     // position in mm. Loaded from non-volatile storage when called.
     float coord_offset[MAX_N_AXIS];  // Retains the G92 coordinate offset (work coordinates) relative to
     // machine zero in mm. Non-persistent. Cleared upon reset and boot.
-    float tool_length_offset;  // Tracks tool length offset value when enabled.
-    bool  skip_blocks;         // Skipping due to flow control
+    float tool_length_offset[MAX_N_AXIS];  // Tracks tool length offset value when enabled.
+    bool  skip_blocks;                     // Skipping due to flow control
 };
 
 extern parser_state_t gc_state;

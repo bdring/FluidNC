@@ -431,6 +431,9 @@ bool Coordinates::load() {
 
 void Coordinates::set(float value[MAX_N_AXIS]) {
     memcpy(&_currentValue, value, sizeof(_currentValue));
+    if (!is_saved) {
+        return;
+    }
     if (FORCE_BUFFER_SYNC_DURING_NVS_WRITE) {
         protocol_buffer_synchronize();
     }

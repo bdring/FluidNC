@@ -105,11 +105,6 @@ const int REPORT_WCO_REFRESH_IDLE_COUNT = 10;  // (2-255) Must be less than or e
 // certain the step segment buffer is increased/decreased to account for these changes.
 const int ACCELERATION_TICKS_PER_SECOND = 100;
 
-// Sets which axis the tool length offset is applied. Assumes the spindle is always parallel with
-// the selected axis with the tool oriented toward the negative direction. In other words, a positive
-// tool length offset value is subtracted from the current location.
-const axis_t TOOL_LENGTH_OFFSET_AXIS = Z_AXIS;  // Default z-axis. Valid values are X_AXIS, Y_AXIS, or Z_AXIS.
-
 // Minimum planner junction speed. Sets the default minimum junction speed the planner plans to at
 // every buffer block junction, except for starting from rest and end of the buffer, which are always
 // zero. This value controls how fast the machine moves through junctions with no regard for acceleration

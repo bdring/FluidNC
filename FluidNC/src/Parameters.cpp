@@ -141,13 +141,6 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
                 return true;
             }
 
-            if (coord_index == CoordIndex::TLO) {  //special case non-volatile TLO Z only
-                if (axis == Z_AXIS) {
-                    result = to_inches(axis, gc_state.tool_length_offset);
-                }
-                return (axis == Z_AXIS);
-            }
-
             result = to_inches(axis, coords[coord_index]->get(axis));
             return true;
         }
