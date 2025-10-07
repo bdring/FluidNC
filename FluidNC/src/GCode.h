@@ -223,7 +223,9 @@ enum class GCodeWord : uint8_t {
     C = 17,
     O = 18,
     D = 19,  // For debugging
-
+    U = 20,
+    V = 21,
+    W = 22,
 };
 
 // GCode parser position updating flags
