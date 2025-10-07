@@ -132,12 +132,12 @@ void mc_arc(float*            target,
             axis_t            axis_1,
             axis_t            axis_linear,
             bool              is_clockwise_arc,
-            uint32_t          pword_rotations) {
+            uint32_t          rotations) {
     float center[3] = { position[axis_0] + offset[axis_0], position[axis_1] + offset[axis_1], 0 };
 
     // The first two axes are the circle plane and the third is the orthogonal plane
     axis_t caxes[3] = { axis_0, axis_1, axis_linear };
-    if (config->_kinematics->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc)) {
+    if (config->_kinematics->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc, rotations)) {
         return;
     }
 
@@ -161,15 +161,15 @@ void mc_arc(float*            target,
         // See https://linuxcnc.org/docs/2.6/html/gcode/gcode.html#sec:G2-G3-Arc
         // The P word specifies the number of extra rotations.  Missing P, P0 or P1
         // is just the programmed arc.  Pn adds n-1 rotations
-        if (pword_rotations > 1) {
-            angular_travel -= (pword_rotations - 1) * 2 * float(M_PI);
+        if (rotations > 1) {
+            angular_travel -= (rotations - 1) * 2 * float(M_PI);
         }
     } else {
         if (angular_travel <= ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel += 2 * float(M_PI);
         }
-        if (pword_rotations > 1) {
-            angular_travel += (pword_rotations - 1) * 2 * float(M_PI);
+        if (rotations > 1) {
+            angular_travel += (rotations - 1) * 2 * float(M_PI);
         }
     }
 

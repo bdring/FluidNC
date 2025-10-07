@@ -42,8 +42,14 @@ namespace Kinematics {
 
         void constrain_jog(float* target, plan_line_data_t* pl_data, float* position);
         bool invalid_line(float* target);
-        bool invalid_arc(
-            float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, axis_t caxes[3], bool is_clockwise_arc);
+        bool invalid_arc(float*            target,
+                         plan_line_data_t* pl_data,
+                         float*            position,
+                         float             center[3],
+                         float             radius,
+                         axis_t            caxes[3],
+                         bool              is_clockwise_arc,
+                         uint32_t          rotations);
 
         bool canHome(AxisMask axisMask);
         bool kinematics_homing(AxisMask axisMask);
@@ -72,8 +78,14 @@ namespace Kinematics {
 
         virtual void constrain_jog(float* cartesian, plan_line_data_t* pl_data, float* position) {}
         virtual bool invalid_line(float* cartesian) { return false; }
-        virtual bool invalid_arc(
-            float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, axis_t caxes[3], bool is_clockwise_arc) {
+        virtual bool invalid_arc(float*            target,
+                                 plan_line_data_t* pl_data,
+                                 float*            position,
+                                 float             center[3],
+                                 float             radius,
+                                 axis_t            caxes[3],
+                                 bool              is_clockwise_arc,
+                                 uint32_t          rotations) {
             return false;
         }
 
