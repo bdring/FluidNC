@@ -19,9 +19,9 @@ namespace Configuration {
         Generator(const Generator&)            = delete;
         Generator& operator=(const Generator&) = delete;
 
-        uint8_t  indent_;
-        Channel& dst_;
-        bool     lastIsNewline_ = false;
+        int_fast8_t indent_;
+        Channel&    dst_;
+        bool        lastIsNewline_ = false;
 
         inline void indent() {
             lastIsNewline_ = false;
@@ -40,7 +40,7 @@ namespace Configuration {
         HandlerType handlerType() override { return HandlerType::Generator; }
 
     public:
-        Generator(Channel& dst, uint8_t indent = 0);
+        Generator(Channel& dst, int_fast8_t indent = 0);
 
         void send_item(const char* name, const std::string& value) {
             LogStream s(dst_, "");

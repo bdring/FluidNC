@@ -31,7 +31,7 @@ namespace Configuration {
             TokenData() : _key(), _value(), _indent(-1), _state(TokenState::Bof) {}
             std::string_view _key;
             std::string_view _value;
-            uint8_t          _indent;
+            int_fast8_t      _indent;
 
             TokenState _state = TokenState::Bof;
         } _token;

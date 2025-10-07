@@ -23,13 +23,13 @@ namespace Configuration {
 
             // On entry, the token is for the section that invoked us.
             // We will handle following nodes with indents greater than entryIndent
-            uint8_t entryIndent = _parser._token._indent;
+            int_fast8_t entryIndent = _parser._token._indent;
             log_parser_verbose("Entered section " << name << " at indent " << entryIndent);
 
             // The next token controls what we do next.  If thisIndent is greater
             // than entryIndent, there are some subordinate tokens.
             _parser.Tokenize();
-            uint8_t thisIndent = _parser._token._indent;
+            int_fast8_t thisIndent = _parser._token._indent;
             log_parser_verbose("thisIndent " << _parser.key() << " " << thisIndent);
 
             // If thisIndent <= entryIndent, the section is empty - there are
