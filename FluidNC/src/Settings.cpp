@@ -65,8 +65,7 @@ Command::Command(const char*   description,
                  const char*   fullName,
                  bool (*cmdChecker)(),
                  bool synchronous) :
-    Word(type, permissions, description, grblName, fullName),
-    _cmdChecker(cmdChecker), _synchronous(synchronous) {
+    Word(type, permissions, description, grblName, fullName), _cmdChecker(cmdChecker), _synchronous(synchronous) {
     List.insert(List.begin(), this);
 }
 
@@ -118,8 +117,8 @@ IntSetting::IntSetting(const char*   description,
                        int32_t       minVal,
                        int32_t       maxVal,
                        bool          currentIsNvm) :
-    Setting(description, type, permissions, grblName, name),
-    _defaultValue(defVal), _currentValue(defVal), _minValue(minVal), _maxValue(maxVal), _currentIsNvm(currentIsNvm) {
+    Setting(description, type, permissions, grblName, name), _defaultValue(defVal), _currentValue(defVal), _minValue(minVal),
+    _maxValue(maxVal), _currentIsNvm(currentIsNvm) {
     _storedValue = std::numeric_limits<int32_t>::min();
     load();
 }
@@ -217,8 +216,7 @@ StringSetting::StringSetting(const char*   description,
                              const char*   defVal,
                              int           min,
                              int           max) :
-    Setting(description, type, permissions, grblName, name),
-    _defaultValue(defVal), _currentValue(defVal), _minLength(min), _maxLength(max) {
+    Setting(description, type, permissions, grblName, name), _defaultValue(defVal), _currentValue(defVal), _minLength(min), _maxLength(max) {
     load();
 };
 
@@ -300,8 +298,7 @@ EnumSetting::EnumSetting(const char*       description,
                          const char*       name,
                          int8_t            defVal,
                          const enum_opt_t* opts) :
-    Setting(description, type, permissions, grblName, name),
-    _defaultValue(defVal), _options(opts) {
+    Setting(description, type, permissions, grblName, name), _defaultValue(defVal), _options(opts) {
     load();
 }
 
@@ -444,7 +441,9 @@ void Coordinates::set(float value[MAX_N_AXIS]) {
     if (FORCE_BUFFER_SYNC_DURING_NVS_WRITE) {
         protocol_buffer_synchronize();
     }
-    nvs_set_blob(Setting::_handle, _name, _currentValue, sizeof(_currentValue));
+    if (is_saved) {
+        nvs_set_blob(Setting::_handle, _name, _currentValue, sizeof(_currentValue));
+    }
 }
 
 IPaddrSetting::IPaddrSetting(
