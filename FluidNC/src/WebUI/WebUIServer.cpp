@@ -5,13 +5,11 @@
 #include "Serial.h"    // is_realtime_command()
 #include "Settings.h"  // settings_execute_line()
 
-#include "WebServer.h"
+#include "WebUIServer.h"
 
 #include "Mdns.h"
 
-#include <WebSocketsServer.h>
 #include <WiFi.h>
-#include <WebServer.h>
 #include <StreamString.h>
 #include <Update.h>
 #include <esp_wifi_types.h>
@@ -27,6 +25,9 @@
 
 #include "HashFS.h"
 #include <list>
+
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 
 namespace WebUI {
     const byte DNS_PORT = 53;
@@ -50,28 +51,32 @@ namespace WebUI {
 
     static const char LOCATION_HEADER[] = "Location";
 
-    bool     Web_Server::_setupdone = false;
-    uint16_t Web_Server::_port      = 0;
+    bool     WebUI_Server::_setupdone            = false;
+    uint16_t WebUI_Server::_port                 = 0;
+    bool     WebUI_Server::_schedule_reboot      = false;
+    uint32_t WebUI_Server::_schedule_reboot_time = 0;
 
-    UploadStatus      Web_Server::_upload_status   = UploadStatus::NONE;
-    WebServer*        Web_Server::_webserver       = NULL;
-    WebSocketsServer* Web_Server::_socket_server   = NULL;
-    WebSocketsServer* Web_Server::_socket_serverv3 = NULL;
+    UploadStatus               WebUI_Server::_upload_status   = UploadStatus::NONE;
+    AsyncWebServer*            WebUI_Server::_webserver       = NULL;
+    AsyncWebServer*            WebUI_Server::_websocketserver = NULL;
+    AsyncHeaderFreeMiddleware* WebUI_Server::_headerFilter    = NULL;
+    AsyncWebSocket*            WebUI_Server::_socket_server   = NULL;
+    std::string                WebUI_Server::current_session  = "";
 #ifdef ENABLE_AUTHENTICATION
-    AuthenticationIP* Web_Server::_head  = NULL;
-    uint8_t           Web_Server::_nb_ip = 0;
-    const int         MAX_AUTH_IP        = 10;
+    AuthenticationIP* WebUI_Server::_head  = NULL;
+    uint8_t           WebUI_Server::_nb_ip = 0;
+    const int         MAX_AUTH_IP          = 10;
 #endif
-    FileStream* Web_Server::_uploadFile = nullptr;
+    FileStream* WebUI_Server::_uploadFile = nullptr;
 
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
 
-    Web_Server::~Web_Server() {
+    WebUI_Server::~WebUI_Server() {
         deinit();
     }
 
-    void Web_Server::init() {
+    void WebUI_Server::init() {
         http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT);
         http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions);
         http_block_during_motion = new EnumSetting("Block serving HTTP content during motion",
@@ -84,6 +89,9 @@ namespace WebUI {
 
         _setupdone = false;
 
+        Serial.printf("Startup\n");
+        Serial.printf("Starting webserver\n");
+
         if (WiFi.getMode() == WIFI_OFF || !http_enable->get()) {
             return;
         }
@@ -91,27 +99,44 @@ namespace WebUI {
         _port = http_port->get();
 
         //create instance
-        _webserver = new WebServer(_port);
-#ifdef ENABLE_AUTHENTICATION
-        //here the list of headers to be recorded
-        const char* headerkeys[]   = { "Cookie" };
-        size_t      headerkeyssize = sizeof(headerkeys) / sizeof(char*);
-        //ask server to track these headers
-        _webserver->collectHeaders(headerkeys, headerkeyssize);
-#endif
+        _webserver    = new AsyncWebServer(_port);
+        _headerFilter = new AsyncHeaderFreeMiddleware();
 
         //here the list of headers to be recorded
-        const char* headerkeys[]   = { "If-None-Match" };
-        size_t      headerkeyssize = sizeof(headerkeys) / sizeof(char*);
-        _webserver->collectHeaders(headerkeys, headerkeyssize);
+        _headerFilter->keep("Cookie");
+        _headerFilter->keep("If-None-Match");
 
-        _socket_server = new WebSocketsServer(_port + 1);
-        _socket_server->begin();
-        _socket_server->onEvent(handle_Websocket_Event);
+        //For websockets we need to keep these headers, otherwise this wouldn't work!
+        _headerFilter->keep("Upgrade");
+        _headerFilter->keep("Connection");
+        _headerFilter->keep("Sec-WebSocket-Key");
+        _headerFilter->keep("Sec-WebSocket-Version");
+        _headerFilter->keep("Sec-WebSocket-Protocol");
+        _headerFilter->keep("Sec-WebSocket-Extensions");
 
-        _socket_serverv3 = new WebSocketsServer(_port + 2, "", "webui-v3");
-        _socket_serverv3->begin();
-        _socket_serverv3->onEvent(handle_Websocketv3_Event);
+        _webserver->addMiddlewares({ _headerFilter });
+
+        // The only major difference with websockets for v2 webui vs v3 seems to be the currentID vs CURRENT_ID and activeID vs ACTIVE_ID
+        // In order to only have one websocket server (for simplicity and maintability reasons) we could:
+        // 1 - Send both messages types all the time
+        // 2 - Don't do anything and just send v3 payloads, since at this point it seems we don't rely on this pageId mechanism anymore with
+        // our async and cookie session implementation
+        // 3 - Remove all of these active and current IDs altogether since again, we may have no need for this anymore
+        // 4 - Potentially check for a difference in requests headers of v2 vs v3 to dynamically send the proper payload in the same handler
+        // For now, I've settled with #3
+        _socket_server = new AsyncWebSocket("/");
+
+        _socket_server->addMiddleware([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
+            current_session = getSessionCookie(request);
+            next();  // continue middleware chain
+        });
+        // Passing the current_session globally, lets hope there is no async switch back of other requests to change this in between
+        _socket_server->onEvent(
+            [](AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
+                WSChannels::handleEvent(server, client, type, arg, data, len, current_session);
+            });
+
+        _webserver->addHandler(_socket_server);
 
         //events functions
         //_web_events->onConnect(handle_onevent_connect);
@@ -157,30 +182,6 @@ namespace WebUI {
             _webserver->on("/fwlink/", HTTP_ANY, handle_root);
         }
 
-#if 0
-        //SSDP service presentation
-        if (WiFi.getMode() == WIFI_STA && WebUI::mdns_enable->get()) {
-            _webserver->on("/description.xml", HTTP_GET, handle_SSDP);
-            //Add specific for SSDP
-            SSDP.setSchemaURL("description.xml");
-            SSDP.setHTTPPort(_port);
-            SSDP.setName(WiFi.getHostname());
-            SSDP.setURL("/");
-            SSDP.setDeviceType("upnp:rootdevice");
-            /*Any customization could be here
-        SSDP.setModelName (MODEL_NAME);
-        SSDP.setModelURL (MODEL_URL);
-        SSDP.setModelNumber (MODEL_NUMBER);
-        SSDP.setManufacturer (MANUFACTURER_NAME);
-        SSDP.setManufacturerURL (MANUFACTURER_URL);
-        */
-
-            //Start SSDP
-            log_info("SSDP Started");
-            SSDP.begin();
-        }
-#endif
-
         log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
@@ -192,7 +193,7 @@ namespace WebUI {
         _setupdone = true;
     }
 
-    void Web_Server::deinit() {
+    void WebUI_Server::deinit() {
         _setupdone = false;
 
         //        SSDP.end();
@@ -204,14 +205,19 @@ namespace WebUI {
             _socket_server = NULL;
         }
 
-        if (_socket_serverv3) {
-            delete _socket_serverv3;
-            _socket_serverv3 = NULL;
-        }
-
         if (_webserver) {
             delete _webserver;
             _webserver = NULL;
+        }
+
+        if (_websocketserver) {
+            delete _websocketserver;
+            _websocketserver = NULL;
+        }
+
+        if (_headerFilter) {
+            delete _headerFilter;
+            _headerFilter = NULL;
         }
 
 #ifdef ENABLE_AUTHENTICATION
@@ -224,8 +230,33 @@ namespace WebUI {
 #endif
     }
 
+    std::string WebUI_Server::getSessionCookie(AsyncWebServerRequest* request) {
+        if (request->hasHeader("Cookie")) {
+            std::string cookies = request->getHeader("Cookie")->value().c_str();
+
+            int pos = cookies.find("sessionId=");
+            if (pos != std::string::npos) {
+                int pos2 = cookies.find(";", pos);
+                return cookies.substr(pos + strlen("sessionId="), pos2);
+            }
+        }
+        return "";
+    }
+
+    static void get_random_string(char* str, unsigned int len) {
+        unsigned int i;
+
+        // reseed the random number generator
+        srand(time(NULL));
+
+        for (i = 0; i < len; i++) {
+            // Add random printable ASCII char
+            str[i] = (rand() % ('A' - 'Z')) + 'A';
+        }
+        str[i] = '\0';
+    }
     // Send a file, either the specified path or path.gz
-    bool Web_Server::myStreamFile(const char* path, bool download) {
+    bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
         std::error_code ec;
         FluidPath       fpath { path, localfsName, ec };
         if (ec) {
@@ -250,12 +281,13 @@ namespace WebUI {
                 hash = HashFS::hash(gzpath, true);
             }
 
-            if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
-                _webserver->send(304);
+            if (hash.length() && request->hasHeader("If-None-Match") &&
+                std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
+                request->send(304);
                 return true;
             }
 
-            Web_Server::handleReloadBlocked();
+            WebUI_Server::handleReloadBlocked(request);
             return true;
         }
 
@@ -266,14 +298,21 @@ namespace WebUI {
             gzpath += ".gz";
             hash = HashFS::hash(gzpath);
         }
-
-        if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
-            _webserver->send(304);
+        if (hash.length() && request->hasHeader("If-None-Match") &&
+            std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
+            if (setSession && getSessionCookie(request) == "") {
+                char session[9];
+                get_random_string(session, sizeof(session) - 1);
+                AsyncWebServerResponse* response = request->beginResponse(304);
+                response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
+                request->send(response);
+            } else
+                request->send(304);
             return true;
         }
 
         bool        isGzip = false;
-        FileStream* file;
+        FileStream* file   = NULL;
         try {
             file = new FileStream(path, "r", "");
         } catch (const Error err) {
@@ -287,28 +326,48 @@ namespace WebUI {
                 return false;
             }
         }
+
+        AsyncWebServerResponse* response = request->beginResponse(
+            getContentType(path), file->size(), [file, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
+                if (!file) {
+                    request->client()->close();
+                    return 0;  //RESPONSE_TRY_AGAIN; // This only works for ChunkedResponse
+                }
+                if (total >= file->size() || request->methodToString() != "GET") {
+                    file = nullptr;
+                    return 0;
+                }
+                int bytes  = min(file->size(), maxLen);
+                int actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
+                if (bytes == 0 || (bytes + total) >= file->size()) {
+                    file = nullptr;
+                }
+                return bytes;
+            });
+
+        request->onDisconnect([request, file]() { delete file; });
+
+        if (setSession && getSessionCookie(request) == "") {
+            char session[9];
+            get_random_string(session, sizeof(session) - 1);
+            response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
+        }
         if (download) {
-            _webserver->sendHeader("Content-Disposition", "attachment");
+            response->addHeader("Content-Disposition", "attachment");
         }
         if (hash.length()) {
-            _webserver->sendHeader("ETag", hash.c_str());
+            response->addHeader("ETag", hash.c_str());
         }
-        _webserver->setContentLength(file->size());
+        // content length is set automatically
+        // response->setContentLength(file->size());
         if (isGzip) {
-            _webserver->sendHeader("Content-Encoding", "gzip");
+            response->addHeader("Content-Encoding", "gzip");
         }
-        _webserver->send(200, getContentType(path), "");
+        request->send(response);
 
-        // This depends on the fact that FileStream inherits from Stream
-        // The Arduino implementation of WiFiClient::write(Stream*) just
-        // reads repetitively from the stream in 1360-byte chunks and
-        // sends the data over the TCP socket. so nothing special.
-        _webserver->client().write(*file);
-
-        delete file;
         return true;
     }
-    void Web_Server::sendWithOurAddress(const char* content, uint16_t code) {
+    void WebUI_Server::sendWithOurAddress(AsyncWebServerRequest* request, const char* content, uint16_t code) {
         auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
         std::string ipstr = IP_string(ip);
         if (_port != 80) {
@@ -318,8 +377,8 @@ namespace WebUI {
 
         std::string scontent(content);
         replace_string_in_place(scontent, "$WEB_ADDRESS$", ipstr);
-        replace_string_in_place(scontent, "$QUERY$", _webserver->uri().c_str());
-        _webserver->send(code, "text/html", scontent.c_str());
+        replace_string_in_place(scontent, "$QUERY$", request->url().c_str());
+        request->send(code, "text/html", scontent.c_str());
     }
 
     // Captive Portal Page for use in AP mode
@@ -330,8 +389,8 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::sendCaptivePortal() {
-        sendWithOurAddress(PAGE_CAPTIVE, 200);
+    void WebUI_Server::sendCaptivePortal(AsyncWebServerRequest* request) {
+        sendWithOurAddress(request, PAGE_CAPTIVE, 200);
     }
 
     //Default 404 page that is sent when a request cannot be satisfied
@@ -342,175 +401,152 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::send404Page() {
-        sendWithOurAddress(PAGE_404, 404);
+    void WebUI_Server::send404Page(AsyncWebServerRequest* request) {
+        sendWithOurAddress(request, PAGE_404, 404);
     }
 
-    void Web_Server::handle_root() {
-        log_info("WebUI: Request from " << _webserver->client().remoteIP());
-        if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
-            if (myStreamFile("index.html")) {
+    void WebUI_Server::handle_root(AsyncWebServerRequest* request) {
+        log_info("WebUI: Request from " << request->client()->remoteIP());
+        if (!(request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes")) {
+            if (myStreamFile(request, "index.html", false, true)) {
                 return;
             }
         }
 
         // If we did not send index.html, send the default content that provides simple localfs file management
-        _webserver->sendHeader("Content-Encoding", "gzip");
-        _webserver->send_P(200, "text/html", PAGE_NOFILES, PAGE_NOFILES_SIZE);
+        AsyncWebServerResponse* response = request->beginResponse(200, "text/html", (const uint8_t*)PAGE_NOFILES, PAGE_NOFILES_SIZE);
+        response->addHeader("Content-Encoding", "gzip");
+        request->send(response);
     }
 
     // Handle filenames and other things that are not explicitly registered
-    void Web_Server::handle_not_found() {
+    void WebUI_Server::handle_not_found(AsyncWebServerRequest* request) {
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _webserver->sendHeader(LOCATION_HEADER, "/");
-            _webserver->send(302);
-
+            request->redirect("/");
             //_webserver->client().stop();
             return;
         }
 
-        std::string path(_webserver->urlDecode(_webserver->uri()).c_str());
+        std::string path(request->url().c_str());  //request->urlDecode(request->url()).c_str());
 
         if (path.rfind("/api/", 0) == 0) {
-            _webserver->send(404);
+            request->send(404);
             return;
         }
 
         // Download a file.  The true forces a download instead of displaying the file
-        if (myStreamFile(path.c_str(), true)) {
+        if (myStreamFile(request, path.c_str(), true)) {
             return;
         }
 
         if (WiFi.getMode() == WIFI_AP) {
-            sendCaptivePortal();
+            sendCaptivePortal(request);
             return;
         }
 
         // This lets the user customize the not-found page by
         // putting a "404.htm" file on the local filesystem
-        if (myStreamFile("404.htm")) {
+        if (myStreamFile(request, "404.htm")) {
             return;
         }
 
-        send404Page();
+        send404Page(request);
     }
-
-#if 0
-    //http SSDP xml presentation
-    void Web_Server::handle_SSDP() {
-        StreamString sschema;
-        if (!sschema.reserve(1024)) {
-            _webserver->send(500);
-            return;
-        }
-        const char*       templ = "<?xml version=\"1.0\"?>"
-                                  "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
-                                  "<specVersion>"
-                                  "<major>1</major>"
-                                  "<minor>0</minor>"
-                                  "</specVersion>"
-                                  "<URLBase>http://%s:%u/</URLBase>"
-                                  "<device>"
-                                  "<deviceType>upnp:rootdevice</deviceType>"
-                                  "<friendlyName>%s</friendlyName>"
-                                  "<presentationURL>/</presentationURL>"
-                                  "<serialNumber>%u</serialNumber>"
-                                  "<modelName>FluidNC</modelName>"
-                                  "<modelNumber>6x</modelNumber>"
-                                  "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
-                                  "<manufacturer>Espressif Systems</manufacturer>"
-                                  "<manufacturerURL>http://espressif.com</manufacturerURL>"
-                                  "<UDN>uuid:%s</UDN>"
-                                  "</device>"
-                                  "</root>\r\n"
-                                  "\r\n";
-        char              uuid[37];
-        const std::string sip    = IP_string(WiFi.localIP());
-        uint32_t          chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
-        sprintf(uuid,
-                "38323636-4558-4dda-9188-cda0e6%02x%02x%02x",
-                (uint16_t)((chipId >> 16) & 0xff),
-                (uint16_t)((chipId >> 8) & 0xff),
-                (uint16_t)chipId & 0xff);
-        sschema.printf(templ, sip.c_str(), _port, WiFi.getHostname(), chipId, uuid);
-        _webserver->send(200, "text/xml", sschema);
-    }
-#endif
 
     // WebUI sends a PAGEID arg to identify the websocket it is using
-    int32_t Web_Server::getPageid() {
-        if (_webserver->hasArg("PAGEID")) {
-            return _webserver->arg("PAGEID").toInt();
+    int32_t WebUI_Server::getPageid(AsyncWebServerRequest* request) {
+        if (request->hasParam("PAGEID")) {
+            return request->getParam("PAGEID")->value().toInt();
         }
         return -1;
     }
-    void Web_Server::synchronousCommand(const char* cmd, bool silent, AuthenticationLevel auth_level) {
-        if (http_block_during_motion->get() && inMotionState()) {
-            _webserver->send(503, "text/plain", "Try again when not moving\n");
+
+    void WebUI_Server::synchronousCommand(
+        AsyncWebServerRequest* request, const char* cmd, bool silent, AuthenticationLevel auth_level, bool allowedInMotion) {
+        // Can we do this with async?
+        if (http_block_during_motion->get() && inMotionState() && !allowedInMotion) {  // ESP800 is to allow a cached paged reload on webui3
+            request->send(503, "text/plain", "Try again when not moving\n");
             return;
         }
         char line[256];
         strncpy(line, cmd, 255);
-        webClient.attachWS(_webserver, silent);
-        Error err = settings_execute_line(line, webClient, auth_level);
-        if (err != Error::Ok) {
-            std::string answer = "Error: ";
-            const char* msg    = errorString(err);
-            if (msg) {
-                answer += msg;
-            } else {
-                answer += std::to_string(static_cast<int>(err));
-            }
-            answer += "\n";
-            webClient.sendError(500, answer);
-        } else {
-            // This will send a 200 if it hasn't already been sent
-            webClient.write(nullptr, 0);
-        }
-        webClient.detachWS();
+        AsyncWebServerResponse* response;
+        if (request->methodToString() == "GET") {
+            WebClient* webClient = new WebClient();
+            webClient->attachWS(silent);
+            webClient->executeCommandBackground(line);
+            response = request->beginChunkedResponse("", [webClient, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
+                // The method can change before the end... not good
+                //if(request->methodToString() != "GET")
+                //    return 0;
+                auto ret = webClient->copyBufferSafe(buffer, min((int)maxLen, 1024), total);
+                return ret;
+            });
+            // onDisconnect MUST always happen, otherwise commands being processed will wait indefinitly to be read
+            // by the callback that may never happen if the client is dead
+            // We rely on AsyncWebServer to take care of that
+            request->onDisconnect([webClient]() {
+                webClient->detachWS();
+                allChannels.kill(webClient);
+                // Should not delete, kill() takes care of that
+                //delete webClient;
+            });
+        } else
+            response = request->beginResponse(200, "", "");
+        response->addHeader("Cache-Control", "no-cache");
+        request->send(response);
+        return;
     }
-    void Web_Server::websocketCommand(const char* cmd, int32_t pageid, AuthenticationLevel auth_level) {
+
+    std::string getSession(AsyncClient* client) {
+        return (std::to_string(IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
+    }
+    void WebUI_Server::websocketCommand(AsyncWebServerRequest* request, const char* cmd, int32_t pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
-            _webserver->send(401, "text/plain", "Authentication failed\n");
+            request->send(401, "text/plain", "Authentication failed\n");
             return;
         }
-
-        bool hasError = WSChannels::runGCode(pageid, cmd);
-        _webserver->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
+        std::string session  = getSessionCookie(request);
+        bool        hasError = WSChannels::runGCode(pageid, cmd, session);
+        request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
     }
-    void Web_Server::_handle_web_command(bool silent) {
-        AuthenticationLevel auth_level = is_authenticated();
-        if (_webserver->hasArg("cmd")) {  // WebUI3
 
-            auto cmd = _webserver->arg("cmd");
+    bool WebUI_Server::isAllowedInMotion(String cmd) {
+        if (cmd.startsWith("[ESP800]"))
+            return true;
+
+        return false;
+    }
+    void WebUI_Server::_handle_web_command(AsyncWebServerRequest* request, bool silent) {
+        AuthenticationLevel auth_level = is_authenticated();
+        if (request->hasParam("cmd") || request->hasParam("commandText")) {
+            String cmd;
+            if (request->hasParam("cmd"))
+                cmd = request->getParam("cmd")->value();
+            else
+                cmd = request->getParam("commandText")->value();
             // [ESPXXX] commands expect data in the HTTP response
-            if (cmd.startsWith("[ESP") || cmd.startsWith("$/")) {
-                synchronousCommand(cmd.c_str(), silent, auth_level);
+            String cmdUpper = cmd;
+            cmdUpper.toUpperCase();
+            // Modified async hack // no longer needed...
+            //if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") || cmdUpper.startsWith("$ESP") {
+            // Original check (now also work with $ESP400, but is slower than if it was returned as http response)
+            if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/")) {
+                synchronousCommand(request, cmd.c_str(), silent, auth_level, isAllowedInMotion(cmdUpper));
             } else {
-                websocketCommand(cmd.c_str(), -1, auth_level);  // WebUI3 does not support PAGEID
+                websocketCommand(request, cmd.c_str(), -1, auth_level);  // We dont support or need PAGEID anymore
             }
             return;
         }
-        if (_webserver->hasArg("plain")) {
-            synchronousCommand(_webserver->arg("plain").c_str(), silent, auth_level);
+        if (request->hasParam("plain")) {
+            synchronousCommand(request, request->getParam("plain")->value().c_str(), silent, auth_level);
             return;
         }
-        if (_webserver->hasArg("commandText")) {
-            auto cmd = _webserver->arg("commandText");
-            if (cmd.startsWith("[ESP")) {
-                // [ESPXXX] commands expect data in the HTTP response
-                // Only the fallback web page uses commandText with [ESPxxx]
-                synchronousCommand(cmd.c_str(), silent, auth_level);
-            } else {
-                websocketCommand(_webserver->arg("commandText").c_str(), getPageid(), auth_level);
-            }
-            return;
-        }
-        _webserver->send(500, "text/plain", "Invalid command");
+        request->send(500, "text/plain", "Invalid command");
     }
 
     //login status check
-    void Web_Server::handle_login() {
+    void WebUI_Server::handle_login(AsyncWebServerRequest* request) {
 #ifdef ENABLE_AUTHENTICATION
         const char* smsg;
         std::string sUser, sPassword;
@@ -659,144 +695,118 @@ namespace WebUI {
             sendAuth(smsg, auths, "");
         }
 #else
-        sendAuth("Ok", "admin", "");
+        sendAuth(request, "Ok", "admin", "");
 #endif
     }
 
     // This page is used when you try to reload WebUI during motion,
     // to avoid interrupting that motion.  It lets you wait until
     // motion is finished.
-    void Web_Server::handleReloadBlocked() {
-        _webserver->send(503,
-                         "text/html",
-                         "<!DOCTYPE html><html><body>"
-                         "<h3>Cannot load WebUI while GCode Program is Running</h3>"
+    void WebUI_Server::handleReloadBlocked(AsyncWebServerRequest* request) {
+        request->send(503,
+                      "text/html",
+                      "<!DOCTYPE html><html><body>"
+                      "<h3>Cannot load WebUI while GCode Program is Running</h3>"
 
-                         "<button onclick='window.location.replace(\"/feedhold_reload\")'>Pause</button>"
-                         "&nbsp;Pause the GCode program with feedhold<br><br>"
+                      "<button onclick='window.location.replace(\"/feedhold_reload\")'>Pause</button>"
+                      "&nbsp;Pause the GCode program with feedhold<br><br>"
 
-                         "<button onclick='window.location.replace(\"/restart_reload\")'>Stop</button>"
-                         "&nbsp;Stop the GCode Program with reset<br><br>"
+                      "<button onclick='window.location.replace(\"/restart_reload\")'>Stop</button>"
+                      "&nbsp;Stop the GCode Program with reset<br><br>"
 
-                         "<button onclick='window.location.reload()'>Reload WebUI</button>"
-                         "&nbsp;(You must first stop the GCode program or wait for it to finish)<br><br>"
+                      "<button onclick='window.location.reload()'>Reload WebUI</button>"
+                      "&nbsp;(You must first stop the GCode program or wait for it to finish)<br><br>"
 
-                         "</body></html>");
+                      "</body></html>");
     }
-    void Web_Server::handleDidRestart() {
-        _webserver->send(503,
-                         "text/html",
-                         "<!DOCTYPE html><html><body>"
-                         "<h3>GCode Program has been stopped</h3>"
-                         "<button onclick='window.location.replace(\"/\")'>Reload WebUI</button>"
-                         "</body></html>");
+    void WebUI_Server::handleDidRestart(AsyncWebServerRequest* request) {
+        request->send(503,
+                      "text/html",
+                      "<!DOCTYPE html><html><body>"
+                      "<h3>GCode Program has been stopped</h3>"
+                      "<button onclick='window.location.replace(\"/\")'>Reload WebUI</button>"
+                      "</body></html>");
     }
     // This page issues a feedhold to pause the motion then retries the WebUI reload
-    void Web_Server::handleFeedholdReload() {
+    void WebUI_Server::handleFeedholdReload(AsyncWebServerRequest* request) {
         protocol_send_event(&feedHoldEvent);
         //        delay(100);
         //        delay(100);
         // Go to the main page
-        _webserver->sendHeader(LOCATION_HEADER, "/");
-        _webserver->send(302);
+        request->redirect("/");
     }
     // This page issues a feedhold to pause the motion then retries the WebUI reload
-    void Web_Server::handleCyclestartReload() {
+    void WebUI_Server::handleCyclestartReload(AsyncWebServerRequest* request) {
         protocol_send_event(&cycleStartEvent);
         //        delay(100);
         //        delay(100);
         // Go to the main page
-        _webserver->sendHeader(LOCATION_HEADER, "/");
-        _webserver->send(302);
+        request->redirect("/");
     }
     // This page issues a feedhold to pause the motion then retries the WebUI reload
-    void Web_Server::handleRestartReload() {
+    void WebUI_Server::handleRestartReload(AsyncWebServerRequest* request) {
         protocol_send_event(&rtResetEvent);
         //        delay(100);
         //        delay(100);
         // Go to the main page
-        _webserver->sendHeader(LOCATION_HEADER, "/did_restart");
-        _webserver->send(302);
+        request->redirect("/did_restart");
     }
 
-    //push error code and message to websocket.  Used by upload code
-    void Web_Server::pushError(uint16_t code, const char* st, bool web_error, uint16_t timeout) {
+    // push error code and message to websocket.  Used by upload code
+    void WebUI_Server::pushError(AsyncWebServerRequest* request, uint16_t code, const char* st, int32_t web_error, uint16_t timeout) {
         if (_socket_server && st) {
             std::string s("ERROR:");
             s += std::to_string(code) + ":";
             s += st;
 
-            WSChannels::sendError(getPageid(), st);
+            WSChannels::sendError(getPageid(request), st, getSessionCookie(request));
 
-            if (web_error != 0 && _webserver && _webserver->client().available() > 0) {
-                _webserver->send(web_error, "text/xml", st);
-            }
-
-            uint32_t start_time = millis();
-            while ((millis() - start_time) < timeout) {
-                _socket_server->loop();
-                delay_ms(10);
-            }
-
-            if (_socket_serverv3) {
-                start_time = millis();
-                while ((millis() - start_time) < timeout) {
-                    _socket_serverv3->loop();
-                    delay_ms(10);
-                }
+            if (web_error != 0 && request) {
+                request->send(web_error, "text/xml", st);
             }
         }
     }
 
     //abort reception of packages
-    void Web_Server::cancelUpload() {
-        if (_webserver && _webserver->client().available() > 0) {
-            HTTPUpload& upload = _webserver->upload();
-            upload.status      = UPLOAD_FILE_ABORTED;
-            errno              = ECONNABORTED;
-            _webserver->client().stop();
-            delay(100);
-        }
+    void WebUI_Server::cancelUpload(AsyncWebServerRequest* request) {
+        request->client()->close();
+        delay(100);
     }
 
     //LocalFS files uploader handle
-    void Web_Server::fileUpload(const char* fs) {
-        HTTPUpload& upload = _webserver->upload();
-        //this is only for admin and user
-        if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _upload_status = UploadStatus::FAILED;
-            log_info("Upload rejected");
-            sendJSON(401, "{\"status\":\"Authentication failed!\"}");
-            pushError(ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
-        } else {
-            if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
-                if (upload.status == UPLOAD_FILE_START) {
-                    std::string sizeargname(upload.filename.c_str());
-                    sizeargname += "S";
-                    size_t filesize = _webserver->hasArg(sizeargname.c_str()) ? _webserver->arg(sizeargname.c_str()).toInt() : 0;
-                    uploadStart(upload.filename.c_str(), filesize, fs);
-                } else if (upload.status == UPLOAD_FILE_WRITE) {
-                    uploadWrite(upload.buf, upload.currentSize);
-                } else if (upload.status == UPLOAD_FILE_END) {
-                    std::string sizeargname(upload.filename.c_str());
-                    sizeargname += "S";
-                    size_t filesize = _webserver->hasArg(sizeargname.c_str()) ? _webserver->arg(sizeargname.c_str()).toInt() : 0;
-                    uploadEnd(filesize);
-                } else {  //Upload cancelled
-                    uploadStop();
-                    return;
-                }
-            }
+    void WebUI_Server::fileUpload(
+        AsyncWebServerRequest* request, const char* fs, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+        if (!index) {
+            std::string sizeargname(filename.c_str());
+            sizeargname += "S";
+            size_t filesize = request->hasParam(sizeargname.c_str()) ? request->getParam(sizeargname.c_str())->value().toInt() : 0;
+            uploadStart(request, filename.c_str(), filesize, fs);
         }
-        uploadCheck();
+        if (_upload_status == UploadStatus::ONGOING) {
+            uploadWrite(request, data, len);
+            if (final) {
+                std::string sizeargname(filename.c_str());
+                sizeargname += "S";
+                size_t filesize = request->hasParam(sizeargname.c_str()) ? request->getParam(sizeargname.c_str())->value().toInt() : 0;
+                uploadEnd(request, filesize);
+            }
+        } else {
+            uploadStop();
+            return;
+        }
+
+        uploadCheck(request);
+
+        return;
     }
 
-    void Web_Server::sendJSON(uint16_t code, const char* s) {
-        _webserver->sendHeader("Cache-Control", "no-cache");
-        _webserver->send(200, "application/json", s);
+    void WebUI_Server::sendJSON(AsyncWebServerRequest* request, uint16_t code, const char* s) {
+        AsyncWebServerResponse* response = request->beginResponse(code, "application/json", s);
+        response->addHeader("Cache-Control", "no-cache");
+        request->send(response);
     }
 
-    void Web_Server::sendAuth(const char* status, const char* level, const char* user) {
+    void WebUI_Server::sendAuth(AsyncWebServerRequest* request, const char* status, const char* level, const char* user) {
         std::string s;
         JSONencoder j(&s);
         j.begin();
@@ -808,149 +818,137 @@ namespace WebUI {
             j.member("user", user);
         }
         j.end();
-        sendJSON(200, s);
+        sendJSON(request, 200, s);
     }
 
-    void Web_Server::sendStatus(uint16_t code, const char* status) {
+    void WebUI_Server::sendStatus(AsyncWebServerRequest* request, uint16_t code, const char* status) {
         std::string s;
         JSONencoder j(&s);
         j.begin();
         j.member("status", status);
         j.end();
-        sendJSON(code, s);
+        sendJSON(request, code, s);
     }
 
-    void Web_Server::sendAuthFailed() {
-        sendStatus(401, "Authentication failed");
+    void WebUI_Server::sendAuthFailed(AsyncWebServerRequest* request) {
+        sendStatus(request, 401, "Authentication failed");
     }
 
-    void Web_Server::LocalFSFileupload() {
-        fileUpload(localfsName);
+    void WebUI_Server::LocalFSFileupload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+        return fileUpload(request, localfsName, filename, index, data, len, final);
     }
-    void Web_Server::SDFileUpload() {
-        fileUpload(sdName);
+    void WebUI_Server::SDFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+        return fileUpload(request, sdName, filename, index, data, len, final);
     }
 
     //Web Update handler
-    void Web_Server::handleUpdate() {
+    void WebUI_Server::handleUpdate(AsyncWebServerRequest* request) {
         AuthenticationLevel auth_level = is_authenticated();
         if (auth_level != AuthenticationLevel::LEVEL_ADMIN) {
             _upload_status = UploadStatus::NONE;
-            _webserver->send(403, "text/plain", "Not allowed, log in first!\n");
+            request->send(403, "text/plain", "Not allowed, log in first!\n");
             return;
         }
 
-        sendStatus(200, std::to_string(int(_upload_status)).c_str());
-
         //if success restart
         if (_upload_status == UploadStatus::SUCCESSFUL) {
-            delay_ms(1000);
-            protocol_send_event(&fullResetEvent);
+            sendStatus(request, 200, std::to_string(int(_upload_status)).c_str());
+            _schedule_reboot_time = millis() + 1000;
+            _schedule_reboot      = true;
         } else {
+            sendStatus(request, 200, std::to_string(int(_upload_status)).c_str());
             _upload_status = UploadStatus::NONE;
         }
     }
 
     //File upload for Web update
-    void Web_Server::WebUpdateUpload() {
+    void WebUI_Server::WebUpdateUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
         static size_t   last_upload_update;
-        static uint32_t maxSketchSpace = 0;
+        static uint32_t maxSketchSpace = UINT32_MAX;
 
         //only admin can update FW
         if (is_authenticated() != AuthenticationLevel::LEVEL_ADMIN) {
             _upload_status = UploadStatus::FAILED;
             log_info("Upload rejected");
-            sendAuthFailed();
-            pushError(ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
+            sendAuthFailed(request);
+            //pushError(request, ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
         } else {
-            //get current file ID
-            HTTPUpload& upload = _webserver->upload();
-            if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
-                //Upload start
-                //**************
-                if (upload.status == UPLOAD_FILE_START) {
-                    log_info("Update Firmware");
-                    _upload_status = UploadStatus::ONGOING;
-                    std::string sizeargname(upload.filename.c_str());
-                    sizeargname += "S";
-                    if (_webserver->hasArg(sizeargname.c_str())) {
-                        maxSketchSpace = _webserver->arg(sizeargname.c_str()).toInt();
+            //Upload start
+            //**************
+            if (!index) {  //upload.status == UPLOAD_FILE_START) {
+                log_info("Update Firmware");
+                _upload_status = UploadStatus::ONGOING;
+                std::string sizeargname(filename.c_str());
+                sizeargname += "S";
+                if (request->hasParam(sizeargname.c_str()))
+                    maxSketchSpace = request->getParam(sizeargname.c_str())->value().toInt();
+                else if (request->hasHeader("Content-Length"))
+                    maxSketchSpace = request->getHeader("Content-Length")->value().toInt();
+                //check space
+                size_t flashsize = 0;
+                if (esp_ota_get_running_partition()) {
+                    const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
+                    if (partition) {
+                        flashsize = partition->size;
                     }
-                    //check space
-                    size_t flashsize = 0;
-                    if (esp_ota_get_running_partition()) {
-                        const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
-                        if (partition) {
-                            flashsize = partition->size;
-                        }
-                    }
-                    if (flashsize < maxSketchSpace) {
-                        pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+                }
+                if (flashsize < maxSketchSpace) {
+                    String msg = String("Upload rejected, not enough space (needs " + String(maxSketchSpace) + ", has " + String(flashsize));
+                    pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, msg.c_str());
+                    _upload_status = UploadStatus::FAILED;
+                    log_info("Update cancelled");
+                }
+                if (_upload_status != UploadStatus::FAILED) {
+                    last_upload_update = 0;
+                    if (!Update.begin()) {  //start with max available size
                         _upload_status = UploadStatus::FAILED;
                         log_info("Update cancelled");
-                    }
-                    if (_upload_status != UploadStatus::FAILED) {
-                        last_upload_update = 0;
-                        if (!Update.begin()) {  //start with max available size
-                            _upload_status = UploadStatus::FAILED;
-                            log_info("Update cancelled");
-                            pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-                        } else {
-                            log_info("Update 0%");
-                        }
-                    }
-                    //Upload write
-                    //**************
-                } else if (upload.status == UPLOAD_FILE_WRITE) {
-                    delay_ms(1);
-                    //check if no error
-                    if (_upload_status == UploadStatus::ONGOING) {
-                        if (((100 * upload.totalSize) / maxSketchSpace) != last_upload_update) {
-                            if (maxSketchSpace > 0) {
-                                last_upload_update = (100 * upload.totalSize) / maxSketchSpace;
-                            } else {
-                                last_upload_update = upload.totalSize;
-                            }
-
-                            log_info("Update " << last_upload_update << "%");
-                        }
-                        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-                            _upload_status = UploadStatus::FAILED;
-                            log_info("Update write failed");
-                            pushError(ESP_ERROR_FILE_WRITE, "File write failed");
-                        }
-                    }
-                    //Upload end
-                    //**************
-                } else if (upload.status == UPLOAD_FILE_END) {
-                    if (Update.end(true)) {  //true to set the size to the current progress
-                        //Now Reboot
-                        log_info("Update 100%");
-                        _upload_status = UploadStatus::SUCCESSFUL;
+                        pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
                     } else {
-                        _upload_status = UploadStatus::FAILED;
-                        log_info("Update failed");
-                        pushError(ESP_ERROR_UPLOAD, "Update upload failed");
+                        log_info("Update 0%");
                     }
-                } else if (upload.status == UPLOAD_FILE_ABORTED) {
-                    log_info("Update failed");
+                }
+            }
+            //Upload write
+            //**************
+            //check if no error
+            if (_upload_status == UploadStatus::ONGOING) {
+                if (((100 * index) / maxSketchSpace) != last_upload_update) {
+                    if (maxSketchSpace > 0) {
+                        last_upload_update = (100 * index) / maxSketchSpace;
+                    } else {
+                        last_upload_update = index;
+                    }
+
+                    log_info("Update " << last_upload_update << "%");
+                }
+                if (Update.write(data, len) != len) {
                     _upload_status = UploadStatus::FAILED;
-                    return;
+                    log_info("Update write failed");
+                    pushError(request, ESP_ERROR_FILE_WRITE, "File write failed");
+                }
+            }
+            //Upload end
+            //**************
+            if (final) {
+                if (_upload_status == UploadStatus::ONGOING && Update.end(true)) {  //true to set the size to the current progress
+                    //Now Reboot
+                    log_info("Update 100%");
+                    _upload_status = UploadStatus::SUCCESSFUL;
+                } else {
+                    _upload_status = UploadStatus::FAILED;
+                    log_info("Update failed");
+                    pushError(request, ESP_ERROR_UPLOAD, "Update upload failed");
                 }
             }
         }
-
-        if (_upload_status == UploadStatus::FAILED) {
-            cancelUpload();
-            Update.end();
-        }
     }
 
-    void Web_Server::handleFileOps(const char* fs) {
+    void WebUI_Server::handleFileOps(AsyncWebServerRequest* request, const char* fs) {
         //this is only for admin and user
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatus::NONE;
-            sendAuthFailed();
+            sendAuthFailed(request);
             return;
         }
 
@@ -967,8 +965,8 @@ namespace WebUI {
         uint64_t usedspace  = 0;
 
         //get current path
-        if (_webserver->hasArg("path")) {
-            path += _webserver->arg("path").c_str();
+        if (request->hasParam("path")) {
+            path += request->getParam("path")->value().c_str();
             // path.trim();
             replace_string_in_place(path, "//", "/");
             if (path[path.length() - 1] == '/') {
@@ -981,14 +979,14 @@ namespace WebUI {
 
         FluidPath fpath { path, fs, ec };
         if (ec) {
-            sendJSON(200, "{\"status\":\"No SD card\"}");
+            sendJSON(request, 200, "{\"status\":\"No SD card\"}");
             return;
         }
 
         // Handle deletions and directory creation
-        if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
-            std::string action(_webserver->arg("action").c_str());
-            std::string filename = std::string(_webserver->arg("filename").c_str());
+        if (request->hasParam("action") && request->hasParam("filename")) {
+            std::string action(request->getParam("action")->value().c_str());
+            std::string filename = std::string(request->getParam("filename")->value().c_str());
             if (action == "delete") {
                 if (stdfs::remove(fpath / filename, ec)) {
                     sstatus = filename + " deleted";
@@ -1018,10 +1016,10 @@ namespace WebUI {
                     sstatus += filename + " " + ec.message();
                 }
             } else if (action == "rename") {
-                if (!_webserver->hasArg("newname")) {
+                if (!request->hasParam("newname")) {
                     sstatus = "Missing new filename";
                 } else {
-                    std::string newname = std::string(_webserver->arg("newname").c_str());
+                    std::string newname = std::string(request->getParam("newname")->value().c_str());
                     std::filesystem::rename(fpath / filename, fpath / newname, ec);
                     if (ec) {
                         sstatus = "Cannot rename ";
@@ -1035,7 +1033,7 @@ namespace WebUI {
         }
 
         //check if no need build file list
-        if (_webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes") {
+        if (request->hasParam("dontlist") && request->getParam("dontlist")->value() == "yes") {
             list_files = false;
         }
 
@@ -1072,25 +1070,25 @@ namespace WebUI {
         j.member("occupation", percent);
         j.member("status", sstatus);
         j.end();
-        sendJSON(200, s);
+        sendJSON(request, 200, s);
     }
 
-    void Web_Server::handle_direct_SDFileList() {
-        handleFileOps(sdName);
+    void WebUI_Server::handle_direct_SDFileList(AsyncWebServerRequest* request) {
+        handleFileOps(request, sdName);
     }
-    void Web_Server::handleFileList() {
-        handleFileOps(localfsName);
+    void WebUI_Server::handleFileList(AsyncWebServerRequest* request) {
+        handleFileOps(request, localfsName);
     }
 
     // File upload
-    void Web_Server::uploadStart(const char* filename, size_t filesize, const char* fs) {
+    void WebUI_Server::uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const char* fs) {
         std::error_code ec;
 
         FluidPath fpath { filename, fs, ec };
         if (ec) {
             _upload_status = UploadStatus::FAILED;
             log_info("Upload filesystem inaccessible");
-            pushError(ESP_ERROR_FILE_CREATION, "Upload rejected, filesystem inaccessible");
+            pushError(request, ESP_ERROR_FILE_CREATION, "Upload rejected, filesystem inaccessible");
             return;
         }
 
@@ -1102,7 +1100,7 @@ namespace WebUI {
             if (ec || (filesize > (space.available + existing_size))) {
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload not enough space");
-                pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+                pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
                 return;
             }
         }
@@ -1116,28 +1114,28 @@ namespace WebUI {
                 _uploadFile    = nullptr;
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload failed - cannot create file");
-                pushError(ESP_ERROR_FILE_CREATION, "File creation failed");
+                pushError(request, ESP_ERROR_FILE_CREATION, "File creation failed");
             }
         }
     }
 
-    void Web_Server::uploadWrite(uint8_t* buffer, size_t length) {
+    void WebUI_Server::uploadWrite(AsyncWebServerRequest* request, uint8_t* buffer, size_t length) {
         delay_ms(1);
         if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
             //no error write post data
             if (length != _uploadFile->write(buffer, length)) {
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload failed - file write failed");
-                pushError(ESP_ERROR_FILE_WRITE, "File write failed");
+                pushError(request, ESP_ERROR_FILE_WRITE, "File write failed");
             }
         } else {  //if error set flag UploadStatus::FAILED
             _upload_status = UploadStatus::FAILED;
             log_info("Upload failed - file not open");
-            pushError(ESP_ERROR_FILE_WRITE, "File not open");
+            pushError(request, ESP_ERROR_FILE_WRITE, "File not open");
         }
     }
 
-    void Web_Server::uploadEnd(size_t filesize) {
+    void WebUI_Server::uploadEnd(AsyncWebServerRequest* request, size_t filesize) {
         //if file is open close it
         if (_uploadFile) {
             //            delete _uploadFile;
@@ -1161,36 +1159,36 @@ namespace WebUI {
 
                 if (filesize != actual_size) {
                     _upload_status = UploadStatus::FAILED;
-                    pushError(ESP_ERROR_UPLOAD, "File upload mismatch");
+                    pushError(request, ESP_ERROR_UPLOAD, "File upload mismatch");
                     log_info("Upload failed - size mismatch - exp " << filesize << " got " << actual_size);
                 }
             }
         } else {
             _upload_status = UploadStatus::FAILED;
             log_info("Upload failed - file not open");
-            pushError(ESP_ERROR_FILE_CLOSE, "File close failed");
+            pushError(request, ESP_ERROR_FILE_CLOSE, "File close failed");
         }
         if (_upload_status == UploadStatus::ONGOING) {
             _upload_status = UploadStatus::SUCCESSFUL;
         } else {
             _upload_status = UploadStatus::FAILED;
-            pushError(ESP_ERROR_UPLOAD, "Upload error 8");
+            pushError(request, ESP_ERROR_UPLOAD, "Upload error 8");
         }
     }
-    void Web_Server::uploadStop() {
+    void WebUI_Server::uploadStop() {
         _upload_status = UploadStatus::FAILED;
-        log_info("Upload cancelled");
         if (_uploadFile) {
+            log_info("Upload cancelled");
             std::filesystem::path filepath = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
             HashFS::rehash_file(filepath);
         }
     }
-    void Web_Server::uploadCheck() {
+    void WebUI_Server::uploadCheck(AsyncWebServerRequest* request) {
         std::error_code error_code;
         if (_upload_status == UploadStatus::FAILED) {
-            cancelUpload();
+            cancelUpload(request);
             if (_uploadFile) {
                 std::filesystem::path filepath = _uploadFile->fpath();
                 delete _uploadFile;
@@ -1201,32 +1199,24 @@ namespace WebUI {
         }
     }
 
-    void Web_Server::poll() {
+    void WebUI_Server::poll() {
         static uint32_t start_time = millis();
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();
         }
-        if (_webserver) {
-            _webserver->handleClient();
+        if (_schedule_reboot and _schedule_reboot_time == millis()) {
+            _schedule_reboot = false;
+            protocol_send_event(&fullResetEvent);
         }
-        if (_socket_server && _setupdone) {
-            _socket_server->loop();
-        }
-        if (_socket_serverv3 && _setupdone) {
-            _socket_serverv3->loop();
-        }
-        if ((millis() - start_time) > 10000 && _socket_server) {
-            WSChannels::sendPing();
+        if ((millis() - start_time) > 10000) {
+            uint32_t heapsize = xPortGetFreeHeapSize();
+            log_verbose("memory: " << heapsize << " min: " << heapLowWater);
+            if (_socket_server) {
+                _socket_server->cleanupClients();
+                WSChannels::sendPing();
+            }
             start_time = millis();
         }
-    }
-
-    void Web_Server::handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
-        WSChannels::handleEvent(_socket_server, num, type, payload, length);
-    }
-
-    void Web_Server::handle_Websocketv3_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
-        WSChannels::handlev3Event(_socket_serverv3, num, type, payload, length);
     }
 
     //Convert file extension to content type
@@ -1254,7 +1244,7 @@ namespace WebUI {
         }
         return true;
     }
-    const char* Web_Server::getContentType(const char* filename) {
+    const char* WebUI_Server::getContentType(const char* filename) {
         mime_type* m;
         for (m = mime_types; *(m->suffix) != '\0'; ++m) {
             if (endsWithCI(m->suffix, filename)) {
@@ -1265,7 +1255,7 @@ namespace WebUI {
     }
 
     //check authentication
-    AuthenticationLevel Web_Server::is_authenticated() {
+    AuthenticationLevel WebUI_Server::is_authenticated() {
 #ifdef ENABLE_AUTHENTICATION
         if (_webserver->hasHeader("Cookie")) {
             std::string cookie(_webserver->header("Cookie").c_str());
@@ -1287,7 +1277,7 @@ namespace WebUI {
 #ifdef ENABLE_AUTHENTICATION
 
     //add the information in the linked list if possible
-    bool Web_Server::AddAuthIP(AuthenticationIP* item) {
+    bool WebUI_Server::AddAuthIP(AuthenticationIP* item) {
         if (_nb_ip > MAX_AUTH_IP) {
             return false;
         }
@@ -1298,7 +1288,7 @@ namespace WebUI {
     }
 
     //Session ID based on IP and time using 16 char
-    const char* Web_Server::create_session_ID() {
+    const char* WebUI_Server::create_session_ID() {
         static char sessionID[17];
         //reset SESSIONID
         for (size_t i = 0; i < 17; i++) {
@@ -1324,7 +1314,7 @@ namespace WebUI {
         return sessionID;
     }
 
-    bool Web_Server::ClearAuthIP(IPAddress ip, const char* sessionID) {
+    bool WebUI_Server::ClearAuthIP(IPAddress ip, const char* sessionID) {
         AuthenticationIP* current  = _head;
         AuthenticationIP* previous = NULL;
         bool              done     = false;
@@ -1352,7 +1342,7 @@ namespace WebUI {
     }
 
     //Get info
-    AuthenticationIP* Web_Server::GetAuth(IPAddress ip, const char* sessionID) {
+    AuthenticationIP* WebUI_Server::GetAuth(IPAddress ip, const char* sessionID) {
         AuthenticationIP* current = _head;
         //AuthenticationIP * previous = NULL;
         while (current) {
@@ -1369,7 +1359,7 @@ namespace WebUI {
     }
 
     //Review all IP to reset timers
-    AuthenticationLevel Web_Server::ResetAuthIP(IPAddress ip, const char* sessionID) {
+    AuthenticationLevel WebUI_Server::ResetAuthIP(IPAddress ip, const char* sessionID) {
         AuthenticationIP* current  = _head;
         AuthenticationIP* previous = NULL;
         while (current) {
@@ -1399,5 +1389,6 @@ namespace WebUI {
         return AuthenticationLevel::LEVEL_GUEST;
     }
 #endif
-    ModuleFactory::InstanceBuilder<Web_Server> __attribute__((init_priority(108))) web_server_module("webserver", true);
+
+    ModuleFactory::InstanceBuilder<WebUI_Server> __attribute__((init_priority(108))) webui_server_module("webuiserver", true);
 }

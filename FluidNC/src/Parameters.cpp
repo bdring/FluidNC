@@ -140,7 +140,6 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
                 result = to_inches(axis, gc_state.coord_offset[axis]);
                 return true;
             }
-
             result = to_inches(axis, coords[coord_index]->get(axis));
             return true;
         }

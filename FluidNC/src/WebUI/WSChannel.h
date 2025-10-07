@@ -7,15 +7,14 @@
 #include <cstring>
 #include <list>
 #include <map>
-
-class WebSocketsServer;
+#include <ESPAsyncWebServer.h>
 
 #include "Channel.h"
 
 namespace WebUI {
     class WSChannel : public Channel {
     public:
-        WSChannel(WebSocketsServer* server, objnum_t clientNum);
+        WSChannel(AsyncWebSocket* server, objnum_t clientNum, std::string session);
 
         size_t write(uint8_t c);
         size_t write(const uint8_t* buffer, size_t size);
@@ -28,7 +27,8 @@ namespace WebUI {
 
         objnum_t id() { return _clientNum; }
 
-        int rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
+        int      rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
+        uint32_t clientNum() { return _clientNum; };
 
         operator bool() const;
 
@@ -37,13 +37,17 @@ namespace WebUI {
         int read() override;
         int available() override { return _queue.size() + (_rtchar > -1); }
 
-        void autoReport() override;
+        void        autoReport() override;
+        void        active(bool is_active);
+        std::string session() { return _session; };
 
     private:
-        WebSocketsServer* _server;
-        objnum_t          _clientNum;
+        AsyncWebSocket* _server;
+        objnum_t        _clientNum;
+        std::string     _session;
 
-        std::string _output_line;
+        std::string   _output_line;
+        unsigned long _last_queue_full = 0;
 
         // Instead of queueing realtime characters, we put them here
         // so they can be processed immediately during operations like
@@ -53,20 +57,23 @@ namespace WebUI {
 
     class WSChannels {
     private:
-        static std::map<objnum_t, WSChannel*> _wsChannels;
-        static std::list<WSChannel*>          _webWsChannels;
+        static std::map<uint32_t, WSChannel*>    _wsChannels;
+        static std::list<WSChannel*>             _webWsChannels;
+        static std::map<std::string, WSChannel*> _wsChannelsBySession;
+        static AsyncWebSocket*                   _server;
 
         static WSChannel* _lastWSChannel;
         static WSChannel* getWSChannel(uint32_t pageid);
+        static WSChannel* getWSChannel(std::string session);
 
     public:
         static void removeChannel(WSChannel* channel);
         static void removeChannel(objnum_t num);
 
-        static bool runGCode(uint32_t pageid, std::string_view cmd);
-        static bool sendError(uint32_t pageid, std::string error);
+        static bool runGCode(uint32_t pageid, std::string_view cmd, std::string session);
+        static bool sendError(uint32_t pageid, std::string error, std::string session);
         static void sendPing();
-        static void handleEvent(WebSocketsServer* server, objnum_t num, uint8_t type, uint8_t* payload, size_t length);
-        static void handlev3Event(WebSocketsServer* server, objnum_t num, uint8_t type, uint8_t* payload, size_t length);
+        static void handleEvent(
+            AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len, std::string session);
     };
 }
