@@ -38,10 +38,17 @@ EnumSetting* gcode_echo;
 void make_coordinate(CoordIndex index, const char* name) {
     float coord_data[MAX_N_AXIS] = { 0.0 };
     auto  coord                  = new Coordinates(name);
-    coords[index]                = coord;
-    if (!coord->load()) {
+
+    coords[index] = coord;
+
+    if (index != CoordIndex::TLO) {
+        if (!coord->load()) {
+            coords[index]->setDefault();
+        }
+    } else {
         coords[index]->setDefault();
     }
+
 }
 
 void float_proxy(int axis, int grbl_number, const char* name, float* varp) {
