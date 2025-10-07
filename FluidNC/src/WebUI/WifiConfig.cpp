@@ -13,7 +13,7 @@
 
 #include "src/Main.h"
 
-#include "WebServer.h"             // Web_Server::port()
+#include "WebUIServer.h"           // Web_Server::port()
 #include "TelnetServer.h"          // TelnetServer::port()
 #include "NotificationsService.h"  // notificationsservice
 
@@ -228,7 +228,7 @@ namespace WebUI {
                 }
                 j.id_value_object("Available Size for update", formatBytes(flashsize));
                 j.id_value_object("Available Size for LocalFS", formatBytes(localfs_size()));
-                j.id_value_object("Web port", Web_Server::port());
+                j.id_value_object("Web port", WebUI_Server::port());
                 j.id_value_object("Data port", TelnetServer::port());
                 j.id_value_object("Hostname", WiFi.getHostname());
             }
@@ -359,7 +359,7 @@ namespace WebUI {
                 }
                 log_stream(out, "Available Size for update: " << formatBytes(flashsize));
                 log_stream(out, "Available Size for LocalFS: " << formatBytes(localfs_size()));
-                log_stream(out, "Web port: " << Web_Server::port());
+                log_stream(out, "Web port: " << WebUI_Server::port());
                 log_stream(out, "Hostname: " << WiFi.getHostname());
             }
 
@@ -532,7 +532,7 @@ namespace WebUI {
                         break;
                 }
 
-                j.member("WebSocketPort", std::to_string(Web_Server::port() + 2));
+                j.member("WebSocketPort", std::to_string(WebUI_Server::port()));
                 j.member("HostName", WiFi.getHostname());
                 j.member("WiFiMode", modeName());
                 j.member("FlashFileSystem", "LittleFS");
@@ -578,7 +578,7 @@ namespace WebUI {
             s << "no";
 #endif
             s << " # webcommunication: Sync: ";
-            s << std::to_string(Web_Server::port() + 1);
+            s << std::to_string(WebUI_Server::port());
 #if 0
             // If we omit the explicit IP address for the websocket,
             // WebUI will use the same IP address that it uses for
@@ -649,6 +649,7 @@ namespace WebUI {
             static bool disconnect_seen = false;
             switch (event) {
                 case SYSTEM_EVENT_STA_GOT_IP:
+                    log_info_to(Uart0, "Got IP: " << IP_string(WiFi.localIP()));
                     break;
                 case SYSTEM_EVENT_STA_DISCONNECTED:
                     if (!disconnect_seen) {
@@ -749,7 +750,7 @@ namespace WebUI {
             }
             if (WiFi.begin(SSID, (strlen(password) > 0) ? password : NULL)) {
                 log_info("Connecting to STA SSID:" << SSID);
-                return ConnectSTA2AP();
+                return true;
             } else {
                 log_info("Starting client failed");
                 return false;
