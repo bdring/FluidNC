@@ -29,6 +29,7 @@ class Probe : public Configuration::Configurable {
 
 public:
     bool _hard_stop = false;
+    bool _probe_hard_limit = false;
     // Configurable
     bool _check_mode_start = true;
     // _check_mode_start configures the position after a probing cycle
