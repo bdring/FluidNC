@@ -6,7 +6,7 @@
 
 #include "src/Channel.h"
 #include "src/Module.h"
-#include "SSD1306_I2C.h"
+#include "SH1106_I2C.h"
 
 typedef const uint8_t* font_t;
 
