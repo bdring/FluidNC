@@ -1,17 +1,21 @@
 #pragma once
 
+#include <soc/soc_caps.h>
+
 #define WEAK_LINK __attribute__((weak))
 #define WITH_MBEDTLS
 
-#define MAX_N_SDCARD 1
-#define MAX_N_UARTS 3
-#define MAX_N_I2SO 1
-#define MAX_N_I2C 2
-#define MAX_N_SPI 1
+#define MAX_N_UARTS SOC_UART_NUM
+#define MAX_N_I2C SOC_I2C_NUM
+
+// The number that we support, regardless of how many the chip has
 #define MAX_N_DACS 0
 #define MAX_N_RMT 0
+#define MAX_N_I2SO 1
+#define MAX_N_SPI 1
+#define MAX_N_SDCARD 1
 
-#define MAX_N_GPIO 49
+#define MAX_N_GPIO SOC_GPIO_PIN_COUNT /* 49 */
 #define DEFAULT_STEPPING_ENGINE Stepping::TIMED
 
 // Serial baud rate

@@ -2,6 +2,7 @@
 
 #include <esp_attr.h>
 #include <esp_compiler.h>
+#include <soc/soc_caps.h>
 
 #define IRAM IRAM_ATTR
 #define INLINE inline __attribute__((always_inline))
@@ -11,14 +12,17 @@
 #define WEAK_LINK __attribute__((weak))
 #define WITH_MBEDTLS
 
-#define MAX_N_SDCARD 1
-#define MAX_N_UARTS 2
-#define MAX_N_I2SO 1
-#define MAX_N_I2C 2
-#define MAX_N_SPI 1
-#define MAX_N_DACS 2
+#define MAX_N_UARTS SOC_UART_NUM
+#define MAX_N_I2C SOC_I2C_NUM
+#define MAX_N_DACS SOC_DAC_PERIPH_NUM
 
-#define MAX_N_GPIO 47
+// The number that we support, regardless of how many the chip has
+#define MAX_N_RMT 0
+#define MAX_N_I2SO 1
+#define MAX_N_SPI 1
+#define MAX_N_SDCARD 1
+
+#define MAX_N_GPIO SOC_GPIO_PIN_COUNT
 
 // Serial baud rate
 // The ESP32 boot text is 115200, so you will not see early startup
