@@ -41,6 +41,13 @@ The Wifi and WebUI is based on [this project.](https://github.com/luc-github/ESP
 
 We have a Discord server for the development this project. Ask for an invite
 
+## Display fix
+
+Current fork includes some fixes to make SH1106-based OLED screens work without issues.
+The original code had a bug: the screen is initialized, the charge pump works (there is a visible image on the screen).
+There is a small horizontal rectangular window, around 10 pixels high, displaying part of the image. However, the majority of the screen is filled with garbage, mostly white with some black dots on it. 
+
+Tested on a random Chinese module with 128*64 OLED screen, which -- after some testing with [U8g2](https://github.com/olikraus/u8g2) library worked perfectly with SH1106 init sequence.
 
 ## Donations
 
