@@ -11,9 +11,9 @@ namespace Machine {
         bool _error = false;
 
     public:
-        I2CBus(uint32_t busNumber);
+        I2CBus(objnum_t busNumber);
 
-        uint32_t _busNumber = 0;
+        objnum_t _busNumber = 0;
         Pin      _sda;
         Pin      _scl;
         uint32_t _frequency = 100000;

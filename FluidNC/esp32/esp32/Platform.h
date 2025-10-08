@@ -33,6 +33,8 @@ inline void platform_preinit() {
     disableCore0WDT();
 }
 
+#define USE_ARDUINO_I2C_DRIVER 0
+
 #ifdef IDFBUILD
 // Compatibility for older compilers versions.
 #    define memory_order_seq_cst seq_cst
