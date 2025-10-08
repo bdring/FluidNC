@@ -1,13 +1,16 @@
 // Copyright 2022 - Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include <driver/i2c.h>
+#include "Platform.h"
+#if !USE_ARDUINO_I2C_DRIVER
 
-#include "Driver/fluidnc_i2c.h"
-#include "Logging.h"
+#    include <driver/i2c.h>
+
+#    include "Driver/fluidnc_i2c.h"
+#    include "Logging.h"
 
 // cppcheck-suppress unusedFunction
-bool i2c_master_init(int bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_t frequency) {
+bool i2c_master_init(objnum_t bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_t frequency) {
     i2c_config_t conf     = {};
     conf.mode             = I2C_MODE_MASTER;
     conf.sda_io_num       = (gpio_num_t)sda_pin;
@@ -23,7 +26,6 @@ bool i2c_master_init(int bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_
     }
     ret = i2c_driver_install((i2c_port_t)bus_number, conf.mode, 0, 0, 0);
     if (ret != ESP_OK) {
-        log_error("i2c_driver_install failed");
         return true;
     }
 
@@ -40,8 +42,8 @@ bool i2c_master_init(int bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_
 }
 
 // cppcheck-suppress unusedFunction
-int i2c_write(int bus_number, uint8_t address, const uint8_t* data, size_t count) {
-#if 0
+int i2c_write(objnum_t bus_number, uint8_t address, const uint8_t* data, size_t count) {
+#    if 0
         esp_err_t        ret = ESP_FAIL;
         i2c_cmd_handle_t cmd = NULL;
 
@@ -76,18 +78,18 @@ int i2c_write(int bus_number, uint8_t address, const uint8_t* data, size_t count
             i2c_cmd_link_delete_static(cmd);
         }
         return ret ? -1 : count;
-#else
+#    else
     auto err = i2c_master_write_to_device((i2c_port_t)bus_number, address, data, count, 10 / portTICK_PERIOD_MS);
     if (err == ESP_OK) {
         return count;
     } else {
-        log_warn("Error writing to I2C device: " << err);
         return -1;
     }
-#endif
+#    endif
 }
 
 // cppcheck-suppress unusedFunction
-int i2c_read(int bus_number, uint8_t address, uint8_t* data, size_t count) {
+int i2c_read(objnum_t bus_number, uint8_t address, uint8_t* data, size_t count) {
     return i2c_master_read_from_device((i2c_port_t)bus_number, address, data, count, 10 / portTICK_PERIOD_MS) ? -1 : count;
 }
+#endif
