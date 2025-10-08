@@ -1,7 +1,7 @@
 @echo off
 set EsptoolPath=win64\esptool.exe
 
-set BaseArgs=--chip esp32 --baud 921600
+set BaseArgs=--baud 921600
 
 rem Read the security fuses
 echo %EsptoolPath% %BaseArgs% dump_mem 0x3ff5a018 4 SecurityFuses.bin
