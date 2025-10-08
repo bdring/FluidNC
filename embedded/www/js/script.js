@@ -289,7 +289,11 @@ xmlhttp.onreadystatechange = function() {
              }
              if (sublist[0].trim() == "webcommunication"){
                  websocket_port = sublist[2].trim();
-                 websocket_IP = sublist[3].trim();
+                 if (sublist.length>3) {
+                     websocket_IP = sublist[3].trim();
+                 } else {
+                     websocket_IP =  document.location.hostname;
+                 }
                  startSocket();
                  nbitem++;
              }
