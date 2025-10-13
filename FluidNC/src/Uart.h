@@ -83,8 +83,8 @@ public:
     void forceXon();
     void forceXoff();
 
-    void setSwFlowControl(bool on, int rx_threshold, int tx_threshold);
-    void getSwFlowControl(bool& enabled, int& rx_threshold, int& tx_threshold);
+    void setSwFlowControl(bool on, uint32_t rx_threshold, uint32_t tx_threshold);
+    void getSwFlowControl(bool& enabled, uint32_t& rx_threshold, uint32_t& tx_threshold);
     void changeMode(uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits);
     void restoreMode();
 
