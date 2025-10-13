@@ -87,8 +87,8 @@ uint16_t crc16_ccitt(const uint8_t* buf, size_t len) {
 #define CTRLZ 0x1A
 
 #define DLY_1S 1000
-#define MAXRETRANS 25
-#define TRANSMIT_XMODEM_1K
+#define MAXRETRANS 3
+#define TRANSMIT_XMODEM_1K 1
 
 static bool check(int crc, const uint8_t* buf, int sz) {
     if (crc) {
@@ -112,7 +112,7 @@ static bool check(int crc, const uint8_t* buf, int sz) {
 }
 
 static void flushinput(void) {
-    while (_inbyte(((DLY_1S)*3) >> 1) >= 0)
+    while (_inbyte(100) > 0)
         ;
 }
 
@@ -212,13 +212,13 @@ int32_t xmodemReceive(Channel* serial, FileStream* out) {
     start_recv:
         if (trychar == 'C')
             crc = 1;
-        trychar = 0;
-        p       = xbuff;
-        *p++    = c;
-        for (i = 0; i < (bufsz + (crc ? 1 : 0) + 3); ++i) {
-            if ((c = _inbyte(DLY_1S)) < 0)
-                goto reject;
-            *p++ = c;
+        trychar     = 0;
+        p           = xbuff;
+        *p++        = c;
+        size_t want = bufsz + (crc ? 1 : 0) + 3;
+        auto   res  = serialPort->timedReadBytes(p, want, DLY_1S);
+        if (res != want) {
+            goto reject;
         }
 
         if (xbuff[1] == (uint8_t)(~xbuff[2]) && (xbuff[1] == packetno || xbuff[1] == packetno - 1) && check(crc, &xbuff[3], bufsz)) {
@@ -227,7 +227,7 @@ int32_t xmodemReceive(Channel* serial, FileStream* out) {
                 ++packetno;
                 retrans = MAXRETRANS + 1;
             }
-            if (--retrans <= 0) {
+            if (--retrans == 0) {
                 flushinput();
                 _outbyte(CAN);
                 _outbyte(CAN);
@@ -285,7 +285,7 @@ int xmodemTransmit(Channel* serial, FileStream* infile) {
 
         for (;;) {
         start_trans:
-#ifdef TRANSMIT_XMODEM_1K
+#if TRANSMIT_XMODEM_1K
             xbuff[0] = STX;
             bufsz    = 1024;
 #else
@@ -341,11 +341,12 @@ int xmodemTransmit(Channel* serial, FileStream* infile) {
             } else {
                 for (retry = 0; retry < 10; ++retry) {
                     _outbyte(EOT);
-                    if ((c = _inbyte((DLY_1S) << 1)) == ACK)
+                    c = _inbyte((DLY_1S) << 1);
+                    if (c == ACK || c == -1)
                         break;
                 }
                 flushinput();
-                return (c == ACK) ? len : -5;
+                return (c == ACK || c == -1) ? len : -5;
             }
         }
     }
