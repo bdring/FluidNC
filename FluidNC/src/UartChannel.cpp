@@ -15,7 +15,7 @@ void UartChannel::init() {
     if (uart) {
         init(uart);
     } else {
-        log_error("UartChannel: missing uart" << _uart_num);
+        log_error(name() << ": missing uart" << _uart_num);
     }
     setReportInterval(_report_interval_ms);
 }
@@ -23,9 +23,9 @@ void UartChannel::init(Uart* uart) {
     _uart = uart;
     allChannels.registration(this);
     if (_report_interval_ms) {
-        log_info("uart_channel" << _uart_num << " created at report interval: " << _report_interval_ms);
+        log_info(name() << " created at report interval: " << _report_interval_ms);
     } else {
-        log_info("uart_channel" << _uart_num << " created");
+        log_info(name() << " created");
     }
     // Tell the channel listener that FluidNC has restarted.
     // The initial newline clears out any garbage characters that might have

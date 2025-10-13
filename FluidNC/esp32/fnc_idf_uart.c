@@ -51,7 +51,7 @@
 #define XOFF (0x13)
 #define XON (0x11)
 
-static const char *UART_TAG = "uart";
+static const char *UART_TAG = "fnc_uart";
 
 #define UART_EMPTY_THRESH_DEFAULT       (10)
 #define UART_FULL_THRESH_DEFAULT        (120)
@@ -1171,12 +1171,10 @@ int fnc_uart_read_bytes(uart_port_t uart_num, void *buf, uint32_t length, TickTy
             }
         }
         memcpy((uint8_t *)buf + copy_len, data, size);
-#if 0
         UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
         p_uart_obj[uart_num]->rx_buffered_len -= size;
-        uart_pattern_queue_update(uart_num, size);
+        // uart_pattern_queue_update(uart_num, size);
         UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
-#endif
         copy_len += size;
         length -= size;
         vRingbufferReturnItem(p_uart_obj[uart_num]->rx_ring_buf, data);
