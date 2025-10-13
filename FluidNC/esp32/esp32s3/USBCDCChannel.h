@@ -4,8 +4,6 @@
 
 #include <sdkconfig.h>
 
-#ifdef CONFIG_ESP_CONSOLE_USB_CDC
-
 // We need this even when using TinyUSB in order to stop the HWCDC interface
 #include <HWCDC.h>
 
@@ -41,14 +39,3 @@ public:
     Error  pollLine(char* line) override;
 };
 extern USBCDCChannel CDCChannel;
-
-#else
-
-class NullChannel {
-public:
-    void init() {}
-};
-
-extern NullChannel CDCChannel;
-
-#endif

@@ -23,7 +23,6 @@
 #    include "Driver/localfs.h"
 
 #    include "ToolChangers/atc.h"
-#    include "USBCDCChannel.h"
 
 extern void make_user_commands();
 
@@ -34,7 +33,6 @@ void setup() {
         timing_init();
 
         Console.init();  // Setup main interaction channel
-        CDCChannel.init();
 
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config

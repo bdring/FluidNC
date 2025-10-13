@@ -129,18 +129,20 @@ void UartChannel::flushRx() {
 }
 
 size_t UartChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
+    size_t remlen = length;
+
     // It is likely that _queue will be empty because timedReadBytes() is only
     // used in situations where the UART is not receiving GCode commands
     // and Grbl realtime characters.
-    size_t remlen = length;
-    while (remlen && _queue.size()) {
+    while (_queue.size() && remlen) {
         *buffer++ = _queue.front();
         _queue.pop();
+        --remlen;
     }
 
-    auto res = _uart->timedReadBytes(buffer, remlen, timeout);
-    // If res < 0, no bytes were read
-    remlen -= (res < 0) ? 0 : res;
+    auto thislen = _uart->timedReadBytes(buffer, remlen, timeout);
+    remlen -= thislen;
+
     return length - remlen;
 }
 
