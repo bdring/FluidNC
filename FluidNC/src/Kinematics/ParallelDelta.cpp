@@ -122,8 +122,14 @@ namespace Kinematics {
     }
 
     // TO DO. This is not supported yet. Other levels of protection will prevent "damage"
-    bool ParallelDelta::invalid_arc(
-        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc, int pword_rotations) {
+    bool ParallelDelta::invalid_arc(float*            target,
+                                    plan_line_data_t* pl_data,
+                                    float*            position,
+                                    float             center[3],
+                                    float             radius,
+                                    size_t            caxes[3],
+                                    bool              is_clockwise_arc,
+                                    int               pword_rotations) {
         return false;
     }
 
@@ -288,7 +294,7 @@ namespace Kinematics {
     bool ParallelDelta::kinematics_homing(AxisMask& axisMask) {
         // only servos use custom homing. Steppers use limit switches
         if (!_use_servos)
-            false;
+            return false;
 
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
@@ -317,7 +323,7 @@ namespace Kinematics {
         if (d < 0) {
             //log_warn("Kinematics: Target unreachable");
             return false;
-        }                                                 // non-existing point
+        }  // non-existing point
         float yj = (y1 - a * b - sqrt(d)) / (b * b + 1);  // choosing outer point
         float zj = a + b * yj;
 
