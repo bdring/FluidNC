@@ -23,9 +23,9 @@ private:
 
     uint32_t _uart_num = 0;  // Hardware UART engine number
 
-    bool _sw_flowcontrol_enabled = false;
-    int  _xon_threshold          = 0;
-    int  _xoff_threshold         = 0;
+    bool     _sw_flowcontrol_enabled = false;
+    uint32_t _xon_threshold          = 0;
+    uint32_t _xoff_threshold         = 0;
 
     std::string passthrough_mode = "";
     std::string _name;
