@@ -4,6 +4,7 @@
 #include "Configuration/Configurable.h"
 #include "Configuration/GenericFactory.h"
 #include "MotionControl.h"
+#include "System.h"  // AxisMask, MotorMask
 #include "Planner.h"
 #include "Types.h"
 #include "Machine/Homing.h"
@@ -56,6 +57,12 @@ namespace Kinematics {
         void releaseMotors(AxisMask axisMask, MotorMask motors);
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
 
+        float min_motor_pos(axis_t axis);
+        float max_motor_pos(axis_t axis);
+
+        void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms);
+        void set_homed_mpos(float* mpos);
+
     private:
         ::Kinematics::KinematicSystem* _system = nullptr;
     };
@@ -98,6 +105,12 @@ namespace Kinematics {
         virtual bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) { return false; }
         virtual bool kinematics_homing(AxisMask& axisMask) { return false; }
 
+        virtual float min_motor_pos(axis_t axis) { return _min_motor_pos[axis]; }
+        virtual float max_motor_pos(axis_t axis) { return _max_motor_pos[axis]; }
+
+        virtual void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) {}
+        virtual void set_homed_mpos(float* mpos) {}
+
         // Configuration interface.
         void afterParse() override {}
         void group(Configuration::HandlerBase& handler) override {}
@@ -108,6 +121,9 @@ namespace Kinematics {
 
         // Virtual base classes require a virtual destructor.
         virtual ~KinematicSystem() {}
+
+        float _min_motor_pos[MAX_N_AXIS];
+        float _max_motor_pos[MAX_N_AXIS];
     };
 
     using KinematicsFactory = Configuration::GenericFactory<KinematicSystem>;

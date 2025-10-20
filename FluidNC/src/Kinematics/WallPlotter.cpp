@@ -1,6 +1,7 @@
 #include "WallPlotter.h"
 
 #include "Machine/MachineConfig.h"
+#include "Limit.h"
 
 #include <cmath>
 
@@ -36,10 +37,18 @@ namespace Kinematics {
 
     // Initialize the machine position
     void WallPlotter::init_position() {
-        auto n_axis = Axes::_numberAxis;
+        // Same as cartesian
+        auto  n_axis = Axes::_numberAxis;
+        float min_mpos[n_axis];
+        float max_mpos[n_axis];
+
         for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-            set_motor_steps(axis, 0);  // Set to zeros
+            set_steps(axis, 0);  // Set to zeros
+            min_mpos[axis] = limitsMinPosition(axis);
+            max_mpos[axis] = limitsMaxPosition(axis);
         }
+        transform_cartesian_to_motors(_min_motor_pos, min_mpos);
+        transform_cartesian_to_motors(_max_motor_pos, max_mpos);
     }
 
     bool WallPlotter::canHome(AxisMask axisMask) {

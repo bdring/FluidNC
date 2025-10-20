@@ -50,9 +50,6 @@ namespace Machine {
         static AxisMask axis_mask_from_cycle(uint32_t cycle);
         static void     run(MotorMask remainingMotors, Phase phase);
 
-        static void startMove(AxisMask axisMask, MotorMask motors, Phase phase, uint32_t& settle_ms);
-        static void axisVector(AxisMask axisMask, MotorMask motors, Phase phase, float* target, float& rate, uint32_t& settle_ms);
-
         // The homing cycles are 1,2,3 etc.  0 means not homed as part of home-all,
         // but you can still home it manually with e.g. $HA
         int32_t  _cycle             = 0;     // what auto-homing cycle does this axis home on?
@@ -83,8 +80,6 @@ namespace Machine {
         void init() {}
 
         static void set_mpos();
-
-        static const int REPORT_LINE_NUMBER = 0;
 
         static bool needsPulloff2(MotorMask motors);
 

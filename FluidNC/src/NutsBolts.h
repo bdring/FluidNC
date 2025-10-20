@@ -87,9 +87,9 @@ const char* to_hex(uint32_t n);
 bool char_is_numeric(char value);
 void trim(std::string_view& sv);
 
-template <typename T>
-T myMap(T x, const T in_min, const T in_max, T out_min, T out_max) {  // DrawBot_Badge
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+template <typename I, typename O>
+O myMap(I x, const I in_min, const I in_max, O out_min, O out_max) {
+    return static_cast<O>((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
 }
 
 template <typename T>
@@ -103,8 +103,8 @@ T myConstrain(T in, const T min, const T max) {
     return in;
 }
 
-template <typename T>
-T mapConstrain(T x, const T in_min, const T in_max, T out_min, T out_max) {
+template <typename I, typename O>
+O mapConstrain(I x, const I in_min, const I in_max, O out_min, O out_max) {
     x = myConstrain(x, in_min, in_max);
     return myMap(x, in_min, in_max, out_min, out_max);
 }
@@ -127,3 +127,69 @@ std::string formatBytes(uint64_t bytes);
 std::string IP_string(uint32_t ipaddr);
 
 void replace_string_in_place(std::string& subject, const std::string& search, const std::string& replace);
+
+template <typename D, typename S>
+void copyArray(D* dest, S src, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] = src[i];
+    }
+}
+
+template <typename D, typename S>
+void addArray(D* dest, S* src, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] += src[i];
+    }
+}
+
+template <typename D, typename S>
+void addArray(D* dest, S addend, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] += addend;
+    }
+}
+
+template <typename D, typename S>
+void subtractArray(D* dest, S* src, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] -= src[i];
+    }
+}
+
+template <typename D, typename S>
+void subtractArray(D* dest, S subtrahend, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] -= subtrahend;
+    }
+}
+
+template <typename D, typename S>
+void multiplyArray(D* dest, S* src, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] *= src[i];
+    }
+}
+
+template <typename D, typename S>
+void multiplyArray(D* dest, S factor, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] *= factor;
+    }
+}
+
+template <typename D, typename S>
+void setArray(D* dest, S value, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] = value;
+    }
+}
+
+template <typename S>
+void logArray(const char* legend, S* src, size_t n) {
+    std::string s(legend);
+    for (size_t i = 0; i < n; i++) {
+        s += " ";
+        s += std::to_string(src[i]);
+    }
+    log_debug(s);
+}

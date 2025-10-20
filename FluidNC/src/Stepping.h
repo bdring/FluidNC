@@ -6,6 +6,7 @@
 
 #include "Configuration/Configurable.h"
 #include "Driver/step_engine.h"
+#include "System.h"
 
 namespace Machine {
     class Stepping : public Configuration::Configurable {
@@ -27,11 +28,11 @@ namespace Machine {
             bool     limited;
         };
         static motor_pins_t* axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS];
-        static axis_t   _n_active_axes;
+        static axis_t        _n_active_axes;
 
         static void    startPulseTimer();
         static void    waitDirection();  // Wait for direction delay
-        static int32_t axis_steps[MAX_N_AXIS];
+        static steps_t axis_steps[MAX_N_AXIS];
 
         static step_engine_t* step_engine;
 
@@ -64,8 +65,8 @@ namespace Machine {
         // Interfaces to stepping engine
         static void init();
 
-        static uint32_t getSteps(axis_t axis) { return axis_steps[axis]; }
-        static void     setSteps(axis_t axis, uint32_t steps) { axis_steps[axis] = steps; }
+        static steps_t getSteps(axis_t axis) { return axis_steps[axis]; }
+        static void    setSteps(axis_t axis, steps_t steps) { axis_steps[axis] = steps; }
 
         static void assignMotor(axis_t axis, motor_t motor, pinnum_t step_pin, bool step_invert, pinnum_t dir_pin, bool dir_invert);
 

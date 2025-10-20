@@ -45,6 +45,11 @@ namespace Kinematics {
         bool         limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) override;
         virtual bool kinematics_homing(AxisMask& axisMask) override;
 
+        void axesVector(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms);
+
+        void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) override;
+        void set_homed_mpos(float* mpos);
+
         // Configuration handlers:
         void afterParse() override {}
         void group(Configuration::HandlerBase& handler) override {}

@@ -50,7 +50,10 @@ namespace Kinematics {
                                  bool              is_clockwise_arc,
                                  uint32_t          rotations) override;
 
-        void releaseMotors(AxisMask axisMask, MotorMask motors) override;
+        bool canHome(AxisMask axisMask) override;
+
+        // limitReached() is inherited from Cartesian
+        // releaseMotors() is inherited from Cartesian
 
         // Configuration handlers:
         //void         validate() const override {}
@@ -62,19 +65,35 @@ namespace Kinematics {
     private:
         //  Config items Using geometry names from the published kinematics rather than typical Fluid Style
         // To make the math easier to compare with the code
-        float rf = 70.0;  // The length of the crank arm on the motor
-        float f  = 179.437;
-        float re = 133.50;
-        float e  = 86.603;
+        float rf = 70.0;     // crank_mm - The length of the crank arm on the motor
+        float f  = 179.437;  // base_triangle_mm
+        float re = 133.50;   // linkage_mm
+        float e  = 86.603;   // end_effector_triangle_mm
 
         float _kinematic_segment_len_mm = 1.0;  // the maximum segment length the move is broken into
         bool  _softLimits               = false;
-        float _homing_mpos              = 0.0;
         float _max_z                    = 0.0;
         bool  _use_servos               = true;  // servo use a special homing
 
-        bool  delta_calcAngleYZ(float x0, float y0, float z0, float& theta);
-        float three_axis_dist(float* point1, float* point2);
+        float _homing_degrees = 0.0;
+        float _up_degrees     = -30.0;
+        float _down_degrees   = 90.0;
+
+        float _last_angles[3] = { 0 };
+        float _mpos_offset[3] = { 0 };
+
+        bool delta_calcAngleYZ(float x0, float y0, float z0, float& theta);
+
+        void motorVector(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms);
+        void homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) override;
+        void set_homed_mpos(float* mpos);
+        bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) override;
+
+        inline float pos_to_radians(float pos) { return pos * (M_PI / 180.0); }
+
+        inline float radians_to_pos(float radians) { return radians * (180.0 / M_PI); }
+
+        inline float degrees_to_pos(float degrees) { return radians_to_pos(degrees * M_PI / 180.0); }
 
     protected:
     };

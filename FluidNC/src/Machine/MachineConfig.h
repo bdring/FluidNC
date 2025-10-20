@@ -129,10 +129,38 @@ namespace Machine {
 
 extern Machine::MachineConfig* config;
 
-template <typename T>
-void copyAxes(T* dest, T* src) {
-    auto n_axis = Axes::_numberAxis;
+template <typename D, typename S>
+void copyAxes(D* dest, S* src, axis_t n_axis) {
     for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         dest[axis] = src[axis];
     }
+}
+
+template <typename D, typename S>
+void copyAxes(D* dest, S* src) {
+    copyAxes(dest, src, Axes::_numberAxis);
+}
+
+template <typename D, typename S>
+void addAxes(D* dest, S* src, axis_t n_axis) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        dest[axis] += src[axis];
+    }
+}
+
+template <typename D, typename S>
+void addAxes(D* dest, S* src) {
+    addAxes(dest, src, Axes::_numberAxis);
+}
+
+template <typename D, typename S>
+void subtractAxes(D* dest, S* src, axis_t n_axis) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        dest[axis] -= src[axis];
+    }
+}
+
+template <typename D, typename S>
+void subtractAxes(D* dest, S* src) {
+    subtractAxes(dest, src, Axes::_numberAxis);
 }

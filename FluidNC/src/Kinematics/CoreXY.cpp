@@ -35,6 +35,8 @@ namespace Kinematics {
         // A limit switch on either axis stops both motors
         Axes::_axis[X_AXIS]->_motors[0]->limitOtherAxis(Y_AXIS);
         Axes::_axis[Y_AXIS]->_motors[0]->limitOtherAxis(X_AXIS);
+
+        Cartesian::init_position();
     }
 
     bool CoreXY::canHome(AxisMask axisMask) {

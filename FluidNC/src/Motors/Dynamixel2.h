@@ -9,6 +9,7 @@
 
 #include "Servo.h"
 #include "Pin.h"
+#include "System.h"
 
 #include "Uart.h"
 
@@ -39,11 +40,10 @@ namespace MotorDrivers {
         void finish_write();
         void show_status();
 
-        bool     test();
-        uint32_t dxl_read_position();
-        void     dxl_read(uint16_t address, uint16_t data_len);
+        bool test();
+        void dxl_read(uint16_t address, uint16_t data_len);
 
-        void dxl_goal_position(int32_t position);  // set one motor
+        void dxl_goal_position(uint32_t position);  // set one motor
         void set_operating_mode(uint8_t mode);
         void LED_on(bool on);
 
@@ -55,7 +55,7 @@ namespace MotorDrivers {
 
         static std::vector<Dynamixel2*> _instances;
 
-        axis_t _axis_index;
+        axis_t _axis;
 
         static Uart* _uart;
 
@@ -99,8 +99,13 @@ namespace MotorDrivers {
         uint32_t _countMin = 1024;
         uint32_t _countMax = 3072;
 
+        steps_t _min_steps;
+        steps_t _max_steps;
+
         bool        _disabled = true;
         static bool _has_errors;
+
+        void add_position_to_message();
 
     public:
         Dynamixel2(const char* name) : Servo(name) {}

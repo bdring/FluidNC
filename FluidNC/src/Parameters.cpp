@@ -149,7 +149,7 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
     axis = axis_from_id(id, 5061);
     if (is_axis(axis)) {
         float probe_position[MAX_N_AXIS];
-        motor_steps_to_mpos(probe_position, probe_steps);
+        steps_to_mpos(probe_position, probe_steps);
         result = to_inches(axis, probe_position[axis]);
         return true;
     }

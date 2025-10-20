@@ -92,7 +92,7 @@ void Stepping::assignMotor(axis_t axis, motor_t motor, pinnum_t step_pin, bool s
     }
 }
 
-int32_t Stepping::axis_steps[MAX_N_AXIS] = { 0 };
+steps_t Stepping::axis_steps[MAX_N_AXIS] = { 0 };
 
 bool* Stepping::limit_var(axis_t axis, motor_t motor) {
     auto m = axis_motors[axis][motor];

@@ -195,7 +195,7 @@ void report_probe_parameters(Channel& channel) {
     // Report in terms of machine position.
     // get the machine position and put them into a string and append to the probe report
     float print_position[MAX_N_AXIS];
-    motor_steps_to_mpos(print_position, probe_steps);
+    steps_to_mpos(print_position, probe_steps);
 
     log_stream(channel, "[PRB:" << report_util_axis_values(print_position) << ":" << probe_succeeded);
 }
@@ -496,7 +496,8 @@ void report_realtime_status(Channel& channel) {
     msg << state_name();
 
     // Report position
-    float* print_position = get_mpos();
+
+    float* print_position = state_is(State::Homing) ? get_motor_pos() : get_mpos();
     if (bits_are_true(status_mask->get(), RtStatus::Position)) {
         msg << "|MPos:";
     } else {

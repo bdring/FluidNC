@@ -29,7 +29,7 @@ void plan_init() {
 
 // Define planner variables
 typedef struct {
-    int32_t position[MAX_N_AXIS];  // The planner position of the tool in absolute steps. Kept separate
+    steps_t position[MAX_N_AXIS];  // The planner position of the tool in absolute steps. Kept separate
     // from g-code position for movements requiring multiple line motions,
     // i.e. arcs, canned cycles, and backlash compensation.
     float previous_unit_vec[MAX_N_AXIS];  // Unit vector of previous path line segment
@@ -310,11 +310,10 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     block->is_jog        = pl_data->is_jog;
 
     // Compute and store initial move distance data.
-    int32_t target_steps[MAX_N_AXIS], position_steps[MAX_N_AXIS];
-    float   unit_vec[MAX_N_AXIS], delta_mm;
     // Copy position data based on type of motion being planned.
+    steps_t position_steps[MAX_N_AXIS];
     if (block->motion.systemMotion) {
-        get_motor_steps(position_steps);
+        get_steps(position_steps);
     } else {
         if (!block->is_jog && Homing::unhomed_axes()) {
             log_info("Unhomed axes: " << Axes::maskToNames(Homing::unhomed_axes()));
@@ -323,15 +322,17 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         }
         copyAxes(position_steps, pl.position);
     }
-    auto n_axis = Axes::_numberAxis;
+    steps_t target_steps[MAX_N_AXIS];
+    float   unit_vec[MAX_N_AXIS];
+    auto    n_axis = Axes::_numberAxis;
     for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.
         // Also, compute individual axes distance for move and prep unit vector calculations.
         // NOTE: Computes true distance from converted step values.
-        target_steps[axis]      = mpos_to_steps(target[axis], axis);
+        target_steps[axis]      = motor_pos_to_steps(target[axis], axis);
         block->steps[axis]      = labs(target_steps[axis] - position_steps[axis]);
         block->step_event_count = MAX(block->step_event_count, block->steps[axis]);
-        delta_mm                = steps_to_mpos((target_steps[axis] - position_steps[axis]), axis);
+        float delta_mm          = steps_to_motor_pos((target_steps[axis] - position_steps[axis]), axis);
         unit_vec[axis]          = delta_mm;  // Store unit vector numerator
         // Set direction bits. Bit enabled always means direction is negative.
         if (delta_mm < 0.0) {
@@ -433,7 +434,7 @@ void plan_sync_position() {
     // TODO: For motor configurations not in the same coordinate frame as the machine position,
     // this function needs to be updated to accommodate the difference.
     if (config->_axes) {
-        get_motor_steps(pl.position);
+        get_steps(pl.position);
     }
 }
 

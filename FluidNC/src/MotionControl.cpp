@@ -328,7 +328,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // Set state variables and error out, if the probe failed and cycle with error is enabled.
     if (probing) {
         if (no_error) {
-            get_motor_steps(probe_steps);
+            get_steps(probe_steps);
         } else {
             send_alarm(ExecAlarm::ProbeFailContact);
         }
@@ -352,7 +352,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
             float coord_data[n_axis];
             float probe_contact[n_axis];
 
-            motor_steps_to_mpos(probe_contact, probe_steps);
+            steps_to_mpos(probe_contact, probe_steps);
             coords[gc_state.modal.coord_select]->get(coord_data);  // get a copy of the current coordinate offsets
             for (axis_t axis = X_AXIS; axis < n_axis; axis++) {    // find the axis specified. There should only be one.
                 if (offsetAxis & (1 << axis)) {

@@ -43,7 +43,7 @@ void protocol_do_probe(void* arg) {
     Probe* p = config->_probe;
     if (p->tripped() && probing) {
         probing = false;
-        get_motor_steps(probe_steps);
+        get_steps(probe_steps);
         if (p->_hard_stop) {
             Stepper::reset();
             plan_reset();

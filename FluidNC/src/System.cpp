@@ -17,7 +17,7 @@
 
 // Declare system global variable structure
 system_t sys;
-int32_t  probe_steps[MAX_N_AXIS];  // Last probe position in steps.
+steps_t  probe_steps[MAX_N_AXIS];  // Last probe position in steps.
 
 void system_reset() {
     // Reset system variables.
@@ -34,58 +34,80 @@ void system_reset() {
     report_wco_counter = 0;
 }
 
-float steps_to_mpos(int32_t steps, axis_t axis) {
-    return float(steps / Axes::_axis[axis]->_stepsPerMm);
+// Individual axis versions
+float steps_to_motor_pos(steps_t steps, size_t motor) {
+    return float(steps / Axes::_axis[axis_t(motor)]->_stepsPerMm);
 }
-int32_t mpos_to_steps(float mpos, axis_t axis) {
-    return lroundf(mpos * Axes::_axis[axis]->_stepsPerMm);
+steps_t motor_pos_to_steps(float mpos, size_t motor) {
+    return lroundf(mpos * Axes::_axis[axis_t(motor)]->_stepsPerMm);
 }
 
-void motor_steps_to_mpos(float* position, int32_t* steps) {
-    float  motor_mpos[MAX_N_AXIS];
+// Array of axes versions
+void motor_pos_to_steps(steps_t* steps, float* motor_pos) {
+    auto   a      = config->_axes;
+    axis_t n_axis = a ? a->_numberAxis : X_AXIS;
+    for (size_t motor = 0; motor < size_t(n_axis); motor++) {
+        steps[motor] = motor_pos_to_steps(motor_pos[motor], motor);
+    }
+}
+void steps_to_motor_pos(float* motor_pos, steps_t* steps) {
     auto   a      = config->_axes;
     axis_t n_axis = a ? a->_numberAxis : X_AXIS;
     for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-        motor_mpos[axis] = steps_to_mpos(steps[axis], axis);
+        motor_pos[axis] = steps_to_motor_pos(steps[axis], axis);
     }
-    config->_kinematics->motors_to_cartesian(position, motor_mpos, n_axis);
 }
 
-void set_motor_steps(axis_t axis, int32_t steps) {
+void steps_to_mpos(float* position, steps_t* steps) {
+    auto   a      = config->_axes;
+    axis_t n_axis = a ? a->_numberAxis : X_AXIS;
+    float  motor_pos[n_axis];
+    steps_to_motor_pos(motor_pos, steps);
+    config->_kinematics->motors_to_cartesian(position, motor_pos, n_axis);
+}
+
+void set_steps(axis_t axis, steps_t steps) {
     Stepping::setSteps(axis, steps);
 }
 
-void set_motor_steps_from_mpos(float* mpos) {
-    auto  n_axis = Axes::_numberAxis;
-    float motor_steps[n_axis];
-    config->_kinematics->transform_cartesian_to_motors(motor_steps, mpos);
-    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-        set_motor_steps(axis, mpos_to_steps(motor_steps[axis], axis));
+void set_motor_pos(size_t motor, float motor_pos) {
+    set_steps(axis_t(motor), motor_pos_to_steps(motor_pos, motor));
+}
+
+void set_motor_pos(float* motor_pos, size_t n_motors) {
+    for (size_t motor = 0; motor < n_motors; motor++) {
+        set_steps(axis_t(motor), motor_pos_to_steps(motor_pos[motor], motor));
     }
 }
 
-int32_t get_axis_motor_steps(axis_t axis) {
+steps_t get_axis_steps(axis_t axis) {
     return Stepping::getSteps(axis);
 }
 
-void get_motor_steps(int32_t* motor_steps) {
+void get_steps(steps_t* steps) {
     auto axes   = config->_axes;
     auto n_axis = axes->_numberAxis;
     for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-        motor_steps[axis] = Stepping::getSteps(axis);
+        steps[axis] = Stepping::getSteps(axis);
     }
 }
-int32_t* get_motor_steps() {
-    static int32_t motor_steps[MAX_N_AXIS];
+steps_t* get_steps() {
+    static steps_t steps[MAX_N_AXIS];
 
-    get_motor_steps(motor_steps);
-    return motor_steps;
+    get_steps(steps);
+    return steps;
+}
+
+float* get_motor_pos() {
+    static float motor_pos[MAX_N_AXIS];
+    steps_to_motor_pos(motor_pos, get_steps());
+    return motor_pos;
 }
 
 float* get_mpos() {
     static float position[MAX_N_AXIS];
 
-    motor_steps_to_mpos(position, get_motor_steps());
+    steps_to_mpos(position, get_steps());
     return position;
 };
 

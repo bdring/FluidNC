@@ -12,11 +12,9 @@
 
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"
-#include "Report.h"         // report_feedback_message
-#include "Limit.h"          // limits_get_state, soft_limit
-#include "Planner.h"        // plan_get_current_block
-#include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
-
+#include "Report.h"               // report_feedback_message
+#include "Limit.h"                // limits_get_state, soft_limit
+#include "Planner.h"              // plan_get_current_block
 #include "SettingsDefinitions.h"  // gcode_echo
 #include "Machine/LimitPin.h"
 #include "Job.h"

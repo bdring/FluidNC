@@ -171,23 +171,29 @@ public:
 
 extern system_t sys;
 
+typedef int32_t steps_t;
+
 // NOTE: These position variables may need to be declared as volatiles, if problems arise.
-extern int32_t motor_steps[MAX_N_AXIS];  // Real-time machine (aka home) position vector in steps.
-extern int32_t probe_steps[MAX_N_AXIS];  // Last probe position in machine coordinates and steps.
+extern steps_t steps[MAX_N_AXIS];        // Real-time machine (aka home) position vector in steps.
+extern steps_t probe_steps[MAX_N_AXIS];  // Last probe position in machine coordinates and steps.
 
 void system_reset();
 
-float   steps_to_mpos(int32_t steps, axis_t axis);
-int32_t mpos_to_steps(float mpos, axis_t axis);
+// Per axis
+float   steps_to_motor_pos(steps_t steps, size_t motor);
+steps_t motor_pos_to_steps(float mpos, size_t motor);
+steps_t get_axis_steps(axis_t axis);
+void    set_steps(axis_t axis, steps_t steps);
+void    set_motor_pos(size_t motor, float motor_pos);
 
-int32_t  get_axis_motor_steps(axis_t axis);
-void     set_motor_steps(axis_t axis, int32_t steps);
-void     set_motor_steps_from_mpos(float* mpos);
-int32_t* get_motor_steps();
-void     get_motor_steps(int32_t* steps);
-
-// Updates a machine position array from a steps array
-void motor_steps_to_mpos(float* position, int32_t* steps);
+// All axes
+steps_t* get_steps();
+void     steps_to_motor_pos(float* motor_pos, steps_t* steps);
+void     motor_pos_to_steps(steps_t* steps, float* motor_pos);
+void     get_steps(steps_t* steps);
+float*   get_motor_pos();
+void     set_motor_pos(float* motor_pos, size_t n_motors);
+void     steps_to_mpos(float* position, steps_t* steps);
 
 float* get_mpos();
 float* get_wco();

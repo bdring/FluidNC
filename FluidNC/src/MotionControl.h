@@ -15,9 +15,6 @@ extern volatile bool probing;  // Probing state value.  Used to coordinate the p
 
 extern bool probe_succeeded;  // Tracks if last probing cycle was successful.
 
-// System motion commands must have a line number of zero.
-const int PARKING_MOTION_LINE_NUMBER = 0;
-
 // Execute a linear motion in cartesian space.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position);
 
