@@ -25,11 +25,9 @@
 
   Positive angles are below horizontal.
 
-  The machine's Z zero point in the kinematics is parallel to the arm axes.
-
   Feedrate in gcode is in the cartesian units. This must be converted to the
   angles. This is done by calculating the segment move distance and the angle 
-  move distance and applying that ration to the feedrate. 
+  move distance and applying that ratio to the feedrate.
 
   FYI: http://forums.trossenrobotics.com/tutorials/introduction-129/delta-robot-kinematics-3276/
   Better: http://hypertriangle.com/~alex/delta-robot-tutorial/
@@ -43,7 +41,6 @@ kinematics:
   TODO 
    - Constrain the geometry values to realistic values.
    - Implement $MI for dynamixel motors.
-   - Deal with non kinematic axes above Z
 
 */
 
@@ -78,12 +75,8 @@ namespace Kinematics {
         auto accel0 = axis0->_acceleration;
         auto rate0  = axis0->_maxRate;
 
-        for (axis_t axis = X_AXIS; axis < axis_t(3); axis++) {
+        for (axis_t axis = X_AXIS; axis < A_AXIS; axis++) {
             auto axisp = axes->_axis[axis];
-            if (axisp->_softLimits) {
-                log_config_error(" All soft_limits configured in axes should be false");
-                break;
-            }
 
             // Force the per-axis steps_per_mm to steps per degree
             axisp->_stepsPerMm   = steps0;
@@ -99,10 +92,11 @@ namespace Kinematics {
         // Calculate the Z offset at the arm zero angles ...
         // Z offset is the z distance from the motor axes to the end effector axes at zero angle
 
-        float cartesian[3];
-        float angles[3];
-        setArray(angles, 0.0, 3);
-        motors_to_cartesian(cartesian, angles, axis_t(3));  // Sets the cartesian values
+        auto n_axis = Axes::_numberAxis;
+        float cartesian[n_axis];
+        float motor_pos[n_axis];
+        setArray(angles, 0.0, n_axis);
+        motors_to_cartesian(cartesian, motor_pos, n_axis);  // Sets the cartesian values
         log_info("  Z Offset: " << cartesian[Z_AXIS]);
 #endif
     }
@@ -112,9 +106,10 @@ namespace Kinematics {
             return false;
         }
 
-        float motor_angles[MAX_N_AXIS] = { 0.0 };
+        float motor_pos[MAX_N_AXIS] = { 0.0 };
 
-        if (!transform_cartesian_to_motors(motor_angles, cartesian)) {
+        if (!transform_cartesian_to_motors(motor_pos, cartesian)) {
+            log_info("Soft limit at " << cartesian[0] << "," << cartesian[1] << "," << cartesian[2]);
             limit_error();
             return true;
         }
@@ -142,11 +137,11 @@ namespace Kinematics {
             return;
         }
 
-        float motor_angles[MAX_N_AXIS] = { 0.0 };
+        float motor_pos[MAX_N_AXIS] = { 0.0 };
 
         // Temp fix
         // If the target is reachable do nothing
-        if (transform_cartesian_to_motors(motor_angles, target)) {
+        if (transform_cartesian_to_motors(motor_pos, target)) {
             return;
         }
 
@@ -159,29 +154,39 @@ namespace Kinematics {
     }
 
     bool ParallelDelta::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        float seg_target[3];                    // The target of the current segment
-        float feed_rate  = pl_data->feed_rate;  // save original feed rate
-        bool  show_error = true;                // shows error once
+        axis_t n_axis = Axes::_numberAxis;
+
+        float seg_target[n_axis];              // The target of the current segment
+        float feed_rate = pl_data->feed_rate;  // save original feed rate
 
         // Check the destination to see if it is in work area
-        float motor_angles[3];
-        if (!transform_cartesian_to_motors(motor_angles, target)) {
+        float motors[n_axis];
+        if (!transform_cartesian_to_motors(motors, target)) {
             log_warn("Kinematics error. Target unreachable (" << target[0] << "," << target[1] << "," << target[2] << ")");
             return false;
         }
 
-        float d[3];
-        copyAxes(d, target, axis_t(3));
-        subtractAxes(d, position, axis_t(3));
-        float dist = vector_length(d, 3);
+        float d[n_axis];
+        copyAxes(d, target, n_axis);
+        subtractAxes(d, position, n_axis);
 
-        // determine the number of segments we need	... round up so there is at least 1 (except when dist is 0)
-        uint32_t segment_count = ceil(dist / _kinematic_segment_len_mm);
+        // determine the number of segments we need, rounding up
+        // Only the xyz axes need to be considered for determining the
+        // segment count, since the other axes move linearly
 
-        float segment_dist = dist / segment_count;  // distance of each segment...will be used for feedrate conversion
+        uint32_t segment_count = ceil(vector_length(d, 3) / _kinematic_segment_len_mm);
+        if (segment_count == 0) {
+            // This can happen if the motion is entirely in other axes
+            segment_count = 1;
+        }
 
-        copyAxes(seg_target, position, axis_t(3));
-        float delta_d[3] = { d[X_AXIS] / segment_count, d[Y_AXIS] / segment_count, d[Z_AXIS] / segment_count };
+        // The all-axis segment distance is used for feedrate conversion
+        float segment_dist = vector_length(d, n_axis) / segment_count;
+
+        copyAxes(seg_target, position, n_axis);
+        float delta_d[n_axis];
+        copyArray(delta_d, d, n_axis);
+        multiplyArray(delta_d, 1.0f / segment_count, n_axis);
 
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
             if (sys.abort()) {
@@ -190,56 +195,55 @@ namespace Kinematics {
             //log_debug("Segment:" << segment << " of " << segment_count);
             // determine this segment's target
 
-            addAxes(seg_target, delta_d, axis_t(3));
+            addAxes(seg_target, delta_d, n_axis);
 
             // calculate the delta motor angles
-            if (!transform_cartesian_to_motors(motor_angles, seg_target)) {
-                if (show_error) {
-                    log_error("Kinematic error motors (" << motor_angles[0] << "," << motor_angles[1] << "," << motor_angles[2] << ")");
-                    show_error = false;
-                }
+            if (!transform_cartesian_to_motors(motors, seg_target)) {
+                //                if (show_error) {
+                log_error("Kinematic error motors (" << motors[0] << "," << motors[1] << "," << motors[2] << ")");
+                //                    show_error = false;
+                //                }
                 return false;
             }
 
             // The planner sets the feed_rate for rapids,
             if (!pl_data->motion.rapidMotion) {
-                float delta_distance = vector_distance(motor_angles, _last_angles, 3);
+                float delta_distance = vector_distance(motors, _last_motor_pos, n_axis);
                 pl_data->feed_rate   = (feed_rate * delta_distance / segment_dist);
             }
 
             // mc_line() returns false if a jog is cancelled.
             // In that case we stop sending segments to the planner.
-            if (!mc_move_motors(motor_angles, pl_data)) {
+            if (!mc_move_motors(motors, pl_data)) {
                 return false;
             }
 
-            // save angles for next distance calc
+            // save motor position for next distance calc
             // This is after mc_move_motors() so that we do not update
             // last_angle if the segment was discarded.
-            copyAxes(_last_angles, motor_angles, axis_t(3));
+            copyAxes(_last_motor_pos, motors, n_axis);
+        }
+        return true;
+    }
+
+    static bool check_ambiguous() {
+        if (ambiguousLimit()) {
+            log_error("Ambiguous limit switch touching. Manually clear all switches");
+            return false;
         }
         return true;
     }
 
     bool ParallelDelta::canHome(AxisMask axisMask) {
-        // Single-axis homing is prohibited because it can result in wild swings
-        if (axisMask != Machine::Homing::AllCycles) {
-            return false;
-        }
-        if (ambiguousLimit()) {
-            log_error("Ambiguous limit switch touching. Manually clear all switches");
-            return false;
-        }
-
-        return true;
+        return Cartesian::canHome(axisMask);
     }
 
-    void ParallelDelta::motors_to_cartesian(float* cartesian, float* angles, axis_t n_axis) {
+    void ParallelDelta::motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) {
         //log_debug("motors_to_cartesian motors: (" << motors[0] << "," << motors[1] << "," << motors[2] << ")");
         //log_info("motors_to_cartesian rf:" << rf << " re:" << re << " f:" << f << " e:" << e);
 
         float radians[3];
-        copyAxes(radians, angles);
+        copyArray(radians, motors, 3);
         float scaler = pos_to_radians(1);
         multiplyArray(radians, scaler, 3);
 
@@ -286,17 +290,25 @@ namespace Kinematics {
         cartesian[Z_AXIS] = (-(float)0.5 * (b + sqrtf(d)) / a);
         cartesian[X_AXIS] = (a1 * cartesian[Z_AXIS] + b1) / dnm;
         cartesian[Y_AXIS] = (a2 * cartesian[Z_AXIS] + b2) / dnm;
-        for (axis_t axis = X_AXIS; axis < axis_t(3); axis++) {
+
+        axis_t axis;
+        for (axis = X_AXIS; axis < A_AXIS; axis++) {
             cartesian[axis] += _mpos_offset[axis];
+        }
+        // Non-transformed axes
+        for (; axis < n_axis; axis++) {
+            cartesian[axis] = motors[axis];
         }
     }
 
     void ParallelDelta::motorVector(
-        AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
+        AxisMask axisMask, MotorMask motorMask, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
         float endpoint = 0;
 
         // We depend on all three arms being the same, so we get the limits,
         // rates and whatnot from only the X axis values.
+
+        auto n_axis = Axes::_numberAxis;
 
         auto axes       = config->_axes;
         auto axisConfig = axes->_axis[X_AXIS];
@@ -311,9 +323,9 @@ namespace Kinematics {
             case Machine::Homing::Phase::PrePulloff:
                 // Force the initial motor positions only on initial entry,
                 // not on replans after some limits are reached
-                if ((motors & 7) == 7) {
-                    setArray(_last_angles, 0, 3);
-                    set_motor_pos(_last_angles, 3);
+                if ((motorMask & 7) == 7) {
+                    setArray(_last_motor_pos, 0, 3);
+                    set_motor_pos(_last_motor_pos, 3);
                 }
                 setArray(target, axisConfig->_motors[0]->_pulloff, 3);
                 rate = homing->_feedRate;
@@ -322,7 +334,7 @@ namespace Kinematics {
             case Machine::Homing::Phase::FastApproach:
                 // Set position the first time
                 // not on replans after some limits are reached
-                if ((motors & 7) == 7) {
+                if ((motorMask & 7) == 7) {
                     // For the initial approach we do not know where the motors are, so
                     // assume the worst case where all arms are opposite from the homed
                     // position.  That is probably too pessimistic since the arms probably
@@ -330,12 +342,12 @@ namespace Kinematics {
                     // to find the limit switches without excessive overtravel if the
                     // limits are missed.
 
-                    setArray(_last_angles, 90, 3);
-                    set_motor_pos(_last_angles, axis_t(3));
+                    setArray(_last_motor_pos, 90, 3);
+                    set_motor_pos(_last_motor_pos, axis_t(3));
                 }
                 // Modify only the motors that are still moving
                 for (size_t i = 0; i < 3; i++) {
-                    if (bitnum_is_true(motors, i)) {
+                    if (bitnum_is_true(motorMask, i)) {
                         target[i] = -90;
                     }
                 }
@@ -364,13 +376,21 @@ namespace Kinematics {
                 break;
         }
 
-        copyArray(_last_angles, get_motor_pos(), 3);
-        logArray("from ", _last_angles, 3);
-        logArray("to ", target, 3);
+        copyArray(_last_motor_pos, get_motor_pos(), n_axis);
     }
 
-    void ParallelDelta::homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) {
-        releaseMotors(axisMask, motors);
+    void ParallelDelta::homing_move(AxisMask axisMask, MotorMask motorMask, Machine::Homing::Phase phase, uint32_t settling_ms) {
+        if ((axisMask & 7) && (axisMask > 7)) {
+            log_error("Delta axes XYZ cannot be homed in the same cycle as other axes");
+            return;
+        }
+        // Home non-XYZ axes using the cartesian method
+        if (axisMask > 7) {
+            Cartesian::homing_move(axisMask, motorMask, phase, settling_ms);
+            return;
+        }
+
+        releaseMotors(axisMask, motorMask);
 
         plan_line_data_t plan_data      = {};
         plan_data.spindle_speed         = 0;
@@ -382,14 +402,20 @@ namespace Kinematics {
         plan_data.line_number           = 0;
         plan_data.is_jog                = false;
 
-        float motor_angles[Axes::_numberAxis];
-        motorVector(axisMask, motors, phase, motor_angles, plan_data.feed_rate, settling_ms);
+        auto n_axis = Axes::_numberAxis;
+
+        // Prime the array with the current motor positions in all axes.
+        // motorVector only adjusts the delta motors and we do not want
+        // to move other ones
+        float motor_pos[n_axis];
+        copyAxes(motor_pos, get_motor_pos());
+
+        motorVector(axisMask, motorMask, phase, motor_pos, plan_data.feed_rate, settling_ms);
 
         if (plan_data.feed_rate) {
-            logArray("to ", motor_angles, 3);
-            mc_move_motors(motor_angles, &plan_data);
+            mc_move_motors(motor_pos, &plan_data);
 
-            copyAxes(_last_angles, motor_angles, axis_t(3));
+            copyAxes(_last_motor_pos, motor_pos, n_axis);
 
             protocol_send_event(&cycleStartEvent);
         }
@@ -433,13 +459,17 @@ namespace Kinematics {
 
         theta = radians_to_pos(atan2f(-zj, y1 - yj));  // Result is in -180..180 in steps
 
-        return (theta >= _up_degrees);
+        return theta >= _up_degrees;
     }
 
     bool ParallelDelta::transform_cartesian_to_motors(float* motors, float* cartesian) {
         float xyz[3];
-        for (axis_t axis = X_AXIS; axis < axis_t(3); axis++) {
-            xyz[axis] = cartesian[axis] - _mpos_offset[axis];
+        copyArray(xyz, cartesian, 3);
+        subtractArray(xyz, _mpos_offset, 3);
+
+        // Copy non-transformed axes
+        for (axis_t axis = A_AXIS; axis < Axes::_numberAxis; axis++) {
+            motors[axis] = cartesian[axis];
         }
 
         if (!delta_calcAngleYZ(xyz[X_AXIS], xyz[Y_AXIS], xyz[Z_AXIS], motors[0])) {
@@ -461,20 +491,39 @@ namespace Kinematics {
         if (!delta_calcAngleYZ(x_cos120 - y_sin120, y_cos120 + x_sin120, xyz[Z_AXIS], motors[2])) {
             return false;
         }
-        // logArray("Angles ", motors, 3);
+
         return true;
     }
 
     void ParallelDelta::set_homed_mpos(float* mpos) {
-        float this_mpos[MAX_N_AXIS];
+        // In linear spaces like Cartesian and CoreXy, the origin
+        // in the G53 "MPos" coordinate system can be established
+        // by offsetting the motor coordinates.  That does not work
+        // for Delta kinematics that requires specific arm angles
+        // for a usable work envelope.  So we compute the XYZ position
+        // corresponding to the homed position of the arms, then
+        // set values of an offset array to translate that position
+        // to the desired per-axis mpos_mm coordinates.
 
-        // Perform calculation with zero offset
-        for (axis_t axis = X_AXIS; axis < axis_t(3); axis++) {
-            _mpos_offset[axis] = 0;
-        }
-        motors_to_cartesian(this_mpos, _last_angles, axis_t(3));
-        for (axis_t axis = X_AXIS; axis < axis_t(3); axis++) {
-            _mpos_offset[axis] = mpos[axis] - this_mpos[axis];
+        // Zero out the offset array before calculating the homed XYZ position
+        setArray(_mpos_offset, 0.0, 3);
+
+        // Calculate the XYZ position resulting from the homed arm positions
+        float this_mpos[3];
+        motors_to_cartesian(this_mpos, _last_motor_pos, axis_t(3));
+
+        // Calculate the offsets to translate into G53 MPos coordinates
+        copyArray(_mpos_offset, mpos, 3);
+        subtractArray(_mpos_offset, this_mpos, 3);
+
+        // For any non-delta axes, use the usual method of setting
+        // the motor positions for the desired coordinate offsets
+        // This assumes that the non-delta axes are not transformed
+        auto n_axis = Axes::_numberAxis;
+        if (n_axis > A_AXIS) {
+            for (axis_t axis = A_AXIS; axis < n_axis; axis++) {
+                set_steps(axis, motor_pos_to_steps(mpos[axis], axis));
+            }
         }
     }
 

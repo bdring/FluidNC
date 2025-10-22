@@ -78,8 +78,8 @@ namespace Kinematics {
         float _up_degrees     = -30.0;
         float _down_degrees   = 90.0;
 
-        float _last_angles[3] = { 0 };
-        float _mpos_offset[3] = { 0 };
+        float _last_motor_pos[MAX_N_AXIS] = { 0 };
+        float _mpos_offset[3]             = { 0 };
 
         bool delta_calcAngleYZ(float x0, float y0, float z0, float& theta);
 

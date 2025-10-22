@@ -270,7 +270,7 @@ namespace Machine {
 
         float*      mpos = get_mpos();
         std::string homedAxes;
-        log_debug("mpos was " << mpos[0] << "," << mpos[1] << "," << mpos[2]);
+        //        logArray("mpos was", mpos, n_axis);
         // Replace coordinates homed axes with the homing values.
         for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(_cycleAxes, axis)) {
@@ -283,12 +283,12 @@ namespace Machine {
             }
         }
         log_msg("Homed:" << homedAxes);
-        log_debug("mpos becomes " << mpos[0] << "," << mpos[1] << "," << mpos[2]);
+        //        logArray("mpos becomes", mpos, n_axis);
 
         config->_kinematics->set_homed_mpos(mpos);
 
         mpos = get_mpos();
-        log_debug("mpos transformed " << mpos[0] << "," << mpos[1] << "," << mpos[2]);
+        //        logArray("mpos transformed", mpos, n_axis);
 
         sys.step_control = {};                     // Return step control to normal operation.
         axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done

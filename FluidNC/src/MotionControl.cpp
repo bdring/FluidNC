@@ -256,7 +256,8 @@ void mc_arc(float*            target,
             previous_position[axis_1]      = position[axis_1];
             previous_position[axis_linear] = position[axis_linear];
             // Bail mid-circle on system abort. Runtime command check already performed by mc_linear.
-            if (sys.abort()) {
+
+            if (sys.abort() || state_is(State::Alarm)) {
                 return;
             }
         }
