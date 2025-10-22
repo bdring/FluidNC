@@ -64,7 +64,6 @@ namespace Kinematics {
         handler.item("end_effector_triangle_mm", e, 20.0, 500.0);
         handler.item("kinematic_segment_len_mm", _kinematic_segment_len_mm, 0.05, 20.0);  //
         handler.item("soft_limits", _softLimits);
-        handler.item("max_z_mm", _max_z, -10000.0, 0.0);  //
         handler.item("use_servos", _use_servos);
         handler.item("up_degrees", _up_degrees);
     }
@@ -163,11 +162,6 @@ namespace Kinematics {
         float seg_target[3];                    // The target of the current segment
         float feed_rate  = pl_data->feed_rate;  // save original feed rate
         bool  show_error = true;                // shows error once
-
-        if (target[Z_AXIS] > _max_z) {
-            log_debug("Kinematics error. Target:" << target[Z_AXIS] << " exceeds max_z:" << _max_z);
-            return false;
-        }
 
         // Check the destination to see if it is in work area
         float motor_angles[3];
@@ -439,20 +433,13 @@ namespace Kinematics {
 
         theta = radians_to_pos(atan2f(-zj, y1 - yj));  // Result is in -180..180 in steps
 
-        return true;
+        return (theta >= _up_degrees);
     }
 
     bool ParallelDelta::transform_cartesian_to_motors(float* motors, float* cartesian) {
         float xyz[3];
         for (axis_t axis = X_AXIS; axis < axis_t(3); axis++) {
             xyz[axis] = cartesian[axis] - _mpos_offset[axis];
-        }
-
-        // motors = { 0 };
-
-        if (xyz[Z_AXIS] > _max_z) {
-            log_debug("Kinematics transform error. Target:" << xyz[Z_AXIS] << " exceeds max_z:" << _max_z);
-            return false;
         }
 
         if (!delta_calcAngleYZ(xyz[X_AXIS], xyz[Y_AXIS], xyz[Z_AXIS], motors[0])) {
