@@ -34,13 +34,13 @@ namespace {
         static const int BOUNDARY = MAX_N_GPIO;
 
     private:
-        static const int N_PIN_MAPPINGS = 256 - BOUNDARY;
+        static const int N_PIN_MAPPINGS = 127 - BOUNDARY;
 
     public:
         Pin* _mapping[N_PIN_MAPPINGS];
 
         PinMap() {
-            for (int i = 0; i < N_PIN_MAPPINGS; ++i) {
+            for (pinnum_t i = 0; i < N_PIN_MAPPINGS; ++i) {
                 _mapping[i] = nullptr;
             }
         }
@@ -71,8 +71,7 @@ PinMapper::PinMapper() : _mappedId(0) {}
 PinMapper::PinMapper(Pin& pin) {
     _mappedId = PinMap::instance().Claim(&pin);
 
-    // If you reach this assertion, you haven't been using the Pin class like you're supposed to.
-    Assert(_mappedId != 0, "Cannot claim pin. We've reached the limit of 255 mapped pins.");
+    Assert(_mappedId != 0, "Cannot claim pin. Too many mapped pins are used.");
 }
 
 // To aid return values and assignment

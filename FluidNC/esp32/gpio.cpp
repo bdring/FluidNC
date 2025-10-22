@@ -64,7 +64,7 @@ void gpio_remove_interrupt(pinnum_t pin) {
 }
 #endif
 void gpio_route(pinnum_t pin, uint32_t signal) {
-    if (pin == 255) {
+    if (pin == INVALID_PINNUM) {
         return;
     }
     gpio_num_t gpio = (gpio_num_t)pin;
