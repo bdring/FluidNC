@@ -45,7 +45,8 @@ bool notIdleOrJog() {
     return !state_is(State::Idle) && !state_is(State::Jog);
 }
 bool notIdleOrAlarm() {
-    return !state_is(State::Idle) && !state_is(State::Alarm) && !state_is(State::ConfigAlarm) && !state_is(State::SafetyDoor);
+    return !state_is(State::Idle) && !state_is(State::Alarm) && !state_is(State::ConfigAlarm) && !state_is(State::SafetyDoor) &&
+           !state_is(State::Critical);
 }
 bool cycleOrHold() {
     return state_is(State::Cycle) || state_is(State::Hold);
