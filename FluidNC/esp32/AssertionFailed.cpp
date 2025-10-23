@@ -6,12 +6,9 @@
 #include <cstdarg>
 #include <cstring>
 
-#ifdef BACKTRACE_ON_ASSERT
-#    include "esp_debug_helpers.h"
-#endif
-#include "stdio.h"
+#include <stdexcept>
 
-AssertionFailed AssertionFailed::create(const char* condition, const char* msg, ...) {
+std::exception AssertionFailed::create(const char* condition, const char* msg, ...) {
     std::string st = condition;
     st += ": ";
 
@@ -24,10 +21,5 @@ AssertionFailed AssertionFailed::create(const char* condition, const char* msg, 
 
     st += tmp;
 
-#ifdef BACKTRACE_ON_ASSERT  // Backtraces are usually hard to decode and thus confusing
-    st += " at: ";
-    st += esp_backtrace_print(10);
-#endif
-
-    return AssertionFailed(st, tmp);
+    return std::runtime_error(st);
 }

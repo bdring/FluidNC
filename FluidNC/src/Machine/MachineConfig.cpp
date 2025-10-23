@@ -20,7 +20,6 @@
 #include "Configuration/ParserHandler.h"
 #include "Configuration/Validator.h"
 #include "Configuration/AfterParse.h"
-#include "Configuration/ParseException.h"
 #include "Config.h"  // ENABLE_*
 
 #include "Driver/restart.h"
@@ -212,46 +211,51 @@ namespace Machine {
 
     void MachineConfig::load_yaml(std::string_view input) {
         try {
-            Configuration::Parser        parser(input);
-            Configuration::ParserHandler handler(parser);
+            try {
+                Configuration::Parser        parser(input);
+                Configuration::ParserHandler handler(parser);
 
-            // instance() is by reference, so we can just get rid of an old instance and
-            // create a new one here:
-            {
-                auto& machineConfig = instance();
-                if (machineConfig != nullptr) {
-                    delete machineConfig;
+                // instance() is by reference, so we can just get rid of an old instance and
+                // create a new one here:
+                {
+                    auto& machineConfig = instance();
+                    if (machineConfig != nullptr) {
+                        delete machineConfig;
+                    }
+                    machineConfig = new MachineConfig();
                 }
-                machineConfig = new MachineConfig();
+                config = instance();
+
+                handler.enterSection("machine", config);
+
+                log_debug("Running after-parse tasks");
+            } catch (std::exception& ex) {
+                // Log exception:
+                log_config_error("Configuration parse error: " << ex.what());
             }
-            config = instance();
 
-            handler.enterSection("machine", config);
+            try {
+                Configuration::AfterParse afterParse;
+                config->afterParse();
+                config->group(afterParse);
+            } catch (std::exception& ex) {
+                // Log exception:
+                log_config_error("Configuration after-parse error: " << ex.what());
+            }
 
-            log_debug("Running after-parse tasks");
+            try {
+                log_debug("Checking configuration");
 
-            Configuration::AfterParse afterParse;
-            config->afterParse();
-            config->group(afterParse);
+                Configuration::Validator validator;
+                config->validate();
+                config->group(validator);
 
-            log_debug("Checking configuration");
+                // log_info("Heap size after configuration load is " << uint32_t(xPortGetFreeHeapSize()));
+            } catch (std::exception& ex) {
+                // Log exception:
+                log_config_error("Configuration validation error: " << ex.what());
+            }
 
-            Configuration::Validator validator;
-            config->validate();
-            config->group(validator);
-
-            // log_info("Heap size after configuration load is " << uint32_t(xPortGetFreeHeapSize()));
-        } catch (const Configuration::ParseException& ex) {
-            log_config_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
-        } catch (const AssertionFailed& ex) {
-            // Get rid of buffer and return
-            log_config_error("Configuration loading failed: " << ex.what());
-        } catch (std::runtime_error& ex) {
-            // Log exception:
-            log_config_error("Configuration validation error: " << ex.what());
-        } catch (std::exception& ex) {
-            // Log exception:
-            log_config_error("Configuration validation error: " << ex.what());
         } catch (...) {
             // Get rid of buffer and return
             log_config_error("Unknown error while processing config file");

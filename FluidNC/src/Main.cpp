@@ -150,11 +150,8 @@ void setup() {
 
         make_proxies();
 
-    } catch (std::runtime_error& ex) {
+    } catch (std::exception& ex) {
         // Log exception:
-        log_config_error("Critical error in main_init: " << ex.what());
-    } catch (const AssertionFailed& ex) {
-        // This means something is terribly broken:
         log_config_error("Critical error in main_init: " << ex.what());
     }
 
@@ -172,7 +169,7 @@ void loop() {
         // is re-executed by an enclosing loop.  It can also exit via a
         // throw that is caught and handled below.
         protocol_main_loop();
-    } catch (const AssertionFailed& ex) {
+    } catch (std::exception& ex) {
         // If an assertion fails, we display a message and restart.
         // This could result in repeated restarts if the assertion
         // happens before waiting for input, but that is unlikely
@@ -184,8 +181,7 @@ void loop() {
         // and run_once into a single control flow, and it would
         // require careful teardown of the existing configuration
         // to avoid memory leaks. It is probably worth doing eventually.
-        log_config_error("Critical error in run_once: " << ex.msg);
-        log_error("Stacktrace: " << ex.stackTrace);
+        log_config_error("Critical error in run_once: " << ex.what());
     }
     // sys.abort is a user-initiated exit via ^x so we don't limit the number of occurrences
     if (!sys.abort() && ++tries > 1) {

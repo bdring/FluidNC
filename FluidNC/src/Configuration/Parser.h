@@ -16,8 +16,6 @@
 
 namespace Configuration {
     class Parser : public Tokenizer {
-        void parseError(const char* description) const;
-
     public:
         explicit Parser(std::string_view yaml_string);
 

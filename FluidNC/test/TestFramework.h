@@ -24,7 +24,7 @@
             static void runWrap() {                                                                                                        \
                 try {                                                                                                                      \
                     runDetail();                                                                                                           \
-                } catch (AssertionFailed & ex) { TEST_FAIL_MESSAGE(ex.stackTrace.c_str()); } catch (...) {                                 \
+                } catch (std::runtime_error & ex) { TEST_FAIL_MESSAGE(ex.stackTrace.c_str()); } catch (...) {                              \
                     TEST_FAIL_MESSAGE("Failed for unknown reason.");                                                                       \
                 }                                                                                                                          \
             }                                                                                                                              \

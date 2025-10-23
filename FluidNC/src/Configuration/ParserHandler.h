@@ -47,9 +47,8 @@ namespace Configuration {
                         log_parser_verbose("Parsing key " << _parser.key());
                         try {
                             section->group(*this);
-                        } catch (const AssertionFailed& ex) {
-                            // Log something meaningful to the user:
-                            log_config_error("Configuration error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.msg);
+                        } catch (std::exception& ex) {
+                            log_config_error("Configuration error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.what());
                         }
 
                         if (_parser._token._state == TokenState::Matching) {

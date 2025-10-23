@@ -4,16 +4,12 @@
 #pragma once
 
 #include <string>
-
 #include <exception>
 
 class AssertionFailed {
 public:
-    std::string stackTrace;
     std::string msg;
 
     static std::exception create(const char* condition) { return create(condition, "Assertion failed"); }
     static std::exception create(const char* condition, const char* msg, ...);
-
-    const char* what() const { return msg.c_str(); }
 };

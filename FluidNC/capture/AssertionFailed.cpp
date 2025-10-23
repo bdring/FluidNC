@@ -8,36 +8,22 @@
 
 #include <stdexcept>
 
-extern void DumpStackTrace(std::ostringstream& builder);
-
-std::string stackTrace;
-
 std::exception AssertionFailed::create(const char* condition, const char* msg, ...) {
-    static char tmp[255];
-    va_list     arg;
+    std::string st = condition;
+    st += ": ";
+
+    char    tmp[255];
+    va_list arg;
     va_start(arg, msg);
     vsnprintf(tmp, 255, msg, arg);
     va_end(arg);
     tmp[254] = 0;
 
-#if 0
-    //    msg = tmp;
-    std::ostringstream oss;
-    //    oss << "Error: ";
-
-    oss << tmp;
-
-    // oss << " at ";
-    //    DumpStackTrace(oss);
-
-    // Store in a static temp:
-    static std::string info;
-    info = oss.str();
-#endif
+    st += tmp;
 
 #ifdef _MSC_VER
-    throw std::exception(tmp);
+    return std::exception(tmp);
 #else
-    throw std::runtime_error(tmp);
+    return std::runtime_error(tmp);
 #endif
 }

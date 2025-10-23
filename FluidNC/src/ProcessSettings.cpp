@@ -7,7 +7,6 @@
 #include "Configuration/RuntimeSetting.h"
 #include "Configuration/AfterParse.h"
 #include "Configuration/Validator.h"
-#include "Configuration/ParseException.h"
 #include "Machine/Axes.h"
 #include "Regexpr.h"
 #include "WebUI/Authentication.h"
@@ -1095,10 +1094,7 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
             }
             return Error::Ok;
         }
-    } catch (const Configuration::ParseException& ex) {
-        log_error("Configuration parse error at line " << ex.LineNumber() << ": " << ex.What());
-        return Error::ConfigurationInvalid;
-    } catch (const AssertionFailed& ex) {
+    } catch (std::exception& ex) {
         log_error("Configuration change failed: " << ex.what());
         return Error::ConfigurationInvalid;
     }

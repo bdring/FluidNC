@@ -204,8 +204,8 @@ bool set_config_item(const std::string& name, float result) {
         if (gci.isHandled_) {
             return true;
         }
-    } catch (const AssertionFailed& ex) {
-        log_debug(ex.msg);
+    } catch (std::exception& ex) {
+        log_debug(ex.what());
         return false;
     }
     log_debug("Failed to set " << name);
@@ -219,8 +219,8 @@ bool get_config_item(const std::string& name, float& result) {
         if (gci.isHandled_) {
             return true;
         }
-    } catch (const AssertionFailed& ex) {
-        log_debug(ex.msg);
+    } catch (std::exception& ex) {
+        log_debug(ex.what());
         return false;
     }
     return false;

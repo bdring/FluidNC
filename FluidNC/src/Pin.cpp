@@ -133,7 +133,7 @@ Pin Pin::create(std::string_view str) {
         } else {
             return Pin(pinImplementation);
         }
-    } catch (const AssertionFailed& ex) {  // We shouldn't get here under normal circumstances.
+    } catch (std::exception& ex) {  // We shouldn't get here under normal circumstances.
         log_error(str << " - " << ex.what());
         Assert(false, "");
         // return Pin(new Pins::ErrorPinDetail(str.str()));

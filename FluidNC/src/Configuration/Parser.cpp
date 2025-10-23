@@ -4,7 +4,6 @@
 
 #include "Parser.h"
 
-#include "ParseException.h"
 #include "EnumItem.h"
 
 #include "Config.h"
@@ -16,15 +15,6 @@
 
 namespace Configuration {
     Parser::Parser(std::string_view yaml_string) : Tokenizer(yaml_string) {}
-
-    void Parser::parseError(const char* description) const {
-        // Attempt to use the correct position in the parser:
-        if (!_token._key.empty()) {
-            throw ParseException(_linenum, description);
-        } else {
-            Tokenizer::ParseError(description);
-        }
-    }
 
     bool Parser::is(const char* expected) {
         if (_token._state != TokenState::Matching || _token._key.empty()) {

@@ -36,7 +36,7 @@ namespace Configuration {
             TokenState _state = TokenState::Bof;
         } _token;
 
-        void ParseError(const char* description) const;
+        void parseError(const std::string_view description) const;
 
     public:
         explicit Tokenizer(std::string_view yaml_string);

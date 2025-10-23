@@ -15,9 +15,8 @@ namespace Configuration {
 
         try {
             value->afterParse();
-        } catch (const AssertionFailed& ex) {
-            // Log something meaningful to the user:
-            log_config_error("Initialization error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.msg);
+        } catch (std::exception& ex) {
+            log_config_error("Initialization error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.what());
         }
 
         value->group(*this);

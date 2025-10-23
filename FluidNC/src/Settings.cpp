@@ -459,12 +459,9 @@ IPaddrSetting::IPaddrSetting(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, const char* defVal) :
     Setting(description, type, permissions, grblName, name) {
     IPAddress ipaddr;
-    if (ipaddr.fromString(defVal)) {
-        _defaultValue = ipaddr;
-        _currentValue = _defaultValue;
-    } else {
-        throw std::runtime_error("Bad IPaddr default");
-    }
+    Assert(ipaddr.fromString(defVal), "Bad IPaddr default");
+    _defaultValue = ipaddr;
+    _currentValue = _defaultValue;
     load();
 }
 
