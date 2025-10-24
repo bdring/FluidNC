@@ -102,7 +102,7 @@ PwmPin::PwmPin(pinnum_t gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio
         }
     }
     if (attempt == 5) {
-        Assert(false, "LEDC timer setup failed.");
+        Assert(false, "LEDC timer setup failed");
     }
 
     uint32_t maxFrequency = uint32_t(CLOCK_FREQUENCY / float(1 << bits));

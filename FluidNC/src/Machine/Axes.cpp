@@ -166,7 +166,7 @@ namespace Machine {
             }
         }
 
-        Assert(false, "Cannot find axis for motor driver.");
+        Assert(false, "Cannot find axis for motor driver");
         return INVALID_AXIS;
     }
 
@@ -182,7 +182,7 @@ namespace Machine {
             }
         }
 
-        Assert(false, "Cannot find axis for motor. Something wonky is going on here...");
+        Assert(false, "Cannot find axis for motor");
         return INVALID_MOTOR;
     }
 

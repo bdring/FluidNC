@@ -121,7 +121,7 @@ namespace MotorDrivers {
         // Configuration handlers:
         void validate() override {
             Assert(_uart_num != -1, "Dynamixel: Missing uart_num configuration");
-            Assert(_id != 255, "Dynamixel: ID must be configured.");
+            Assert(_id != 255, "Dynamixel: ID must be configured");
         }
 
         void group(Configuration::HandlerBase& handler) override {

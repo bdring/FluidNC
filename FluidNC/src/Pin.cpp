@@ -135,7 +135,7 @@ Pin Pin::create(std::string_view str) {
         }
     } catch (std::exception& ex) {  // We shouldn't get here under normal circumstances.
         log_error(str << " - " << ex.what());
-        Assert(false, "");
+        Assert(false, "Pin creation failed");
         // return Pin(new Pins::ErrorPinDetail(str.str()));
     }
 }

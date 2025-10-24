@@ -50,7 +50,7 @@ namespace MotorDrivers {
     }
 
     void StandardStepper::validate() {
-        Assert(_step_pin.defined(), "Step pin must be configured.");
+        Assert(_step_pin.defined(), "Step pin must be configured");
         bool isI2SO = Stepping::_engine == Stepping::I2S_STREAM || Stepping::_engine == Stepping::I2S_STATIC;
         if (isI2SO) {
             Assert(_step_pin.name().rfind("I2SO", 0) == 0, "Step pin must be an I2SO pin");

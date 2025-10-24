@@ -53,7 +53,7 @@ namespace Kinematics {
     }
 
     void Kinematics::releaseMotors(AxisMask axisMask, MotorMask motors) {
-        Assert(_system != nullptr, "No kinematic system");
+        Assert(_system != nullptr, no_system);
         _system->releaseMotors(axisMask, motors);
     }
 

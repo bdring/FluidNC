@@ -77,7 +77,7 @@ extern bool atMsgLevel(MsgLevel level);
 #define log_warn(x) if (atMsgLevel(MsgLevelWarning)) { LogStream ss(MsgLevelWarning, "[MSG:WARN: "); ss << x; }
 #define log_error(x) if (atMsgLevel(MsgLevelError)) { LogStream ss(MsgLevelError, "[MSG:ERR: "); ss << x; }
 #define log_config_error(x) if (atMsgLevel(MsgLevelError)) { LogStream ss(MsgLevelError, "[MSG:ERR: "); ss << x; set_state(State::ConfigAlarm); }
-#define log_fatal(x) { LogStream ss(MsgLevelNone, "[MSG:FATAL: "); ss << x;  Assert(false, "A fatal error occurred."); }
+#define log_fatal(x) { LogStream ss(MsgLevelNone, "[MSG:FATAL: "); ss << x;  Assert(false, "A fatal error occurred"); }
 
 #define log_msg_to(out, x) { LogStream ss(out, MsgLevelNone, "[MSG:"); ss << x; }
 #define log_verbose_to(out, x) if (atMsgLevel(MsgLevelVerbose)) { LogStream ss(out, MsgLevelVerbose, "[MSG:VRB: "); ss << x; }
@@ -85,7 +85,7 @@ extern bool atMsgLevel(MsgLevel level);
 #define log_info_to(out, x) if (atMsgLevel(MsgLevelInfo)) { LogStream ss(out, MsgLevelInfo, "[MSG:INFO: "); ss << x; }
 #define log_warn_to(out, x) if (atMsgLevel(MsgLevelWarning)) { LogStream ss(out, MsgLevelWarning, "[MSG:WARN: "); ss << x; }
 #define log_error_to(out, x) if (atMsgLevel(MsgLevelError)) { LogStream ss(out, MsgLevelError, "[MSG:ERR: "); ss << x; }
-#define log_fatal_to(out, x) { LogStream ss(out, MsgLevelNone, "[MSG:FATAL: "); ss << x;  Assert(false, "A fatal error occurred."); }
+#define log_fatal_to(out, x) { LogStream ss(out, MsgLevelNone, "[MSG:FATAL: "); ss << x;  Assert(false, "A fatal error occurred"); }
 
 // #define log_to(out, prefix, x) { LogStream ss(out, MsgLevelNone, prefix); ss << x; }
 #define log_stream(out, x) { LogStream ss(out, MsgLevelNone); ss << x; }

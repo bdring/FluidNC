@@ -12,7 +12,7 @@ namespace Pins {
     I2SOPinDetail::I2SOPinDetail(pinnum_t index, const PinOptionsParser& options) :
         PinDetail(index), _capabilities(PinCapabilities::Output | PinCapabilities::I2S), _attributes(Pins::PinAttributes::Undefined) {
         Assert(index < nI2SOPins, "Pin number is greater than max %d", nI2SOPins - 1);
-        Assert(!_claimed[index], "Pin is already used.");
+        Assert(!_claimed[index], "Pin is already used");
         // User defined pin capabilities
         for (auto opt : options) {
             if (opt.is("low")) {
@@ -65,7 +65,7 @@ namespace Pins {
         }
         Assert(!value.has(PinAttributes::Input), "I2SO pins cannot be used as input");
         Assert(value.validateWith(this->_capabilities), "Requested attributes do not match the I2SO pin capabilities");
-        Assert(!_attributes.conflictsWith(value), "Attributes on this pin have been set before, and there's a conflict.");
+        Assert(!_attributes.conflictsWith(value), "Attributes on this pin have been set before, and there's a conflict");
 
         _attributes = _attributes | value;
 

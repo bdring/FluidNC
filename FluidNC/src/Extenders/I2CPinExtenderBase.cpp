@@ -15,7 +15,7 @@ namespace Extenders {
         Assert(index >= 0 && index < 16 * 4, "I2C pin extender IO index should be [0-63]; %d is out of range", index);
 
         uint64_t mask = uint64_t(1) << index;
-        Assert((_claimed & mask) == 0, "I2C pin extender IO port %d is already used.", index);
+        Assert((_claimed & mask) == 0, "I2C pin extender IO port %d is already used", index);
 
         _claimed |= mask;
     }
@@ -73,13 +73,13 @@ namespace Extenders {
     }
 
     void I2CPinExtenderBase::init() {
-        Assert(_i2cBusId >= 0 && _i2cBusId < 2, "I2C bus ID out of range.");
+        Assert(_i2cBusId >= 0 && _i2cBusId < 2, "I2C bus ID out of range");
 #    if 0
         this->_i2cBus = config->_i2c[_i2cBusId];
 #    endif
 
         auto i2c = _i2cBus;
-        Assert(i2c != nullptr, "I2C pin extender only works when I2C bus is configured.");
+        Assert(i2c != nullptr, "I2C pin extender only works when I2C bus is configured");
 
         log_info("Setting up I2C pin extender on I2C" << _i2cBusId);
 

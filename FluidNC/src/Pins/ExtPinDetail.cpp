@@ -44,10 +44,10 @@ namespace Pins {
         // We setup the driver in setAttr. Before this time, the owner might not be valid.
 
         // Check the attributes first:
-        Assert(value.has(PinAttributes::Input) || value.has(PinAttributes::Output), "PCA9539 pins can be used as either input or output.");
-        Assert(value.has(PinAttributes::Input) != value.has(PinAttributes::Output), "PCA9539 pins can be used as either input or output.");
-        Assert(value.validateWith(this->_capabilities), "Requested attributes do not match the PCA9539 pin capabilities.");
-        Assert(!_attributes.conflictsWith(value), "Attributes on this pin have been set before, and there's a conflict.");
+        Assert(value.has(PinAttributes::Input) || value.has(PinAttributes::Output), "PCA9539 pins can be used as either input or output");
+        Assert(value.has(PinAttributes::Input) != value.has(PinAttributes::Output), "PCA9539 pins can be used as either input or output");
+        Assert(value.validateWith(this->_capabilities), "Requested attributes do not match the PCA9539 pin capabilities");
+        Assert(!_attributes.conflictsWith(value), "Attributes on this pin have been set before, and there's a conflict");
 
         _attributes = value;
 

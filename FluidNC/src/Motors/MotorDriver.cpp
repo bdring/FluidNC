@@ -35,11 +35,11 @@ namespace MotorDrivers {
     };  // true = OK
 
     axis_t MotorDriver::axis_index() const {
-        Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
+        Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called");
         return Axes::findAxisIndex(this);
     }
     motor_t MotorDriver::dual_axis_index() const {
-        Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
+        Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called");
         return Axes::findAxisMotor(this);
     }
     void IRAM_ATTR MotorDriver::set_disable(bool disable) {}
