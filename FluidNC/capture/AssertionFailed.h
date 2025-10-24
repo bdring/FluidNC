@@ -3,13 +3,9 @@
 
 #pragma once
 
-#include <string>
-#include <exception>
+#include <stdexcept>
 
 class AssertionFailed {
 public:
-    std::string msg;
-
-    static std::exception create(const char* condition) { return create(condition, "Assertion failed"); }
-    static std::exception create(const char* condition, const char* msg, ...);
+    static std::runtime_error create(const char* msg, ...);
 };

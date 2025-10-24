@@ -6,20 +6,13 @@
 #include <cstdarg>
 #include <cstring>
 
-#include <stdexcept>
-
-std::exception AssertionFailed::create(const char* condition, const char* msg, ...) {
-    std::string st = condition;
-    st += ": ";
-
+std::runtime_error AssertionFailed::create(const char* msg, ...) {
     char    tmp[255];
     va_list arg;
     va_start(arg, msg);
     vsnprintf(tmp, 255, msg, arg);
     va_end(arg);
     tmp[254] = 0;
-
-    st += tmp;
 
 #ifdef _MSC_VER
     return std::exception(tmp);

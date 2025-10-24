@@ -4,14 +4,8 @@
 #include "AssertionFailed.h"
 
 #include <cstdarg>
-#include <cstring>
 
-#include <stdexcept>
-
-std::exception AssertionFailed::create(const char* condition, const char* msg, ...) {
-    std::string st = condition;
-    st += ": ";
-
+std::runtime_error AssertionFailed::create(const char* msg, ...) {
     char    tmp[255];
     va_list arg;
     va_start(arg, msg);
@@ -19,7 +13,5 @@ std::exception AssertionFailed::create(const char* condition, const char* msg, .
     va_end(arg);
     tmp[254] = 0;
 
-    st += tmp;
-
-    return std::runtime_error(st);
+    return std::runtime_error(tmp);
 }
