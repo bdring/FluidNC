@@ -98,8 +98,14 @@ PinMapper::~PinMapper() {
     }
 }
 
-// Arduino compatibility functions, which basically forward the call to the mapper:
-void IRAM_ATTR digitalWrite(pinnum_t pin, uint8_t val) {
+// Arduino compatibility function which uses a mapped pin ID.  We need this
+// in order to use I2SO pins as CS pins for the TMCStepper library.
+
+// The first argument must be uint8_t to match the signature of the Arduino library,
+// otherwise this will not override the weak definition in the library.
+void IRAM_ATTR digitalWrite(uint8_t upin, uint8_t val) {
+    pinnum_t pin = upin;
+
     if (pin < PinMap::BOUNDARY) {
         gpio_write(pin, val);
         return;
