@@ -620,7 +620,7 @@ void hex_msg(uint8_t* buf, const char* prefix, size_t len) {
         strcat(report, temp);
     }
 
-    log_info(report);
+    log_debug(report);
 }
 
 void reportTaskStackSize(UBaseType_t& saved) {

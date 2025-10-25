@@ -65,7 +65,6 @@ namespace Spindles {
             handler.item("output_cw_pin", _output_cw_pin);
             handler.item("output_ccw_pin", _output_ccw_pin);
             handler.item("enable_pin", _enable_pin);
-            handler.item("disable_with_s0", _disable_with_zero_speed);
 
             Spindle::group(handler);
         }

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "Spindles/Spindle.h"
+#include <freertos/message_buffer.h>
 
 namespace Spindles {
     class VFDSpindle;
@@ -69,9 +70,11 @@ namespace Spindles {
             bool            prepareSetSpeedCommand(uint32_t speed, ModbusCommand& data, VFDSpindle* spindle);
 
             static void reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length);
-            static void reportCmdErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id);
+            static bool checkRx(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id);
 
         public:
+            static QueueHandle_t vfd_speed_queue;
+
             VFDProtocol() {}
             VFDProtocol(const VFDProtocol&)            = delete;
             VFDProtocol(VFDProtocol&&)                 = delete;

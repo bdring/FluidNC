@@ -77,10 +77,6 @@ namespace Spindles {
 
         uint32_t _max_arc_wait = 1000;
 
-        // TO DO. These are not used in the class
-        // _disable_with_zero_speed forces a disable when speed is 0
-        bool _disable_with_zero_speed = false;
-
         bool         _arc_on = false;
         bool         use_delay_settings() const override { return false; }
         virtual void set_output(uint32_t speed);

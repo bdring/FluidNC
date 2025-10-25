@@ -34,6 +34,9 @@ namespace Spindles {
         uint32_t   _last_tool = 0;
 
     public:
+        // _disable_with_zero_speed forces a disable when speed is 0
+        bool _disable_with_zero_speed = false;
+
         Spindle(const char* name) : _name(name) {}
 
         Spindle(const Spindle&)            = delete;
@@ -106,6 +109,7 @@ namespace Spindles {
             handler.item("atc", _atc_name);
             handler.item("m6_macro", _m6_macro);
             handler.item("s0_with_disable", _zero_speed_with_disable);
+            handler.item("disable_with_s0", _disable_with_zero_speed);
         }
 
         // Virtual base classes require a virtual destructor.

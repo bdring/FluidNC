@@ -80,9 +80,12 @@ namespace Spindles {
                 }
 
                 // Sync must be in a temporary because it's volatile!
-                uint32_t sync = spindle->_sync_dev_speed;
-                if (set_data(token, response_view, "rpm", sync)) {
-                    spindle->_sync_dev_speed = sync;
+                uint32_t dev_speed;
+                if (set_data(token, response_view, "rpm", dev_speed)) {
+                    if (spindle->_debug > 1) {
+                        log_info("Current speed is " << int(dev_speed));
+                    }
+                    xQueueSend(VFD::VFDProtocol::vfd_speed_queue, &dev_speed, 0);
                     continue;
                 }
                 uint32_t ignore;
@@ -226,6 +229,8 @@ namespace Spindles {
 
         struct VFDtype {
             const char* name;
+            int8_t      disable_with_s0;
+            int8_t      s0_with_disable;
             uint32_t    min_rpm;
             uint32_t    max_rpm;
             const char* cw_cmd;
@@ -238,6 +243,8 @@ namespace Spindles {
         } VFDtypes[] = {
             {
                 "YL620",
+                -1,
+                -1,
                 0xffffffff,
                 0xffffffff,
                 "06 20 00 00 12 > echo",
@@ -250,6 +257,8 @@ namespace Spindles {
             },
             {
                 "Huanyang",
+                -1,
+                -1,
                 0xffffffff,
                 0xffffffff,
                 "03 01 01 > echo",
@@ -262,6 +271,8 @@ namespace Spindles {
             },
             {
                 "H2A",
+                -1,
+                -1,
                 6000,
                 0xffffffff,
                 "06 20 00 00 01 > echo",
@@ -275,6 +286,8 @@ namespace Spindles {
             },
             {
                 "H100",
+                -1,
+                -1,
                 0xffffffff,
                 0xffffffff,
                 "05 00 49 ff 00 > echo",
@@ -287,6 +300,8 @@ namespace Spindles {
             },
             {
                 "NowForever",
+                -1,
+                -1,
                 0xffffffff,
                 0xffffffff,
                 "10 09 00 00 01 02 00 01 > echo",
@@ -299,6 +314,8 @@ namespace Spindles {
             },
             {
                 "SiemensV20",
+                -1,
+                -1,
                 0,
                 24000,
                 "06 00 63 0C 7F > echo",
@@ -308,6 +325,20 @@ namespace Spindles {
                 "03 00 6E 00 01 > 03 02 rpm%*16384/100",
                 "",
                 "",
+            },
+            {
+                "MollomG70",
+                1,                                       // disable_with_s0
+                1,                                       // s0_with_disable
+                0xffffffff,                              // min_rpm
+                0xffffffff,                              // max_rpm
+                "06 20 00 00 01 > echo",                 // cw
+                "06 20 00 00 02 > echo",                 // ccw
+                "06 20 00 00 06 > echo",                 // off
+                "06 10 00 rpm%*100 > echo",              // set_rpm
+                "03 70 00 00 01 > 03 02 rpm*60/100",     // get_rpm
+                "03 f0 0e 00 01 > 03 02 minrpm*60/100",  // get_min_rpm
+                "03 f0 0c 00 01 > 03 02 maxrpm*60/100",  // get_max_rpm
             },
         };
         void GenericProtocol::afterParse() {
@@ -321,6 +352,14 @@ namespace Spindles {
                     if (_ccw_cmd.empty()) {
                         _ccw_cmd = vfd.ccw_cmd;
                     }
+#if 0
+                    if (vfd.disable_with_s0 != -1) {
+                        _disable_with_s0 = vfd.disable_with_s0;
+                    }
+                    if (vfd.s0_with_disable != -1) {
+                        s0_with_disable = vfd.s0_with_disable;
+                    }
+#endif
                     if (_off_cmd.empty()) {
                         _off_cmd = vfd.off_cmd;
                     }

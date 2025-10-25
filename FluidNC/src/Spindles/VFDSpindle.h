@@ -35,7 +35,6 @@ namespace Spindles {
         int32_t  _uart_num  = -1;
         Uart*    _uart      = nullptr;
         uint8_t  _modbus_id = 1;
-        uint8_t  _debug     = 0;
         uint32_t _poll_ms   = 250;
         uint32_t _retries   = 5;
 
@@ -44,6 +43,8 @@ namespace Spindles {
         volatile bool _syncing;
 
     public:
+        uint8_t _debug = 0;
+
         VFDSpindle(const char* name, VFD::VFDProtocol* detail) : Spindle(name), detail_(detail) {}
         VFDSpindle(const VFDSpindle&)            = delete;
         VFDSpindle(VFDSpindle&&)                 = delete;
