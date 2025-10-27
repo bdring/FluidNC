@@ -1,10 +1,6 @@
 #include "USBCDCChannel.h"
 
-#ifdef CONFIG_ESP_CONSOLE_USB_CDC
-
 USBCDCChannel CDCChannel(true);
-
-#endif
 
 #include "UartChannel.h"
 
@@ -16,6 +12,7 @@ public:
         auto uart0 = new Uart(0);
         uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
         UartChannel::init(uart0);
+        CDCChannel.init();
     }
 };
 UartConsole Uart0;

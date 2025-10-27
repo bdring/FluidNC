@@ -15,7 +15,7 @@ void UartChannel::init() {
     if (uart) {
         init(uart);
     } else {
-        log_error("UartChannel: missing uart" << _uart_num);
+        log_error(name() << ": missing uart" << _uart_num);
     }
     setReportInterval(_report_interval_ms);
 }
@@ -23,9 +23,9 @@ void UartChannel::init(Uart* uart) {
     _uart = uart;
     allChannels.registration(this);
     if (_report_interval_ms) {
-        log_info("uart_channel" << _uart_num << " created at report interval: " << _report_interval_ms);
+        log_info(name() << " created at report interval: " << _report_interval_ms);
     } else {
-        log_info("uart_channel" << _uart_num << " created");
+        log_info(name() << " created");
     }
     // Tell the channel listener that FluidNC has restarted.
     // The initial newline clears out any garbage characters that might have
@@ -117,7 +117,8 @@ int UartChannel::read() {
     auto c = _uart->read();
     if (c == 0x11) {
         // 0x11 is XON.  If we receive that, it is a request to use software flow control
-        _uart->setSwFlowControl(true, -1, -1);
+        // 0 0 means use default values from uart.cpp
+        _uart->setSwFlowControl(true, 0, 0);
         return -1;
     }
     return c;
@@ -129,18 +130,20 @@ void UartChannel::flushRx() {
 }
 
 size_t UartChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
+    size_t remlen = length;
+
     // It is likely that _queue will be empty because timedReadBytes() is only
     // used in situations where the UART is not receiving GCode commands
     // and Grbl realtime characters.
-    size_t remlen = length;
-    while (remlen && _queue.size()) {
+    while (_queue.size() && remlen) {
         *buffer++ = _queue.front();
         _queue.pop();
+        --remlen;
     }
 
-    auto res = _uart->timedReadBytes(buffer, remlen, timeout);
-    // If res < 0, no bytes were read
-    remlen -= (res < 0) ? 0 : res;
+    auto thislen = _uart->timedReadBytes(buffer, remlen, timeout);
+    remlen -= thislen;
+
     return length - remlen;
 }
 

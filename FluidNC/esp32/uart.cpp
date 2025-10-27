@@ -127,10 +127,10 @@ void uart_xoff(uint32_t uart_num) {
     uart_ll_force_xoff(port);
 }
 void uart_sw_flow_control(uint32_t uart_num, bool on, uint32_t xon_threshold, uint32_t xoff_threshold) {
-    if (xon_threshold <= 0) {
+    if (xon_threshold == 0) {
         xon_threshold = 126;
     }
-    if (xoff_threshold <= 0) {
+    if (xoff_threshold == 0) {
         xoff_threshold = 127;
     }
     uart_port_t port = (uart_port_t)uart_num;

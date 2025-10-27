@@ -162,13 +162,13 @@ void Uart::forceXoff() {
     uart_xoff(_uart_num);
 }
 
-void Uart::setSwFlowControl(bool on, int xon_threshold, int xoff_threshold) {
+void Uart::setSwFlowControl(bool on, uint32_t xon_threshold, uint32_t xoff_threshold) {
     _sw_flowcontrol_enabled = on;
     _xon_threshold          = xon_threshold;
     _xoff_threshold         = xoff_threshold;
     uart_sw_flow_control(_uart_num, on, xon_threshold, xoff_threshold);
 }
-void Uart::getSwFlowControl(bool& enabled, int& xon_threshold, int& xoff_threshold) {
+void Uart::getSwFlowControl(bool& enabled, uint32_t& xon_threshold, uint32_t& xoff_threshold) {
     enabled        = _sw_flowcontrol_enabled;
     xon_threshold  = _xon_threshold;
     xoff_threshold = _xoff_threshold;

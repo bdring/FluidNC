@@ -234,15 +234,14 @@ namespace Machine {
     }
     std::string Axes::motorMaskToNames(MotorMask mask) {
         std::string retval("");
-        auto        n_axis = _numberAxis;
-        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
             if (bitnum_is_true(mask, axis)) {
                 retval += " ";
                 retval += axisName(axis);
             }
         }
         mask >>= 16;
-        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
             if (bitnum_is_true(mask, axis)) {
                 retval += " ";
                 retval += axisName(axis);
