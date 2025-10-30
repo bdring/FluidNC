@@ -496,6 +496,7 @@ namespace WebUI {
         } else
             response = request->beginResponse(200, "", "");
         response->addHeader("Cache-Control", "no-cache");
+        response->addHeader("Content-Type", "text/html");
         request->send(response);
         return;
     }
