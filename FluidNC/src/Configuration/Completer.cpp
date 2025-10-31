@@ -9,6 +9,21 @@
 
 #include <ctype.h>
 #include <atomic>
+#include <string_view>
+
+static bool isInitialSubstringCI(const std::string_view key, const std::string_view test) {
+    if (key.length() > test.length()) {
+        return false;
+    }
+    size_t i = 0;
+    for (auto const c : key) {
+        char c1 = test[i++];
+        if (tolower(c) != tolower(c1)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 namespace Configuration {
     Completer::Completer(const char* key, uint32_t reqMatch, char* matchedStr) :
@@ -25,13 +40,13 @@ namespace Configuration {
         auto previous = _currentPath;
         _currentPath += name;
         _currentPath += "/";
-        if (_key.rfind(_currentPath, 0) == 0) {
+        if (isInitialSubstringCI(_currentPath, _key)) {
             // If _currentPath is an initial substring of _key, this section
             // is part of a path leading to the key, so we have to check
             // this section's children
             // Example: _key = /axes/x/motor0/cy _currentPath=/axes/x/motor0
             value->group(*this);
-        } else if (_currentPath.rfind(_key, 0) == 0) {
+        } else if (isInitialSubstringCI(_key, _currentPath)) {
             // If _key is an initial substring of _currentPath, this section
             // is a candidate.  Example:  _key = /axes/x/h _currentPath=/axes/x/homing
             addCandidate(_currentPath);
@@ -41,7 +56,7 @@ namespace Configuration {
 
     void Completer::item(const char* name) {
         std::string fullItemName = _currentPath + name;
-        if (fullItemName.rfind(_key, 0) == 0) {
+        if (isInitialSubstringCI(_key, fullItemName)) {
             addCandidate(fullItemName);
         }
     }
@@ -51,14 +66,6 @@ namespace Configuration {
 
 #include "Settings.h"
 
-static bool isInitialSubstringCI(const char* key, const char* test) {
-    while (*key && *test) {
-        if (tolower(*key++) != tolower(*test++)) {
-            return false;
-        }
-    }
-    return *key == '\0';
-}
 // This provides the interface to the completion routines in lineedit.cpp
 // The argument signature is idiosyncratic, based on the needs of the
 // Forth implementation for which the completion code was first developed.
