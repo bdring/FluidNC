@@ -7,6 +7,7 @@
 #include "Protocol.h"  // send_line()
 #include "string_util.h"
 #include "Machine/Axes.h"  // axisType
+#include "Parameters.h"    // read_number
 
 #include <cstdlib>
 #include <atomic>
@@ -68,37 +69,58 @@ namespace Configuration {
             isHandled_ = true;
             if (newValue_.empty()) {
                 log_stream(out_, setting_prefix() << (value ? "true" : "false"));
+            } else if (string_util::equal_ignore_case(newValue_, "true") || string_util::equal_ignore_case(newValue_, "yes") ||
+                       string_util::equal_ignore_case(newValue_, "on")) {
+                value = true;
+            } else if (string_util::equal_ignore_case(newValue_, "false") || string_util::equal_ignore_case(newValue_, "no") ||
+                       string_util::equal_ignore_case(newValue_, "off")) {
+                value = false;
             } else {
-                value = (string_util::equal_ignore_case(newValue_, "true") || string_util::equal_ignore_case(newValue_, "yes") ||
-                         string_util::equal_ignore_case(newValue_, "1"));
+                float fvalue;
+                if (!read_number(newValue_, fvalue)) {
+                    log_error("Bad numeric value");
+                } else {
+                    value = fvalue;
+                }
             }
         }
     }
 
-    void RuntimeSetting::item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) {
+    void RuntimeSetting::item(const char* name, int32_t& value, int32_t minValue, int32_t maxValue) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_.empty()) {
                 log_stream(out_, setting_prefix() << value);
             } else {
-                string_util::from_decimal(newValue_, value);
+                float fvalue;
+                if (read_number(newValue_, fvalue)) {
+                    value = static_cast<int32_t>(fvalue);
+                    constrain_with_message(value, minValue, maxValue);
+                } else {
+                    log_error("Bad numeric value");
+                }
             }
         }
     }
 
-    void RuntimeSetting::item(const char* name, uint32_t& value, const uint32_t minValue, const uint32_t maxValue) {
+    void RuntimeSetting::item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_.empty()) {
-                out_ << "$/" << setting_ << "=" << value << '\n';
+                log_stream(out_, setting_prefix() << value);
             } else {
-                if (newValue_.front() == '-') {  // constrain negative values to 0
-                    value = 0;
-                    log_warn("Negative value not allowed");
-                } else
-                    string_util::from_decimal(newValue_, value);
+                float fvalue;
+                if (read_number(newValue_, fvalue)) {
+                    if (fvalue < 0) {
+                        log_warn("Negative value not allowed");
+                        fvalue = 0;
+                    }
+                    value = static_cast<uint32_t>(fvalue);
+                    constrain_with_message(value, minValue, maxValue);
+                } else {
+                    log_error("Bad numeric value");
+                }
             }
-            constrain_with_message(value, minValue, maxValue);
         }
     }
 
@@ -109,7 +131,11 @@ namespace Configuration {
                 // XXX precision
                 log_stream(out_, setting_prefix() << value);
             } else {
-                string_util::from_float(newValue_, value);
+                if (read_number(newValue_, value)) {
+                    constrain_with_message(value, minValue, maxValue);
+                } else {
+                    log_error("Bad numeric value");
+                }
             }
         }
     }

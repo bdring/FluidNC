@@ -3,6 +3,7 @@
 #include "System.h"    // sys
 #include "Protocol.h"  // protocol_buffer_synchronize
 #include "Machine/MachineConfig.h"
+#include "Parameters.h"
 
 #include <map>
 #include <limits>
@@ -145,11 +146,12 @@ Error IntSetting::setStringValue(std::string_view s) {
         return err;
     }
     trim(s);
-    int32_t convertedValue;
-    auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.length(), convertedValue);
-    if (ec != std::errc()) {
+    float fnum;
+    if (!read_number(s, fnum)) {
         return Error::BadNumberFormat;
     }
+
+    int32_t convertedValue = fnum;
     if (convertedValue < _minValue || convertedValue > _maxValue) {
         return Error::NumberRange;
     }
@@ -333,13 +335,13 @@ Error EnumSetting::setStringValue(std::string_view s) {
             showList();
             return Error::BadNumberFormat;
         }
-        int32_t num;
-        // Disallow non-numeric characters in string
-        auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.length(), num);
-        if (ec != std::errc()) {
+        float fnum;
+        if (!read_number(s, fnum)) {
             showList();
             return Error::BadNumberFormat;
         }
+
+        int32_t num = fnum;
         for (it = _options->begin(); it != _options->end(); it++) {
             if (it->second == num) {
                 break;

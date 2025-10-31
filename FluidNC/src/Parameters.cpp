@@ -543,6 +543,12 @@ bool set_param(const param_ref_t& param_ref, float value) {
     return false;
 }
 
+bool read_number(const std::string_view sv, float& result, bool in_expression) {
+    std::string s(sv);
+    size_t      pos = 0;
+    return read_number(s.c_str(), pos, result);
+}
+
 // Gets a numeric value, either a literal number or a #-prefixed parameter value
 bool read_number(const char* line, size_t& pos, float& result, bool in_expression) {
     char c = line[pos];
