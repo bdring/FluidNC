@@ -157,6 +157,7 @@ void UartChannel::out_acked(const std::string& s, const char* tag) {
 
 void UartChannel::registerEvent(pinnum_t pinnum, InputPin* obj) {
     _uart->registerInputPin(pinnum, obj);
+    Channel::registerEvent(pinnum, obj);
 }
 
 bool UartChannel::setAttr(pinnum_t index, bool* value, const std::string& attrString) {

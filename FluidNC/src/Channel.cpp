@@ -148,8 +148,10 @@ void Channel::autoReport() {
 }
 
 void Channel::pin_event(pinnum_t pinnum, bool active) {
-    auto input_pin = _pins.at(pinnum);
-    protocol_send_event(active ? &pinActiveEvent : &pinInactiveEvent, input_pin);
+    try {
+        auto input_pin = _pins.at(pinnum);
+        protocol_send_event(active ? &pinActiveEvent : &pinInactiveEvent, input_pin);
+    } catch (const std::out_of_range& e) { log_error("Unregistered event from channel pin " << (int)pinnum); }
 }
 
 void Channel::handleRealtimeCharacter(uint8_t ch) {
