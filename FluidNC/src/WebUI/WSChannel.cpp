@@ -127,7 +127,6 @@ namespace WebUI {
 
     std::map<objnum_t, WSChannel*>    WSChannels::_wsChannels;
     std::map<std::string, WSChannel*> WSChannels::_wsChannelsBySession;
-    std::list<WSChannel*>             WSChannels::_webWsChannels;
     AsyncWebSocket*                   WSChannels::_server = nullptr;
 
     WSChannel* WSChannels::_lastWSChannel = nullptr;
@@ -136,34 +135,7 @@ namespace WebUI {
         try {
             return _wsChannelsBySession.at(session);
         } catch (std::out_of_range& oor) {}
-        if (_webWsChannels.size() > 0)
-            return _webWsChannels.front();
         return nullptr;
-    }
-
-    WSChannel* WSChannels::getWSChannel(uint32_t pageid) {
-        pageid               = -1;
-        WSChannel* wsChannel = nullptr;
-        if (pageid != -1) {
-            try {
-                wsChannel = _wsChannels.at(pageid);
-            } catch (std::out_of_range& oor) {}
-        } else {
-            if (_webWsChannels.size() > 0)
-                wsChannel = _webWsChannels.front();
-
-            // // If there is no PAGEID URL argument, it is an old version of WebUI
-            // // that does not supply PAGEID in all cases.  In that case, we use
-            // // the most recently used websocket if it is still in the list.
-            // for (auto it = _wsChannels.begin(); it != _wsChannels.end(); ++it) {
-            //     if (it->second == _lastWSChannel) {
-            //         wsChannel = _lastWSChannel;
-            //         break;
-            //     }
-            // }
-        }
-        _lastWSChannel = wsChannel;
-        return wsChannel;
     }
 
     void WSChannels::removeChannel(objnum_t num) {
@@ -172,11 +144,11 @@ namespace WebUI {
             std::string session   = wsChannel->session();
             wsChannel->active(false);
             allChannels.kill(wsChannel);
-            _webWsChannels.remove(wsChannel);
             _wsChannels.erase(num);
             // Only remove if this is the same object
-            if (_wsChannelsBySession[session] == wsChannel)
+            if (_wsChannelsBySession[session] == wsChannel) {
                 _wsChannelsBySession.erase(session);
+            }
         } catch (std::out_of_range& oor) {}
     }
 
@@ -211,12 +183,8 @@ namespace WebUI {
         return true;
     }
     void WSChannels::sendPing() {
-        for (WSChannel* wsChannel : _webWsChannels) {
-            std::string s("PING:");
-            s += std::to_string(wsChannel->id());
-            // sendBIN would be okay too because the string contains only
-            // ASCII characters, no UTF-8 extended characters.
-            wsChannel->sendTXT(s);
+        if (_server) {
+            _server->textAll("PING");
         }
     }
 
