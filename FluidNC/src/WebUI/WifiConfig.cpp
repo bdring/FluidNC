@@ -747,7 +747,7 @@ namespace WebUI {
             }
             if (WiFi.begin(SSID, (strlen(password) > 0) ? password : NULL)) {
                 log_info("Connecting to STA SSID:" << SSID);
-                return true;
+                return ConnectSTA2AP();
             } else {
                 log_info("Starting client failed");
                 return false;
