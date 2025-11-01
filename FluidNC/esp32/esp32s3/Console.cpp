@@ -4,6 +4,8 @@ USBCDCChannel CDCChannel(true);
 
 #include "UartChannel.h"
 
+#include "Settings.h"
+
 // This derived class overrides init() to setup the primary UART
 class UartConsole : public UartChannel {
 public:
@@ -12,7 +14,10 @@ public:
         auto uart0 = new Uart(0);
         uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
         UartChannel::init(uart0);
-        CDCChannel.init();
+        auto cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
+        if (cdc_enable->get()) {
+            CDCChannel.init();
+        }
     }
 };
 UartConsole Uart0;

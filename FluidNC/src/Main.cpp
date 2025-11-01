@@ -32,6 +32,9 @@ void setup() {
     try {
         timing_init();
 
+        // Load settings from non-volatile storage
+        settings_init();
+
         Console.init();  // Setup main interaction channel
 
         // Setup input polling loop after loading the configuration,
@@ -42,8 +45,7 @@ void setup() {
 
         protocol_init();
 
-        // Load settings from non-volatile storage
-        settings_init();  // requires config
+        make_coordinates();
 
         log_info("FluidNC " << git_info << " " << git_url);
 

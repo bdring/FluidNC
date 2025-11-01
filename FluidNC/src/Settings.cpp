@@ -12,6 +12,8 @@
 #include <charconv>
 #include <Driver/NVS.h>
 
+NVS nvs("FluidNC");
+
 std::vector<Setting*> Setting::List __attribute__((init_priority(101))) = {};
 std::vector<Command*> Command::List __attribute__((init_priority(102))) = {};
 
@@ -100,8 +102,6 @@ Error Setting::check_state() {
     }
     return Error::Ok;
 }
-
-NVS nvs("FluidNC");
 
 void Setting::init() {}
 

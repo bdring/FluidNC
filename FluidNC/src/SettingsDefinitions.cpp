@@ -66,9 +66,7 @@ void float_proxy(axis_t axis, uint32_t grbl_number, const char* name, float* var
         new IntProxySetting(number, name, [](MachineConfig const& config) { return configvar; });                                          \
     }
 
-void make_settings() {
-    Setting::init();
-
+void make_coordinates() {
     // Propagate old coordinate system data to the new format if necessary.
     // G54 - G59 work coordinate systems, G28, G30 reference positions, etc
     make_coordinate(CoordIndex::G54, "G54", true);
@@ -90,6 +88,10 @@ void make_settings() {
     make_coordinate(CoordIndex::G30, "G30", true);
     make_coordinate(CoordIndex::G92, "G92", false);
     make_coordinate(CoordIndex::TLO, "TLO", false);
+}
+
+void make_settings() {
+    Setting::init();
 
     message_level = new EnumSetting("Which Messages", EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels);
 
