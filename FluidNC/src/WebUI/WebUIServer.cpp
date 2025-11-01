@@ -501,9 +501,6 @@ namespace WebUI {
         return;
     }
 
-    std::string getSession(AsyncClient* client) {
-        return (std::to_string(IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
-    }
     void WebUI_Server::websocketCommand(AsyncWebServerRequest* request, const char* cmd, int pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
             request->send(401, "text/plain", "Authentication failed\n");

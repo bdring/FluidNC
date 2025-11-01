@@ -41,8 +41,6 @@ namespace WebUI {
     };
 #endif
 
-    std::string getSession(AsyncClient* client);
-
     //Upload status
     enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
 
