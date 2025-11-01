@@ -353,7 +353,12 @@ namespace Kinematics {
         AxisMask activeAxes = 0;
         // Find the axis that will take the longest
         for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+            if (bitnum_is_false(axisMask, axis)) {
+                continue;
+            }
             if (bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 0)) && bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 1))) {
+                log_error("No motor for axis " << axes->axisName(axis) << " can be homed");
+                Homing::fail(ExecAlarm::HomingFailApproach);
                 continue;
             }
 
