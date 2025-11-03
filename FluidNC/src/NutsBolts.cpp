@@ -215,7 +215,7 @@ bool multiple_bits_set(uint32_t val) {
 
 const char* to_hex(uint32_t n) {
     static char hexstr[12];
-    snprintf(hexstr, 11, "0x%x", n);
+    snprintf(hexstr, 11, "0x%x", static_cast<unsigned int>(n));
     return hexstr;
 }
 

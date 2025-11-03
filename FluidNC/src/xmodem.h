@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
 #include "Channel.h"
 #include "FileStream.h"
 
-int xmodemReceive(Channel* serial, FileStream* outfile);
-int xmodemTransmit(Channel* serial, FileStream* infile);
+int32_t xmodemReceive(Channel* serial, FileStream* outfile);
+int32_t xmodemTransmit(Channel* serial, FileStream* infile);

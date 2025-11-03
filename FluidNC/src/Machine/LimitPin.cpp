@@ -10,7 +10,7 @@
 
 namespace Machine {
     LimitPin::LimitPin(axis_t axis, motor_t motor, int8_t direction, bool& pHardLimits) :
-        EventPin(&limitEvent, "Limit"), _axis(axis), _motorNum(motor), _pHardLimits(pHardLimits) {
+        EventPin(&limitEvent, "Limit"), _pHardLimits(pHardLimits), _axis(axis), _motorNum(motor) {
         const char* sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -33,6 +33,7 @@ namespace Machine {
                 _negLimits   = nullptr;
                 _posLimits   = nullptr;
                 _pHardLimits = false;
+                sDir         = nullptr;
                 break;
         }
 

@@ -147,7 +147,7 @@ namespace Spindles {
         int unchanged = 0;
         //            const int limit     = 150;  // 15 sec / 100 ms
         const int limit = 100;
-        auto      last  = _sync_dev_speed;
+        // auto      last  = _sync_dev_speed; -> unused.
 
         if (_debug > 1 && _sync_dev_speed != UINT32_MAX) {
             log_info("Syncing to " << int(dev_speed));

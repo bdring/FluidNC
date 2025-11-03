@@ -243,7 +243,7 @@ int32_t xmodemReceive(Channel* serial, FileStream* out) {
     }
 }
 
-int xmodemTransmit(Channel* serial, FileStream* infile) {
+int32_t xmodemTransmit(Channel* serial, FileStream* infile) {
     serialPort = serial;
 
     uint8_t  xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */

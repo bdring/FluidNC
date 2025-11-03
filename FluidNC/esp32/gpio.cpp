@@ -9,6 +9,7 @@
 
 #include "driver/gpio.h"
 #include "hal/gpio_hal.h"
+#include "rom/gpio.h"  // gpio_matrix_*
 
 static gpio_dev_t* _gpio_dev = GPIO_HAL_GET_HW(GPIO_PORT_0);
 

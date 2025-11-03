@@ -6,7 +6,7 @@
 extern "C" {
 #    endif
 
-typedef void (*uart_data_callback_t)(uart_port_t uart_num, uint8_t* rx_buf, int* len);
+typedef void (*uart_data_callback_t)(uart_port_t uart_num, uint8_t* rx_buf, uint32_t* len);
 
 /**
  * @brief Set data callback function

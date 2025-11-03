@@ -323,6 +323,7 @@ void OLED::parse_status_report() {
         }
         if (tag == "A") {
             // SCFM
+            /* Unused.
             uint8_t spindle = 0;
             bool    flood   = false;
             bool    mist    = false;
@@ -342,6 +343,7 @@ void OLED::parse_status_report() {
                         break;
                 }
             }
+            */
             continue;
         }
         if (tag == "SD") {
