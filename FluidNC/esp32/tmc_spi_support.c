@@ -7,6 +7,7 @@
 // way that causes compiler error on spi_ll.h
 
 #include "hal/spi_ll.h"
+#include <soc/rtc.h>
 
 #include <sdkconfig.h>
 #ifdef CONFIG_IDF_TARGET_ESP32S3
@@ -32,7 +33,8 @@ void tmc_spi_bus_setup() {
 #endif
 
     if (clk_reg_val == 0) {
-        spi_ll_master_cal_clock(SPI_LL_PERIPH_CLK_FREQ, 2000000, 128, &clk_reg_val);
+        int abpFreq = rtc_clk_apb_freq_get();  // (80 * 1000000);  // ABP frequency.
+        spi_ll_master_cal_clock(abpFreq, 2000000, 128, &clk_reg_val);
     }
     spi_ll_master_set_clock_by_reg(hw, &clk_reg_val);
 
@@ -61,7 +63,11 @@ void tmc_spi_transfer_data(const uint8_t* out, int out_bitlen, uint8_t* in, int 
     }
 
     spi_ll_clear_int_stat(hw);
+#ifndef IDFBUILD
     spi_ll_master_user_start(hw);
+#else
+    spi_ll_user_start(hw);
+#endif
     while (!spi_ll_usr_is_done(hw)) {}
 
     spi_ll_read_buffer(hw, in, in_bitlen);  // No-op if in_bitlen is 0

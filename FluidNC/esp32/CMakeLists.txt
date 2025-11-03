@@ -18,7 +18,7 @@ idf_component_register(SRCS AssertionFailed.cpp
                             uart.cpp
                             wdt.cpp
                             coredump.c
-                            fnc_idf_uart.c
+                            fnc_idf_uart_idfbuild.c
                             timed_engine.c
                             tmc_spi_support.c
                             # esp32/Console.cpp

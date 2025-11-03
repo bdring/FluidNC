@@ -7,7 +7,9 @@
 #pragma once
 
 // clang-format off
-#ifndef IDFBUILD
+#ifdef IDFBUILD
+#include "fnc_idf_uart_idfbuild.h"
+#else
 
 #ifdef __cplusplus
 extern "C" {
