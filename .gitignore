@@ -38,3 +38,4 @@ data-wmb/
 release/
 managed_components/
 /FluidNC/lib/*/
+/FluidNC/dependencies.lock

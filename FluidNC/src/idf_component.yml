@@ -2,4 +2,5 @@
 dependencies:
   esp32async/espasyncwebserver:
     version: ^3.8.1
+    require: public
     pre_release: true

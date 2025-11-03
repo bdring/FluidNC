@@ -157,8 +157,8 @@ idf_component_register(SRCS BTConfig.cpp
 							# Extra/Storage/FM25VXX.cpp
 							# Extra/ADC/NHB_AD7794.cpp
                        INCLUDE_DIRS "." ".." "../include" "../lib/TMCStepper/src" "../lib/SSD1306/src" "../lib/arduinoWebSockets/src"
-                       REQUIRES driver fatfs vfs sdmmc spiffs
-                       PRIV_REQUIRES nvs_flash esp_driver_gpio mbedtls arduino-esp32 esp32 lib app_update esp_driver_pcnt
+                       REQUIRES driver fatfs vfs sdmmc spiffs lwip esp_netif
+                       PRIV_REQUIRES nvs_flash esp_driver_gpio mbedtls arduino-esp32 esp32 lib app_update esp_driver_pcnt esp32async__espasyncwebserver
 					   WHOLE_ARCHIVE)
 
 
