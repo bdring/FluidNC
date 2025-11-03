@@ -226,14 +226,6 @@ namespace Kinematics {
         return true;
     }
 
-    static bool check_ambiguous() {
-        if (ambiguousLimit()) {
-            log_error("Ambiguous limit switch touching. Manually clear all switches");
-            return false;
-        }
-        return true;
-    }
-
     bool ParallelDelta::canHome(AxisMask axisMask) {
         return Cartesian::canHome(axisMask);
     }
@@ -303,7 +295,6 @@ namespace Kinematics {
 
     void ParallelDelta::motorVector(
         AxisMask axisMask, MotorMask motorMask, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
-        float endpoint = 0;
 
         // We depend on all three arms being the same, so we get the limits,
         // rates and whatnot from only the X axis values.

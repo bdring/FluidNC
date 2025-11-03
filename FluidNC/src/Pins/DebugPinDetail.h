@@ -26,7 +26,7 @@ namespace Pins {
 
     public:
         explicit DebugPinDetail(PinDetail* implementation) :
-            PinDetail(implementation->number()), _implementation(implementation), _lastEvent(0), _isHigh(false), _isrHandler({ 0 }) {}
+            PinDetail(implementation->number()), _implementation(implementation), _lastEvent(0), _isHigh(false), _isrHandler({}) {}
 
         PinCapabilities capabilities() const override { return _implementation->capabilities(); }
 

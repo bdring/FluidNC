@@ -164,7 +164,6 @@ int32_t xmodemReceive(Channel* serial, FileStream* out) {
     uint16_t crc      = 0;
     uint8_t  trychar  = 'C';
     uint8_t  packetno = 1;
-    size_t   i;
     int32_t  c = 0;
     size_t   retry, retrans = MAXRETRANS;
 
