@@ -24,8 +24,7 @@ namespace Machine {
     Pin Axes::_sharedStepperReset;
 
     uint32_t Axes::_homing_runs = 2;  // Number of Approach/Pulloff cycles
-
-    int Axes::_numberAxis = 0;
+    int      Axes::_numberAxis  = 0;
 
     Axis* Axes::_axis[MAX_N_AXIS] = { nullptr };
 

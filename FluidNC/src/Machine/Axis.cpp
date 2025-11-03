@@ -11,6 +11,7 @@ namespace Machine {
         handler.item("acceleration_mm_per_sec2", _acceleration, 0.001, 100000.0);
         handler.item("max_travel_mm", _maxTravel, 0.1, 10000000.0);
         handler.item("soft_limits", _softLimits);
+        handler.item("jog_acceleration_percent", _jogAccelerationPercent, 1.0, 200.0);
         handler.section("homing", _homing);
 
         char tmp[7];
