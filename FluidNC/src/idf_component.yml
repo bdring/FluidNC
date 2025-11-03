@@ -1,0 +1,5 @@
+## IDF Component Manager Manifest File
+dependencies:
+  esp32async/espasyncwebserver:
+    version: ^3.8.1
+    pre_release: true
