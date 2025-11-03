@@ -28,7 +28,9 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
         mbedtls_md_starts(&ctx);
         while ((len = inFile.read(buf, 512)) > 0) {
             mbedtls_md_update(&ctx, buf, len);
+#    ifdef CONFIG_ESP_TASK_WDT_EN
             esp_task_wdt_reset();
+#    endif
         }
         mbedtls_md_finish(&ctx, shaResult);
         mbedtls_md_free(&ctx);

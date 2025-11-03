@@ -23,3 +23,5 @@ idf_build_set_property(C_COMPILE_OPTIONS "-DIDFBUILD=1" APPEND)
 # idf_build_set_property(LINK_OPTIONS "${link_options}" APPEND)
 
 project(FluidNC)
+
+littlefs_create_partition_image(spiffs data FLASH_IN_PROJECT)
