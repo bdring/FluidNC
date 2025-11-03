@@ -57,7 +57,7 @@ namespace WebUI {
 
     class WSChannels {
     private:
-        static std::map<uint32_t, WSChannel*>    _wsChannels;           // List of channels by client ID
+        static std::map<objnum_t, WSChannel*>    _wsChannels;           // List of channels by client ID
         static std::map<std::string, WSChannel*> _wsChannelsBySession;  // List of channels by session cookie string
         static AsyncWebSocket*                   _server;
 

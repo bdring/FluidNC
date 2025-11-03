@@ -17,6 +17,7 @@
 
 #include "Machine/MachineConfig.h"
 
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <base64.h>
 

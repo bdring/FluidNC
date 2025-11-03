@@ -25,6 +25,7 @@
 
 #include "HashFS.h"
 #include <list>
+#include <cstring>
 
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
@@ -333,11 +334,11 @@ namespace WebUI {
                     request->client()->close();
                     return 0;  //RESPONSE_TRY_AGAIN; // This only works for ChunkedResponse
                 }
-                if (total >= file->size() || request->methodToString() != "GET") {
+                if (total >= file->size() || strcmp(request->methodToString(), "GET")) {
                     file = nullptr;
                     return 0;
                 }
-                int bytes  = min(file->size(), maxLen);
+                int bytes  = int(min(file->size(), maxLen));
                 int actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
                 if (bytes == 0 || (bytes + total) >= file->size()) {
                     file = nullptr;
@@ -471,7 +472,7 @@ namespace WebUI {
         char line[256];
         strncpy(line, cmd, 255);
         AsyncWebServerResponse* response;
-        if (request->methodToString() == "GET") {
+        if (!strcmp(request->methodToString(), "GET")) {
             WebClient* webClient = new WebClient();
             webClient->attachWS(silent);
             webClient->executeCommandBackground(line);
@@ -972,7 +973,7 @@ namespace WebUI {
             if (path[path.length() - 1] == '/') {
                 path = path.substr(0, path.length() - 1);
             }
-            if (path.length() & path[0] == '/') {
+            if (path.length() && path[0] == '/') {
                 path = path.substr(1);
             }
         }
