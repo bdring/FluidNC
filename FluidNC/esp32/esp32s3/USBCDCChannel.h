@@ -1,8 +1,10 @@
 #pragma once
 
-#include <USB.h>
-
 #include <sdkconfig.h>
+
+#ifdef CONFIG_ESP_CONSOLE_USB_CDC
+
+#include <USB.h>
 
 // We need this even when using TinyUSB in order to stop the HWCDC interface
 #include <HWCDC.h>
@@ -38,4 +40,7 @@ public:
     bool   lineComplete(char* line, char c) override;
     Error  pollLine(char* line) override;
 };
+
 extern USBCDCChannel CDCChannel;
+
+#endif

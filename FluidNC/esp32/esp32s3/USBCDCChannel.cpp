@@ -3,6 +3,8 @@
 
 #include "USBCDCChannel.h"
 
+#ifdef CONFIG_ESP_CONSOLE_USB_CDC
+
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
 #include "esp32-hal-tinyusb.h"      // usb_persist_restart
@@ -25,7 +27,12 @@ USBCDCChannel::USBCDCChannel(bool addCR) : Channel("usbcdc", addCR), _cdc(TUSBCD
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
 }
 
-static uint32_t state = 0;
+#include "esp_event.h"
+void cb(void* arg, esp_event_base_t base, int32_t id, void* data) {
+    //   ::printf("Callback %p %d %d %p\n", arg, base, id, data);
+}
+
+static int state = 0;
 
 static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     if (event_base == ARDUINO_USB_EVENTS) {
@@ -55,14 +62,12 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
             case ARDUINO_USB_CDC_DISCONNECTED_EVENT:
                 break;
             case ARDUINO_USB_CDC_LINE_STATE_EVENT: {
-                // Keep track of the sequence of line states and emulate the
-                // traditional ESP32 RTS/DTR reset behavior.
                 // 0=!r!d  1-!rd  2=r!d  3=rd
                 state <<= 4;
                 state |= ((!!data->line_state.rts) << 1) + (!!data->line_state.dtr);
                 state &= 0xfff;
 
-#if DEBUG_ME
+#if 0
                 ::putchar(((state >> 8) & 0xf) + '0');
                 ::putchar(((state >> 4) & 0xf) + '0');
                 ::putchar((state & 0xf) + '0');
@@ -72,22 +77,23 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
                 // A sequence of transitions from R1D1 to R0D0 to R1D0
                 if (state == 0x302) {
                     usb_persist_restart(RESTART_PERSIST);
+                    //                    ::putchar('P');
+
                 } else if ((state & 0xff) == 0x21) {
                     // A transition from R1D0 to R0D1 reboots to download mode
                     usb_persist_restart(RESTART_BOOTLOADER);
+                    //                    ::putchar('B');
                 }
             } break;
             case ARDUINO_USB_CDC_LINE_CODING_EVENT:
-#if DEBUG_ME
                 ::printf("CDC LINE CODING: bit_rate: %u, data_bits: %u, stop_bits: %u, parity: %u\n\n",
                          data->line_coding.bit_rate,
                          data->line_coding.data_bits,
                          data->line_coding.stop_bits,
                          data->line_coding.parity);
-#endif
                 break;
             case ARDUINO_USB_CDC_RX_EVENT:
-#if DEBUG_ME
+#if 0
                 ::printf("CDC RX [%u]:\n", data->rx.len);
                 {
                     uint8_t buf[data->rx.len];
@@ -120,7 +126,12 @@ void USBCDCChannel::init() {
 }
 
 size_t USBCDCChannel::write(uint8_t c) {
-    return _cdc.write(c);
+    int actual = _cdc.write(c);
+    if (actual != 1) {
+        //        ::printf("dropped one\n");
+    }
+
+    return actual;
 }
 
 size_t USBCDCChannel::write(const uint8_t* buffer, size_t length) {
@@ -145,14 +156,14 @@ size_t USBCDCChannel::write(const uint8_t* buffer, size_t length) {
             }
             size_t actual = _cdc.write(modbuf, k);
             if (actual != k) {
-                // ::printf("dropped %d\n", k - actual);
+                //                ::printf("dropped %d\n", k - actual);
             }
         }
         return length;
     }
     size_t actual = _cdc.write(buffer, length);
     if (actual != length) {
-        // ::printf("dropped %d\n", length - actual);
+        //        ::printf("dropped %d\n", length - actual);
     }
     return actual;
 }
@@ -202,32 +213,34 @@ void USBCDCChannel::flushRx() {
 extern Channel& Console;
 
 size_t USBCDCChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
-    size_t remlen = length;
-
     // It is likely that _queue will be empty because timedReadBytes() is only
     // used in situations where the UART is not receiving GCode commands
     // and Grbl realtime characters.
+    size_t remlen = length;
     while (remlen && _queue.size()) {
         *buffer++ = _queue.front();
         _queue.pop();
         --remlen;
     }
-
-    // The Arduino framework does not expose a timed read function
-    // for USBCDC so we have to do the timeout the hard way
-    while (remlen && timeout) {
-        int thislen = _cdc.read(buffer, remlen);
-        if (thislen < 0) {
-            // Error
-            return 0;
-        }
-        buffer += thislen;
-        remlen -= thislen;
-        if (remlen) {
-            delay_ms(1);
-            timeout -= 1;
-        }
+    if (remlen < length) {
+        return length - remlen;
     }
 
-    return length - remlen;
+    while (timeout) {
+        if (_cdc.available()) {
+            int res = int(_cdc.read(buffer, length));
+            // If res < 0, no bytes were read
+            return res < 0 ? 0 : res;
+        }
+
+        delay_ms(1);
+        --timeout;
+    }
+    return 0;
 }
+
+#else
+
+#include "../esp32/USBCDCChannel.h" // NullChannel
+
+#endif
