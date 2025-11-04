@@ -41,6 +41,8 @@ namespace Machine {
         void limitOtherAxis(axis_t axis);
         void init();
         void config_motor();
+        bool can_home();
+        bool supports_homing_dir(bool positive);
         ~Motor();
     };
 }

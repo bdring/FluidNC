@@ -49,6 +49,7 @@ namespace Machine {
 
         void init();
         void config_motors();
+        bool can_home();
 
         ~Axis();
     };

@@ -54,6 +54,10 @@ namespace MotorDrivers {
         // normal operation.  Returns true if the motor can home
         virtual bool set_homing_mode(bool isHoming) = 0;
 
+        // this is used to determine if the motor can home
+        // it is tested when hoing cycles are requested.
+        virtual bool can_self_home() = 0;
+
         // set_disable() disables or enables a motor.  It is used to
         // make a motor transition between idle and non-idle states.
         virtual void set_disable(bool disable);

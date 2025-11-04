@@ -106,7 +106,7 @@ PwmPin::PwmPin(pinnum_t gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio
     }
 
     uint32_t maxFrequency = uint32_t(CLOCK_FREQUENCY / float(1 << bits));
-    log_info("Max frequency of LEDC set at " << maxFrequency << "; duty resolution: " << bits << "; channel " << _channel);
+    log_info("    Max frequency of LEDC set at " << maxFrequency << "; duty resolution: " << bits << "; channel " << _channel);
 
     ledc_channel_config_t ledc_channel = { .gpio_num   = int(_gpio),
                                            .speed_mode = speedmode,

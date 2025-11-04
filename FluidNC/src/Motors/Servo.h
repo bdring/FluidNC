@@ -21,6 +21,8 @@ namespace MotorDrivers {
         virtual void update() = 0;  // This must be implemented by derived classes
         void         group(Configuration::HandlerBase& handler) override {}
 
+        bool can_self_home() override { return true; }
+
     protected:
         static void update_servo(TimerHandle_t timer);
         static void schedule_update(Servo* object, uint32_t interval);

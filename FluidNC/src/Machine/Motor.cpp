@@ -69,6 +69,25 @@ namespace Machine {
         return _driver->isReal();
     }
 
+    bool Motor::can_home() {
+        return (_driver->can_self_home() || hasSwitches());
+    }
+
+    // Use true to check positive and false to check negative homing directions
+    bool Motor::supports_homing_dir(bool positive) {
+        if (_driver->can_self_home()) {
+            return true;
+        }
+        if (positive) {
+            if (_posLimitPin.defined() || _allLimitPin.defined())
+                return true;
+        } else {
+            if (_negLimitPin.defined() || _allLimitPin.defined())
+                return true;
+        }
+        return false;
+    }
+
     Motor::~Motor() {
         delete _driver;
     }

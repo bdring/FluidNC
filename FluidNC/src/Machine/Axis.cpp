@@ -57,6 +57,13 @@ namespace Machine {
             _motors[0]->makeDualSwitches();
             _motors[1]->makeDualSwitches();
         }
+
+        // see if the configured switches support the homing direction.
+        if (motorsWithSwitches()) {  // do we have any switches?
+            if (!_motors[0]->supports_homing_dir(_homing->_positiveDirection)) {
+                log_warn("    defined switches do not support homing dir");
+            }
+        }
     }
 
     void Axis::config_motors() {
@@ -113,6 +120,17 @@ namespace Machine {
         } else {
             return 0.0f;
         }
+    }
+
+    bool Axis::can_home() {
+        for (motor_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
+            if (_motors[i]) {
+                if (_motors[i]->can_home()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     Axis::~Axis() {
