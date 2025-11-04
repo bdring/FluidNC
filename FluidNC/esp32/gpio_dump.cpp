@@ -320,7 +320,7 @@ static const char* out_sel_name(uint8_t function) {
 
 static void show_matrix(Print& out) {
     const gpio_matrix_t* p;
-    for (p = gpio_matrix; p->num != INVALID_PINNUM; ++p) {
+    for (p = gpio_matrix; p->num != INVALID_MATRIX_NUM; ++p) {
         uint32_t in_sel = gpio_in_sel(p->num);
         if (in_sel & 0x80) {
             out << p->num << " " << p->in << " " << (in_sel & 0x3f);
