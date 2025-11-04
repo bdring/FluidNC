@@ -194,31 +194,4 @@ void loop() {
 
 void WEAK_LINK machine_init() {}
 
-#    ifdef IDFBUILD
-
-// Task to run the main loop
-void loopTask(void* pvParameters) {
-    setup();
-    while (true) {
-        loop();
-    }
-}
-
-extern "C" {
-void app_main() {
-    // Create a dedicated task for the main loop.
-    // xTaskCreate(loopTask,    // Task function
-    //             "loopTask",  // Name for debugging
-    //             16384,       // Stack size (in words)
-    //             NULL,        // Task parameters
-    //             1,           // Priority (1 is a good default for the main loop)
-    //             NULL         // Task handle (optional)
-    // );
-
-    loopTask(NULL);
-}
-}
-
-#    endif
-
 #endif

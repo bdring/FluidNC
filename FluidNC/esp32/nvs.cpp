@@ -22,12 +22,18 @@ static nvs_handle_t handle() {
 NVS::NVS(const char* name) {
     _name = name;
 
+    /*
+    // Apparently Arduino framework initializes NVS in arduinoInit(). That implies
+    // we don't need to do nvs_flash_init. If we ever do because we remove Arduino, 
+    // uncomment this.
+    // 
     // Init NVS. Otherwise we'll just get error 0x1101
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();
         ret = nvs_flash_init();
     }
+    */
 }
 
 bool NVS::get_str(const char* name, char* value, size_t* len) {
