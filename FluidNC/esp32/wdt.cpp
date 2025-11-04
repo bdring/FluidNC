@@ -31,7 +31,6 @@ static void get_wdt_task_handle() {
 
 // cppcheck-suppress unusedFunction
 void enable_core0_WDT() {
-#ifndef IDFBUILD
     log_info("Enabling task WDT");
     if (!wdt_task_handle) {
         return;
@@ -40,14 +39,12 @@ void enable_core0_WDT() {
     if ((err = esp_task_wdt_add(wdt_task_handle)) != ESP_OK) {
         log_error("Failed to add Core 0 IDLE task to WDT " << err);
     }
-#endif
 }
 
 // cppcheck-suppress unusedFunction
 void disable_core0_WDT() {
-#ifndef IDFBUILD
-    log_info("Disabling task WDT");
     get_wdt_task_handle();
+    log_info("Disabling task WDT");
     if (!wdt_task_handle) {
         return;
     }
@@ -55,5 +52,4 @@ void disable_core0_WDT() {
     if ((err = esp_task_wdt_delete(wdt_task_handle)) != ESP_OK) {
         log_error("Failed to remove Core 0 IDLE task from WDT " << err);
     }
-#endif
 }

@@ -50,17 +50,13 @@ static void uart_driver_n_install(void* arg) {
 void uart_init(uint32_t uart_num) {
 
     uart_port_t port = (uart_port_t)uart_num;
-    
-    // For UART0, install directly on the current core (usually the main core)
-    // For other UARTs, use core 0 to avoid StepTimer conflicts
-    if (uart_num == 0) {
-        // Install UART0 on the current core so ISR can signal this task properly
-        uart_driver_n_install(&port);
-    } else {
-        // We init other UARTs on core 0 so the interrupt handler runs there,
-        // thus avoiding conflicts.
-        esp_ipc_call_blocking(0, uart_driver_n_install, &uart_num);
-        fnc_uart_set_data_callback(port, uart_data_callback);
+
+    // We init UARTs on core 0 so the interrupt handler runs there,
+    // thus avoiding conflict with the StepTimer interrupt
+    esp_ipc_call_blocking(0, uart_driver_n_install, &uart_num);
+
+    if (uart_num) {
+        fnc_uart_set_data_callback((uart_port_t)uart_num, uart_data_callback);
     }
 }
 

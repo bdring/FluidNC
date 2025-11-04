@@ -19,6 +19,7 @@
 #include "Machine/LimitPin.h"
 #include "Job.h"
 #include "Driver/restart.h"
+#include <esp_task_wdt.h>
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
@@ -122,8 +123,11 @@ char activeLine[Channel::maxLine];
 
 bool pollingPaused = false;
 void polling_loop(void* unused) {
+    // Add current task to the watchdog
+    esp_task_wdt_add(NULL);  // NULL means current task
+
     // Poll the input sources waiting for a complete line to arrive
-    for (; true; /*feedLoopWDT(), */ vTaskDelay(0)) {
+    for (; true; /*feedLoopWDT(), */ vTaskDelay(1)) {
         // Polling is paused when xmodem is using a channel for binary upload
         if (pollingPaused) {
             vTaskDelay(100);
@@ -136,6 +140,7 @@ void polling_loop(void* unused) {
         pollChannels();
         for (auto const& module : Modules()) {
             module->poll();
+            esp_task_wdt_reset();
         }
 
         // If activeChannel is non-null, it means that we have received a line
@@ -272,11 +277,14 @@ int32_t  heapLowWaterReportTime = 0;
 void protocol_main_loop() {
     start_polling();
 
+    // Add current task to the watchdog
+    esp_task_wdt_add(NULL);  // NULL means current task
+
     // ---------------------------------------------------------------------------------
     // Primary loop! Upon a system abort, this exits back to main() to reset the system.
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
-    for (;; vTaskDelay(0)) {
+    for (;; vTaskDelay(1)) {
         if (activeChannel) {
             // The input polling task has collected a line of input
             if (gcode_echo->get()) {
@@ -669,7 +677,7 @@ static void protocol_do_safety_door() {
             protocol_cancel_jogging();
             break;
 
-        default: // Held, Critical
+        default:  // Held, Critical
             break;
     }
     if (!sys.suspend().bit.jogCancel) {
@@ -1256,9 +1264,11 @@ void protocol_send_event(const Event* evt, void* arg) {
     xQueueSend(event_queue, &item, 0);
 }
 void protocol_handle_events() {
+    esp_task_wdt_reset();
     EventItem item;
     while (xQueueReceive(event_queue, &item, 0)) {
         item.event->run(item.arg);
+        esp_task_wdt_reset();
     }
 }
 void send_alarm(ExecAlarm alarm) {
