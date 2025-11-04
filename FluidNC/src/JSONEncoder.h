@@ -71,7 +71,7 @@ public:
 
     void verbatim(const std::string& s);
 
-    // The begin_webui() methods are specific to Esp3D_WebUI
+    // The begin_webui() methods are specific to WebUI
     // WebUI sends JSON objects to the UI to generate configuration
     // page entries. Each object describes a named setting with a
     // type, current value, and a description of the possible values.

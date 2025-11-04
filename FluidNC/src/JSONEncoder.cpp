@@ -237,7 +237,7 @@ void JSONencoder::member(const char* tag, int32_t value) {
     member(tag, std::to_string(value));
 }
 
-// Creates an Esp32_WebUI configuration item specification from
+// Creates a WebUI configuration item specification from
 // a value passed in as a C-style string.
 void JSONencoder::begin_webui(const std::string name, const char* type, const char* val) {
     begin_object();
@@ -253,13 +253,13 @@ void JSONencoder::begin_webui(const std::string name, const char* type, const ch
     member("V", val);
 }
 
-// Creates an Esp32_WebUI configuration item specification from
+// Creates an WebUI configuration item specification from
 // an integer value.
 void JSONencoder::begin_webui(const std::string name, const char* type, int32_t val) {
     begin_webui(name, type, std::to_string(val).c_str());
 }
 
-// Creates an Esp32_WebUI configuration item specification from
+// Creates an WebUI configuration item specification from
 // a C-style string value, with additional min and max arguments.
 void JSONencoder::begin_webui(const std::string name, const char* type, const char* val, int32_t min, int32_t max) {
     begin_webui(name, type, val);

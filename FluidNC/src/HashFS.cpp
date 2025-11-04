@@ -3,7 +3,7 @@
 
 #ifdef WITH_MBEDTLS
 #    include <mbedtls/md.h>
-#    include <esp_task_wdt.h>
+#    include "Driver/watchdog.h"
 #endif
 
 std::map<std::string, std::string> HashFS::localFsHashes;
@@ -28,7 +28,7 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
         mbedtls_md_starts(&ctx);
         while ((len = inFile.read(buf, 512)) > 0) {
             mbedtls_md_update(&ctx, buf, len);
-            esp_task_wdt_reset();
+            feed_watchdog();
         }
         mbedtls_md_finish(&ctx, shaResult);
         mbedtls_md_free(&ctx);

@@ -35,10 +35,6 @@
 #include <sstream>
 #include <iomanip>
 
-#ifdef DEBUG_REPORT_HEAP
-EspClass esp;
-#endif
-
 volatile bool protocol_pin_changed = false;
 
 std::string report_pin_string;

@@ -75,8 +75,5 @@ namespace Machine {
         log_verbose("I2C read: " << int(address));
         return i2c_read(_busNumber, address, data, count);
     }
-    const char* I2CBus::ErrorDescription(int code) {
-        return esp_err_to_name(code);
-    }
 }
 #endif

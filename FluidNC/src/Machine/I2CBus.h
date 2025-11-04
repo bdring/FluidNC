@@ -22,8 +22,6 @@ namespace Machine {
         void validate() override;
         void group(Configuration::HandlerBase& handler) override;
 
-        static const char* ErrorDescription(int code);
-
         int write(uint8_t address, const uint8_t* data, size_t count);
         int read(uint8_t address, uint8_t* data, size_t count);
 

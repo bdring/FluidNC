@@ -1,0 +1,1 @@
+void feed_watchdog();
