@@ -41,7 +41,7 @@ extern "C" {
 #define UART_FIFO_LEN           SOC_UART_FIFO_LEN       ///< Length of the UART HW FIFO
 #define UART_BITRATE_MAX        SOC_UART_BITRATE_MAX    ///< Maximum configurable bitrate
 
-typedef void (*uart_data_callback_t)(uart_port_t uart_num, uint8_t* rx_buf, uint32_t* len);
+typedef void (*uart_data_callback_t)(uart_port_t uart_num, uint8_t* rx_buf, int* len);
 
 /**
  * @brief Set data callback function
