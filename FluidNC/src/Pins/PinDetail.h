@@ -36,9 +36,9 @@ namespace Pins {
         virtual void          synchronousWrite(bool high);
         virtual void          setDuty(uint32_t duty) {};
         virtual uint32_t      maxDuty() { return 0; }
-        virtual bool          read()                                                = 0;
-        virtual void          setAttr(PinAttributes value, uint32_t frequencey = 0) = 0;
-        virtual PinAttributes getAttr() const                                       = 0;
+        virtual bool          read()                                               = 0;
+        virtual void          setAttr(PinAttributes value, uint32_t frequency = 0) = 0;
+        virtual PinAttributes getAttr() const                                      = 0;
 
         virtual int8_t driveStrength() { return -1; }
 
