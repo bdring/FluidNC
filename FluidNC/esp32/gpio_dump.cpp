@@ -35,10 +35,10 @@ static bool is_output(gpio_num_t gpio) {
 static uint8_t gpio_function(gpio_num_t gpio) {
     return REG_GET_FIELD(GPIO_PIN_MUX_REG[gpio], MCU_SEL);
 }
-static uint8_t gpio_out_sel(gpio_num_t gpio) {
+static uint32_t gpio_out_sel(gpio_num_t gpio) {
     return REG_READ(GPIO_FUNC0_OUT_SEL_CFG_REG + (gpio * 4));
 }
-static uint8_t gpio_in_sel(uint32_t function) {
+static uint32_t gpio_in_sel(uint32_t function) {
     return REG_READ(GPIO_FUNC0_IN_SEL_CFG_REG + (function * 4));
 }
 
