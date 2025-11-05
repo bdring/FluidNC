@@ -101,7 +101,7 @@ static bool (*timer_isr_callback)(void);
 
 static void IRAM timer_isr(void* arg) {
     // esp_intr_alloc_intrstatus() takes care of filtering based on the interrupt status register
-    timer_ll_clear_intr_status(&TIMERG0, TIMER_0);
+    timer_ll_clear_intr_status(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0));
 
     if (timer_isr_callback()) {
         // We could just pass the result of timer_isr_callback() as
@@ -118,6 +118,8 @@ static void IRAM timer_isr(void* arg) {
 static uint32_t old_ticks = 0xffffffff;
 
 void IRAM stepTimerStart() {
+    timer_ll_set_reload_value(&TIMERG0, TIMER_0, 0ULL);
+    timer_ll_trigger_soft_reload(&TIMERG0, TIMER_0);
     timer_ll_set_alarm_value(&TIMERG0, TIMER_0, 10ULL);  // Interrupt very soon to start the stepping
     old_ticks = 10ULL;
     timer_ll_enable_alarm(&TIMERG0, TIMER_0, true);
@@ -137,15 +139,15 @@ void IRAM stepTimerStop() {
 }
 
 void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
-    timer_ll_enable_intr(&TIMERG0, TIMER_0, false);
+    timer_ll_enable_intr(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0), false);
     timer_ll_enable_counter(&TIMERG0, TIMER_0, false);
     timer_ll_set_reload_value(&TIMERG0, TIMER_0, 0ULL);
     timer_ll_trigger_soft_reload(&TIMERG0, TIMER_0);
 
     timer_ll_set_clock_prescale(&TIMERG0, TIMER_0, fTimers / frequency);
     timer_ll_set_count_direction(&TIMERG0, TIMER_0, gptimer_count_direction_t::GPTIMER_COUNT_UP);
-    timer_ll_enable_intr(&TIMERG0, TIMER_0, false);
-    timer_ll_clear_intr_status(&TIMERG0, TIMER_0);
+    timer_ll_enable_intr(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0), false);
+    timer_ll_clear_intr_status(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0));
     timer_ll_enable_alarm(&TIMERG0, TIMER_0, false);
     timer_ll_enable_auto_reload(&TIMERG0, TIMER_0, true);
     timer_ll_enable_counter(&TIMERG0, TIMER_0, false);
@@ -162,7 +164,7 @@ void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
                               NULL,
                               NULL);
 
-    timer_ll_enable_intr(&TIMERG0, TIMER_0, true);
+    timer_ll_enable_intr(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0), true);
 }
 
 #    ifdef __cplusplus
