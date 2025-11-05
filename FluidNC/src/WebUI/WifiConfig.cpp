@@ -27,7 +27,10 @@
 
 // For modern compilers, we need some different function calls. Rather than
 // attempting to rewrite everything, let's just define the problem away:
-#ifdef IDFBUILD
+
+#include <esp_idf_version.h>
+
+#if ESP_IDF_VERSION_MAJOR >= 5
 #    include <esp_wifi.h>
 
 #    define tcpip_adapter_dhcp_status_t esp_netif_dhcp_status_t

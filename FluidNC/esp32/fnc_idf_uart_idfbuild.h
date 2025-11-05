@@ -1,4 +1,6 @@
-#ifdef IDFBUILD
+#include <esp_idf_version.h>
+
+#if ESP_IDF_VERSION_MAJOR >= 5
 
 /*
  * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD

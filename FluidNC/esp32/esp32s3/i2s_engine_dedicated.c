@@ -18,8 +18,9 @@
 #include <esp_attr.h>  // IRAM_ATTR
 #include "driver/dedic_gpio.h"
 #include "hal/cpu_ll.h"
+#include <esp_idf_version.h>
 
-#ifdef IDFBUILD
+#if ESP_IDF_VERSION_MAJOR >= 5
 // Hmm. We might as well just use asm volatile("ee.wr_mask_gpio_out %0, %1" : : "r"(value), "r"(mask):);
 // The API isn't as stable as I would like
 #    include "hal/dedic_gpio_cpu_ll.h"

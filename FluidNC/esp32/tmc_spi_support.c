@@ -8,6 +8,7 @@
 
 #include "hal/spi_ll.h"
 #include <soc/rtc.h>
+#include <esp_idf_version.h>
 
 #include <sdkconfig.h>
 #ifdef CONFIG_IDF_TARGET_ESP32S3
@@ -63,7 +64,7 @@ void tmc_spi_transfer_data(const uint8_t* out, int out_bitlen, uint8_t* in, int 
     }
 
     spi_ll_clear_int_stat(hw);
-#ifndef IDFBUILD
+#    if ESP_IDF_VERSION_MAJOR < 5
     spi_ll_master_user_start(hw);
 #else
     spi_ll_user_start(hw);
