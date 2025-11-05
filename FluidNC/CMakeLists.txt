@@ -24,4 +24,10 @@ idf_build_set_property(C_COMPILE_OPTIONS "-DIDFBUILD=1" APPEND)
 
 project(FluidNC)
 
+# Add custom include directory to Arduino component with highest priority
+idf_component_get_property(arduino_lib espressif__arduino-esp32 COMPONENT_LIB)
+target_include_directories(${arduino_lib} BEFORE PRIVATE 
+    "${CMAKE_SOURCE_DIR}/include/ArduinoIDFHack"
+)
+
 littlefs_create_partition_image(spiffs data FLASH_IN_PROJECT)
