@@ -1,12 +1,13 @@
 #include <sdkconfig.h>
+#include <esp_idf_version.h>
 
-#ifdef CONFIG_ESP_CONSOLE_USB_CDC
-
+#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
+#    include "USBCDCChannel_IDF.h"
+#else
 #    include "USBCDCChannel.h"
+#endif
 
 USBCDCChannel CDCChannel(true);
-
-#endif
 
 #include "UartChannel.h"
 
@@ -21,7 +22,7 @@ public:
         uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
         UartChannel::init(uart0);
 
-#ifdef CONFIG_ESP_CONSOLE_USB_CDC
+#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
         auto cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
         if (cdc_enable->get()) {
             CDCChannel.init();

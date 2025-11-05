@@ -1,8 +1,9 @@
 #pragma once
 
 #include <sdkconfig.h>
+#include <esp_idf_version.h>
 
-#ifdef CONFIG_ESP_CONSOLE_USB_CDC
+#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR < 5
 
 #include <USB.h>
 

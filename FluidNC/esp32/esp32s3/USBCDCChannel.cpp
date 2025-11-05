@@ -3,7 +3,7 @@
 
 #include "USBCDCChannel.h"
 
-#ifdef CONFIG_ESP_CONSOLE_USB_CDC
+#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR < 5
 
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
@@ -213,30 +213,34 @@ void USBCDCChannel::flushRx() {
 extern Channel& Console;
 
 size_t USBCDCChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
+    size_t remlen = length;
+
     // It is likely that _queue will be empty because timedReadBytes() is only
     // used in situations where the UART is not receiving GCode commands
     // and Grbl realtime characters.
-    size_t remlen = length;
     while (remlen && _queue.size()) {
         *buffer++ = _queue.front();
         _queue.pop();
         --remlen;
     }
-    if (remlen < length) {
-        return length - remlen;
-    }
 
-    while (timeout) {
-        if (_cdc.available()) {
-            int res = int(_cdc.read(buffer, length));
-            // If res < 0, no bytes were read
-            return res < 0 ? 0 : res;
+    // The Arduino framework does not expose a timed read function
+    // for USBCDC so we have to do the timeout the hard way
+    while (remlen && timeout) {
+        int thislen = _cdc.read(buffer, remlen);
+        if (thislen < 0) {
+            // Error
+            return 0;
         }
-
-        delay_ms(1);
-        --timeout;
+        buffer += thislen;
+        remlen -= thislen;
+        if (remlen) {
+            delay_ms(1);
+            timeout -= 1;
+        }
     }
-    return 0;
+
+    return length - remlen;
 }
 
 #else
