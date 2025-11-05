@@ -87,13 +87,6 @@ void USBCDCChannel::handle_line_state(bool dtr, bool rts) {
     _state |= ((!!rts) << 1) + (!!dtr);
     _state &= 0xfff;
 
-    #if 0
-    ::putchar(((_state >> 8) & 0xf) + '0');
-    ::putchar(((_state >> 4) & 0xf) + '0');
-    ::putchar((_state & 0xf) + '0');
-    ::putchar('\n');
-    #endif
-
     // A sequence of transitions from R1D1 to R0D0 to R1D0 triggers a persist restart
     if (_state == 0x302) {
         // Persistent restart - maintains USB connection
