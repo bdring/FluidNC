@@ -8,11 +8,12 @@
 5. [Core Components](#core-components)
 6. [Build System](#build-system)
 7. [Configuration System](#configuration-system)
-8. [Development Guidelines](#development-guidelines)
-9. [Installation and Usage](#installation-and-usage)
-10. [Contributing](#contributing)
-11. [Key Files and Directories](#key-files-and-directories)
-12. [Resources](#resources)
+8. [Operational States and Control](#operational-states-and-control)
+9. [Development Guidelines](#development-guidelines)
+10. [Installation and Usage](#installation-and-usage)
+11. [Contributing](#contributing)
+12. [Key Files and Directories](#key-files-and-directories)
+13. [Resources](#resources)
 
 ---
 
@@ -341,6 +342,542 @@ spindle_type:
 Example configs are maintained in a separate repository:
 - Repository: https://github.com/bdring/fluidnc-config-files
 - Covers various machine types and configurations
+
+---
+
+## Operational States and Control
+
+FluidNC implements a sophisticated state machine and control system for safe CNC operation. This section describes how the firmware handles operational states, pause/resume, emergency stops, and pin-based control.
+
+### Machine States
+
+**File**: `FluidNC/src/State.h`
+
+FluidNC operates in distinct states that determine what operations are allowed:
+
+| State | Description | Allowed Operations |
+|-------|-------------|-------------------|
+| `Idle` | Machine ready, no motion | Accept G-code, homing, jogging, settings |
+| `Alarm` | Error condition, motion locked | Only unlock ($X), settings, and status queries |
+| `Cycle` | Running G-code program | Pause, stop, override commands |
+| `Hold` | Decelerating to pause | Wait for complete stop |
+| `Held` | Paused, motion stopped | Resume (~), cancel, jog |
+| `Jog` | Jogging mode active | Cancel jog, feed hold |
+| `Homing` | Homing cycle running | Reset only |
+| `SafetyDoor` | Safety door opened, parking | Close door to resume |
+| `Sleep` | Low power mode | Cycle start to wake |
+| `CheckMode` | G-code validation only | No motion, test programs |
+| `ConfigAlarm` | Configuration error | Fix config, can't operate |
+| `Critical` | Critical error | Only reset (Ctrl-X) |
+
+**State Transitions:**
+```
+Idle → Cycle (start job)
+Cycle → Hold (feed hold !)
+Hold → Held (motion stopped)
+Held → Cycle (cycle start ~)
+Any → Alarm (limit hit, error)
+Alarm → Idle (unlock $X)
+```
+
+### Realtime Commands
+
+**File**: `FluidNC/src/RealtimeCmd.h`
+
+Realtime commands are processed immediately, even during G-code execution:
+
+| Command | Character | Function | Description |
+|---------|-----------|----------|-------------|
+| **Feed Hold** | `!` | Pause | Decelerates and pauses motion |
+| **Cycle Start** | `~` | Resume | Resumes paused motion |
+| **Reset** | `Ctrl-X` (0x18) | Emergency Stop | Hard reset, stops all motion |
+| **Status Report** | `?` | Query Status | Returns current state |
+| **Safety Door** | 0x84 | Door Opened | Triggers parking sequence |
+| **Jog Cancel** | 0x85 | Cancel Jog | Stops jogging motion |
+
+**Override Commands:**
+- Feed Rate: 0x90-0x94 (reset, coarse +/-, fine +/-)
+- Rapid Rate: 0x95-0x98 (100%, 50%, 25%)
+- Spindle Speed: 0x99-0x9E (reset, coarse +/-, fine +/-, stop)
+- Coolant: 0xA0-0xA1 (flood toggle, mist toggle)
+
+### Control Input Pins
+
+**File**: `FluidNC/src/Control.cpp`
+
+Physical pins can trigger control functions. Configure in YAML under `control:` section.
+
+**Available Control Pins:**
+
+| Pin Name | Letter | Function | Behavior |
+|----------|--------|----------|----------|
+| `safety_door_pin` | D | Safety Door | Opens door, triggers parking |
+| `reset_pin` | R | Hardware Reset | Same as Ctrl-X |
+| `feed_hold_pin` | H | Pause | Hardware feed hold |
+| `cycle_start_pin` | S | Resume | Hardware cycle start |
+| `estop_pin` | E | Emergency Stop | Triggers fault alarm |
+| `fault_pin` | F | External Fault | Triggers fault alarm |
+| `macro0_pin` - `macro3_pin` | 0-3 | User Macros | Run configured macro |
+| `homing_button_pin` | O | Start Homing | Initiates homing cycle |
+
+**Configuration Example:**
+```yaml
+control:
+  safety_door_pin: gpio.35:low:pu
+  feed_hold_pin: gpio.36:low:pu
+  cycle_start_pin: gpio.37:low:pu
+  reset_pin: gpio.34:low:pu
+  estop_pin: gpio.39:low:pu
+```
+
+**Pin Attributes:**
+- `:low` - Active low (triggered when grounded)
+- `:high` - Active high (triggered when high)
+- `:pu` - Enable internal pull-up resistor
+- `:pd` - Enable internal pull-down resistor
+
+**Important Notes:**
+- E-Stop and Fault pins block homing and unlock until released
+- All control pins are checked at startup; active pins prevent startup
+- Safety door pin triggers parking sequence (if enabled)
+
+### Status Output Pins
+
+**File**: `FluidNC/src/Status_outputs.cpp`
+
+FluidNC can drive output pins based on machine state for tower lights, indicators, etc.
+
+**Available Status Outputs:**
+
+| Pin Name | Active When | Use Case |
+|----------|-------------|----------|
+| `idle_pin` | State = Idle | Green light: Ready |
+| `run_pin` | State = Run/Cycle | Amber light: Running |
+| `hold_pin` | State = Hold/Held | Amber flashing: Paused |
+| `alarm_pin` | State = Alarm | Red light: Error |
+| `door_pin` | State = SafetyDoor | Red flashing: Door open |
+
+**Configuration Example:**
+```yaml
+status_outputs:
+  report_interval_ms: 500
+  idle_pin: gpio.25
+  run_pin: gpio.26
+  hold_pin: gpio.27
+  alarm_pin: gpio.32
+  door_pin: gpio.33
+```
+
+**How It Works:**
+- Status outputs module subscribes to status reports
+- Parses machine state from status strings
+- Updates output pins accordingly
+- Configurable update interval (100-5000 ms)
+
+### Pause and Resume Operations
+
+#### Feed Hold (Pause)
+
+**Trigger Methods:**
+1. Serial command: `!` character
+2. Control pin: `feed_hold_pin`
+3. Web UI: Pause button
+
+**Behavior:**
+```
+State: Cycle → Hold → Held
+1. Receive feed hold command
+2. Decelerate motion (State: Hold)
+3. Motion stops (State: Held)
+4. Spindle continues running (unless overridden)
+5. Position maintained
+```
+
+**During Hold State:**
+- Can issue status queries (`?`)
+- Can adjust overrides (feed, rapid, spindle)
+- Can jog (if in Held state)
+- Can cancel job
+- Cannot add to G-code queue
+
+#### Cycle Start (Resume)
+
+**Trigger Methods:**
+1. Serial command: `~` character
+2. Control pin: `cycle_start_pin`
+3. Web UI: Resume button
+
+**Behavior:**
+```
+State: Held → Cycle
+1. Receive cycle start command
+2. Spindle spins up (if needed)
+3. Motion resumes from paused point
+4. Returns to normal operation
+```
+
+### Emergency Stop (E-Stop)
+
+FluidNC supports multiple levels of stopping:
+
+#### Soft E-Stop (Feed Hold)
+- **Command**: `!` or feed_hold_pin
+- **Behavior**: Controlled deceleration, maintains position
+- **Recovery**: Resume with `~`
+- **Use**: Normal pause during operation
+
+#### Hard E-Stop (Fault/E-Stop Pin)
+- **Command**: `estop_pin` activated
+- **Behavior**:
+  - Triggers immediate alarm (ExecAlarm::ControlPin)
+  - Stops motion
+  - Spindle stops
+  - Enters Alarm state
+  - Position may be lost if deceleration incomplete
+- **Recovery**:
+  1. Clear physical e-stop
+  2. Issue `$X` to unlock
+  3. Re-home if position lost
+
+#### Reset (Critical Stop)
+- **Command**: `Ctrl-X` or reset_pin
+- **Behavior**:
+  - Immediate reset of firmware
+  - All motion stops instantly
+  - State reset to Idle (with Alarm if needed)
+  - Position lost
+  - All settings retained
+- **Recovery**:
+  1. Check why reset was needed
+  2. Home machine
+  3. Resume operations
+
+### Alarm States and Recovery
+
+**File**: `FluidNC/src/Protocol.h` - ExecAlarm enum
+
+**Alarm Types:**
+
+| Alarm Code | Name | Cause | Recovery |
+|------------|------|-------|----------|
+| 1 | HardLimit | Limit switch triggered | Clear obstruction, `$X`, home |
+| 2 | SoftLimit | Motion beyond soft limits | `$X`, check program |
+| 3 | AbortCycle | User aborted | `$X` |
+| 4-5 | Probe Fail | Probe operation failed | Fix probe, `$X` |
+| 6-9 | Homing Fail | Homing cycle failed | Check switches, `$X`, retry |
+| 10 | SpindleControl | Spindle control error | Check spindle, `$X` |
+| 11 | ControlPin | E-stop/fault active at startup | Clear pin, `$X` |
+| 13 | HardStop | External stop command | `$X` |
+| 14 | Unhomed | Move attempted while unhomed | Home machine |
+
+**Unlocking from Alarm:**
+
+```bash
+$X                    # Unlock command
+```
+
+**What $X Does:**
+1. Checks if E-Stop/Fault pins are clear
+2. Sets all axes to "homed" state (position may be incorrect!)
+3. Transitions from Alarm → Idle
+4. Runs `after_unlock` macro (if configured)
+5. Releases motor locks
+
+**Important:** After `$X`, re-home the machine to establish accurate position!
+
+### Safety Door and Parking
+
+**Files**: `FluidNC/src/Parking.h`, `FluidNC/src/Protocol.cpp`
+
+When safety door opens, FluidNC can automatically park the tool.
+
+**Configuration:**
+```yaml
+parking:
+  enable: true
+  axis: Z                          # Usually Z axis
+  target_mpos_mm: -5.0            # Park position
+  pullout_distance_mm: 5.0        # Retract before lateral move
+  rate_mm_per_min: 800.0          # Park speed
+  pullout_rate_mm_per_min: 250.0  # Retract speed
+```
+
+**Parking Sequence:**
+
+1. Safety door opens → Safety door pin triggers
+2. **State: Cycle → SafetyDoor**
+3. Motion decelerates and stops
+4. Spindle stops
+5. **Parking Motion:**
+   - Retract on parking axis (pullout_distance)
+   - Move to park position (target_mpos)
+6. De-energize motors (optional)
+7. Wait for door to close
+
+**Resume Sequence:**
+
+1. Door closes
+2. User presses Cycle Start (`~`)
+3. **Unparking Motion:**
+   - Move to position before retract
+   - Move to original position
+4. **State: SafetyDoor → Cycle**
+5. Spindle restarts
+6. Motion resumes
+
+**Safety Features:**
+- Door opening during parking cancels and re-parks
+- Motion cannot resume while door is open
+- Spindle and coolant states are preserved and restored
+
+### Soft Limits vs Hard Limits
+
+#### Hard Limits (Physical)
+
+**Configuration:**
+```yaml
+axes:
+  x:
+    motor0:
+      limit_neg_pin: gpio.35:low:pu
+      limit_pos_pin: gpio.36:low:pu
+```
+
+**Behavior:**
+- Physical switch triggers immediately
+- Triggers ExecAlarm::HardLimit
+- Motion stops (may not be instantaneous)
+- Position may be lost
+- Requires `$X` and re-homing
+
+**Use:** Protect against mechanical over-travel
+
+#### Soft Limits (Software)
+
+**Configuration:**
+```yaml
+axes:
+  x:
+    max_travel_mm: 300
+    homing:
+      mpos_mm: 0
+```
+
+**Behavior:**
+- Checked during motion planning
+- Prevents moves beyond defined workspace
+- Triggers ExecAlarm::SoftLimit before motion starts
+- Position maintained
+- Requires `$X` to clear
+
+**Use:** Prevent programs from exceeding workspace
+
+**Enabling Soft Limits:**
+```bash
+$Limits/Soft=On       # Enable soft limit checking
+```
+
+**Requirements:**
+- Machine must be homed
+- `max_travel_mm` defined for each axis
+- Homing positions (`mpos_mm`) configured
+
+### Event-Triggered Macros
+
+**File**: `FluidNC/src/Machine/Macros.h`
+
+Macros are G-code sequences that run automatically on events.
+
+**Available Macro Triggers:**
+
+| Macro | Trigger | Use Case |
+|-------|---------|----------|
+| `startup_line0` | Power on/reset | Initialize machine state |
+| `startup_line1` | Power on/reset | Second initialization line |
+| `after_reset` | After reset | Post-reset setup |
+| `after_homing` | Homing complete | Move to safe position |
+| `after_unlock` | After $X unlock | Run verification routine |
+| `macro0` - `macro3` | Pin/button/command | User-defined operations |
+
+**Configuration Example:**
+```yaml
+macros:
+  startup_line0: G21 G90  # Metric, absolute mode
+  startup_line1: M5       # Spindle off
+  after_homing: G0 X10 Y10 Z5  # Move to safe position
+  after_unlock: G28       # Return to park position
+  macro0: G28 & G0X0Y0    # Park and zero
+  macro1: M3 S1000        # Start spindle
+```
+
+**Macro Syntax:**
+- Standard G-code commands
+- Multiple commands separated by `&`
+- Cannot contain comments
+- Executed as if typed manually
+
+**Triggering Macros:**
+- Pin: Configure `macro0_pin` to `macro3_pin`
+- Serial: Send 0x87-0x8A characters
+- After events: Automatic
+
+### User Inputs and Outputs
+
+**Files**: `FluidNC/src/Machine/UserInputs.h`, `FluidNC/src/Machine/UserOutputs.h`
+
+FluidNC supports user-controllable I/O for custom automation.
+
+#### User Digital Outputs
+
+**Configuration:**
+```yaml
+user_outputs:
+  digital_output_0: gpio.16
+  digital_output_1: gpio.17
+  digital_output_2: gpio.18
+  digital_output_3: gpio.19
+```
+
+**G-code Control:**
+```gcode
+M62 P0          # Turn on digital output 0
+M63 P0          # Turn off digital output 0
+M64 P1          # Turn on output 1 immediately
+M65 P1          # Turn off output 1 immediately
+```
+
+**Uses:**
+- Dust collection control
+- Vacuum hold-down
+- Part ejectors
+- Indicator lights
+- Relay control
+
+#### User Analog Outputs
+
+**Configuration:**
+```yaml
+user_outputs:
+  analog_output_0_pin: gpio.25
+  analog_output_0_hz: 5000
+  analog_output_1_pin: gpio.26
+  analog_output_1_hz: 1000
+```
+
+**G-code Control:**
+```gcode
+M67 E0 Q50.0    # Set analog output 0 to 50%
+M67 E1 Q75.5    # Set analog output 1 to 75.5%
+```
+
+**Uses:**
+- Variable speed fans
+- PWM controlled devices
+- Analog control signals
+
+#### User Digital Inputs
+
+**Configuration:**
+```yaml
+user_inputs:
+  digital_input_0_pin: gpio.34
+  digital_input_0_name: "probe_trigger"
+  digital_input_1_pin: gpio.35
+```
+
+**G-code Reading:**
+```gcode
+M66 P0 L0       # Read digital input 0 immediately
+M66 P1 L3 Q5.0  # Wait up to 5 sec for input 1 high
+```
+
+**Uses:**
+- External triggers
+- Tool presence detection
+- Material sensors
+- Safety interlocks
+
+#### User Analog Inputs
+
+**Configuration:**
+```yaml
+user_inputs:
+  analog_input_0_pin: gpio.36
+  analog_input_0_name: "temperature"
+```
+
+**G-code Reading:**
+```gcode
+M66 E0 L0       # Read analog input 0
+```
+
+**Note:** ESP32 GPIO analog inputs read 0-3.3V as 0-100%
+
+### Practical Examples
+
+#### Example 1: Emergency Stop Setup
+
+```yaml
+control:
+  estop_pin: gpio.39:low:pu
+
+status_outputs:
+  alarm_pin: gpio.32
+
+macros:
+  after_unlock: G28 & G0Z5  # Safe Z height after unlock
+```
+
+**Operation:**
+1. E-stop pressed → alarm_pin turns on (red light)
+2. Machine enters Alarm state
+3. User fixes issue, releases e-stop
+4. Send `$X` to unlock
+5. Macro runs: returns to park, lifts Z
+6. Home machine: `$H`
+
+#### Example 2: Pause/Resume with Door
+
+```yaml
+control:
+  safety_door_pin: gpio.35:low:pu
+
+parking:
+  enable: true
+  axis: Z
+  target_mpos_mm: -5.0
+  pullout_distance_mm: 3.0
+
+status_outputs:
+  door_pin: gpio.33
+  hold_pin: gpio.27
+```
+
+**Operation:**
+1. Job running, door opens
+2. door_pin activates (red light)
+3. Motion pauses, Z retracts 3mm, moves to Z=-5
+4. User loads material, closes door
+5. Press cycle start or `~`
+6. Z returns to work position
+7. Job resumes
+
+#### Example 3: Dust Collection Control
+
+```yaml
+user_outputs:
+  digital_output_0: gpio.16  # Dust collector relay
+
+macros:
+  macro0: M62P0 & M3S10000           # Start DC + Spindle
+  macro1: M5 & G4P2 & M63P0          # Stop spindle, wait, stop DC
+  after_reset: M63P0                 # Ensure DC off on reset
+```
+
+**Operation:**
+- Press macro0 button → Dust collector + spindle on
+- Press macro1 button → Spindle off, wait 2 sec, dust collector off
+- On reset → Dust collector guaranteed off
 
 ---
 
