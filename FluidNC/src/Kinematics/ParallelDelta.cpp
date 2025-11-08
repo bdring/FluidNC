@@ -218,6 +218,8 @@ namespace Kinematics {
                 return false;
             }
 
+            logArray("motors ", motors, 3);
+
             // save motor position for next distance calc
             // This is after mc_move_motors() so that we do not update
             // last_angle if the segment was discarded.
@@ -317,7 +319,8 @@ namespace Kinematics {
             log_error("Homing is not defined for X axis");
             return;
         }
-        settle_ms = homing->_settle_ms;
+        settle_ms    = homing->_settle_ms;
+        auto pulloff = axisConfig->_motors[0]->_pulloff;
 
         switch (phase) {
             case Machine::Homing::Phase::PrePulloff:
@@ -327,7 +330,7 @@ namespace Kinematics {
                     setArray(_last_motor_pos, 0, 3);
                     set_motor_pos(_last_motor_pos, 3);
                 }
-                setArray(target, axisConfig->_motors[0]->_pulloff, 3);
+                setArray(target, pulloff, 3);
                 rate = homing->_feedRate;
                 break;
 
@@ -355,15 +358,15 @@ namespace Kinematics {
                 break;
 
             case Machine::Homing::Phase::SlowApproach:
-                // The starting position is _up_degrees + pulloff
-                setArray(target, _up_degrees * homing->_feed_scaler, 3);
+                // The starting position is _up_degrees
+                setArray(target, (_up_degrees - pulloff) * homing->_feed_scaler, 3);
                 rate = homing->_feedRate;
                 break;
 
             case Machine::Homing::Phase::Pulloff0:
             case Machine::Homing::Phase::Pulloff1:
-                // The starting position is _up_degrees
-                setArray(target, _up_degrees + axisConfig->_motors[0]->_pulloff, 3);
+                // The starting position is _up_degrees - pulloff
+                setArray(target, _up_degrees, 3);
                 rate = homing->_feedRate;
                 break;
 
@@ -459,7 +462,7 @@ namespace Kinematics {
 
         theta = radians_to_pos(atan2f(-zj, y1 - yj));  // Result is in -180..180 in steps
 
-        return theta >= _up_degrees;
+        return theta > (_up_degrees - 1);  // A little extra for roundoff errors
     }
 
     bool ParallelDelta::transform_cartesian_to_motors(float* motors, float* cartesian) {
@@ -528,9 +531,13 @@ namespace Kinematics {
     }
 
     bool ParallelDelta::limitReached(AxisMask& axisMask, MotorMask& motorMask, MotorMask limited) {
+        auto axes       = config->_axes;
+        auto axisConfig = axes->_axis[X_AXIS];
+        auto pulloff    = axisConfig->_motors[0]->_pulloff;
+
         for (size_t motor = 0; motor < 3; motor++) {
             if (bitnum_is_true(limited, motor)) {
-                set_motor_pos(motor, degrees_to_pos(_up_degrees));
+                set_motor_pos(motor, degrees_to_pos(_up_degrees - pulloff));
             }
         }
 
