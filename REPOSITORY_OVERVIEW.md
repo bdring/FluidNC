@@ -9,11 +9,12 @@
 6. [Build System](#build-system)
 7. [Configuration System](#configuration-system)
 8. [Operational States and Control](#operational-states-and-control)
-9. [Development Guidelines](#development-guidelines)
-10. [Installation and Usage](#installation-and-usage)
-11. [Contributing](#contributing)
-12. [Key Files and Directories](#key-files-and-directories)
-13. [Resources](#resources)
+9. [Serial Communication and RS-485](#serial-communication-and-rs-485)
+10. [Development Guidelines](#development-guidelines)
+11. [Installation and Usage](#installation-and-usage)
+12. [Contributing](#contributing)
+13. [Key Files and Directories](#key-files-and-directories)
+14. [Resources](#resources)
 
 ---
 
@@ -878,6 +879,570 @@ macros:
 - Press macro0 button → Dust collector + spindle on
 - Press macro1 button → Spindle off, wait 2 sec, dust collector off
 - On reset → Dust collector guaranteed off
+
+---
+
+## Serial Communication and RS-485
+
+FluidNC implements comprehensive serial communication capabilities including RS-485 half-duplex, Modbus RTU, and UART-based peripherals. The ESP32 supports up to 3 hardware UARTs for various uses.
+
+### UART Configuration
+
+**Files**: `FluidNC/src/Uart.h`, `FluidNC/src/Uart.cpp`
+
+FluidNC supports multiple UART channels with flexible configuration for different peripherals.
+
+#### UART Hardware
+
+ESP32 has **3 hardware UART peripherals:**
+
+| UART | Default Use | Can Be Reconfigured |
+|------|-------------|---------------------|
+| UART0 | USB Serial (console) | No (fixed for USB) |
+| UART1 | General purpose | Yes (VFD, TMC, etc.) |
+| UART2 | General purpose | Yes (VFD, TMC, etc.) |
+
+**Note**: ESP32-S3 may have additional UARTs
+
+#### UART Configuration Parameters
+
+**Basic Configuration:**
+```yaml
+uart1:
+  txd_pin: gpio.16        # TX pin
+  rxd_pin: gpio.4         # RX pin
+  rts_pin: gpio.17        # RTS pin (optional, for RS-485 DE)
+  cts_pin: NO_PIN         # CTS pin (optional, flow control)
+  baud: 115200            # Baud rate (2400-10000000)
+  mode: 8N1               # Data bits, Parity, Stop bits
+```
+
+**Mode String Format**: `<data><parity><stop>`
+- **Data bits**: 5, 6, 7, 8
+- **Parity**: N (none), E (even), O (odd)
+- **Stop bits**: 1, 1.5, 2
+
+**Examples:**
+- `8N1` - 8 data bits, no parity, 1 stop bit (most common)
+- `8E1` - 8 data bits, even parity, 1 stop bit (Modbus standard)
+- `7O2` - 7 data bits, odd parity, 2 stop bits
+
+### RS-485 Support
+
+**Files**: `FluidNC/src/Uart.cpp` (setHalfDuplex method)
+
+FluidNC supports RS-485 communication using half-duplex mode with automatic transmit/receive switching.
+
+#### What is RS-485?
+
+- **Differential signaling**: Uses two wires (A/B or +/-) for noise immunity
+- **Long distance**: Up to 1200 meters (4000 feet)
+- **Multi-drop**: Up to 32 devices on one bus
+- **Half-duplex**: One device transmits at a time
+- **Common uses**: Industrial control, VFDs, PLCs, sensors
+
+#### Hardware Requirements
+
+**RS-485 Transceiver IC Examples:**
+- MAX485 (5V)
+- MAX3485 (3.3V compatible)
+- SN65HVD75 (3.3V)
+- ADM2587E (isolated)
+
+**Typical Wiring:**
+```
+ESP32              RS-485 IC          RS-485 Bus
+
+TXD (gpio.16) ──── DI
+RXD (gpio.4)  ──── RO
+RTS (gpio.17) ──── DE/RE
+3.3V ───────────── VCC
+GND ────────────── GND ───────────── GND
+                   A ──────────────── RS485-A/+
+                   B ──────────────── RS485-B/-
+```
+
+**Important:**
+- ESP32 is 3.3V - use 3.3V RS-485 transceiver or level shifter
+- DE (Driver Enable) and RE (Receiver Enable) usually tied together
+- RTS pin controls DE/RE for automatic TX/RX switching
+- Add 120Ω termination resistor at bus ends (between A and B)
+
+#### Half-Duplex Mode
+
+FluidNC automatically configures UART for RS-485 half-duplex when used with VFD spindles and Dynamixel servos.
+
+**How it works:**
+1. ESP32 UART RTS pin controls transceiver DE/RE
+2. Before transmitting: RTS goes high (enable driver)
+3. During reception: RTS goes low (enable receiver)
+4. Switching is automatic in hardware
+
+**Configuration:**
+```yaml
+uart1:
+  txd_pin: gpio.16
+  rxd_pin: gpio.4
+  rts_pin: gpio.17       # Required for half-duplex
+  baud: 9600
+  mode: 8N1
+```
+
+### Modbus RTU Protocol
+
+**Files**: `FluidNC/src/Spindles/VFD/VFDProtocol.h`, `VFDProtocol.cpp`
+
+FluidNC implements Modbus RTU for VFD spindle control over RS-485.
+
+#### Modbus RTU Basics
+
+**Protocol Structure:**
+```
+[Device ID] [Function Code] [Data] [CRC16]
+    1 byte      1 byte       N bytes  2 bytes
+```
+
+**Common Function Codes:**
+- `0x03` - Read Holding Registers
+- `0x06` - Write Single Register
+- `0x10` - Write Multiple Registers
+
+**CRC-16 Calculation:**
+- Polynomial: 0xA001 (reversed)
+- Initial value: 0xFFFF
+- Low byte sent first (little endian)
+
+**Example Modbus Command:**
+```
+Query VFD status (device ID=1):
+Send: 01 03 3000 0001 8B0A
+      │  │  │    │    └─ CRC16 (0x0A8B)
+      │  │  │    └────── Read 1 register
+      │  │  └─────────── Register 0x3000
+      │  └────────────── Function: Read
+      └───────────────── Device ID: 1
+
+Response: 01 03 02 0001 79CA
+          │  │  │  │    └─ CRC16
+          │  │  │  └────── Status: Running
+          │  │  └───────── 2 bytes data
+          │  └──────────── Function: Read
+          └─────────────── Device ID: 1
+```
+
+### VFD Spindle Control
+
+**Files**: `FluidNC/src/Spindles/VFDSpindle.h`, `VFDSpindle.cpp`
+
+FluidNC supports Variable Frequency Drive (VFD) spindle control via Modbus RTU over RS-485.
+
+#### Supported VFD Protocols
+
+FluidNC includes pre-configured protocols for popular VFDs:
+
+| Protocol | VFD Models | Baud Rate | Modbus Mode |
+|----------|-----------|-----------|-------------|
+| **Huanyang** | HY series (HY01D523B, etc.) | 9600-38400 | Standard/Non-standard |
+| **H2A** | H2A, H2B, H2C series | 19200 | Non-standard |
+| **H100** | H100 series | 9600 | Standard |
+| **YL620** | YL620-A series | 9600 | Standard |
+| **Siemens V20** | Siemens V20 series | 9600 | Standard |
+| **Danfoss VLT2800** | Danfoss VLT 2800 series | 9600 | Standard |
+| **NowForever** | NowForever series | 9600 | Standard |
+| **Generic** | Custom/unlisted VFDs | Configurable | Configurable |
+
+**Documentation**: See `FluidNC/src/Spindles/VFD/*.md` for protocol-specific details
+
+#### VFD Configuration Example
+
+**Huanyang VFD:**
+```yaml
+huanyang:
+  uart_num: 1              # Use UART1
+  modbus_id: 1             # VFD Modbus address (1-247)
+  tool_num: 0              # Spindle tool number
+  speed_map: 0=0% 24000=100%
+
+  # Spindle parameters
+  spinup_ms: 1000          # Spindle spin-up delay
+  spindown_ms: 2000        # Spindle spin-down delay
+
+  # Communication parameters
+  baud: 9600               # Match VFD setting
+  poll_ms: 250             # Status poll interval
+  retries: 5               # Retry attempts
+  debug: 0                 # Debug level (0-5)
+
+  # Optional inline UART config
+  uart:
+    txd_pin: gpio.16
+    rxd_pin: gpio.4
+    rts_pin: gpio.17       # Required for RS-485
+    mode: 8N1
+```
+
+**Alternative: Reference External UART:**
+```yaml
+uart1:
+  txd_pin: gpio.16
+  rxd_pin: gpio.4
+  rts_pin: gpio.17
+  baud: 9600
+  mode: 8N1
+
+huanyang:
+  uart_num: 1              # Reference uart1 defined above
+  modbus_id: 1
+  tool_num: 0
+  speed_map: 0=0% 24000=100%
+```
+
+#### VFD Setup Requirements
+
+**ESP32 Configuration:**
+1. Configure UART pins (TX, RX, RTS)
+2. Connect RS-485 transceiver
+3. Set correct baud rate and mode
+4. Assign Modbus ID
+
+**VFD Configuration (typical settings):**
+
+For Huanyang VFD example:
+```
+PD000 = 0     # Unlock parameters
+PD001 = 2     # RS485 control
+PD002 = 2     # RS485 frequency source
+PD163 = 1     # Modbus address
+PD164 = 1     # Baud rate (1=9600, 2=19200)
+PD165 = 3     # Communication protocol (3=RTU, 8N1)
+```
+
+**Important:** Always consult VFD manual for specific parameter numbers and values!
+
+#### Generic VFD Protocol
+
+For unsupported VFDs, use the `generic` protocol with custom Modbus commands:
+
+```yaml
+generic:
+  uart_num: 1
+  modbus_id: 1
+  tool_num: 0
+  speed_map: 0=0% 6000=100%
+
+  # Custom Modbus commands (hex format)
+  cw_cmd: "01.06.2000.0001"      # Clockwise run
+  ccw_cmd: "01.06.2000.0002"     # Counter-clockwise
+  off_cmd: "01.06.2000.0005"     # Stop
+  set_rpm_cmd: "01.06.1000.{R}"  # Set RPM ({R} = speed value)
+
+  # Optional status queries
+  get_rpm_cmd: "01.03.3000.0001.=U16:{0}"
+  get_max_rpm_cmd: "01.03.B005.0002.=U32BE:{0}"
+```
+
+**Command Format:**
+- Hex bytes separated by dots
+- `{R}` - RPM placeholder (auto-scaled)
+- `=U16:{0}` - Parse response as unsigned 16-bit at position 0
+- `=U32BE:{0}` - Parse as 32-bit big-endian
+
+#### VFD Communication Details
+
+**Polling Mechanism:**
+- FluidNC runs VFD communication in separate task
+- Polls VFD status at `poll_ms` interval (default 250ms)
+- Verifies spindle speed and status
+- Automatic retry on communication errors
+
+**Command Queue:**
+- Commands queued (size: 10 commands)
+- Critical commands (stop) prioritized
+- Speed commands batched to reduce traffic
+
+**Error Handling:**
+- CRC verification on all messages
+- Automatic retry (configurable retries)
+- Detailed error reporting (set `debug: 3-5`)
+
+### Trinamic Stepper UART Communication
+
+**Files**: `FluidNC/src/Motors/TrinamicUartDriver.h`, `TMC2208Driver.cpp`, `TMC2209Driver.cpp`
+
+Trinamic TMC2208 and TMC2209 stepper drivers use single-wire UART for configuration and diagnostics.
+
+#### TMC UART Features
+
+- **Single-wire communication**: TX and RX share one pin (internally connected in driver)
+- **Addressable**: Up to 4 drivers per UART (addresses 0-3)
+- **Live configuration**: Change current, microstepping, StealthChop/SpreadCycle
+- **Diagnostics**: Read temperature, stallguard, driver errors
+
+#### TMC UART Configuration
+
+```yaml
+uart1:
+  txd_pin: gpio.16         # TX and RX both use this pin
+  rxd_pin: gpio.16         # Same as TXD (single-wire)
+  baud: 115200             # TMC standard baud rate
+  mode: 8N1
+
+axes:
+  x:
+    motor0:
+      tmc_2209:
+        uart_num: 1        # Use UART1
+        addr: 0            # Address 0-3
+        r_sense_ohms: 0.11
+        run_amps: 1.5
+        hold_amps: 0.5
+        microsteps: 16
+        stallguard: 10
+```
+
+**Multiple TMC Drivers on One UART:**
+```yaml
+uart1:
+  txd_pin: gpio.16
+  rxd_pin: gpio.16
+  baud: 115200
+  mode: 8N1
+
+axes:
+  x:
+    motor0:
+      tmc_2209:
+        uart_num: 1
+        addr: 0            # First driver
+  y:
+    motor0:
+      tmc_2209:
+        uart_num: 1
+        addr: 1            # Second driver
+  z:
+    motor0:
+      tmc_2209:
+        uart_num: 1
+        addr: 2            # Third driver
+```
+
+**Hardware Wiring:**
+- TMC2209: Connect PDN_UART to ESP32 TX/RX pin
+- Multiple drivers: Parallel connection of PDN_UART pins
+- Each driver needs unique address (MS1/MS2 pins)
+
+### Dynamixel Servo Communication
+
+**Files**: `FluidNC/src/Motors/Dynamixel2.h`, `Dynamixel2.cpp`, `Dynamixel2.md`
+
+Dynamixel smart servos use RS-485 with Robotis Protocol 2.0.
+
+#### Dynamixel Features
+
+- **Closed-loop control**: Encoder feedback for position tracking
+- **Protocol 2.0**: Half-duplex RS-485 communication
+- **Addressable**: Up to 253 servos on one bus
+- **Status reporting**: Position, speed, temperature, errors
+- **Multi-turn**: 360° rotation mapped to linear travel
+
+#### Dynamixel Configuration
+
+```yaml
+uart2:
+  txd_pin: gpio.4
+  rxd_pin: gpio.13
+  rts_pin: gpio.17         # Required for half-duplex
+  baud: 57600              # Dynamixel default
+  mode: 8N1
+
+axes:
+  x:
+    steps_per_mm: 100      # Maps rotation to linear
+    max_rate_mm_per_min: 3000
+    max_travel_mm: 360     # 360mm mapped to 360°
+    motor0:
+      dynamixel2:
+        uart_num: 2
+        id: 1              # Dynamixel ID (1-253)
+        count_min: 1024    # Rotation limit min
+        count_max: 3072    # Rotation limit max
+```
+
+**Features:**
+- No homing needed (absolute encoders)
+- Manual positioning when idle
+- Auto-reports position changes
+- 4096 counts per revolution
+
+### UART Channels for User Applications
+
+**Files**: `FluidNC/src/UartChannel.h`, `UartChannel.cpp`
+
+UART channels provide serial communication for user applications, GCode senders, and debugging.
+
+#### UART Channel Configuration
+
+```yaml
+uart_channel1:
+  uart_num: 1              # Use UART1
+  report_interval_ms: 100  # Status report interval
+  message_level: Info      # Verbose, Info, Warning, Error, None
+```
+
+**Use Cases:**
+- Secondary GCode input
+- External controller communication
+- Sensor data logging
+- Debug output
+
+### Practical Serial Communication Examples
+
+#### Example 1: VFD Spindle with Huanyang
+
+```yaml
+# UART configuration
+uart1:
+  txd_pin: gpio.16
+  rxd_pin: gpio.4
+  rts_pin: gpio.17         # Controls RS-485 DE/RE
+  baud: 9600
+  mode: 8N1
+
+# VFD spindle
+huanyang:
+  uart_num: 1
+  modbus_id: 1
+  tool_num: 0
+  speed_map: 0=0% 24000=100%
+  spinup_ms: 2000
+  spindown_ms: 3000
+  poll_ms: 250
+  off_on_alarm: true       # Stop on alarm
+```
+
+**Hardware:**
+- RS-485 transceiver (MAX3485)
+- VFD A/B terminals to RS-485 A/B
+- 120Ω termination at VFD end
+
+**VFD Settings:**
+```
+PD001 = 2     # RS485 control mode
+PD002 = 2     # RS485 frequency source
+PD163 = 1     # Modbus address = 1
+PD164 = 1     # 9600 baud
+PD165 = 3     # RTU mode, 8N1
+```
+
+#### Example 2: Mixed TMC and VFD
+
+```yaml
+# UART 1: TMC Steppers
+uart1:
+  txd_pin: gpio.16
+  rxd_pin: gpio.16         # Single-wire for TMC
+  baud: 115200
+  mode: 8N1
+
+# UART 2: VFD Spindle
+uart2:
+  txd_pin: gpio.25
+  rxd_pin: gpio.26
+  rts_pin: gpio.27         # RS-485 control
+  baud: 9600
+  mode: 8N1
+
+axes:
+  x:
+    motor0:
+      tmc_2209:
+        uart_num: 1        # TMC on UART1
+        addr: 0
+  y:
+    motor0:
+      tmc_2209:
+        uart_num: 1
+        addr: 1
+
+huanyang:
+  uart_num: 2              # VFD on UART2
+  modbus_id: 1
+```
+
+**Benefits:**
+- Isolated communication
+- No timing conflicts
+- Independent baud rates
+
+#### Example 3: Dynamixel Servo Axis
+
+```yaml
+uart2:
+  txd_pin: gpio.4
+  rxd_pin: gpio.13
+  rts_pin: gpio.17
+  baud: 57600              # Dynamixel default
+  mode: 8N1
+
+axes:
+  a:                       # Rotary A axis
+    steps_per_mm: 100
+    max_rate_mm_per_min: 3000
+    max_travel_mm: 360     # One full rotation
+    motor0:
+      dynamixel2:
+        uart_num: 2
+        id: 1              # Servo ID from Dynamixel Wizard
+        count_min: 0       # Full range
+        count_max: 4095
+        update_ms: 100     # Position update rate
+```
+
+### Serial Communication Troubleshooting
+
+#### Common Issues and Solutions
+
+**VFD Not Responding:**
+1. Check RS-485 wiring (swap A/B if needed)
+2. Verify VFD Modbus address matches config
+3. Confirm VFD baud rate setting
+4. Enable debug: `debug: 3` to see traffic
+5. Check termination resistor (120Ω)
+
+**TMC UART Errors:**
+1. Verify TX and RX connected to same pin
+2. Check baud rate (115200 standard)
+3. Confirm driver addresses (0-3)
+4. Test with single driver first
+
+**RS-485 Communication Errors:**
+1. Use 3.3V compatible transceiver
+2. Keep bus wiring short and twisted
+3. Add termination at both ends
+4. Check RTS pin connection
+5. Verify half-duplex mode enabled
+
+**Debug Commands:**
+```gcode
+$VFD/Debug=3              # Enable VFD debug output
+$Stepper/Debug=true       # Enable TMC debug
+```
+
+### Serial Communication Capabilities Summary
+
+| Feature | UART(s) | Baud Range | Half-Duplex | Use Case |
+|---------|---------|------------|-------------|----------|
+| **VFD Spindles** | 1-2 | 2400-38400 | Yes (RS-485) | Modbus RTU control |
+| **TMC Steppers** | 1-2 | 115200 | No (single-wire) | Driver configuration |
+| **Dynamixel Servos** | 1-2 | 57600-4M | Yes (RS-485) | Servo control |
+| **UART Channels** | 1-2 | 2400-10M | No | User communication |
+| **Debug/Console** | 0 | 115200 | No | USB serial |
+
+**Maximum Configuration:**
+- UART0: USB console (fixed)
+- UART1: TMC steppers or VFD
+- UART2: VFD or Dynamixel or second peripheral
+- Total: 2 configurable UARTs for peripherals
 
 ---
 
