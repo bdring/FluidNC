@@ -5,6 +5,7 @@
 
 #include "../Configuration/Configurable.h"
 #include "../GCode.h"
+#include "EventPin.h"
 
 #include <variant>
 #include <array>
@@ -14,7 +15,9 @@ namespace Machine {
     class UserInputs : public Configuration::Configurable {
         struct PinAndName {
             std::string name;
-            Pin         pin;
+            InputPin pin;
+            
+            PinAndName() : pin("User Input") {}  // Required: InputPin needs a string parameter
         };
 
         std::array<PinAndName, MaxUserDigitalPin> _digitalInput;

@@ -24,13 +24,13 @@ namespace Machine {
     void UserInputs::init() {
         for (auto& input : _analogInput) {
             if (input.pin.defined()) {
-                input.pin.setAttr(Pin::Attr::Input);
+                input.pin.init();  // This will register for events
                 log_info("User Analog Input: " << input.name << " on Pin " << input.pin.name());
             }
         }
         for (auto& input : _digitalInput) {
             if (input.pin.defined()) {
-                input.pin.setAttr(Pin::Attr::Input);
+                input.pin.init();  // This will register for events
                 log_info("User Digital Input: " << input.name << " on Pin " << input.pin.name());
             }
         }
@@ -44,7 +44,7 @@ namespace Machine {
         if (!input.pin.defined()) {
             return Error::InvalidValue;
         }
-        return input.pin.read();
+        return input.pin.get();  // Use cached value from InputPin, updated by events
     }
 
     UserInputs::ReadInputResult UserInputs::readAnalogInput(uint8_t input_number) {
@@ -56,6 +56,7 @@ namespace Machine {
         if (!input.pin.defined()) {
             return Error::InvalidValue;
         }
+
         return input.pin.read();
     }
 
