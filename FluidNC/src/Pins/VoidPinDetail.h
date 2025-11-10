@@ -20,8 +20,6 @@ namespace Pins {
         void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
 
-        std::string toString() override;
-
         ~VoidPinDetail() override {}
     };
 }

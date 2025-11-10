@@ -31,8 +31,6 @@ namespace Pins {
 
         bool canStep() override { return true; }
 
-        std::string toString() override;
-
         ~I2SOPinDetail() override { _claimed[_index] = false; }
     };
 }

@@ -20,6 +20,8 @@ public:
 
     virtual void trigger(bool active);
 
+    // legend() is the functional usage of the pin, for example "digital0_pin",
+    // whereas name() is the physical pin assigned to that function, for example "gpio.15"
     const char* legend() { return _legend.c_str(); }
 
     ~InputPin() {}

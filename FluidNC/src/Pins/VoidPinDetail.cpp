@@ -4,7 +4,9 @@
 #include "VoidPinDetail.h"
 
 namespace Pins {
-    VoidPinDetail::VoidPinDetail(pinnum_t number) : PinDetail(number) {}
+    VoidPinDetail::VoidPinDetail(pinnum_t number) : PinDetail(number) {
+        _name = "NO PIN";
+    }
     VoidPinDetail::VoidPinDetail(const PinOptionsParser& options) : VoidPinDetail() {}
 
     // cppcheck-suppress unusedFunction
@@ -24,10 +26,5 @@ namespace Pins {
     // cppcheck-suppress unusedFunction
     PinAttributes VoidPinDetail::getAttr() const {
         return PinAttributes::None;
-    }
-
-    // cppcheck-suppress unusedFunction
-    std::string VoidPinDetail::toString() {
-        return std::string("NO_PIN");
     }
 }

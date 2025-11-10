@@ -140,7 +140,7 @@ public:
     // Other functions:
     Capabilities capabilities() const { return _detail->capabilities(); }
 
-    inline std::string name() const { return _detail->toString(); }
+    inline const char* name() const { return _detail->name(); }
 
     void report(const char* legend);
     void report(const std::string& legend) { report(legend.c_str()); }

@@ -4,7 +4,11 @@
 #include "ErrorPinDetail.h"
 #include "Config.h"
 namespace Pins {
-    ErrorPinDetail::ErrorPinDetail(std::string_view descr) : PinDetail(0), _description(descr) {}
+    ErrorPinDetail::ErrorPinDetail(std::string_view descr) : PinDetail(0), _description(descr) {
+        _name = "ERROR_PIN (for ";
+        _name += _description;
+        _name += ")";
+    }
 
     PinCapabilities ErrorPinDetail::capabilities() const {
         return PinCapabilities::Error;
@@ -23,10 +27,5 @@ namespace Pins {
 
     PinAttributes ErrorPinDetail::getAttr() const {
         return PinAttributes::None;
-    }
-
-    std::string ErrorPinDetail::toString() {
-        std::string s("ERROR_PIN (for ");
-        return s + _description + ")";
     }
 }

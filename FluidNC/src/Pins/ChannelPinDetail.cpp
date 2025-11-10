@@ -6,13 +6,20 @@
 namespace Pins {
     ChannelPinDetail::ChannelPinDetail(UartChannel* channel, pinnum_t index, const PinOptionsParser& options) :
         PinDetail(index), _channel(channel) {
+        _name = _channel->name();
+        _name += ".";
+        _name += std::to_string(index);
+
         for (auto opt : options) {
             if (opt.is("pu")) {
                 setAttr(PinAttributes::PullUp);
+                _name += ":pu";
             } else if (opt.is("pd")) {
                 setAttr(PinAttributes::PullDown);
+                _name += ":pd";
             } else if (opt.is("low")) {
                 setAttr(PinAttributes::ActiveLow);
+                _name += ":low";
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
             }
@@ -76,21 +83,6 @@ namespace Pins {
     }
     PinAttributes ChannelPinDetail::getAttr() const {
         return _attributes;
-    }
-    std::string ChannelPinDetail::toString() {
-        std::string s = _channel->name();
-        s += ".";
-        s += std::to_string(_index);
-        if (_attributes.has(PinAttributes::ActiveLow)) {
-            s += ":low";
-        }
-        if (_attributes.has(PinAttributes::PullUp)) {
-            s += ":pu";
-        }
-        if (_attributes.has(PinAttributes::PullDown)) {
-            s += ":pd";
-        }
-        return s;
     }
 
     void ChannelPinDetail::registerEvent(InputPin* obj) {

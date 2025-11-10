@@ -11,7 +11,7 @@ namespace Pins {
         if (high != _isHigh) {
             _isHigh = high;
             if (shouldEvent()) {
-                log_msg_to(Console, "Write " << toString() << " < " << high);
+                log_msg_to(Console, "Write " << name() << " < " << high);
             }
         }
         _implementation->write(high);
@@ -20,7 +20,7 @@ namespace Pins {
     bool DebugPinDetail::read() {
         auto result = _implementation->read();
         if (shouldEvent()) {
-            log_msg_to(Console, "Read  " << toString() << " > " << result);
+            log_msg_to(Console, "Read  " << name() << " > " << result);
         }
         return result;
     }
@@ -51,7 +51,7 @@ namespace Pins {
         buf[n++] = '\0';
 
         if (shouldEvent()) {
-            log_msg_to(Console, "Set pin attr " << toString() << " = " << buf);
+            log_msg_to(Console, "Set pin attr " << name() << " = " << buf);
         }
         _implementation->setAttr(value);
     }
@@ -59,7 +59,7 @@ namespace Pins {
     void DebugPinDetail::CallbackHandler::handle(void* arg, bool v) {
         auto handler = static_cast<CallbackHandler*>(arg);
         if (handler->_myPin->shouldEvent()) {
-            log_msg_to(Console, "Received ISR on " << handler->_myPin->toString());
+            log_msg_to(Console, "Received ISR on " << handler->_myPin->name());
         }
         handler->callback(handler->argument, v);
     }
