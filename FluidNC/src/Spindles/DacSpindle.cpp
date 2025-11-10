@@ -27,7 +27,7 @@ namespace Spindles {
 
         if (!_output_pin.capabilities().has(Pin::Capabilities::DAC)) {  // DAC can only be used on these pins
             _gpio_ok = false;
-            log_error("DAC spindle pin invalid " << _output_pin.name().c_str() << " (pin 25 or 26 only)");
+            log_error("DAC spindle pin invalid " << _output_pin.name() << " (pin 25 or 26 only)");
             return;
         }
 

@@ -8,8 +8,9 @@
 #include "StandardStepper.h"
 
 #include "Machine/MachineConfig.h"
-#include "Stepper.h"   // ST_I2S_*
-#include "Stepping.h"  // Stepping::_engine
+#include "Stepper.h"      // ST_I2S_*
+#include "Stepping.h"     // Stepping::_engine
+#include "string_util.h"  // starts_with_ignore_case()
 
 using namespace Machine;
 
@@ -51,18 +52,11 @@ namespace MotorDrivers {
 
     void StandardStepper::validate() {
         Assert(_step_pin.defined(), "Step pin must be configured");
-        bool isI2SO = Stepping::_engine == Stepping::I2S_STREAM || Stepping::_engine == Stepping::I2S_STATIC;
-        if (isI2SO) {
-            Assert(_step_pin.name().rfind("I2SO", 0) == 0, "Step pin must be an I2SO pin");
-            if (_dir_pin.defined()) {
-                Assert(_dir_pin.name().rfind("I2SO", 0) == 0, "Direction pin must be an I2SO pin");
-            }
-
-        } else {
-            Assert(_step_pin.name().rfind("gpio", 0) == 0, "Step pin must be a GPIO pin");
-            if (_dir_pin.defined()) {
-                Assert(_dir_pin.name().rfind("gpio", 0) == 0, "Direction pin must be a GPIO pin");
-            }
+        bool        isI2SO = Stepping::_engine == Stepping::I2S_STREAM || Stepping::_engine == Stepping::I2S_STATIC;
+        const char* type   = isI2SO ? "i2so" : "gpio";
+        Assert(string_util::starts_with_ignore_case(_step_pin.name(), type), "Step pin %s type must be %s", _step_pin.name(), type);
+        if (_dir_pin.defined()) {
+            Assert(string_util::starts_with_ignore_case(_dir_pin.name(), type), "Direction pin %s type must be %s", _dir_pin.name(), type);
         }
     }
 }

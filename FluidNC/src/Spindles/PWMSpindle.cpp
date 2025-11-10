@@ -23,7 +23,7 @@ namespace Spindles {
             if (_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
                 _output_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
             } else {
-                log_error(name() << " output pin " << _output_pin.name().c_str() << " cannot do PWM");
+                log_error(name() << " output pin " << _output_pin.name() << " cannot do PWM");
             }
         } else {
             log_error(name() << " output pin not defined");

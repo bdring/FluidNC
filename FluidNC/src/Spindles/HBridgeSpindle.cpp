@@ -15,7 +15,7 @@ namespace Spindles {
             if (_output_cw_pin.capabilities().has(Pin::Capabilities::PWM)) {
                 _output_cw_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
             } else {
-                log_error(name() << " output_cw_pin " << _output_cw_pin.name().c_str() << " cannot do PWM");
+                log_error(name() << " output_cw_pin " << _output_cw_pin.name() << " cannot do PWM");
             }
         } else {
             log_error(name() << " output_cw_pin not defined");
@@ -25,7 +25,7 @@ namespace Spindles {
             if (_output_ccw_pin.capabilities().has(Pin::Capabilities::PWM)) {
                 _output_ccw_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
             } else {
-                log_error(name() << " output_ccw_pin " << _output_ccw_pin.name().c_str() << " cannot do PWM");
+                log_error(name() << " output_ccw_pin " << _output_ccw_pin.name() << " cannot do PWM");
             }
         } else {
             log_error(name() << " output_ccw_pin not defined");

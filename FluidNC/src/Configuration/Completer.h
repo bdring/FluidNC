@@ -35,6 +35,7 @@ namespace Configuration {
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override { item(name); }
         void item(const char* name, std::string& value, const int minLength, const int maxLength) override { item(name); }
         void item(const char* name, EventPin& value) { item(name); }
+        void item(const char* name, InputPin& value) { item(name); }
         void item(const char* name, Pin& value) { item(name); }
         void item(const char* name, Macro& value) { item(name); }
         void item(const char* name, IPAddress& value) override { item(name); }
