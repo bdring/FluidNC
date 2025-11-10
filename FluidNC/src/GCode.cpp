@@ -2045,7 +2045,11 @@ static Error gc_wait_on_input(bool is_digital, objnum_t input_number, WaitOnInpu
                 return Error::PParamMaxExceeded;
             }
             auto& pin = config->_userInputs->digitalInput[input_number];
-            result    = (float)pin.get();
+            if (pin.undefined()) {
+                log_error(pin.legend() << " is not defined");
+                return Error::PParamMaxExceeded;
+            }
+            result = (float)pin.get();
             set_numbered_param(5399, result);
             log_debug("M66: " << pin.legend() << " result=" << result);
         } else {
@@ -2053,7 +2057,11 @@ static Error gc_wait_on_input(bool is_digital, objnum_t input_number, WaitOnInpu
                 return Error::PParamMaxExceeded;
             }
             auto& pin = config->_userInputs->analogInput[input_number];
-            result    = (float)pin.get();
+            if (pin.undefined()) {
+                log_error(pin.legend() << " is not defined");
+                return Error::PParamMaxExceeded;
+            }
+            result = (float)pin.get();
             set_numbered_param(5399, result);
             log_debug("M66: " << pin.legend() << " result=" << result);
         }
