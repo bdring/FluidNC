@@ -30,8 +30,6 @@ namespace Pins {
 
         void registerEvent(InputPin* obj) override;
 
-        std::string toString() override;
-
         ~ChannelPinDetail() override {}
     };
 }

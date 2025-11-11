@@ -13,10 +13,15 @@ namespace Pins {
         PinDetail(index), _capabilities(PinCapabilities::Output | PinCapabilities::I2S), _attributes(Pins::PinAttributes::Undefined) {
         Assert(index < nI2SOPins, "Pin number is greater than max %d", nI2SOPins - 1);
         Assert(!_claimed[index], "Pin is already used");
+
+        _name = "I2SO.";
+        _name += std::to_string(_index);
+
         // User defined pin capabilities
         for (auto opt : options) {
             if (opt.is("low")) {
                 _attributes = _attributes | PinAttributes::ActiveLow;
+                _name += ":low";
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
             } else {
@@ -79,15 +84,6 @@ namespace Pins {
 
     PinAttributes I2SOPinDetail::getAttr() const {
         return _attributes;
-    }
-
-    std::string I2SOPinDetail::toString() {
-        std::string s("I2SO.");
-        s += std::to_string(_index);
-        if (_attributes.has(PinAttributes::ActiveLow)) {
-            s += ":low";
-        }
-        return s;
     }
 }
 

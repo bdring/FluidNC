@@ -113,7 +113,7 @@ void MacroChannel::ack(Error status) {
         //        if (status != Error::GcodeUnsupportedCommand) {
         // Do not stop on unsupported commands because most senders do not stop.
         // Stop the macro job on other errors
-        notifyf("Macro job error", "Error:%d in %s at line: %d", status, name().c_str(), lineNumber());
+        notifyf("Macro job error", "Error:%d in %s at line: %d", status, name(), lineNumber());
         _pending_error = status;
         //        }
     }

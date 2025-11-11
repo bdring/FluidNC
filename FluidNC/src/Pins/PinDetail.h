@@ -18,10 +18,10 @@ namespace Pins {
 
     // Implementation details of pins.
     class PinDetail {
-    protected:
     public:
-        pinnum_t _index    = INVALID_PINNUM;
-        bool     _inverted = false;
+        std::string _name;
+        pinnum_t    _index    = INVALID_PINNUM;
+        bool        _inverted = false;
 
         PinDetail(pinnum_t index) : _index(index) {}
         PinDetail(const PinDetail& o)            = delete;
@@ -46,7 +46,7 @@ namespace Pins {
 
         virtual void registerEvent(InputPin* obj);
 
-        virtual std::string toString() = 0;
+        const char* name() { return _name.c_str(); }
 
         inline pinnum_t number() const { return _index; }
 

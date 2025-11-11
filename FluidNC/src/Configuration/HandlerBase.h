@@ -54,6 +54,7 @@ namespace Configuration {
         virtual void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits)            = 0;
 
         virtual void item(const char* name, EventPin& value)  = 0;
+        virtual void item(const char* name, InputPin& value)  = 0;
         virtual void item(const char* name, Pin& value)       = 0;
         virtual void item(const char* name, IPAddress& value) = 0;
 

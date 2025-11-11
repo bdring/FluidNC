@@ -36,7 +36,7 @@ namespace Pins {
         void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
 
-        std::string toString() override { return _implementation->toString(); }
+        const char* name() { return _implementation->name(); }
 
         ~DebugPinDetail() override {}
     };

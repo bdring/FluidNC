@@ -30,33 +30,43 @@ namespace Pins {
         Assert(_capabilities != PinCapabilities::None, "Unavailable GPIO");
         Assert(!_claimed[index], "Pin is already used");
 
+        _name = "gpio.";
+        _name += std::to_string(_index);
+
         // User defined pin capabilities
         for (auto opt : options) {
             if (opt.is("pu")) {
                 if (_capabilities.has(PinCapabilities::PullUp)) {
                     _attributes = _attributes | PinAttributes::PullUp;
+                    _name += ":pu";
                 } else {
-                    log_config_error(toString() << " does not support :pu attribute");
+                    log_config_error(name() << " does not support :pu attribute");
                 }
 
             } else if (opt.is("pd")) {
                 if (_capabilities.has(PinCapabilities::PullDown)) {
                     _attributes = _attributes | PinAttributes::PullDown;
+                    _name += ":pd";
                 } else {
-                    log_config_error(toString() << " does not support :pd attribute");
+                    log_config_error(name() << " does not support :pd attribute");
                 }
             } else if (opt.is("low")) {
                 _attributes = _attributes | PinAttributes::ActiveLow;
+                _name += ":low";
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
             } else if (opt.is("ds0")) {
                 setDriveStrength(0, PinAttributes::DS0);
+                _name += ":ds0";
             } else if (opt.is("ds1")) {
                 setDriveStrength(1, PinAttributes::DS1);
+                _name += ":ds1";
             } else if (opt.is("ds2")) {
                 setDriveStrength(2, PinAttributes::DS2);
+                _name += ":ds2";
             } else if (opt.is("ds3")) {
                 setDriveStrength(3, PinAttributes::DS3);
+                _name += ":ds3";
             } else {
                 Assert(false, "Bad GPIO option passed to pin %d: %.*s", int(index), static_cast<int>(opt().length()), opt().data());
             }
@@ -82,9 +92,9 @@ namespace Pins {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
             if (!_attributes.has(PinAttributes::Output)) {
-                log_error(toString());
+                log_error(name());
             }
-            Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", toString().c_str());
+            Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", name());
             bool value = _inverted ^ (bool)high;
             gpio_write(_index, value);
         }
@@ -102,10 +112,10 @@ namespace Pins {
         // Check the attributes first:
         Assert(value.validateWith(this->_capabilities) || _index == 1 || _index == 3,
                "The requested attributes don't match the capabilities for %s",
-               toString().c_str());
+               name());
         Assert(!_attributes.conflictsWith(value) || _index == 1 || _index == 3,
                "The requested attributes on %s conflict with previous settings",
-               toString().c_str());
+               name());
 
         _attributes = _attributes | value;
 
@@ -152,31 +162,4 @@ namespace Pins {
         gpio_set_event(_index, reinterpret_cast<void*>(obj), _attributes.has(Pin::Attr::ActiveLow));
     }
 
-    std::string GPIOPinDetail::toString() {
-        std::string s("gpio.");
-        s += std::to_string(_index);
-        if (_attributes.has(PinAttributes::ActiveLow)) {
-            s += ":low";
-        }
-        if (_attributes.has(PinAttributes::PullUp)) {
-            s += ":pu";
-        }
-        if (_attributes.has(PinAttributes::PullDown)) {
-            s += ":pd";
-        }
-        if (_attributes.has(PinAttributes::DS0)) {
-            s += ":ds0";
-        }
-        if (_attributes.has(PinAttributes::DS1)) {
-            s += ":ds1";
-        }
-        if (_attributes.has(PinAttributes::DS2)) {
-            s += ":ds2";
-        }
-        if (_attributes.has(PinAttributes::DS3)) {
-            s += ":ds3";
-        }
-
-        return s;
-    }
 }

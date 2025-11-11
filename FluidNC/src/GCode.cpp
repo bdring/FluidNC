@@ -2039,18 +2039,34 @@ overloaded(Ts...) -> overloaded<Ts...>;
 static Error gc_wait_on_input(bool is_digital, objnum_t input_number, WaitOnInputMode mode, float timeout) {
     // TODO - only Immediate read mode is supported
     if (mode == WaitOnInputMode::Immediate) {
-        auto const result = is_digital ? config->_userInputs->readDigitalInput(input_number) :
-                                         config->_userInputs->readAnalogInput(input_number);
-        auto const on_ok  = [&](bool result) {
-            log_debug("M66: " << (is_digital ? "digital" : "analog") << "_input" << input_number << " result=" << result);
-            set_numbered_param(5399, result ? 1.0 : 0.0);
-            return Error::Ok;
-        };
-        auto const on_error = [&](Error error) {
-            log_error("M66: " << (is_digital ? "digital" : "analog") << "_input" << input_number << " failed");
-            return error;
-        };
-        return std::visit(overloaded { on_ok, on_error }, result);
+        float result;
+        if (is_digital) {
+            if (input_number >= MaxUserDigitalPin) {
+                return Error::PParamMaxExceeded;
+            }
+            auto& pin = config->_userInputs->digitalInput[input_number];
+            if (pin.undefined()) {
+                log_error(pin.legend() << " is not defined");
+                return Error::PParamMaxExceeded;
+            }
+            result = (float)pin.get();
+            set_numbered_param(5399, result);
+            log_debug("M66: " << pin.legend() << " result=" << result);
+        } else {
+            if (input_number >= MaxUserAnalogPin) {
+                return Error::PParamMaxExceeded;
+            }
+            auto& pin = config->_userInputs->analogInput[input_number];
+            if (pin.undefined()) {
+                log_error(pin.legend() << " is not defined");
+                return Error::PParamMaxExceeded;
+            }
+            result = (float)pin.get();
+            set_numbered_param(5399, result);
+            log_debug("M66: " << pin.legend() << " result=" << result);
+        }
+
+        return Error::Ok;
     }
 
     // TODO - implement rest of modes

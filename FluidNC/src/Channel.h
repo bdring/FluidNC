@@ -95,11 +95,11 @@ public:
 
     int8_t _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
-    virtual void       init() {}
-    virtual void       handle() {}
-    virtual Error      pollLine(char* line);
-    virtual void       ack(Error status);
-    const std::string& name() { return _name; }
+    virtual void  init() {}
+    virtual void  handle() {}
+    virtual Error pollLine(char* line);
+    virtual void  ack(Error status);
+    const char*   name() { return _name.c_str(); }
 
     virtual void sendLine(MsgLevel level, const char* line);
     virtual void sendLine(MsgLevel level, const std::string* line);

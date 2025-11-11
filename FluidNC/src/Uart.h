@@ -52,7 +52,7 @@ public:
     Pin _cts_pin;
 
     // Name is required for the configuration factory to work.
-    std::string name() { return _name; }
+    const char* name() { return _name.c_str(); }
 
     Uart(uint32_t uart_num = -1);
     void begin();

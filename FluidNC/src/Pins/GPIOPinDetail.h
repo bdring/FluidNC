@@ -43,8 +43,6 @@ namespace Pins {
 
         void registerEvent(InputPin* obj) override;
 
-        std::string toString() override;
-
         ~GPIOPinDetail() override { _claimed[_index] = false; }
     };
 
