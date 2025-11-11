@@ -60,13 +60,12 @@ namespace Kinematics {
         handler.item("linkage_mm", re, 20.0, 500.0);
         handler.item("end_effector_triangle_mm", e, 20.0, 500.0);
         handler.item("kinematic_segment_len_mm", _kinematic_segment_len_mm, 0.05, 20.0);  //
-        handler.item("soft_limits", _softLimits);
         handler.item("use_servos", _use_servos);
-        handler.item("up_degrees", _up_degrees);
+        handler.item("up_degrees", _up_degrees, -90, 0);
     }
 
     void ParallelDelta::init() {
-        log_info("Kinematic system:" << name() << " soft_limits:" << _softLimits);
+        log_info("Kinematic system:" << name());
 
         auto axes = config->_axes;
 
@@ -102,10 +101,6 @@ namespace Kinematics {
     }
 
     bool ParallelDelta::invalid_line(float* cartesian) {
-        if (!_softLimits) {
-            return false;
-        }
-
         float motor_pos[MAX_N_AXIS] = { 0.0 };
 
         if (!transform_cartesian_to_motors(motor_pos, cartesian)) {
@@ -131,11 +126,6 @@ namespace Kinematics {
 
     // copied from Cartesian . Needs to be optimized for parallel delta.
     void ParallelDelta::constrain_jog(float* target, plan_line_data_t* pl_data, float* position) {
-        // log_debug("Jog Test: from(" << position[X_AXIS] << ")"
-        //                             << " to(" << target[X_AXIS] << ")");
-        if (!_softLimits) {
-            return;
-        }
 
         float motor_pos[MAX_N_AXIS] = { 0.0 };
 
@@ -192,8 +182,6 @@ namespace Kinematics {
             if (sys.abort()) {
                 return true;
             }
-            //log_debug("Segment:" << segment << " of " << segment_count);
-            // determine this segment's target
 
             addAxes(seg_target, delta_d, n_axis);
 
@@ -218,8 +206,6 @@ namespace Kinematics {
                 return false;
             }
 
-            logArray("motors ", motors, 3);
-
             // save motor position for next distance calc
             // This is after mc_move_motors() so that we do not update
             // last_angle if the segment was discarded.
@@ -241,9 +227,6 @@ namespace Kinematics {
     }
 
     void ParallelDelta::motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) {
-        //log_debug("motors_to_cartesian motors: (" << motors[0] << "," << motors[1] << "," << motors[2] << ")");
-        //log_info("motors_to_cartesian rf:" << rf << " re:" << re << " f:" << f << " e:" << e);
-
         float radians[3];
         copyArray(radians, motors, 3);
         float scaler = pos_to_radians(1);
@@ -453,7 +436,7 @@ namespace Kinematics {
         // discriminant
         float d = -(a + b * y1) * (a + b * y1) + rf * (b * b * rf + rf);
         if (d < 0) {
-            log_warn("Kinematics: negative discriminant " << d);
+            log_debug("Kinematics: negative discriminant " << d);
             return false;
             // non-existing point
         }
