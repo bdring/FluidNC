@@ -938,7 +938,7 @@ void make_user_commands() {
     new UserCommand("LW", "Log/Warn", cmd_log_warn, anyState);
     new UserCommand("LI", "Log/Info", cmd_log_info, anyState);
     new UserCommand("LD", "Log/Debug", cmd_log_debug, anyState);
-    new UserCommand("LV  ", "Log/Verbose", cmd_log_verbose, anyState);
+    new UserCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
