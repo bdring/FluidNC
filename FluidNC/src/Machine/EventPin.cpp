@@ -6,6 +6,12 @@
 void EventPin::trigger(bool active) {
     InputPin::trigger(active);
     if (active) {
-        protocol_send_event(_event, this);
+        if (state_is(State::Starting)) {
+            if (_alarm != ExecAlarm::None) {
+                send_alarm(_alarm);
+            }
+        } else {
+            protocol_send_event(_event, this);
+        }
     }
 }

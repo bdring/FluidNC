@@ -227,42 +227,6 @@ static void alarm_msg(ExecAlarm alarm_code) {
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
-#if 0
-// XXX This is not used!
-static void check_startup_state() {
-    // Check for and report alarm state after a reset, error, or an initial power up.
-    // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
-    // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
-    if (sys.state() == State::ConfigAlarm) {
-        report_error_message(Message::ConfigAlarmLock);
-    } else {
-        // Perform some machine checks to make sure everything is good to go.
-        if (config->_start->_checkLimits && Axes::hasHardLimits()) {
-            if (limits_get_state()) {
-                sys.set_state(State::Alarm);  // Ensure alarm state is active.
-                report_error_message(Message::CheckLimits);
-            }
-        }
-        if (config->_control->startup_check()) {
-            send_alarm(ExecAlarm::ControlPin);
-        }
-
-        if (sys.state() == State::Alarm || sys.state() == State::Sleep) {
-            report_feedback_message(Message::AlarmLock);
-            sys.set_state(State::Alarm);  // Ensure alarm state is set.
-        } else {
-            // Wait for the safety door to close
-            sys.state = State::Idle;
-            while (config->_control->safety_door_ajar()) {
-                request_safety_door();
-                protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
-            }
-            protocol_run_startup_lines();
-        }
-    }
-}
-#endif
-
 const uint32_t heapWarnThreshold = 15000;
 
 uint32_t heapLowWater           = UINT_MAX;
@@ -440,21 +404,14 @@ static void protocol_do_soft_restart() {
         return;
     }
 
-    // Perform some machine checks to make sure everything is good to go.
-    if (limits_startup_check()) {
-        mc_critical(ExecAlarm::HardLimit);
-    } else if (config->_control->startup_check()) {
-        send_alarm(ExecAlarm::ControlPin);
-    } else {
-        if (state_is(State::Idle)) {
-            config->_macros->_after_reset.run(&allChannels);
-        }
+    if (state_is(State::Idle)) {
+        config->_macros->_after_reset.run(&allChannels);
     }
 }
 
 static void protocol_do_start() {
     protocol_send_event(&restartEvent);
-    if (!state_is(State::Idle)) {
+    if (!state_is(State::Starting)) {
         return;
     }
     set_state(State::Critical);

@@ -9,7 +9,7 @@
 extern void    protocol_do_probe(void* arg);
 const ArgEvent probeEvent { protocol_do_probe };
 
-Probe::ProbeEventPin::ProbeEventPin(const char* legend) : EventPin(&probeEvent, legend) {}
+Probe::ProbeEventPin::ProbeEventPin(const char* legend) : EventPin(&probeEvent, ExecAlarm::None, legend) {}
 
 void Probe::init() {
     _probePin.init();

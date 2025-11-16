@@ -10,6 +10,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include "Config.h"
+#include "Alarm.h"
 
 // Line buffer size from the serial input stream to be executed.Also, governs the size of
 // each of the startup blocks, as they are each stored as a string of this size.
@@ -49,31 +50,6 @@ void protocol_do_motion_cancel();
 extern volatile bool rtCycleStop;
 
 extern volatile bool runLimitLoop;
-
-// Alarm codes.
-enum class ExecAlarm : uint8_t {
-    None                  = 0,
-    HardLimit             = 1,
-    SoftLimit             = 2,
-    AbortCycle            = 3,
-    ProbeFailInitial      = 4,
-    ProbeFailContact      = 5,
-    HomingFailReset       = 6,
-    HomingFailDoor        = 7,
-    HomingFailPulloff     = 8,
-    HomingFailApproach    = 9,
-    SpindleControl        = 10,
-    ControlPin            = 11,
-    HomingAmbiguousSwitch = 12,
-    HardStop              = 13,
-    Unhomed               = 14,
-    Init                  = 15,
-    ExpanderReset         = 16,
-    GCodeError            = 17,
-    ProbeHardLimit        = 18,
-};
-
-extern volatile ExecAlarm lastAlarm;
 
 #include <map>
 extern const std::map<ExecAlarm, const char*> AlarmNames;

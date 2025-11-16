@@ -44,21 +44,6 @@ MotorMask limits_get_state() {
     return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 }
 
-bool limits_startup_check() {  // return true if there is a hard limit error.
-    MotorMask lim_pin_state = limits_get_state();
-    if (lim_pin_state) {
-        auto n_axis = Axes::_numberAxis;
-        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-            for (size_t motor = 0; motor < 2; motor++) {
-                if (bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, motor))) {
-                    log_warn("Active limit switch on " << Axes::axisName(axis) << " axis motor " << motor);
-                }
-            }
-        }
-    }
-    return (config->_start->_checkLimits && (Axes::hardLimitMask() & lim_pin_state));
-}
-
 // Called only from Kinematics canHome() methods, hence from states allowing homing
 bool ambiguousLimit() {
     if (Machine::Axes::posLimitMask & Machine::Axes::negLimitMask) {

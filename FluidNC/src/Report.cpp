@@ -447,7 +447,7 @@ const char* state_name() {
             return "Door:2";  // Retracting
         case State::Sleep:
             return "Sleep";
-        default:  // Held
+        default:  // Held or Starting
             break;
     }
     return "";

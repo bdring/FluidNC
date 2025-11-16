@@ -21,6 +21,10 @@ steps_t  probe_steps[MAX_N_AXIS];  // Last probe position in steps.
 
 void system_reset() {
     // Reset system variables.
+    if (state_is(State::Starting)) {
+        set_state(State::Idle);
+    }
+
     State prior_state = sys.state();
     bool  prior_abort = sys.abort();
     sys.reset();  // Clear system struct variable.

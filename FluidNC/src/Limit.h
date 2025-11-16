@@ -15,7 +15,6 @@ void limits_init();
 
 // Returns limit state
 MotorMask limits_get_state();
-bool      limits_startup_check();
 
 void limit_error();
 void limit_error(axis_t axis, float coordinate);

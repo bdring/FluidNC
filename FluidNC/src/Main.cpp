@@ -29,6 +29,8 @@ extern void make_user_commands();
 void setup() {
     platform_preinit();
 
+    set_state(State::Starting);
+
     try {
         timing_init();
 

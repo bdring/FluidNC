@@ -62,20 +62,6 @@ bool Control::stuck() {
     return false;
 }
 
-bool Control::startup_check() {
-    bool ret = false;
-    for (auto pin : _pins) {
-        if (pin->get()) {
-            delay_ms(1000);
-            if (pin->get()) {
-                log_error(pin->legend() << " is active at startup");
-                ret = true;
-            }
-        }
-    }
-    return ret;
-}
-
 // Returns if safety door is ajar(T) or closed(F), based on pin state.
 bool Control::safety_door_ajar() {
     // If a safety door pin is not defined, this will return false
