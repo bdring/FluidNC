@@ -13,7 +13,7 @@ enum class ExecAlarm : uint8_t {
     HomingFailPulloff     = 8,
     HomingFailApproach    = 9,
     SpindleControl        = 10,
-    ControlPin            = 11,
+    StartupPin            = 11,  // control or limit input pin active
     HomingAmbiguousSwitch = 12,
     HardStop              = 13,
     Unhomed               = 14,

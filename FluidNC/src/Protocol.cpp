@@ -36,7 +36,7 @@ const std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::HomingFailPulloff, "Homing Fail Pulloff" },
     { ExecAlarm::HomingFailApproach, "Homing Fail Approach" },
     { ExecAlarm::SpindleControl, "Spindle Control" },
-    { ExecAlarm::ControlPin, "Control Pin Initially On" },
+    { ExecAlarm::StartupPin, "Input Pin Initially On" },
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
     { ExecAlarm::HardStop, "Hard Stop" },
     { ExecAlarm::Unhomed, "Unhomed" },
@@ -415,6 +415,14 @@ static void protocol_do_start() {
         return;
     }
     set_state(State::Critical);
+
+    if (config->_control->stuck() || limits_get_state()) {
+        report_recompute_pin_string();
+        log_warn("Input pin(s) active on startup:" << report_pin_string);
+        send_alarm(ExecAlarm::StartupPin);
+        return;
+    }
+
     if (FORCE_INITIALIZATION_ALARM) {
         // Force ALARM state upon a power-cycle or hard reset.
         send_alarm(ExecAlarm::Init);

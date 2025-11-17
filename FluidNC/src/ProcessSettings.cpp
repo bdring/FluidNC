@@ -260,27 +260,15 @@ static Error toggle_check_mode(const char* value, AuthenticationLevel auth_level
     }
     return Error::Ok;
 }
-static Error isStuck() {
-    // Block if a control pin is stuck on
-    if (config->_control->safety_door_ajar()) {
-        send_alarm(ExecAlarm::ControlPin);
-        return Error::CheckDoor;
-    }
-    if (config->_control->stuck()) {
-        log_info("Control pins:" << config->_control->report_status());
-        send_alarm(ExecAlarm::ControlPin);
-        return Error::CheckControlPins;
-    }
-    return Error::Ok;
-}
+
 static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
     if (state_is(State::Alarm)) {
-        Error err = isStuck();
-        if (err != Error::Ok) {
-            return err;
+        if (config->_control->safety_door_ajar()) {
+            send_alarm(ExecAlarm::StartupPin);
+            return Error::CheckDoor;
         }
         Homing::set_all_axes_homed();
         config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
@@ -392,7 +380,7 @@ static Error cmd_log_verbose(const char* value, AuthenticationLevel auth_level, 
 static Error home(AxisMask axisMask, Channel& out) {
     // see if blocking control switches are active
     if (config->_control->pins_block_unlock()) {
-        return Error::CheckControlPins;
+        return Error::CheckStartupPins;
     }
     if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
         // if there is a cycle it is the axis from $H<axis>
