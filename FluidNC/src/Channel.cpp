@@ -352,7 +352,7 @@ bool Channel::is_visible(const std::string& stem, std::string extension, bool is
     }
 
     // Convert extension to canonical lower case format
-    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return std::tolower(c); });
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return ::tolower(c); });
 
     // common gcode extensions
     std::string_view extensions(".g .gc .gco .gcode .nc .ngc .ncc .txt .cnc .tap");

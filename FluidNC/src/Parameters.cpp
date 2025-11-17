@@ -231,7 +231,7 @@ uint32_t coord_values[] = { 540, 550, 560, 570, 580, 590, 591, 592, 593 };
 bool get_system_param(const std::string& name, float& result) {
     std::string sysn;
     for (auto const& c : name) {
-        sysn += tolower(c);
+        sysn += ::tolower(c);
     }
     if (auto search = work_positions.find(sysn); search != work_positions.end()) {
         auto axis = search->second;

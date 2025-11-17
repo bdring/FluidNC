@@ -46,7 +46,7 @@ static bool matchHere(std::string_view regexp, std::string_view text, bool case_
     if (regexp[0] == '$' && regexp.size() == 1) {
         return text.empty();
     }
-    if (!text.empty() && (case_sensitive ? regexp[0] == text[0] : std::tolower(regexp[0]) == std::tolower(text[0]))) {
+    if (!text.empty() && (case_sensitive ? regexp[0] == text[0] : ::tolower(regexp[0]) == std::tolower(text[0]))) {
         return matchHere(regexp.substr(1), text.substr(1), case_sensitive);
     }
     return false;

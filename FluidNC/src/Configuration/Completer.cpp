@@ -18,7 +18,7 @@ static bool isInitialSubstringCI(const std::string_view key, const std::string_v
     size_t i = 0;
     for (auto const c : key) {
         char c1 = test[i++];
-        if (tolower(c) != tolower(c1)) {
+        if (::tolower(c) != ::tolower(c1)) {
             return false;
         }
     }

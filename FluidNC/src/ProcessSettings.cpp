@@ -489,7 +489,7 @@ static std::string limit_set(uint32_t mask) {
     const char* motor0AxisName = "xyzabc";
     std::string s;
     for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
-        s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? tolower(Machine::Axes::axisName(axis)[0]) : ' ';
+        s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? ::tolower(Machine::Axes::axisName(axis)[0]) : ' ';
     }
     const char* motor1AxisName = "XYZABC";
     for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
@@ -755,7 +755,7 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
         while (string_util::split_prefix(rest, first, ',')) {
             if (string_util::equal_ignore_case(first, "auto")) {
                 uart_name = "auto";
-            } else if (!first.empty() && string_util::tolower(first.back()) == 's') {
+            } else if (!first.empty() && ::tolower(first.back()) == 's') {
                 first.remove_suffix(1);
                 if (!string_util::from_decimal(first, timeout)) {
                     log_error_to(out, "Invalid timeout number");
