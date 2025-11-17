@@ -201,28 +201,15 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
         response->print("<d:multistatus xmlns:d=\"DAV:\">");
     }
     if (!is_dir || !noroot) {
-        sendPropResponse(response, false, fpath.filename(), is_dir, size, ftime, j);
+        sendPropResponse(response, 0, fpath.filename(), is_dir, size, ftime, j);
     }
-    if (resource == DavResource::DIR && depth == DavDepth::CHILD) {
-        std::error_code ec;
-        auto            iter = stdfs::directory_iterator { fpath, ec };
-        if (!ec) {
-            if (j) {
-                j->begin_array("files");
-            }
-            for (auto const& dirent : iter) {
-                bool   is_dir = dirent.is_directory();
-                size_t size   = is_dir ? -1 : dirent.file_size();
-                sendPropResponse(response, true, dirent.path().filename().string(), is_dir, size, dirent.last_write_time(), j);
-            }
-            if (j) {
-                j->end_array();
-            }
-        }
+
+    int level = (int)depth;
+    if (resource == DavResource::DIR && level) {
+        sendPropDirList(response, (int)depth, fpath, j);
     }
     if (j) {
         j->end();
-        //        response->print(s.c_str());
         delete j;
     } else {
         response->print("</d:multistatus>");
@@ -440,8 +427,31 @@ std::string WebDAV::urlToUri(std::string url) {
     return url.substr(_url.length());
 }
 
+void WebDAV::sendPropDirList(AsyncResponseStream* response, int level, std::string dirname, JSONencoder* j) {
+    log_debug(level << " " << dirname);
+    std::error_code ec;
+    auto            iter = stdfs::directory_iterator { dirname, ec };
+    if (ec) {
+        return;
+    }
+    if (j) {
+        j->begin_array("files");
+    }
+    for (auto const& dirent : iter) {
+        bool   is_dir = dirent.is_directory();
+        size_t size   = is_dir ? -1 : dirent.file_size();
+        sendPropResponse(response, true, dirent.path().filename().string(), is_dir, size, dirent.last_write_time(), j);
+        if (is_dir && level--) {
+            sendPropDirList(response, level, dirent.path().string(), j);
+        }
+    }
+    if (j) {
+        j->end_array();
+    }
+}
+
 void WebDAV::sendPropResponse(AsyncResponseStream*         response,
-                              bool                         recursing,
+                              int                          level,
                               std::string                  fullPath,
                               bool                         is_dir,
                               size_t                       size,
@@ -514,5 +524,8 @@ void WebDAV::sendPropResponse(AsyncResponseStream*         response,
         response->print("</d:propstat>");
 
         response->print("</d:response>");
+        if (level == 0) {
+            return;
+        }
     }
 }

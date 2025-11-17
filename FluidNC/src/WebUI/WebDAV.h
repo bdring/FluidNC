@@ -6,7 +6,7 @@
 
 class WebDAV : public AsyncWebHandler {
     enum class DavResource { NONE, FILE, DIR };
-    enum class DavDepth { NONE, CHILD, ALL };
+    enum class DavDepth { NONE = 0, CHILD = 1, ALL = 999 };
 
 public:
     WebDAV(const std::string_view url, const char* fsname);
@@ -37,8 +37,9 @@ private:
     void handleDelete(const FluidPath& path, DavResource resource, AsyncWebServerRequest* request);
     void handleHead(DavResource resource, AsyncWebServerRequest* request);
     void handleNotFound(AsyncWebServerRequest* request);
+    void sendPropDirList(AsyncResponseStream* response, int level, std::string fullPath, JSONencoder* j);
     void sendPropResponse(AsyncResponseStream*         response,
-                          bool                         recursing,
+                          int                          level,
                           std::string                  fullPath,
                           bool                         is_dir,
                           size_t                       size,
