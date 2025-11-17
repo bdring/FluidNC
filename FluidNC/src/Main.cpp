@@ -21,6 +21,7 @@
 #    include "Module.h"
 
 #    include "Driver/localfs.h"
+#    include "Driver/gpio.h"
 
 #    include "ToolChangers/atc.h"
 
@@ -158,6 +159,8 @@ void setup() {
         // Log exception:
         log_config_error("Critical error in main_init: " << ex.what());
     }
+
+    poll_gpios();  // Initial poll to send events for initial pin states
 
     allChannels.ready();
     allChannels.deregistration(&startupLog);

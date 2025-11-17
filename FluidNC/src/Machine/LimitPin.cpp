@@ -46,16 +46,8 @@ namespace Machine {
     }
 
     void LimitPin::init() {
-        EventPin::init();
         _pLimited = Stepping::limit_var(_axis, _motorNum);
-
-        // If there is a positive or negative limit pin that is initially true,
-        // calling trigger(false) during the initialization of the all limit
-        // pin would incorrectly clear the bit in the positive or negative mask,
-        // thus trigger() must only be called if _value is true.
-        if (_value) {
-            trigger(_value);
-        }
+        EventPin::init();
     }
 
     void LimitPin::trigger(bool active) {

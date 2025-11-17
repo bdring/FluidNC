@@ -21,7 +21,7 @@ namespace Machine {
         // touch, increasing the accuracy of homing
         // _pExtraLimited lets the limit control two motors, as with
         // CoreXY
-        volatile bool* _pLimited;
+        volatile bool* _pLimited      = nullptr;
         volatile bool* _pExtraLimited = nullptr;
 
         volatile uint32_t* _posLimits = nullptr;

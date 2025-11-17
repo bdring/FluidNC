@@ -28,7 +28,7 @@ class Probe : public Configuration::Configurable {
     ProbeEventPin _toolsetterPin;
 
 public:
-    bool _hard_stop = false;
+    bool _hard_stop        = false;
     bool _probe_hard_limit = false;
     // Configurable
     bool _check_mode_start = true;
