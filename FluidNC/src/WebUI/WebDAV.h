@@ -46,4 +46,7 @@ private:
                           JSONencoder*                 j);
 
     std::string urlToUri(std::string url);
+
+    bool acceptsType(AsyncWebServerRequest* request, const char*);
+    bool acceptsEncoding(AsyncWebServerRequest* request, const char*);
 };

@@ -13,6 +13,10 @@
 #include "FileStream.h"
 #include "HashFS.h"
 
+#include "Mime.h"
+
+using namespace asyncsrv;
+
 WebDAV::WebDAV(const std::string_view url, const char* fsname) : _url(url), _fsname(fsname) {}
 
 bool WebDAV::canHandle(AsyncWebServerRequest* request) const {
@@ -22,42 +26,31 @@ bool WebDAV::canHandle(AsyncWebServerRequest* request) const {
     return false;
 }
 
+static const char* rootname = "/";
+static const char* slashstr = "/";
+static const char  slash    = '/';
+
 void WebDAV::handleRequest(AsyncWebServerRequest* request) {
     ::printf("DAV handleRequest %s\n", request->url().c_str());
-
-    bool acceptGz = false;
-    if (request->hasHeader("Accept-Encoding")) {
-        auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
-        if (encodings.find("gzip") != std::string::npos) {
-            acceptGz = true;
-        }
-    }
 
     // parse the url to a proper path
     std::string path = std::string(request->url().substring(_url.length()).c_str());
     if (path.empty()) {
-        path = "/";
+        path = rootname;
     }
-    if (path != "/" && path[path.length() - 1] == '/') {
+    if (path != rootname && path[path.length() - 1] == '/') {
         path.pop_back();  // Remove the trailing /
     }
 
     DavResource resource = DavResource::NONE;
 
     std::error_code ec;
-    FluidPath       fluid_path(path, _fsname, ec);
 
-    stdfs::path fpath = fluid_path;
+    FluidPath fpath = { path, _fsname, ec };
 
     if (ec) {
-        if (acceptGz) {
-            stdfs::path gzpath(fpath);
-            gzpath += ".gz";
-        }
         resource = DavResource::NONE;
-    }
-
-    if (stdfs::is_regular_file(fpath)) {
+    } else if (stdfs::is_regular_file(fpath)) {
         resource = DavResource::FILE;
     } else if (stdfs::is_directory(fpath)) {
         resource = DavResource::DIR;
@@ -85,6 +78,10 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
         return request->send(201);
     }
 
+    if (request->method() == HTTP_GET) {
+        return handleGet(fpath, resource, request);
+    }
+
     // If we are not creating the resource it must already exist
     if (resource == DavResource::NONE) {
         return handleNotFound(request);
@@ -92,9 +89,6 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
 
     if (request->method() == HTTP_PROPFIND || request->method() == HTTP_PROPPATCH) {
         return handlePropfind(fpath, resource, request);
-    }
-    if (request->method() == HTTP_GET) {
-        return handleGet(fpath, resource, request);
     }
     if (request->method() == HTTP_HEAD || request->method() == HTTP_OPTIONS) {
         return handleHead(resource, request);
@@ -119,9 +113,9 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
     // parse the url to a proper path
     String path = request->url().substring(_url.length());
     if (path.isEmpty()) {
-        path = "/";
+        path = rootname;
     }
-    if (!path.equals("/") && path.endsWith("/")) {
+    if (!path.equals(rootname) && path.endsWith(slashstr)) {
         path = path.substring(0, path.length() - 1);
     }
 
@@ -144,6 +138,22 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
     if (request->method() == HTTP_PUT) {
         return handlePut(fpath, resource, request, data, len, index, total);
     }
+}
+
+bool WebDAV::acceptsEncoding(AsyncWebServerRequest* request, const char* encoding) {
+    if (request->hasHeader("Accept-Encoding")) {
+        auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
+        return encodings.find(encoding) != std::string::npos;
+    }
+    return false;
+}
+
+bool WebDAV::acceptsType(AsyncWebServerRequest* request, const char* type) {
+    if (request->hasHeader(T_ACCEPT)) {
+        auto types = std::string(request->getHeader(T_ACCEPT)->value().c_str());
+        return types.find(type) != std::string::npos;
+    }
+    return false;
 }
 
 void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncWebServerRequest* request) {
@@ -169,28 +179,23 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
 
     // prepare response
 
-    //    std::string  s;  // Lifetime needs to extend to end of this function
-    bool isJSON = false;
-    if (request->hasHeader("Accept")) {
-        auto encodings = std::string(request->getHeader("Accept")->value().c_str());
-        if (encodings.find("application/json") != std::string::npos) {
-            isJSON = true;
-        }
-    }
-
     JSONencoder* j = nullptr;
 
-    AsyncResponseStream* response = request->beginResponseStream(isJSON ? "application/json" : "application/xml");
+    bool wantJSON = acceptsType(request, T_application_json);
+
+    AsyncResponseStream* response = request->beginResponseStream(wantJSON ? T_application_json : "application/xml");
     response->setCode(207);
     JsonCallback cb = [response](const char* s) { response->print(s); };
 
-    j = new JSONencoder(&cb);
+    if (wantJSON) {
+        j = new JSONencoder(&cb);
+    }
 
     auto   ftime  = stdfs::last_write_time(fpath);
     bool   is_dir = resource == DavResource::DIR;
     size_t size   = is_dir ? -1 : stdfs::file_size(fpath);
 
-    if (isJSON) {
+    if (j) {
         j->begin();
     } else {
         response->print("<?xml version=\"1.0\"?>");
@@ -203,7 +208,7 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
         std::error_code ec;
         auto            iter = stdfs::directory_iterator { fpath, ec };
         if (!ec) {
-            if (isJSON) {
+            if (j) {
                 j->begin_array("files");
             }
             for (auto const& dirent : iter) {
@@ -211,12 +216,12 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
                 size_t size   = is_dir ? -1 : dirent.file_size();
                 sendPropResponse(response, true, dirent.path().filename().string(), is_dir, size, dirent.last_write_time(), j);
             }
-            if (isJSON) {
+            if (j) {
                 j->end_array();
             }
         }
     }
-    if (isJSON) {
+    if (j) {
         j->end();
         //        response->print(s.c_str());
         delete j;
@@ -227,45 +232,32 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
     return request->send(response);
 }
 
-struct mime_type {
-    const char* suffix;
-    const char* mime_type;
-} mime_types[] = {
-    { ".htm", "text/html" },         { ".html", "text/html" },        { ".css", "text/css" },   { ".js", "application/javascript" },
-    { ".htm", "text/html" },         { ".png", "image/png" },         { ".gif", "image/gif" },  { ".jpeg", "image/jpeg" },
-    { ".jpg", "image/jpeg" },        { ".ico", "image/x-icon" },      { ".xml", "text/xml" },   { ".pdf", "application/x-pdf" },
-    { ".zip", "application/x-zip" }, { ".gz", "application/x-gzip" }, { ".txt", "text/plain" }, { "", "application/octet-stream" }
-};
-static bool endsWithCI(const char* suffix, const char* test) {
-    size_t slen = strlen(suffix);
-    size_t tlen = strlen(test);
-    if (slen > tlen || slen == 0) {
-        return false;
-    }
-    const char* s = suffix + slen;
-    const char* t = test + tlen;
-    while (--s != suffix) {
-        if (tolower(*s) != tolower(*--t)) {
-            return false;
-        }
-    }
-    return true;
-}
-static const char* getContentType(const char* filename) {
-    mime_type* m;
-    for (m = mime_types; *(m->suffix) != '\0'; ++m) {
-        if (endsWithCI(m->suffix, filename)) {
-            return m->mime_type;
-        }
-    }
-    return m->mime_type;
-}
-
 void WebDAV::handleGet(const FluidPath& fpath, DavResource resource, AsyncWebServerRequest* request) {
     FileStream* file = nullptr;
-    try {
-        file = new FileStream(fpath, "r", "");
-    } catch (const Error err) { log_debug(fpath << " not found"); }
+
+    bool isGzip = false;
+    if (resource == DavResource::NONE) {
+        if (acceptsEncoding(request, T_gzip)) {
+            stdfs::path gzpath(fpath);
+            gzpath += ".gz";
+            try {
+                file   = new FileStream(gzpath, "r", "");
+                isGzip = true;
+            } catch (const Error err) {}
+        }
+    } else {
+        try {
+            file = new FileStream(fpath, "r", "");
+        } catch (const Error err) {}
+    }
+
+    if (!file) {
+        log_debug(fpath << " not found");
+        AsyncWebServerResponse* response = request->beginResponse(404);
+        response->addHeader("Allow", "PROPFIND,OPTIONS,DELETE,COPY,MOVE,HEAD,POST,PUT,GET");
+        request->send(response);
+        return;
+    }
 
     AsyncWebServerResponse* response = request->beginResponse(
         getContentType(fpath.c_str()), file->size(), [file, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
@@ -286,6 +278,9 @@ void WebDAV::handleGet(const FluidPath& fpath, DavResource resource, AsyncWebSer
         });
 
     response->addHeader("Allow", "PROPFIND,OPTIONS,DELETE,COPY,MOVE,HEAD,POST,PUT,GET");
+    if (isGzip) {
+        response->addHeader(T_Content_Encoding, T_gzip, false);
+    }
 
     request->onDisconnect([request, file]() { delete file; });
 
@@ -453,11 +448,11 @@ void WebDAV::sendPropResponse(AsyncResponseStream*         response,
                               size_t                       size,
                               const stdfs::file_time_type& ftime,
                               JSONencoder*                 j) {
-    if (fullPath.substr(0, 1) != "/") {
-        fullPath.insert(0, "/");
+    if (fullPath.substr(0, 1) != slashstr) {
+        fullPath.insert(0, rootname);
     }
-    if (is_dir && fullPath.length() > 1 && fullPath[fullPath.length() - 1] != '/') {
-        fullPath += "/";
+    if (is_dir && fullPath.length() > 1 && fullPath[fullPath.length() - 1] != slash) {
+        fullPath += slash;
     }
     fullPath.insert(0, _url);
 
