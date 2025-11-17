@@ -27,8 +27,8 @@ private:
 
     std::string linebuf;
 
-    Channel*      _channel  = nullptr;
-    JsonCallback* _callback = nullptr;
+    Channel*     _channel = nullptr;
+    JsonCallback _callback;
 
     std::string category;
 
@@ -37,7 +37,7 @@ private:
 public:
     // Constructor; set _encapsulate true for [MSG:JSON: ,,,] encapsulation
     JSONencoder(bool encapsulate, Channel* channel);
-    JSONencoder(JsonCallback*);
+    JSONencoder(JsonCallback);
 
     // begin() starts the encoding process.
     void begin();

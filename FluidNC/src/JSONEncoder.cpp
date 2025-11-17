@@ -10,22 +10,22 @@
 JSONencoder::JSONencoder(bool encapsulate, Channel* channel) : _encapsulate(encapsulate), level(0), _channel(channel), category("nvs") {
     count[level] = 0;
 }
-JSONencoder::JSONencoder(JsonCallback* callback) : level(0), _callback(callback) {
+JSONencoder::JSONencoder(JsonCallback callback) : level(0), _callback(callback) {
     count[level] = 0;
 }
 
 void JSONencoder::flush() {
-    if (_callback && linebuf.length()) {
-        (*_callback)(linebuf.c_str());
-        linebuf.clear();
-        return;
-    }
-    if (_channel && linebuf.length()) {
-        if (_encapsulate) {
-            // Output to channels is encapsulated in [MSG:JSON:...]
-            (*_channel).out_acked(linebuf, "JSON:");
+    if (linebuf.length()) {
+        if (_channel) {
+            if (_encapsulate) {
+                // Output to channels is encapsulated in [MSG:JSON:...]
+                (*_channel).out_acked(linebuf, "JSON:");
+            } else {
+                log_stream(*_channel, linebuf);
+            }
+
         } else {
-            log_stream(*_channel, linebuf);
+            _callback(linebuf.c_str());
         }
         linebuf.clear();
     }

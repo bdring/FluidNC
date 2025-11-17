@@ -841,8 +841,7 @@ namespace WebUI {
         response->setCode(200);
         response->addHeader(T_Cache_Control, T_no_cache);
 
-        JsonCallback cb = [response](const char* s) { response->print(s); };
-        JSONencoder  j(&cb);
+        JSONencoder j([response](const char* s) { response->print(s); });
         j.begin();
         j.member("status", status);
         if (*level != '\0') {
@@ -860,8 +859,7 @@ namespace WebUI {
         response->setCode(code);
         response->addHeader(T_Cache_Control, T_no_cache);
 
-        JsonCallback cb = [response](const char* s) { response->print(s); };
-        JSONencoder  j(&cb);
+        JSONencoder j([response](const char* s) { response->print(s); });
         j.begin();
         j.member("status", status);
         j.end();
@@ -1079,8 +1077,7 @@ namespace WebUI {
         response->setCode(200);
         response->addHeader(T_Cache_Control, T_no_cache);
 
-        JsonCallback cb = [response](const char* s) { response->print(s); };
-        JSONencoder  j(&cb);
+        JSONencoder j([response](const char* s) { response->print(s); });
 
         j.begin();
 

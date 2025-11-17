@@ -185,10 +185,9 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
 
     AsyncResponseStream* response = request->beginResponseStream(wantJSON ? T_application_json : "application/xml");
     response->setCode(207);
-    JsonCallback cb = [response](const char* s) { response->print(s); };
 
     if (wantJSON) {
-        j = new JSONencoder(&cb);
+        j = new JSONencoder([response](const char* s) { response->print(s); });
     }
 
     auto   ftime  = stdfs::last_write_time(fpath);
