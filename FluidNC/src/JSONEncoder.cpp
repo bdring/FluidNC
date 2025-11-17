@@ -11,12 +11,20 @@ JSONencoder::JSONencoder(bool encapsulate, Channel* channel) :
     _encapsulate(encapsulate), level(0), _str(&linebuf), _channel(channel), category("nvs") {
     count[level] = 0;
 }
+JSONencoder::JSONencoder(JsonCallback* callback) : level(0), _str(&linebuf), _callback(callback) {
+    count[level] = 0;
+}
 
 JSONencoder::JSONencoder(std::string* str) : level(0), _str(str), category("nvs") {
     count[level] = 0;
 }
 
 void JSONencoder::flush() {
+    if (_callback && (*_str).length()) {
+        (*_callback)((*_str).c_str());
+        (*_str).clear();
+        return;
+    }
     if (_channel && (*_str).length()) {
         if (_encapsulate) {
             // Output to channels is encapsulated in [MSG:JSON:...]

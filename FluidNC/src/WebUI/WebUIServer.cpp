@@ -28,6 +28,7 @@
 
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include "WebDAV.h"
 
 namespace WebUI {
     const byte DNS_PORT = 53;
@@ -103,8 +104,14 @@ namespace WebUI {
         _headerFilter = new AsyncHeaderFreeMiddleware();
 
         //here the list of headers to be recorded
+        _headerFilter->keep("Accept");
+        _headerFilter->keep("Accept-Encoding");
         _headerFilter->keep("Cookie");
         _headerFilter->keep("If-None-Match");
+
+        // WebDAV needs these
+        _headerFilter->keep("Depth");
+        _headerFilter->keep("Destination");
 
         //For websockets we need to keep these headers, otherwise this wouldn't work!
         _headerFilter->keep("Upgrade");
@@ -115,6 +122,12 @@ namespace WebUI {
         _headerFilter->keep("Sec-WebSocket-Extensions");
 
         _webserver->addMiddlewares({ _headerFilter });
+
+        auto flash_dav = new WebDAV("/flash", localfsName);
+        auto sd_dav    = new WebDAV("/sd", sdName);
+
+        _webserver->addHandler(flash_dav);
+        _webserver->addHandler(sd_dav);
 
         // The only major difference with websockets for v2 webui vs v3 seems to be the currentID vs CURRENT_ID and activeID vs ACTIVE_ID
         // In order to only have one websocket server (for simplicity and maintability reasons) we could:
@@ -263,6 +276,14 @@ namespace WebUI {
             return false;
         }
 
+        bool acceptGz = false;
+        if (request->hasHeader("Accept-Encoding")) {
+            auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
+            if (encodings.find("gzip") != std::string::npos) {
+                acceptGz = true;
+            }
+        }
+
         std::string hash;
 
         // If you load or reload WebUI while a program is running, there is a high
@@ -275,7 +296,7 @@ namespace WebUI {
         if (http_block_during_motion->get() && inMotionState()) {
             // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH
             hash = HashFS::hash(fpath, true);
-            if (!hash.length()) {
+            if (!hash.length() && acceptGz) {
                 std::filesystem::path gzpath(fpath);
                 gzpath += ".gz";
                 hash = HashFS::hash(gzpath, true);
@@ -293,7 +314,7 @@ namespace WebUI {
 
         // Check for browser cache match
         hash = HashFS::hash(fpath);
-        if (!hash.length()) {
+        if (!hash.length() && acceptGz) {
             std::filesystem::path gzpath(fpath);
             gzpath += ".gz";
             hash = HashFS::hash(gzpath);
@@ -306,8 +327,9 @@ namespace WebUI {
                 AsyncWebServerResponse* response = request->beginResponse(304);
                 response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
                 request->send(response);
-            } else
+            } else {
                 request->send(304);
+            }
             return true;
         }
 
@@ -316,15 +338,18 @@ namespace WebUI {
         try {
             file = new FileStream(path, "r", "");
         } catch (const Error err) {
-            try {
-                std::filesystem::path gzpath(fpath);
-                gzpath += ".gz";
-                file   = new FileStream(gzpath, "r", "");
-                isGzip = true;
-            } catch (const Error err) {
-                log_debug(path << " not found");
-                return false;
+            if (acceptGz) {
+                try {
+                    std::filesystem::path gzpath(fpath);
+                    gzpath += ".gz";
+                    file   = new FileStream(gzpath, "r", "");
+                    isGzip = true;
+                } catch (const Error err) {}
             }
+        }
+        if (!file) {
+            log_debug(path << " not found");
+            return false;
         }
 
         AsyncWebServerResponse* response = request->beginResponse(
@@ -534,7 +559,7 @@ namespace WebUI {
             if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/")) {
                 synchronousCommand(request, cmd.c_str(), silent, auth_level, isAllowedInMotion(cmdUpper));
             } else {
-                websocketCommand(request, cmd.c_str(), -1, auth_level);  // We dont support or need PAGEID anymore
+                websocketCommand(request, cmd.c_str(), -1, auth_level);
             }
             return;
         }
@@ -1224,10 +1249,22 @@ namespace WebUI {
         const char* suffix;
         const char* mime_type;
     } mime_types[] = {
-        { ".htm", "text/html" },         { ".html", "text/html" },        { ".css", "text/css" },   { ".js", "application/javascript" },
-        { ".htm", "text/html" },         { ".png", "image/png" },         { ".gif", "image/gif" },  { ".jpeg", "image/jpeg" },
-        { ".jpg", "image/jpeg" },        { ".ico", "image/x-icon" },      { ".xml", "text/xml" },   { ".pdf", "application/x-pdf" },
-        { ".zip", "application/x-zip" }, { ".gz", "application/x-gzip" }, { ".txt", "text/plain" }, { "", "application/octet-stream" }
+        { ".html.gz", "text/html" },
+        { ".htm", "text/html" },
+        { ".html", "text/html" },
+        { ".css", "text/css" },
+        { ".js", "application/javascript" },
+        { ".png", "image/png" },
+        { ".gif", "image/gif" },
+        { ".jpeg", "image/jpeg" },
+        { ".jpg", "image/jpeg" },
+        { ".ico", "image/x-icon" },
+        { ".xml", "text/xml" },
+        { ".pdf", "application/x-pdf" },
+        { ".zip", "application/x-zip" },
+        { ".gz", "application/x-gzip" },
+        { ".txt", "text/plain" },
+        { "", "application/octet-stream" },
     };
     static bool endsWithCI(const char* suffix, const char* test) {
         size_t slen = strlen(suffix);
