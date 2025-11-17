@@ -26,6 +26,8 @@
 #include "HashFS.h"
 #include <list>
 
+#include "Mime.h"  // getContentType
+
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "WebDAV.h"
@@ -34,6 +36,8 @@ namespace WebUI {
     const byte DNS_PORT = 53;
     DNSServer  dnsServer;
 }
+
+using namespace asyncsrv;
 
 #include <esp_ota_ops.h>
 
@@ -340,7 +344,8 @@ namespace WebUI {
         } catch (const Error err) {
             if (acceptGz) {
                 try {
-                    std::filesystem::path gzpath(fpath);
+                    std::string gzpath(fpath);
+                    //                    std::filesystem::path gzpath(fpath);
                     gzpath += ".gz";
                     file   = new FileStream(gzpath, "r", "");
                     isGzip = true;
@@ -386,7 +391,7 @@ namespace WebUI {
         // content length is set automatically
         // response->setContentLength(file->size());
         if (isGzip) {
-            response->addHeader("Content-Encoding", "gzip");
+            response->addHeader(T_Content_Encoding, T_gzip);
         }
         request->send(response);
 
@@ -518,7 +523,7 @@ namespace WebUI {
             });
         } else
             response = request->beginResponse(200, "", "");
-        response->addHeader("Cache-Control", "no-cache");
+        response->addHeader(T_Cache_Control, T_no_cache);
         request->send(response);
         return;
     }
@@ -589,7 +594,7 @@ namespace WebUI {
             }
             ClearAuthIP(_webserver->client().remoteIP(), sessionID);
             _webserver->sendHeader("Set-Cookie", "ESPSESSIONID=0");
-            _webserver->sendHeader("Cache-Control", "no-cache");
+            _webserver->sendHeader(T_Cache_Control, T_no_cache);
             sendAuth("Ok", "guest", "");
             //_webserver->client().stop();
             return;
@@ -678,7 +683,7 @@ namespace WebUI {
                         std::string tmps = "ESPSESSIONID=";
                         tmps += current_auth->sessionID.c_str();
                         _webserver->sendHeader("Set-Cookie", tmps);
-                        _webserver->sendHeader("Cache-Control", "no-cache");
+                        _webserver->sendHeader(T_Cache_Control, T_no_cache);
                         switch (current_auth->level) {
                             case AuthenticationLevel::LEVEL_ADMIN:
                                 auths = "admin";
@@ -826,14 +831,18 @@ namespace WebUI {
     }
 
     void WebUI_Server::sendJSON(AsyncWebServerRequest* request, uint16_t code, const char* s) {
-        AsyncWebServerResponse* response = request->beginResponse(code, "application/json", s);
-        response->addHeader("Cache-Control", "no-cache");
+        AsyncWebServerResponse* response = request->beginResponse(code, T_application_json, s);
+        response->addHeader(T_Cache_Control, T_no_cache);
         request->send(response);
     }
 
     void WebUI_Server::sendAuth(AsyncWebServerRequest* request, const char* status, const char* level, const char* user) {
-        std::string s;
-        JSONencoder j(&s);
+        AsyncResponseStream* response = request->beginResponseStream(T_application_json);
+        response->setCode(200);
+        response->addHeader(T_Cache_Control, T_no_cache);
+
+        JsonCallback cb = [response](const char* s) { response->print(s); };
+        JSONencoder  j(&cb);
         j.begin();
         j.member("status", status);
         if (*level != '\0') {
@@ -843,16 +852,20 @@ namespace WebUI {
             j.member("user", user);
         }
         j.end();
-        sendJSON(request, 200, s);
+        request->send(response);
     }
 
     void WebUI_Server::sendStatus(AsyncWebServerRequest* request, uint16_t code, const char* status) {
-        std::string s;
-        JSONencoder j(&s);
+        AsyncResponseStream* response = request->beginResponseStream(T_application_json);
+        response->setCode(code);
+        response->addHeader(T_Cache_Control, T_no_cache);
+
+        JsonCallback cb = [response](const char* s) { response->print(s); };
+        JSONencoder  j(&cb);
         j.begin();
         j.member("status", status);
         j.end();
-        sendJSON(request, code, s);
+        request->send(response);
     }
 
     void WebUI_Server::sendAuthFailed(AsyncWebServerRequest* request) {
@@ -1062,8 +1075,13 @@ namespace WebUI {
             list_files = false;
         }
 
-        std::string s;
-        JSONencoder j(&s);
+        AsyncResponseStream* response = request->beginResponseStream(T_application_json);
+        response->setCode(200);
+        response->addHeader(T_Cache_Control, T_no_cache);
+
+        JsonCallback cb = [response](const char* s) { response->print(s); };
+        JSONencoder  j(&cb);
+
         j.begin();
 
         if (list_files) {
@@ -1095,7 +1113,8 @@ namespace WebUI {
         j.member("occupation", percent);
         j.member("status", sstatus);
         j.end();
-        sendJSON(request, 200, s);
+
+        request->send(response);
     }
 
     void WebUI_Server::handle_direct_SDFileList(AsyncWebServerRequest* request) {
@@ -1242,53 +1261,6 @@ namespace WebUI {
             }
             start_time = millis();
         }
-    }
-
-    //Convert file extension to content type
-    struct mime_type {
-        const char* suffix;
-        const char* mime_type;
-    } mime_types[] = {
-        { ".html.gz", "text/html" },
-        { ".htm", "text/html" },
-        { ".html", "text/html" },
-        { ".css", "text/css" },
-        { ".js", "application/javascript" },
-        { ".png", "image/png" },
-        { ".gif", "image/gif" },
-        { ".jpeg", "image/jpeg" },
-        { ".jpg", "image/jpeg" },
-        { ".ico", "image/x-icon" },
-        { ".xml", "text/xml" },
-        { ".pdf", "application/x-pdf" },
-        { ".zip", "application/x-zip" },
-        { ".gz", "application/x-gzip" },
-        { ".txt", "text/plain" },
-        { "", "application/octet-stream" },
-    };
-    static bool endsWithCI(const char* suffix, const char* test) {
-        size_t slen = strlen(suffix);
-        size_t tlen = strlen(test);
-        if (slen > tlen || slen == 0) {
-            return false;
-        }
-        const char* s = suffix + slen;
-        const char* t = test + tlen;
-        while (--s != suffix) {
-            if (tolower(*s) != tolower(*--t)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    const char* WebUI_Server::getContentType(const char* filename) {
-        mime_type* m;
-        for (m = mime_types; *(m->suffix) != '\0'; ++m) {
-            if (endsWithCI(m->suffix, filename)) {
-                return m->mime_type;
-            }
-        }
-        return m->mime_type;
     }
 
     //check authentication

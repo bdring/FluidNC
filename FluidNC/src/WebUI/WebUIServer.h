@@ -74,8 +74,6 @@ namespace WebUI {
         static bool         _schedule_reboot;
         static uint32_t     _schedule_reboot_time;
 
-        static const char* getContentType(const char* filename);
-
         static AuthenticationLevel is_authenticated();
 #ifdef ENABLE_AUTHENTICATION
         static AuthenticationIP*   _head;
