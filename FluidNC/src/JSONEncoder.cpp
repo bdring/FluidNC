@@ -7,37 +7,32 @@
 
 // Constructor.  If _encapsulate is true, the output is
 // encapsulated in [MSG:JSON: ...] lines
-JSONencoder::JSONencoder(bool encapsulate, Channel* channel) :
-    _encapsulate(encapsulate), level(0), _str(&linebuf), _channel(channel), category("nvs") {
+JSONencoder::JSONencoder(bool encapsulate, Channel* channel) : _encapsulate(encapsulate), level(0), _channel(channel), category("nvs") {
     count[level] = 0;
 }
-JSONencoder::JSONencoder(JsonCallback* callback) : level(0), _str(&linebuf), _callback(callback) {
-    count[level] = 0;
-}
-
-JSONencoder::JSONencoder(std::string* str) : level(0), _str(str), category("nvs") {
+JSONencoder::JSONencoder(JsonCallback* callback) : level(0), _callback(callback) {
     count[level] = 0;
 }
 
 void JSONencoder::flush() {
-    if (_callback && (*_str).length()) {
-        (*_callback)((*_str).c_str());
-        (*_str).clear();
+    if (_callback && linebuf.length()) {
+        (*_callback)(linebuf.c_str());
+        linebuf.clear();
         return;
     }
-    if (_channel && (*_str).length()) {
+    if (_channel && linebuf.length()) {
         if (_encapsulate) {
             // Output to channels is encapsulated in [MSG:JSON:...]
-            (*_channel).out_acked(*_str, "JSON:");
+            (*_channel).out_acked(linebuf, "JSON:");
         } else {
-            log_stream(*_channel, *_str);
+            log_stream(*_channel, linebuf);
         }
-        (*_str).clear();
+        linebuf.clear();
     }
 }
 void JSONencoder::add(char c) {
-    (*_str) += c;
-    if (_channel && (*_str).length() >= 100) {
+    linebuf += c;
+    if (_channel && linebuf.length() >= 100) {
         flush();
     }
 }
@@ -158,8 +153,8 @@ void JSONencoder::line() {
             // log_stream() always adds a newline
             // We want that for channels because they might not
             // be able to handle really long lines.
-            log_stream(*_channel, *_str);
-            (*_str).clear();
+            log_stream(*_channel, linebuf);
+            linebuf.clear();
             indent();
         }
     } else {
