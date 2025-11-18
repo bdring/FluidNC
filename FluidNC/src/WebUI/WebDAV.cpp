@@ -31,8 +31,6 @@ static const char* slashstr = "/";
 static const char  slash    = '/';
 
 void WebDAV::handleRequest(AsyncWebServerRequest* request) {
-    ::printf("DAV handleRequest %s\n", request->url().c_str());
-
     // parse the url to a proper path
     std::string path = std::string(request->url().substring(_url.length()).c_str());
     if (path.empty()) {
@@ -177,7 +175,8 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
         }
     }
 
-    // prepare response
+    std::string fullPath = fpath;
+    size_t      pos      = 0;
 
     JSONencoder* j = nullptr;
 
@@ -190,24 +189,16 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
         j = new JSONencoder([response](const char* s) { response->print(s); });
     }
 
-    auto   ftime  = stdfs::last_write_time(fpath);
-    bool   is_dir = resource == DavResource::DIR;
-    size_t size   = is_dir ? -1 : stdfs::file_size(fpath);
-
     if (j) {
         j->begin();
     } else {
         response->print("<?xml version=\"1.0\"?>");
         response->print("<d:multistatus xmlns:d=\"DAV:\">");
     }
-    if (!is_dir || !noroot) {
-        sendPropResponse(response, 0, fpath.filename(), is_dir, size, ftime, j);
-    }
+    //    if (!is_dir || !noroot) {
+    sendPropResponse(response, (int)depth, fullPath, j);
+    //    }
 
-    int level = (int)depth;
-    if (resource == DavResource::DIR && level) {
-        sendPropDirList(response, (int)depth, fpath, j);
-    }
     if (j) {
         j->end();
         delete j;
@@ -412,7 +403,6 @@ void WebDAV::handleNotFound(AsyncWebServerRequest* request) {
 }
 
 std::string WebDAV::urlToUri(std::string url) {
-    ::printf("url %s\n", url.c_str());
     if (string_util::starts_with_ignore_case(url, "http://")) {
         url.erase(0, 7);
     } else if (string_util::starts_with_ignore_case(url, "https://")) {
@@ -427,50 +417,10 @@ std::string WebDAV::urlToUri(std::string url) {
     return url.substr(_url.length());
 }
 
-void WebDAV::sendPropDirList(AsyncResponseStream* response, int level, std::string dirname, JSONencoder* j) {
-    log_debug(level << " " << dirname);
-    std::error_code ec;
-    auto            iter = stdfs::directory_iterator { dirname, ec };
-    if (ec) {
-        return;
-    }
-    if (j) {
-        j->begin_array("files");
-    }
-    for (auto const& dirent : iter) {
-        bool   is_dir = dirent.is_directory();
-        size_t size   = is_dir ? -1 : dirent.file_size();
-        sendPropResponse(response, true, dirent.path().filename().string(), is_dir, size, dirent.last_write_time(), j);
-        if (is_dir && level--) {
-            sendPropDirList(response, level, dirent.path().string(), j);
-        }
-    }
-    if (j) {
-        j->end_array();
-    }
-}
-
-void WebDAV::sendPropResponse(AsyncResponseStream*         response,
-                              int                          level,
-                              std::string                  fullPath,
-                              bool                         is_dir,
-                              size_t                       size,
-                              const stdfs::file_time_type& ftime,
-                              JSONencoder*                 j) {
-    if (fullPath.substr(0, 1) != slashstr) {
-        fullPath.insert(0, rootname);
-    }
-    if (is_dir && fullPath.length() > 1 && fullPath[fullPath.length() - 1] != slash) {
-        fullPath += slash;
-    }
-    fullPath.insert(0, _url);
-
-    size_t pos = 0;
-
-    while ((pos = fullPath.find(" ", pos)) != std::string::npos) {
-        fullPath.replace(pos, fullPath.length(), "%20");
-        pos += strlen("%20");  // Move past the replacement to avoid infinite loops
-    }
+void WebDAV::sendPropResponse(AsyncResponseStream* response, int level, std::string fullPath, JSONencoder* j) {
+    auto   ftime  = stdfs::last_write_time(fullPath);
+    bool   is_dir = stdfs::is_directory(fullPath);
+    size_t size   = is_dir ? -1 : stdfs::file_size(fullPath);
 
     // last modified
 #if __cpp_lib_format
@@ -491,6 +441,15 @@ void WebDAV::sendPropResponse(AsyncResponseStream*         response,
         // j->member("shortname", fullPath);
         j->member("size", is_dir ? -1 : size);
         j->member("datetime", timestr);
+        if (is_dir && level--) {
+            j->begin_array("files");
+            std::error_code ec;
+            auto            iter = stdfs::directory_iterator { fullPath, ec };
+            for (auto const& dirent : iter) {
+                sendPropResponse(response, level, dirent.path().string(), j);
+            }
+            j->end_array();
+        }
         j->end_object();
     } else {
         // send response
@@ -524,8 +483,12 @@ void WebDAV::sendPropResponse(AsyncResponseStream*         response,
         response->print("</d:propstat>");
 
         response->print("</d:response>");
-        if (level == 0) {
-            return;
+        if (is_dir && level--) {
+            std::error_code ec;
+            auto            iter = stdfs::directory_iterator { fullPath, ec };
+            for (auto const& dirent : iter) {
+                sendPropResponse(response, level, dirent.path().string(), j);
+            }
         }
     }
 }

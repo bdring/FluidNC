@@ -37,14 +37,7 @@ private:
     void handleDelete(const FluidPath& path, DavResource resource, AsyncWebServerRequest* request);
     void handleHead(DavResource resource, AsyncWebServerRequest* request);
     void handleNotFound(AsyncWebServerRequest* request);
-    void sendPropDirList(AsyncResponseStream* response, int level, std::string fullPath, JSONencoder* j);
-    void sendPropResponse(AsyncResponseStream*         response,
-                          int                          level,
-                          std::string                  fullPath,
-                          bool                         is_dir,
-                          size_t                       size,
-                          const stdfs::file_time_type& time,
-                          JSONencoder*                 j);
+    void sendPropResponse(AsyncResponseStream* response, int level, std::string fullPath, JSONencoder* j);
 
     std::string urlToUri(std::string url);
 
