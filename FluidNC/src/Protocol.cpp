@@ -410,18 +410,16 @@ static void protocol_do_soft_restart() {
 }
 
 static void protocol_do_start() {
+    report_recompute_pin_string();
+    if (report_pin_string.length()) {
+        log_warn("Input pin(s) active on startup:" << report_pin_string);
+    }
+
     protocol_send_event(&restartEvent);
     if (!state_is(State::Starting)) {
         return;
     }
     set_state(State::Critical);
-
-    if (config->_control->stuck() || limits_get_state()) {
-        report_recompute_pin_string();
-        log_warn("Input pin(s) active on startup:" << report_pin_string);
-        send_alarm(ExecAlarm::StartupPin);
-        return;
-    }
 
     if (FORCE_INITIALIZATION_ALARM) {
         // Force ALARM state upon a power-cycle or hard reset.
