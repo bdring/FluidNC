@@ -94,9 +94,6 @@ namespace WebUI {
 
         _setupdone = false;
 
-        Serial.printf("Startup\n");
-        Serial.printf("Starting webserver\n");
-
         if (WiFi.getMode() == WIFI_OFF || !http_enable->get()) {
             return;
         }
@@ -484,11 +481,11 @@ namespace WebUI {
     }
 
     // WebUI sends a PAGEID arg to identify the websocket it is using
-    int32_t WebUI_Server::getPageid(AsyncWebServerRequest* request) {
+    uint32_t WebUI_Server::getPageid(AsyncWebServerRequest* request) {
         if (request->hasParam("PAGEID")) {
             return request->getParam("PAGEID")->value().toInt();
         }
-        return -1;
+        return 0;  // ID 0 means none
     }
 
     void WebUI_Server::synchronousCommand(
@@ -531,7 +528,7 @@ namespace WebUI {
     std::string getSession(AsyncClient* client) {
         return (std::to_string(IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
     }
-    void WebUI_Server::websocketCommand(AsyncWebServerRequest* request, const char* cmd, int32_t pageid, AuthenticationLevel auth_level) {
+    void WebUI_Server::websocketCommand(AsyncWebServerRequest* request, const char* cmd, uint32_t pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
             request->send(401, "text/plain", "Authentication failed\n");
             return;
@@ -564,7 +561,7 @@ namespace WebUI {
             if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/")) {
                 synchronousCommand(request, cmd.c_str(), silent, auth_level, isAllowedInMotion(cmdUpper));
             } else {
-                websocketCommand(request, cmd.c_str(), -1, auth_level);
+                websocketCommand(request, cmd.c_str(), getPageid(request), auth_level);
             }
             return;
         }

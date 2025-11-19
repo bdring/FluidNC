@@ -125,35 +125,49 @@ namespace WebUI {
     static AsyncWebSocket* _server;
     WSChannel::~WSChannel() {}
 
-    std::map<objnum_t, WSChannel*>    WSChannels::_wsChannels;
-    std::map<std::string, WSChannel*> WSChannels::_wsChannelsBySession;
-    AsyncWebSocket*                   WSChannels::_server = nullptr;
+    std::vector<WSChannel*> WSChannels::_wsChannels;
+    AsyncWebSocket*         WSChannels::_server = nullptr;
 
     WSChannel* WSChannels::_lastWSChannel = nullptr;
 
-    WSChannel* WSChannels::getWSChannel(std::string session) {
-        try {
-            return _wsChannelsBySession.at(session);
-        } catch (std::out_of_range& oor) {}
+    WSChannel* WSChannels::getWSChannel(objnum_t pageid, std::string session) {
+        for (auto it = _wsChannels.begin(); it < _wsChannels.end(); ++it) {
+            if (pageid) {
+                // Do not combine these predicates into a single to avoid
+                // a match on session if pageid is 0.
+                if ((*it)->id() == pageid) {
+                    return *it;
+                }
+            } else if ((*it)->session() == session) {
+                return *it;
+            }
+        }
         return nullptr;
     }
 
     void WSChannels::removeChannel(objnum_t num) {
-        try {
-            WSChannel*  wsChannel = _wsChannels.at(num);
-            std::string session   = wsChannel->session();
-            wsChannel->active(false);
-            allChannels.kill(wsChannel);
-            _wsChannels.erase(num);
-            // Only remove if this is the same object
-            if (_wsChannelsBySession[session] == wsChannel) {
-                _wsChannelsBySession.erase(session);
+        log_debug("REMOVING " << num);
+        for (auto it = _wsChannels.begin(); it < _wsChannels.end(); ++it) {
+            if ((*it)->id() == num) {
+                auto wsChannel = *it;
+                _wsChannels.erase(it);
+                wsChannel->active(false);
+                allChannels.kill(wsChannel);
+                log_debug("ERASING " << (int)wsChannel << " " << wsChannel->id());
+                break;
             }
-        } catch (std::out_of_range& oor) {}
+        }
+    }
+
+    void WSChannels::showChannels() {
+        log_debug("wsChannels: " << _wsChannels.size());
+        for (auto wsChannel : _wsChannels) {
+            log_debug("id " << wsChannel->id() << " session " << wsChannel->session());
+        }
     }
 
     bool WSChannels::runGCode(uint32_t pageid, std::string_view cmd, std::string session) {
-        WSChannel* wsChannel = getWSChannel(session);
+        WSChannel* wsChannel = getWSChannel(pageid, session);
         if (wsChannel) {
             if (cmd.length()) {
                 if (is_realtime_command(cmd[0])) {
@@ -176,7 +190,7 @@ namespace WebUI {
     }
 
     bool WSChannels::sendError(uint32_t pageid, std::string err, std::string session) {
-        WSChannel* wsChannel = getWSChannel(session);
+        WSChannel* wsChannel = getWSChannel(pageid, session);
         if (wsChannel) {
             return !wsChannel->sendTXT(err);
         }
@@ -184,7 +198,7 @@ namespace WebUI {
     }
     void WSChannels::sendPing() {
         if (_server) {
-            _server->textAll("PING");
+            _server->textAll("PING\n");
         }
     }
 
@@ -195,65 +209,74 @@ namespace WebUI {
         switch (type) {
             case WS_EVT_ERROR:
                 WSChannels::removeChannel(num);
-                log_debug_to(Console, "WebSocket error cid#" << num << " total " << _wsChannels.size());
+                log_debug_to(Console, "WebSocket error cid#" << num);
                 break;
             case WS_EVT_DISCONNECT:
                 WSChannels::removeChannel(num);
-                log_debug_to(Console, "WebSocket disconnect cid#" << num << " total " << _wsChannels.size());
+                log_debug_to(Console, "WebSocket disconnect cid#" << num);
                 break;
             case WS_EVT_CONNECT: {
-                WSChannel* wsChannel = new WSChannel(server, num, session);
-                if (!wsChannel) {
+                WSChannel* newChannel = new WSChannel(server, num, session);
+                if (!newChannel) {
                     log_error_to(Console, "Creating WebSocket channel failed");
                 } else {
                     std::string uri((char*)server->url());
                     IPAddress   ip = client->remoteIP();
 
+                    std::string s;
                     // Ask any client with same session ID to disconnect
                     // This is to deal with miltiple tabs within the same browser having the same session,
                     // only deal with the last one connected, and disconnect the previous one.
-                    if (_wsChannelsBySession[session]) {
-                        WSChannel* oldClient = _wsChannelsBySession[session];
-                        _wsChannelsBySession.erase(session);
-                        std::string s("currentID:");  // webui3
-                        s += std::to_string(0);       // valid client IDs start at 1
-                        oldClient->sendTXT(s);
-                        s = "CURRENT_ID:";  // webui2
-                        s += std::to_string(0);
-                        oldClient->sendTXT(s);
-                        s = "activeID:";  // webui3
-                        s += std::to_string(num);
-                        oldClient->sendTXT(s);
-                        s = "ACTIVE_ID:";  // webui2
-                        s += std::to_string(num);
-                        oldClient->sendTXT(s);
+                    for (auto const oldChannel : _wsChannels) {
+                        if (oldChannel->session() == session && oldChannel->id() != num) {
+#if 0
+                            // If we send this, a new WebUI instance will shut down
+                            // existing ones from the same domain (computer)
+                            s = "activeID:";  // WebUI3 variant
+                            s += std::to_string(num);
+                            oldChannel->sendTXT(s);
+#endif
+
+                            // Do not send the WebUI2 variant
+                            // s = "ACTIVE_ID:";  // webui2
+                            // s += std::to_string(num);
+                            // oldChannel->sendTXT(s);
+                        }
                     }
-                    _lastWSChannel = wsChannel;
-                    allChannels.registration(wsChannel);
-                    _wsChannels[num]              = wsChannel;
-                    _wsChannelsBySession[session] = wsChannel;
-                    log_debug_to(Console,
-                                 "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session << " total "
-                                                          << _wsChannels.size());
+
+                    s = "currentID:";  // webui3
+                    s += std::to_string(num);
+                    newChannel->sendTXT(s);
+
+                    s = "CURRENT_ID:";  // webui2
+                    s += std::to_string(num);
+                    newChannel->sendTXT(s);
+
+                    _lastWSChannel = newChannel;
+                    allChannels.registration(newChannel);
+                    _wsChannels.push_back(newChannel);
+
+                    log_debug_to(Console, "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session);
                 }
             } break;
             case WS_EVT_DATA: {
                 AwsFrameInfo* info = (AwsFrameInfo*)arg;
-                if (info->opcode == WS_TEXT) {
-                    try {
-                        //data[len]=0; // !!! this should not be safe? but was there before,
-                        // will copy to a std::string of specified length to be on the safe side
-                        std::string msg((const char*)data, len);
-                        if (msg.rfind("PING:", 0) == 0) {
-                            std::string response("PING:60000:60000");
-                            _wsChannels.at(num)->sendTXT(response);
-                        } else
-                            _wsChannels.at(num)->push(data, len);
-                    } catch (std::out_of_range& oor) {}
-                } else {
-                    try {
-                        _wsChannels.at(num)->push(data, len);
-                    } catch (std::out_of_range& oor) {}
+                for (auto const wsChannel : _wsChannels) {
+                    if (wsChannel->id() == num) {
+                        if (info->opcode == WS_TEXT) {
+                            //data[len]=0; // !!! this should not be safe? but was there before,
+                            // will copy to a std::string of specified length to be on the safe side
+                            std::string msg((const char*)data, len);
+                            if (msg.rfind("PING:", 0) == 0) {
+                                std::string response("PING:60000:60000");
+                                wsChannel->sendTXT(response);
+                            } else {
+                                wsChannel->push(data, len);
+                            }
+                        } else {
+                            wsChannel->push(data, len);
+                        }
+                    }
                 }
             } break;
             default:

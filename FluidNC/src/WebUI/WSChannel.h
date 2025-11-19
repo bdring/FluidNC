@@ -57,12 +57,11 @@ namespace WebUI {
 
     class WSChannels {
     private:
-        static std::map<uint32_t, WSChannel*>    _wsChannels;           // List of channels by client ID
-        static std::map<std::string, WSChannel*> _wsChannelsBySession;  // List of channels by session cookie string
-        static AsyncWebSocket*                   _server;
+        static std::vector<WSChannel*> _wsChannels;  // List of channels by client ID
+        static AsyncWebSocket*         _server;
 
         static WSChannel* _lastWSChannel;
-        static WSChannel* getWSChannel(std::string session);
+        static WSChannel* getWSChannel(uint32_t pageid, std::string session);
 
     public:
         static void removeChannel(WSChannel* channel);
@@ -73,5 +72,7 @@ namespace WebUI {
         static void sendPing();
         static void handleEvent(
             AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len, std::string session);
+
+        static void showChannels();
     };
 }

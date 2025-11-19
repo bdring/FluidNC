@@ -124,7 +124,7 @@ namespace WebUI {
         static bool isAllowedInMotion(String cmd);
         static void synchronousCommand(
             AsyncWebServerRequest* request, const char* cmd, bool silent, AuthenticationLevel auth_level, bool allowedInMotion = false);
-        static void websocketCommand(AsyncWebServerRequest* request, const char* cmd, int pageid, AuthenticationLevel auth_level);
+        static void websocketCommand(AsyncWebServerRequest* request, const char* cmd, uint32_t pageid, AuthenticationLevel auth_level);
 
         static void sendFSError(Error err);
         static void sendJSON(AsyncWebServerRequest* request, uint16_t code, const char* s);
@@ -139,6 +139,6 @@ namespace WebUI {
         static void sendCaptivePortal(AsyncWebServerRequest* request);
         static void send404Page(AsyncWebServerRequest* request);
 
-        static int getPageid(AsyncWebServerRequest* request);
+        static uint32_t getPageid(AsyncWebServerRequest* request);
     };
 }

@@ -27,7 +27,7 @@ struct mime_type {
 const char* getContentType(const std::string_view filename) {
     mime_type* m;
     for (m = mime_types; *(m->suffix) != '\0'; ++m) {
-        if (string_util::ends_with_ignore_case(m->suffix, filename)) {
+        if (string_util::ends_with_ignore_case(filename, m->suffix)) {
             return m->mime_type;
         }
     }
