@@ -490,8 +490,8 @@ namespace WebUI {
 
         static Error showFwInfoJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
             if (strstr(parameter, "json=yes") != NULL) {
-                JSONencoder j(true, &out);
-                j.begin();
+                JSONencoder j(!usedGrblName, &out);
+                j.begin("FirmwareInfo");
                 j.member("cmd", "800");
                 j.member("status", "ok");
                 j.begin_member_object("data");
@@ -877,8 +877,8 @@ namespace WebUI {
         // Used by js/scanwifidlg.js
 
         static Error listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
-            JSONencoder j(false, &out);
-            j.begin();
+            JSONencoder j(!usedGrblName, &out);
+            j.begin("APList");
 
             if (parameter != NULL && (strstr(parameter, "json=yes")) != NULL) {
                 j.member("cmd", "410");

@@ -134,7 +134,7 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
     }
 
     const char* error = "";
-    j.begin();
+    j.begin("FileLines");
     j.begin_array("file_lines");
 
     InputFile*  theFile;
@@ -180,7 +180,7 @@ static Error fileShowHash(const char* parameter, AuthenticationLevel auth_level,
     std::string hash = HashFS::hash(parameter);
     replace_string_in_place(hash, "\"", "");
     JSONencoder j(true, &out);  // Encapsulated JSON
-    j.begin();
+    j.begin("FileHash");
     j.begin_member_object("signature");
     j.member("algorithm", "SHA2-256");
     j.member("value", hash);
@@ -210,7 +210,7 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
     const char* status = "ok";
 
     JSONencoder j(true, &out);  // Encapsulated JSON
-    j.begin();
+    j.begin("FileContents");
     j.member("cmd", "$File/SendJSON");
     j.member("argument", parameter);
 
@@ -344,7 +344,7 @@ static Error listFilesystemJSON(const char* fs, const char* value, Authenticatio
         auto      iter  = stdfs::directory_iterator { fpath };
 
         JSONencoder j(false, &out);
-        j.begin();
+        j.begin("FilesList");
 
         j.begin_array("files");
         for (auto const& dir_entry : iter) {
@@ -387,7 +387,6 @@ static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_leve
     const char* error = "";
 
     JSONencoder j(true, &out);  // Encapsulated JSON
-    j.begin();
 
     std::error_code ec;
 
@@ -395,6 +394,8 @@ static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_leve
     if (ec) {
         error = "No volume";
     }
+
+    j.begin("FilesList");
 
     j.begin_array("files");
     if (!*error) {  // Array is empty for failure to open the volume

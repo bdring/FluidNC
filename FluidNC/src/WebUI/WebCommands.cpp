@@ -70,8 +70,8 @@ namespace WebUI {
         // Used by js/statusdlg.js
         static Error showSysStatsJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
 
-            JSONencoder j(true, &out);
-            j.begin();
+            JSONencoder j(!usedGrblName, &out);
+            j.begin("SystemStats");
             j.member("cmd", "420");
             j.member("status", "ok");
             j.begin_array("data");
@@ -105,8 +105,8 @@ namespace WebUI {
         }
 
         static void send_json_command_response(Channel& out, uint cmdID, bool isok, const std::string& message) {
-            JSONencoder j(true, &out);
-            j.begin();
+            JSONencoder j(!usedGrblName, &out);
+            j.begin("Repsonse");
             j.member("cmd", String(cmdID).c_str());
             j.member("status", isok ? "ok" : "error");
             j.member("data", message);
@@ -162,8 +162,8 @@ namespace WebUI {
 
         // Used by js/setting.js
         static Error listSettingsJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
-            JSONencoder j(false, &out);
-            j.begin();
+            JSONencoder j(!usedGrblName, &out);
+            j.begin("SettingsList");
             j.member("cmd", "400");
             j.member("status", "ok");
             j.begin_array("data");
@@ -192,9 +192,9 @@ namespace WebUI {
                 }
             }
 
-            JSONencoder j(false, &out);
+            JSONencoder j(!usedGrblName, &out);
 
-            j.begin();
+            j.begin("SettingsList");
             j.begin_array("EEPROM");
 
             // NVS settings

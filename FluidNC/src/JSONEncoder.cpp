@@ -15,24 +15,24 @@ JSONencoder::JSONencoder(JsonCallback callback) : level(0), _callback(callback) 
 }
 
 void JSONencoder::flush() {
-    if (linebuf.length()) {
+    if (_linebuf.length()) {
         if (_channel) {
             if (_encapsulate) {
                 // Output to channels is encapsulated in [MSG:JSON:...]
-                (*_channel).out_acked(linebuf, "JSON:");
+                (*_channel).out_acked(_linebuf, "JSON:");
             } else {
-                log_stream(*_channel, linebuf);
+                log_stream(*_channel, _linebuf);
             }
 
         } else {
-            _callback(linebuf.c_str());
+            _callback(_linebuf.c_str());
         }
-        linebuf.clear();
+        _linebuf.clear();
     }
 }
 void JSONencoder::add(char c) {
-    linebuf += c;
-    if (_channel && linebuf.length() >= 100) {
+    _linebuf += c;
+    if (_channel && _linebuf.length() >= 100) {
         flush();
     }
 }
@@ -153,8 +153,8 @@ void JSONencoder::line() {
             // log_stream() always adds a newline
             // We want that for channels because they might not
             // be able to handle really long lines.
-            log_stream(*_channel, linebuf);
-            linebuf.clear();
+            log_stream(*_channel, _linebuf);
+            _linebuf.clear();
             indent();
         }
     } else {
@@ -164,7 +164,11 @@ void JSONencoder::line() {
 }
 
 // Begins the JSON encoding process, creating an unnamed object
-void JSONencoder::begin() {
+void JSONencoder::begin(const std::string_view type) {
+    _type = type;
+    if (_channel && _encapsulate) {
+        (*_channel).out_acked(_type, "JSONBEGIN:");
+    }
     begin_object();
 }
 
@@ -174,6 +178,9 @@ void JSONencoder::end() {
     end_object();
     line();
     flush();
+    if (_channel && _encapsulate) {
+        (*_channel).out_acked(_type, "JSONEND:");
+    }
 }
 
 // Starts a member element.

@@ -25,7 +25,8 @@ private:
 
     void quoted(const char* s);
 
-    std::string linebuf;
+    std::string _linebuf;
+    std::string _type;
 
     Channel*     _channel = nullptr;
     JsonCallback _callback;
@@ -40,7 +41,7 @@ public:
     JSONencoder(JsonCallback);
 
     // begin() starts the encoding process.
-    void begin();
+    void begin(std::string_view type = "");
 
     void setCategory(const char* cat) { category = cat; }
 
