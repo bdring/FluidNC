@@ -5,11 +5,12 @@
 #include "esp_task_wdt.h"
 #include <freertos/FreeRTOS.h>
 #include "Config.h"
+#include <esp_idf_version.h>
 
 static TaskHandle_t wdt_task_handle = nullptr;
 
 static void get_wdt_task_handle() {
-#ifdef IDFBUILD
+#if ESP_IDF_VERSION_MAJOR >= 5
     TaskHandle_t idle_0 = xTaskGetIdleTaskHandleForCore(0);
 #else
     TaskHandle_t idle_0 = xTaskGetIdleTaskHandleForCPU(0);

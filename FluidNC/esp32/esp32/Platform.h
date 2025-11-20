@@ -34,8 +34,11 @@ const int BAUD_RATE = 115200;
 #include <esp_task_wdt.h>
 
 #include "esp32-hal.h"  // disableCore0WDT
+
+#include <esp_idf_version.h>
+
 inline void platform_preinit() {
-#ifndef IDFBUILD
+#if ESP_IDF_VERSION_MAJOR < 5
     disableCore0WDT();
 #else
     // Add current task to the watchdog
@@ -45,7 +48,7 @@ inline void platform_preinit() {
 
 #define USE_ARDUINO_I2C_DRIVER 0
 
-#ifdef IDFBUILD
+#if ESP_IDF_VERSION_MAJOR >= 5
 // Compatibility for older compilers versions.
 #    define memory_order_seq_cst seq_cst
 #endif

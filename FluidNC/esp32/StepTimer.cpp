@@ -10,7 +10,9 @@ extern "C" {
 #include "hal/timer_ll.h"
 #include "esp_intr_alloc.h"
 
-#ifndef IDFBUILD
+#include <esp_idf_version.h>
+
+#if ESP_IDF_VERSION_MAJOR < 5
 
 static const uint32_t fTimers = 80000000;  // the frequency of ESP32 timers
 
