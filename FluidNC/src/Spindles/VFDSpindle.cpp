@@ -145,8 +145,9 @@ namespace Spindles {
         auto maxSpeedAllowed = dev_speed + _slop;
 
         int unchanged = 0;
-        //            const int limit     = 150;  // 15 sec / 100 ms
-        const int limit = 100;
+
+        const int limit = 100;  // 10 sec / 100 ms
+
         if (_debug > 1 && _sync_dev_speed != UINT32_MAX) {
             log_info("Syncing to " << int(dev_speed));
         }
