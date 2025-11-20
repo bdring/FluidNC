@@ -486,12 +486,10 @@ static Error home_w(const char* value, AuthenticationLevel auth_level, Channel& 
     return home(bitnum_to_mask(W_AXIS), out);
 }
 static std::string limit_set(uint32_t mask) {
-    const char* motor0AxisName = "xyzabc";
     std::string s;
     for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
         s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? ::tolower(Machine::Axes::axisName(axis)[0]) : ' ';
     }
-    const char* motor1AxisName = "XYZABC";
     for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
         s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 1)) ? toupper(Machine::Axes::axisName(axis)[0]) : ' ';
     }

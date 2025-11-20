@@ -51,7 +51,7 @@ void make_coordinate(CoordIndex index, const char* name, bool is_saved) {
 void float_proxy(axis_t axis, uint32_t grbl_number, const char* name, float* varp) {
     // The two strings allocated below are intentionally not freed
     char* grbl_name = new char[4];
-    snprintf(grbl_name, 4, "%d", grbl_number + axis);
+    snprintf(grbl_name, 4, "%d", int(grbl_number) + int(axis));
 
     char* fluidnc_name = new char[strlen(name) + 2];
     sprintf(fluidnc_name, "%s%s", name, Axes::axisName(axis));

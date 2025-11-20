@@ -77,11 +77,11 @@ public:
 };
 
 class Command : public Word {
-private:
-    bool _synchronous = true;
-
 protected:
     bool (*_cmdChecker)();
+
+private:
+    bool _synchronous = true;
 
 public:
     // Command::List is a vector of all commands,
@@ -253,7 +253,7 @@ public:
     // Return a pointer to the array
     const float* get() { return _currentValue; }
     // Get an individual component
-    const float get(axis_t axis) { return _currentValue[axis]; }
+    float get(axis_t axis) { return _currentValue[axis]; }
     // Set an individual component
     void set(axis_t axis, float value) { _currentValue[axis] = value; }
 

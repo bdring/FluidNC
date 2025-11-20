@@ -91,7 +91,7 @@ Setting::Setting(const char* description, type_t type, permissions_t permissions
         }
 
         char* hashName = (char*)malloc(16);  // Intentionally not freed
-        sprintf(hashName, "%.7s%08x", fullName, hash);
+        sprintf(hashName, "%.7s%08x", fullName, static_cast<unsigned int>(hash));
         _keyName = hashName;
     }
 }
@@ -176,7 +176,7 @@ Error IntSetting::setStringValue(std::string_view s) {
 
 const char* IntSetting::getDefaultString() {
     static char strval[32];
-    sprintf(strval, "%d", _defaultValue);
+    sprintf(strval, "%d", int(_defaultValue));
     return strval;
 }
 
@@ -194,7 +194,7 @@ const char* IntSetting::getStringValue() {
         currentSettingValue = get();
     }
 
-    sprintf(strval, "%d", currentSettingValue);
+    sprintf(strval, "%d", int(currentSettingValue));
     return strval;
 }
 

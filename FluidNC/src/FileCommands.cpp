@@ -144,7 +144,7 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
         error = "Cannot open file";
     } else {
         char  fileLine[255];
-        Error res;
+        Error res = Error::Ok;
         for (uint32_t linenum = 0; linenum < lastline && (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
             if (linenum >= firstline) {
                 j.string(fileLine);

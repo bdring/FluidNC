@@ -171,9 +171,6 @@ bool Lineedit::get_history(uint32_t history_num) {
     if (saved_length == 0)
         return false;
 
-    if (history_num < 0)
-        return false;
-
     p = lastline;
     for (hn = 0; hn < history_num; hn++) {
         while (*p++ != '\0') {}

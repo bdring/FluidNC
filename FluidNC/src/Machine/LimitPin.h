@@ -4,6 +4,7 @@
 #pragma once
 
 #include "EventPin.h"
+#include "Types.h"
 
 namespace Machine {
     class LimitPin : public EventPin {
@@ -24,8 +25,8 @@ namespace Machine {
         volatile bool* _pLimited      = nullptr;
         volatile bool* _pExtraLimited = nullptr;
 
-        volatile uint32_t* _posLimits = nullptr;
-        volatile uint32_t* _negLimits = nullptr;
+        volatile MotorMask* _posLimits = nullptr;
+        volatile MotorMask* _negLimits = nullptr;
 
     public:
         LimitPin(axis_t axis, motor_t motorNum, int8_t direction, bool& phardLimits);

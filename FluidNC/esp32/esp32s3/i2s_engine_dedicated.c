@@ -19,6 +19,14 @@
 #include "driver/dedic_gpio.h"
 #include "hal/cpu_ll.h"
 
+#ifdef IDFBUILD
+// Hmm. We might as well just use asm volatile("ee.wr_mask_gpio_out %0, %1" : : "r"(value), "r"(mask):);
+// The API isn't as stable as I would like
+#    include "hal/dedic_gpio_cpu_ll.h"
+#    define cpu_ll_write_dedic_gpio_mask dedic_gpio_cpu_ll_write_mask
+#endif
+
+
 static bool i2s_out_initialized = 0;
 
 static uint32_t _pulse_delay_us;
@@ -190,18 +198,18 @@ static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
 
 static void IRAM_ATTR set_pin(pinnum_t pin, bool level) {
     if (level) {
-        i2s_output_ |= (1 << pin);
+        i2s_output_ |= (uint32_t)(1u << (int)pin);
     } else {
-        i2s_output_ &= ~(1 << pin);
+        i2s_output_ &= (uint32_t)(~(1u << (int)pin));
     }
     i2s_out_gpio_shiftout(i2s_output_);
 }
 
 static void IRAM_ATTR set_step_pin(pinnum_t pin, bool level) {
     if (level) {
-        i2s_pulse_ |= (1 << pin);
+        i2s_pulse_ |= (uint32_t)(1u << (int)pin);
     } else {
-        i2s_pulse_ &= ~(1 << pin);
+        i2s_pulse_ &= (uint32_t)(~(1u << (int)pin));
     }
 }
 

@@ -30,7 +30,7 @@ static void uart_event_task(void* pvParameters) {
         if (xQueueReceive(queues[port], (void*)&event, (TickType_t)portMAX_DELAY)) {
             if (event.type == UART_DATA) {
                 uart_read_bytes(port, dtmp, event.size, portMAX_DELAY);
-                int size = event.size;
+                uint32_t size = (uint32_t)(event.size);
                 (*cb)(port, dtmp, &size);
             }
         }

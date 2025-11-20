@@ -12,8 +12,8 @@ namespace Configuration {
         std::string_view setting_;  // foo/bar
         std::string_view start_;
 
-        bool   _get;
         float& _iovalue;
+        bool   _get;
 
         bool is(std::string_view name) const {
             if (start_.empty()) {

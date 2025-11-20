@@ -631,6 +631,9 @@ static void protocol_do_safety_door() {
         case State::Jog:
             protocol_cancel_jogging();
             break;
+
+        default: // Held, Critical
+            break;
     }
     if (!sys.suspend().bit.jogCancel) {
         // If jogging, leave the safety door event pending until the jog cancel completes

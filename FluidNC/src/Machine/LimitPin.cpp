@@ -33,6 +33,7 @@ namespace Machine {
                 _negLimits   = nullptr;
                 _posLimits   = nullptr;
                 _pHardLimits = false;
+                sDir         = nullptr;
                 break;
         }
 

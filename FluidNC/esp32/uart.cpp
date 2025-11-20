@@ -143,9 +143,9 @@ void uart_sw_flow_control(uint32_t uart_num, bool on, uint32_t xon_threshold, ui
 bool uart_pins(uint32_t uart_num, pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts_pin, pinnum_t cts_pin) {
     uart_port_t port = (uart_port_t)uart_num;
     if (port) {
-        return fnc_uart_set_pin(uart_num, tx_pin, rx_pin, rts_pin, cts_pin) != ESP_OK;
+        return fnc_uart_set_pin(uart_port_t(uart_num), tx_pin, rx_pin, rts_pin, cts_pin) != ESP_OK;
     } else {
-        return uart_set_pin(uart_num, tx_pin, rx_pin, rts_pin, cts_pin) != ESP_OK;
+        return uart_set_pin(uart_port_t(uart_num), tx_pin, rx_pin, rts_pin, cts_pin) != ESP_OK;
     }
 }
 int uart_bufavail(uint32_t uart_num) {

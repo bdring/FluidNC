@@ -49,10 +49,10 @@ namespace Configuration {
         _encoder.begin_array("O");
         {
             _encoder.begin_object();
-            _encoder.member("False", 0);
+            _encoder.member("False", int32_t(0));
             _encoder.end_object();
             _encoder.begin_object();
-            _encoder.member("True", 1);
+            _encoder.member("True", int32_t(1));
             _encoder.end_object();
         }
         _encoder.end_array();
@@ -72,7 +72,7 @@ namespace Configuration {
     void JsonGenerator::item(const char* name, uint32_t& value, const uint32_t minValue, const uint32_t maxValue) {
         enter(name);
         char buf[32];
-        snprintf(buf, 32, "%u", value);
+        snprintf(buf, 32, "%u", static_cast<unsigned int>(value));
         _encoder.begin_webui(_currentPath, "I", buf, minValue, maxValue);
         _encoder.end_object();
         leave();

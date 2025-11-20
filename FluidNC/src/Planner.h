@@ -94,7 +94,7 @@ plan_block_t* plan_get_system_motion_block();
 plan_block_t* plan_get_current_block();
 
 // Increment block index with wrap-around
-static uint8_t plan_next_block_index(uint8_t block_index);
+uint8_t plan_next_block_index(uint8_t block_index);
 
 // Called by step segment buffer when computing executing block velocity profile.
 float plan_get_exec_block_exit_speed_sqr();
