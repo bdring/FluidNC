@@ -148,6 +148,7 @@ idf_component_register(SRCS BTConfig.cpp
 							WebUI/WebUIServer.cpp
 							WebUI/WifiConfig.cpp
 							WebUI/WSChannel.cpp
+							WebUI/ASyncTCP_Shim.cpp
                             version.cpp
 
 							# extra
