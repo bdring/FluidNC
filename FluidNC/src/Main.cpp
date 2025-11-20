@@ -198,22 +198,4 @@ void loop() {
 
 void WEAK_LINK machine_init() {}
 
-#    ifdef IDFBUILD
-
-// Task to run the main loop
-void loopTask(void* pvParameters) {
-    setup();
-    while (true) {
-        loop();
-    }
-}
-
-extern "C" {
-void app_main() {
-    loopTask(NULL);
-}
-}
-
-#    endif
-
 #endif

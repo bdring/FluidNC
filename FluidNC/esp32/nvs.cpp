@@ -21,13 +21,14 @@ static nvs_handle_t handle() {
 
 NVS::NVS(const char* name) {
     _name = name;
-
-    // Init NVS and recreate if it fails.
+#ifndef Arduino_h
+    // Init NVS and recreate if it fails.  The Arduino framework does this for us
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();
         ret = nvs_flash_init();
     }
+#endif
 }
 
 bool NVS::get_str(const char* name, char* value, size_t* len) {
