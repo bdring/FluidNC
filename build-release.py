@@ -174,19 +174,25 @@ def addFile(name, controllerpath, filename, srcpath, dstpath):
 
 flashsize = "4m"
 
-mcu = "esp32"
-for mcu in ['esp32']:
-    for envName in ['wifi','bt', 'noradio']:
-        if buildEnv(envName, verbose=verbose) != 0:
-            sys.exit(1)
+versions = [
+    { "mcu": "esp32",   "env_suffix": "", "builds":  ["wifi", "bt", "noradio"]},
+    { "mcu": "esp32s3", "env_suffix": "_s3", "builds" : ["wifi", "noradio"]},
+]
+for version in versions:
+    mcu = version["mcu"]
+    suffix = version["env_suffix"]
+    for buildName in version["builds"]:
+        envName = buildName + suffix
+        # if buildEnv(envName, verbose=verbose) != 0:
+        #    sys.exit(1)
         buildDir = os.path.join('.pio', 'build', envName)
-        shutil.copy(os.path.join(buildDir, 'firmware.elf'), os.path.join(relPath, envName + '-' + 'firmware.elf'))
+        shutil.copy(os.path.join(buildDir, 'firmware.elf'), os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.elf'))
 
-        addImage(mcu + '-' + envName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + envName)
+        addImage(mcu + '-' + buildName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + buildName)
 
-        if envName == 'wifi':
-            if buildFs('wifi', verbose=verbose) != 0:
-                sys.exit(1)
+        if buildName == 'wifi':
+            # if buildFs(envName, verbose=verbose) != 0:
+            #     sys.exit(1)
 
             # bootapp is a data partition that the bootloader and OTA use to determine which
             # image to run.  Its initial value is in a file "boot_app0.bin" in the platformio
@@ -194,12 +200,14 @@ for mcu in ['esp32']:
             bootappsrc = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools','partitions', 'boot_app0.bin')
             shutil.copy(bootappsrc, buildDir)
 
-            addImage(mcu + '-' + envName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + envName + '/' + flashsize)
+            addImage(mcu + '-' + buildName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + buildName + '/' + flashsize)
             addImage(mcu + '-' + flashsize + '-partitions', '0x8000', 'partitions.bin', buildDir, mcu + '/' + flashsize)
-            addImage(mcu + '-bootloader', '0x1000', 'bootloader.bin', buildDir, mcu)
+            addImage(mcu + '-bootloader', '0x1000' if mcu == 'esp32' else '0x0', 'bootloader.bin', buildDir, mcu)
             addImage(mcu + '-bootapp', '0xe000', 'boot_app0.bin', buildDir, mcu)
 
+currentList = manifest['installable']['choices']
 def addSection(node, name, description, choice):
+    global currentList
     section = {
         "name": name,
         "description": description,
@@ -207,15 +215,18 @@ def addSection(node, name, description, choice):
     if choice != None:
         section['choice-name'] = choice
         section['choices'] = []
+    currentNode = section
     node.append(section)
 
 def addMCU(name, description, choice=None):
-    addSection(manifest['installable']['choices'], name, description, choice)
+    global currentList
+    addSection(currentList, name, description, choice)
 
 def addVariant(variant, description, choice=None):
-    node1 = manifest['installable']['choices']
-    node1len = len(node1)
-    addSection(node1[node1len-1]['choices'], variant, description, choice)
+    global currentList
+    node = currentList
+    nodelen = len(node)
+    addSection(node[nodelen-1]['choices'], variant, description, choice)
 
 def addInstallable(install_type, erase, images):
     for image in images:
@@ -228,17 +239,16 @@ def addInstallable(install_type, erase, images):
         #    print("Duplicate image", image)
         #    sys.exit(2)
                       
-    node1 = manifest['installable']['choices']
-    node1len = len(node1)
-    node2 = node1[node1len-1]['choices']
-    node2len = len(node2)
+    node1 = currentList
+    children = node1[len(node1)-1]['choices']
+    images = children[len(children)-1]['choices']
     installable = {
         "name": install_type["name"],
         "description": install_type["description"],
         "erase": erase,
         "images": images
     }
-    node2[node2len-1]['choices'].append(installable)
+    images.append(installable)
 
 def addUpload(name, description, files):
     for file in files:
@@ -270,6 +280,16 @@ def makeManifest():
     addVariant("noradio", "Supports neither WiFi nor Bluetooth", "Installation type")
     addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-noradio-firmware"])
     addInstallable(firmware_update, False, ["esp32-noradio-firmware"])
+
+    addMCU("esp32s3", "ESP32-S3-WROOM-1", "Firmware variant")
+
+    addVariant("wifi", "Supports WiFi and WebUI", "Installation type")
+    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-wifi-firmware", "esp32s3-wifi-4m-filesystem"])
+    addInstallable(firmware_update, False, ["esp32s3-wifi-firmware"])
+
+    addVariant("noradio", "Does not support WiFi", "Installation type")
+    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-noradio-firmware"])
+    addInstallable(firmware_update, False, ["esp32s3-noradio-firmware"])
 
     addFile("WebUI-2", "/localfs/index.html.gz", "index-webui-2.html.gz", os.path.join("release", "current", "data"), "data")
     addFile("WebUI-3", "/localfs/index.html.gz", "index-webui-3.html.gz", os.path.join("release", "current", "data"), "data")
@@ -323,7 +343,7 @@ for platform in ['win64', 'posix']:
             zipObj.write(os.path.join(sharedPath, 'common', secFuses), os.path.join(zipDirName, 'common', secFuses))
 
         # Put FluidNC binaries, partition maps, and installers in the archive
-        for envName in ['wifi','bt']:
+        for envName in ['wifi','bt','wifi_s3']:
 
             # Put bootloader binaries in the archive
             bootloader = 'bootloader.bin'

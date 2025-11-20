@@ -11,7 +11,7 @@ functionality like tree building and validation.
 It is worth noting that some parts of the configuration system might 
 seem strange at first, due to the way it works. The main reason of 
 implementing it like this, is because no RTTI (e.g. `dynamic_cast`)
-is available on the ESP32, which severily limits the possibities in 
+is available on the ESP32, which severily limits the possibilities in 
 the architecture.
 
 Because of that, we basically iterate all settings within a section 

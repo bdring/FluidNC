@@ -12,9 +12,9 @@ InputFile::InputFile(const char* defaultFs, const char* path) : FileStream(path,
   Returns Error::EOF on end of file.
   Returns other Error code on error, after displaying a message.
 */
-Error InputFile::readLine(char* line, int maxlen) {
-    int len = 0;
-    int c;
+Error InputFile::readLine(char* line, size_t maxlen) {
+    size_t len = 0;
+    int    c;
     while ((c = read()) >= 0) {
         if (len >= maxlen) {
             return Error::LineLengthExceeded;
@@ -42,7 +42,7 @@ void InputFile::ack(Error status) {
             // Do not stop on unsupported commands because most senders do not stop.
             // Stop the file job on other errors
             notifyf("File job error", "Error:%d in %s at line: %d", status, name(), lineNumber());
-            _pending_error == status;
+            _pending_error = status;
         }
     }
 }

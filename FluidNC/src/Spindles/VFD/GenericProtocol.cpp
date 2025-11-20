@@ -3,9 +3,9 @@
 
 #include "GenericProtocol.h"
 
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
-#include "src/string_util.h"
+#include "string_util.h"
 #include <algorithm>
 
 namespace Spindles {
@@ -57,7 +57,6 @@ namespace Spindles {
         bool GenericProtocol::set_data(std::string_view token, std::basic_string_view<uint8_t>& response_view, const char* name, uint32_t& data) {
             if (string_util::starts_with_ignore_case(token, name)) {
                 uint32_t rval  = (response_view[0] << 8) + (response_view[1] & 0xff);
-                uint32_t orval = rval;
                 scale(rval, token.substr(strlen(name)), 1);
                 data = rval;
                 response_view.remove_prefix(2);
@@ -80,9 +79,12 @@ namespace Spindles {
                 }
 
                 // Sync must be in a temporary because it's volatile!
-                uint32_t sync = spindle->_sync_dev_speed;
-                if (set_data(token, response_view, "rpm", sync)) {
-                    spindle->_sync_dev_speed = sync;
+                uint32_t dev_speed;
+                if (set_data(token, response_view, "rpm", dev_speed)) {
+                    if (spindle->_debug > 1) {
+                        log_info("Current speed is " << int(dev_speed));
+                    }
+                    xQueueSend(VFD::VFDProtocol::vfd_speed_queue, &dev_speed, 0);
                     continue;
                 }
                 uint32_t ignore;
@@ -129,7 +131,6 @@ namespace Spindles {
                     continue;
                 }
                 if (string_util::starts_with_ignore_case(token, "rpm")) {
-                    uint32_t oout = out;
                     scale(out, token.substr(strlen("rpm")), _maxRPM);
                     data.msg[data.tx_length++] = out >> 8;
                     data.msg[data.tx_length++] = out & 0xff;
@@ -226,6 +227,8 @@ namespace Spindles {
 
         struct VFDtype {
             const char* name;
+            int8_t      disable_with_s0;
+            int8_t      s0_with_disable;
             uint32_t    min_rpm;
             uint32_t    max_rpm;
             const char* cw_cmd;
@@ -238,6 +241,8 @@ namespace Spindles {
         } VFDtypes[] = {
             {
                 "YL620",
+                -1,
+                -1,
                 0xffffffff,
                 0xffffffff,
                 "06 20 00 00 12 > echo",
@@ -250,6 +255,8 @@ namespace Spindles {
             },
             {
                 "Huanyang",
+                -1,
+                -1,
                 0xffffffff,
                 0xffffffff,
                 "03 01 01 > echo",
@@ -262,6 +269,8 @@ namespace Spindles {
             },
             {
                 "H2A",
+                -1,
+                -1,
                 6000,
                 0xffffffff,
                 "06 20 00 00 01 > echo",
@@ -275,6 +284,8 @@ namespace Spindles {
             },
             {
                 "H100",
+                -1,
+                -1,
                 0xffffffff,
                 0xffffffff,
                 "05 00 49 ff 00 > echo",
@@ -287,6 +298,8 @@ namespace Spindles {
             },
             {
                 "NowForever",
+                -1,
+                -1,
                 0xffffffff,
                 0xffffffff,
                 "10 09 00 00 01 02 00 01 > echo",
@@ -299,6 +312,8 @@ namespace Spindles {
             },
             {
                 "SiemensV20",
+                -1,
+                -1,
                 0,
                 24000,
                 "06 00 63 0C 7F > echo",
@@ -308,6 +323,20 @@ namespace Spindles {
                 "03 00 6E 00 01 > 03 02 rpm%*16384/100",
                 "",
                 "",
+            },
+            {
+                "MollomG70",
+                1,                                       // disable_with_s0
+                1,                                       // s0_with_disable
+                0xffffffff,                              // min_rpm
+                0xffffffff,                              // max_rpm
+                "06 20 00 00 01 > echo",                 // cw
+                "06 20 00 00 02 > echo",                 // ccw
+                "06 20 00 00 06 > echo",                 // off
+                "06 10 00 rpm%*100 > echo",              // set_rpm
+                "03 70 00 00 01 > 03 02 rpm*60/100",     // get_rpm
+                "03 f0 0e 00 01 > 03 02 minrpm*60/100",  // get_min_rpm
+                "03 f0 0c 00 01 > 03 02 maxrpm*60/100",  // get_max_rpm
             },
         };
         void GenericProtocol::afterParse() {
@@ -321,6 +350,14 @@ namespace Spindles {
                     if (_ccw_cmd.empty()) {
                         _ccw_cmd = vfd.ccw_cmd;
                     }
+#if 0
+                    if (vfd.disable_with_s0 != -1) {
+                        _disable_with_s0 = vfd.disable_with_s0;
+                    }
+                    if (vfd.s0_with_disable != -1) {
+                        s0_with_disable = vfd.s0_with_disable;
+                    }
+#endif
                     if (_off_cmd.empty()) {
                         _off_cmd = vfd.off_cmd;
                     }

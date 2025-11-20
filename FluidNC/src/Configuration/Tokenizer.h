@@ -5,7 +5,7 @@
 #pragma once
 
 #include "TokenState.h"
-#include "../Config.h"
+#include "Config.h"
 #include <string_view>
 
 namespace Configuration {
@@ -20,7 +20,7 @@ namespace Configuration {
         void parseValue();
 
     public:
-        int              _linenum;
+        uint32_t         _linenum;
         std::string_view _line;
 
         // Results:
@@ -28,15 +28,15 @@ namespace Configuration {
             // The initial value for indent is -1, so when ParserHandler::enterSection()
             // is called to handle the top level of the YAML config file, tokens at
             // indent 0 will be processed.
-            TokenData() : _key({}), _value({}), _indent(-1), _state(TokenState::Bof) {}
+            TokenData() : _key(), _value(), _indent(-1), _state(TokenState::Bof) {}
             std::string_view _key;
             std::string_view _value;
-            int              _indent;
+            int_fast8_t      _indent;
 
             TokenState _state = TokenState::Bof;
         } _token;
 
-        void ParseError(const char* description) const;
+        void parseError(const std::string_view description) const;
 
     public:
         explicit Tokenizer(std::string_view yaml_string);

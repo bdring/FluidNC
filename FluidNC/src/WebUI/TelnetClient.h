@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "src/Channel.h"
+#include "Channel.h"
 
 #include <WiFi.h>
 
@@ -21,7 +21,7 @@ namespace WebUI {
 
         static const int DISCONNECT_CHECK_COUNTS = 1000;
 
-        int _state = 0;
+        int32_t _state = 0;
 
     public:
         TelnetClient(WiFiClient* wifiClient);

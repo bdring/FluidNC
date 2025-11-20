@@ -44,7 +44,7 @@ namespace Spindles {
             // At the other end, the minimum useful precision is 2^2
             // or 4 levels of control, so the max is 80MHz/2^2 = 20MHz.
             // Those might not be practical for many CNC applications,
-            // but the ESP32 hardware can handle them, so we let the
+            // but the hardware can handle them, so we let the
             // user choose.
             handler.item("pwm_hz", _pwm_freq, 1, 20000000);
 

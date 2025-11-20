@@ -6,9 +6,8 @@
     compensation. Use the Laser class for that.
 */
 #include "PWMSpindle.h"
-
-#include "../System.h"  // sys
-#include "../GCode.h"   // gc_state.modal
+#include "System.h"  // sys
+#include "GCode.h"   // gc_state.modal
 
 // ======================= PWM ==============================
 /*
@@ -22,10 +21,9 @@ namespace Spindles {
 
         if (_output_pin.defined()) {
             if (_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
-                auto outputNative = _output_pin.getNative(Pin::Capabilities::PWM);
                 _output_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
             } else {
-                log_error(name() << " output pin " << _output_pin.name().c_str() << " cannot do PWM");
+                log_error(name() << " output pin " << _output_pin.name() << " cannot do PWM");
             }
         } else {
             log_error(name() << " output pin not defined");
@@ -53,7 +51,7 @@ namespace Spindles {
 
     // XXX this is the same as OnOff::setState so it might be possible to combine them
     void PWM::setState(SpindleState state, SpindleSpeed speed) {
-        if (sys.abort) {
+        if (sys.abort()) {
             return;  // Block during abort.
         }
 

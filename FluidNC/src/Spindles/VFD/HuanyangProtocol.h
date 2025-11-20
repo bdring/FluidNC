@@ -10,7 +10,7 @@ namespace Spindles {
     namespace VFD {
         class HuanyangProtocol : public VFDProtocol {
         private:
-            int reg = 0;
+            uint8_t reg = 0;
 
         protected:
             uint16_t _minFrequency = 0;    // PD011: frequency lower limit. Normally 0.

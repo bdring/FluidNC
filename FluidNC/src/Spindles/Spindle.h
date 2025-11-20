@@ -5,15 +5,13 @@
 
 #include <cstdint>
 
-#include "../SpindleDatatypes.h"
-#include "../Machine/Macros.h"
-
-#include "../Configuration/Configurable.h"
-#include "../Configuration/GenericFactory.h"
-
-#include "src/GCode.h"  // MaxToolNumber
-#include "src/Module.h"
-#include "src/ToolChangers/atc.h"
+#include "SpindleDatatypes.h"
+#include "Machine/Macros.h"
+#include "Configuration/Configurable.h"
+#include "Configuration/GenericFactory.h"
+#include "GCode.h"  // MaxToolNumber
+#include "Module.h"
+#include "ToolChangers/atc.h"
 
 // ===============  No floats! ===========================
 // ================ NO FLOATS! ==========================
@@ -36,6 +34,9 @@ namespace Spindles {
         uint32_t   _last_tool = 0;
 
     public:
+        // _disable_with_zero_speed forces a disable when speed is 0
+        bool _disable_with_zero_speed = false;
+
         Spindle(const char* name) : _name(name) {}
 
         Spindle(const Spindle&)            = delete;
@@ -59,14 +60,14 @@ namespace Spindles {
         std::string  atc_info() { return _atc_info; };
 
         // Used by Protocol.cpp to restore the state during a restart
-        virtual void    setState(SpindleState state, uint32_t speed) = 0;
-        SpindleState    get_state() { return _current_state; };
-        void            stop() { setState(SpindleState::Disable, 0); }
-        virtual void    config_message() = 0;
-        virtual bool    isRateAdjusted();
-        virtual bool    use_delay_settings() const { return true; }
-        virtual uint8_t get_current_tool_num() { return _current_tool; }
-        virtual bool    tool_change(uint32_t tool_number, bool pre_select, bool set_tool);
+        virtual void   setState(SpindleState state, uint32_t speed) = 0;
+        SpindleState   get_state() { return _current_state; };
+        void           stop() { setState(SpindleState::Disable, 0); }
+        virtual void   config_message() = 0;
+        virtual bool   isRateAdjusted();
+        virtual bool   use_delay_settings() const { return true; }
+        virtual tool_t get_current_tool_num() { return _current_tool; }
+        virtual bool   tool_change(uint32_t tool_number, bool pre_select, bool set_tool);
 
         virtual void setSpeedfromISR(uint32_t dev_speed) = 0;
 
@@ -81,7 +82,7 @@ namespace Spindles {
         uint32_t _spinup_ms   = 0;
         uint32_t _spindown_ms = 0;
 
-        int _tool = -1;
+        int32_t _tool = -1;
 
         std::vector<Configuration::speedEntry> _speeds;
 
@@ -108,13 +109,14 @@ namespace Spindles {
             handler.item("atc", _atc_name);
             handler.item("m6_macro", _m6_macro);
             handler.item("s0_with_disable", _zero_speed_with_disable);
+            handler.item("disable_with_s0", _disable_with_zero_speed);
         }
 
         // Virtual base classes require a virtual destructor.
         virtual ~Spindle() {}
 
     protected:
-        uint8_t _current_tool = 0;
+        tool_t _current_tool = 0;
     };
 
     using SpindleFactory = Configuration::GenericFactory<Spindle>;

@@ -1,6 +1,6 @@
 #include "fluidnc_vfs_ops.h"
 #include <string.h>
-#include "src/Config.h"
+#include "Config.h"
 
 #include "esp_spiffs.h"
 #include "ff.h"

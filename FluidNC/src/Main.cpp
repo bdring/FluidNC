@@ -11,29 +11,33 @@
 #    include "Report.h"
 #    include "Settings.h"
 #    include "SettingsDefinitions.h"
-#    include "Limits.h"
+#    include "Limit.h"
 #    include "Protocol.h"
 #    include "System.h"
-#    include "UartChannel.h"
+#    include "Driver/Console.h"
 #    include "MotionControl.h"
 #    include "Platform.h"
 #    include "StartupLog.h"
 #    include "Module.h"
 
 #    include "Driver/localfs.h"
-#    include "esp32-hal.h"  // disableCore0WDT
 
-#    include "src/ToolChangers/atc.h"
+#    include "ToolChangers/atc.h"
 
 extern void make_user_commands();
 
 void setup() {
-    disableCore0WDT();
+    platform_preinit();
+
+    set_state(State::Starting);
+
     try {
         timing_init();
-        uartInit();  // Setup serial port
 
-        StartupLog::init();
+        // Load settings from non-volatile storage
+        settings_init();
+
+        Console.init();  // Setup main interaction channel
 
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
@@ -43,11 +47,9 @@ void setup() {
 
         protocol_init();
 
-        // Load settings from non-volatile storage
-        settings_init();  // requires config
+        make_coordinates();
 
         log_info("FluidNC " << git_info << " " << git_url);
-        log_info("Compiled with ESP32 SDK:" << esp_get_idf_version());
 
         if (localfs_mount()) {
             log_error("Cannot mount a local filesystem");
@@ -74,20 +76,39 @@ void setup() {
             }
         }
 
+#    if MAX_N_I2SO
         if (config->_i2so) {
             config->_i2so->init();
         }
+#    endif
+
+#    if MAX_N_SPI
         if (config->_spi) {
             config->_spi->init();
-
+#        if MAX_N_SDCARD
             if (config->_sdCard != nullptr) {
                 config->_sdCard->init();
             }
+#        endif
         }
+#    endif
+
+#    if MAX_N_I2C
         for (size_t i = 0; i < MAX_N_I2C; i++) {
             if (config->_i2c[i]) {
                 config->_i2c[i]->init();
             }
+        }
+#    endif
+
+        // We have to initialize the extenders first, before pins are used
+        if (config->_extenders) {
+            config->_extenders->init();
+        }
+
+        auto listeners = Listeners::SysListenerFactory::objects();
+        for (auto l : listeners) {
+            l->init();
         }
 
         Stepping::init();  // Configure stepper interrupt timers
@@ -133,10 +154,12 @@ void setup() {
 
         make_proxies();
 
-    } catch (const AssertionFailed& ex) {
-        // This means something is terribly broken:
+    } catch (std::exception& ex) {
+        // Log exception:
         log_config_error("Critical error in main_init: " << ex.what());
     }
+
+    poll_gpios();  // Initial poll to send events for initial pin states
 
     allChannels.ready();
     allChannels.deregistration(&startupLog);
@@ -145,14 +168,14 @@ void setup() {
 
 void loop() {
     vTaskPrioritySet(NULL, 2);
-    static int tries = 0;
+    static size_t tries = 0;
     try {
         // Start the main loop. Processes program inputs and executes them.
         // This can exit on a system abort condition, in which case run_once()
         // is re-executed by an enclosing loop.  It can also exit via a
         // throw that is caught and handled below.
         protocol_main_loop();
-    } catch (const AssertionFailed& ex) {
+    } catch (std::exception& ex) {
         // If an assertion fails, we display a message and restart.
         // This could result in repeated restarts if the assertion
         // happens before waiting for input, but that is unlikely
@@ -164,26 +187,15 @@ void loop() {
         // and run_once into a single control flow, and it would
         // require careful teardown of the existing configuration
         // to avoid memory leaks. It is probably worth doing eventually.
-        log_config_error("Critical error in run_once: " << ex.msg);
-        log_error("Stacktrace: " << ex.stackTrace);
+        log_config_error("Critical error in run_once: " << ex.what());
     }
     // sys.abort is a user-initiated exit via ^x so we don't limit the number of occurrences
-    if (!sys.abort && ++tries > 1) {
+    if (!sys.abort() && ++tries > 1) {
         log_info("Stalling due to too many failures");
         while (1) {}
     }
 }
 
 void WEAK_LINK machine_init() {}
-
-#    if 0
-int main() {
-    setup();  // setup()
-    while (1) {   // loop()
-        loop();
-    }
-    return 0;
-}
-#    endif
 
 #endif

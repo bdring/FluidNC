@@ -216,7 +216,7 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
             if (Job::active()) {
                 if (last_op == Op_While) {
                     if (!skipping && o_label == context.top().o_label) {
-                        uint_fast8_t pos = 0;
+                        size_t pos = 0;
                         if (!context.top().skip && (status = expression(context.top().expr.c_str(), pos, value)) == Error::Ok) {
                             if (!(context.top().skip = value == 0)) {
                                 context.top().file->set_position(context.top().file_pos);
@@ -311,7 +311,7 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                                 break;
 
                             case Op_While: {
-                                uint_fast8_t pos = 0;
+                                size_t pos = 0;
                                 if (!context.top().skip && (status = expression(context.top().expr.c_str(), pos, value)) == Error::Ok) {
                                     if (!(context.top().skip = value == 0)) {
                                         context.top().file->set_position(context.top().file_pos);

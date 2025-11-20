@@ -1,6 +1,6 @@
 #include "TestFactory.h"
 
-#include <src/Assert.h>
+#include <src/Assertion.h>
 #include <WString.h>
 
 #ifdef ESP32
@@ -79,10 +79,9 @@ void TestFactory::runAll() {
 
             current->run();
             printf("Passed.\r\n");
-        } catch (const AssertionFailed& ex) {
+        } catch (std::exception& ex) {
             setColor(12);
             printf("FAILED!\r\n");
-            printf(ex.stackTrace.c_str());
             printf("\r\n");
         } catch (...) {
             setColor(12);

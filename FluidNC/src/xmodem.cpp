@@ -28,7 +28,7 @@
 /* this code needs standard functions memcpy() and memset()
    and input/output functions _inbyte() and _outbyte().
    the prototypes of the input/output functions are:
-     int _inbyte(uint16_t timeout); // msec timeout
+     int32_t _inbyte(uint16_t timeout); // msec timeout
      void _outbyte(int c);
  */
 
@@ -37,7 +37,7 @@
 static Channel* serialPort;
 static Print*   file;
 
-static int _inbyte(uint16_t timeout) {
+static int32_t _inbyte(uint16_t timeout) {
     uint8_t data;
     auto    res = serialPort->timedReadBytes(&data, 1, timeout);
     return res != 1 ? -1 : data;
@@ -49,7 +49,7 @@ static void _outbytes(uint8_t* buf, size_t len) {
     serialPort->write(buf, len);
 }
 
-/* CRC16 implementation acording to CCITT standards */
+/* CRC16 implementation according to CCITT standards */
 
 static const uint16_t crc16tab[256] = {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
@@ -71,10 +71,10 @@ static const uint16_t crc16tab[256] = {
 };
 
 uint16_t crc16_ccitt(const uint8_t* buf, size_t len) {
-    int      counter;
     uint16_t crc = 0;
-    for (counter = 0; counter < len; counter++)
+    while (len--) {
         crc = (crc << 8) ^ crc16tab[((crc >> 8) ^ *buf++) & 0x00FF];
+    }
     return crc;
 }
 
@@ -87,30 +87,32 @@ uint16_t crc16_ccitt(const uint8_t* buf, size_t len) {
 #define CTRLZ 0x1A
 
 #define DLY_1S 1000
-#define MAXRETRANS 25
-#define TRANSMIT_XMODEM_1K
+#define MAXRETRANS 3
+#define TRANSMIT_XMODEM_1K 1
 
-static int check(int crc, const uint8_t* buf, int sz) {
+static bool check(int crc, const uint8_t* buf, int sz) {
     if (crc) {
         uint16_t crc  = crc16_ccitt(buf, sz);
         uint16_t tcrc = (buf[sz] << 8) + buf[sz + 1];
-        if (crc == tcrc)
-            return 1;
+        if (crc == tcrc) {
+            return true;
+        }
     } else {
-        int     i;
+        size_t  i;
         uint8_t cks = 0;
         for (i = 0; i < sz; ++i) {
             cks += buf[i];
         }
-        if (cks == buf[sz])
-            return 1;
+        if (cks == buf[sz]) {
+            return true;
+        }
     }
 
-    return 0;
+    return false;
 }
 
 static void flushinput(void) {
-    while (_inbyte(((DLY_1S)*3) >> 1) >= 0)
+    while (_inbyte(100) > 0)
         ;
 }
 
@@ -127,7 +129,8 @@ static void flushinput(void) {
 // land at the end of a packet.
 static uint8_t held_packet[1024];
 static size_t  held_packet_len;
-static void    flush_packet(size_t packet_len, size_t& total_len) {
+
+static void flush_packet(size_t packet_len, size_t& total_len) {
     if (held_packet_len > 0) {
         // Remove trailing ctrl-z's on the final packet
         size_t count;
@@ -150,18 +153,19 @@ static void write_packet(uint8_t* buf, size_t packet_len, size_t& total_len) {
     memcpy(held_packet, buf, packet_len);
     held_packet_len = packet_len;
 }
-int xmodemReceive(Channel* serial, FileStream* out) {
+int32_t xmodemReceive(Channel* serial, FileStream* out) {
     serialPort      = serial;
     file            = out;
     held_packet_len = 0;
 
     uint8_t  xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
     uint8_t* p;
-    int      bufsz = 0, crc = 0;
+    size_t   bufsz    = 0;
+    uint16_t crc      = 0;
     uint8_t  trychar  = 'C';
     uint8_t  packetno = 1;
-    int      i, c           = 0;
-    int      retry, retrans = MAXRETRANS;
+    int32_t  c = 0;
+    size_t   retry, retrans = MAXRETRANS;
 
     size_t len = 0;
 
@@ -207,13 +211,13 @@ int xmodemReceive(Channel* serial, FileStream* out) {
     start_recv:
         if (trychar == 'C')
             crc = 1;
-        trychar = 0;
-        p       = xbuff;
-        *p++    = c;
-        for (i = 0; i < (bufsz + (crc ? 1 : 0) + 3); ++i) {
-            if ((c = _inbyte(DLY_1S)) < 0)
-                goto reject;
-            *p++ = c;
+        trychar     = 0;
+        p           = xbuff;
+        *p++        = c;
+        size_t want = bufsz + (crc ? 1 : 0) + 3;
+        auto   res  = serialPort->timedReadBytes(p, want, DLY_1S);
+        if (res != want) {
+            goto reject;
         }
 
         if (xbuff[1] == (uint8_t)(~xbuff[2]) && (xbuff[1] == packetno || xbuff[1] == packetno - 1) && check(crc, &xbuff[3], bufsz)) {
@@ -222,7 +226,7 @@ int xmodemReceive(Channel* serial, FileStream* out) {
                 ++packetno;
                 retrans = MAXRETRANS + 1;
             }
-            if (--retrans <= 0) {
+            if (--retrans == 0) {
                 flushinput();
                 _outbyte(CAN);
                 _outbyte(CAN);
@@ -238,15 +242,17 @@ int xmodemReceive(Channel* serial, FileStream* out) {
     }
 }
 
-int xmodemTransmit(Channel* serial, FileStream* infile) {
+int32_t xmodemTransmit(Channel* serial, FileStream* infile) {
     serialPort = serial;
 
-    uint8_t xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
-    int     bufsz, crc = -1;
-    uint8_t packetno = 1;
-    int     i, c = 0;
-    size_t  len = 0;
-    int     retry;
+    uint8_t  xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
+    size_t   bufsz;
+    uint16_t crc      = -1;
+    uint8_t  packetno = 1;
+    size_t   i;
+    int32_t  c   = 0;
+    size_t   len = 0;
+    size_t   retry;
 
     for (;;) {
         for (retry = 0; retry < 16; ++retry) {
@@ -278,7 +284,7 @@ int xmodemTransmit(Channel* serial, FileStream* infile) {
 
         for (;;) {
         start_trans:
-#ifdef TRANSMIT_XMODEM_1K
+#if TRANSMIT_XMODEM_1K
             xbuff[0] = STX;
             bufsz    = 1024;
 #else
@@ -334,11 +340,12 @@ int xmodemTransmit(Channel* serial, FileStream* infile) {
             } else {
                 for (retry = 0; retry < 10; ++retry) {
                     _outbyte(EOT);
-                    if ((c = _inbyte((DLY_1S) << 1)) == ACK)
+                    c = _inbyte((DLY_1S) << 1);
+                    if (c == ACK || c == -1)
                         break;
                 }
                 flushinput();
-                return (c == ACK) ? len : -5;
+                return (c == ACK || c == -1) ? len : -5;
             }
         }
     }

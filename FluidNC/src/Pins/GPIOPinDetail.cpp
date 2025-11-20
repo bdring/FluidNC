@@ -1,20 +1,17 @@
 // Copyright (c) 2021 -  Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include <esp_attr.h>  // IRAM_ATTR
+#include "Config.h"
 #include "Driver/fluidnc_gpio.h"
+#include "GPIOPinDetail.h"
+#include "Machine/EventPin.h"
+#include "Protocol.h"
 #include <stdexcept>
 
-#include "GPIOPinDetail.h"
-#include "src/Assert.h"
-#include "src/Config.h"
-#include "src/Machine/EventPin.h"
-#include "src/Protocol.h"
-
 namespace Pins {
-    std::vector<bool> GPIOPinDetail::_claimed(nGPIOPins, false);
+    std::vector<bool> GPIOPinDetail::_claimed(MAX_N_GPIO, false);
 
-    void GPIOPinDetail::setDriveStrength(int n, PinAttributes attr) {
+    void GPIOPinDetail::setDriveStrength(uint8_t n, PinAttributes attr) {
         Assert(_capabilities.has(PinCapabilities::Output), "Drive strength only applies to output pins");
         _attributes    = _attributes | attr;
         _driveStrength = n;
@@ -28,38 +25,48 @@ namespace Pins {
         // that were allocated by the constructor up to that point _MUST_ be freed! Otherwise, you
         // WILL get into trouble.
 
-        Assert(index < nGPIOPins, "Pin number is greater than max %d", nGPIOPins - 1);
+        Assert(index < MAX_N_GPIO, "Pin number is greater than max %d", MAX_N_GPIO - 1);
         Assert(_capabilities != PinCapabilities::Reserved, "Unusable GPIO");
         Assert(_capabilities != PinCapabilities::None, "Unavailable GPIO");
-        Assert(!_claimed[index], "Pin is already used.");
+        Assert(!_claimed[index], "Pin is already used");
+
+        _name = "gpio.";
+        _name += std::to_string(_index);
 
         // User defined pin capabilities
         for (auto opt : options) {
             if (opt.is("pu")) {
                 if (_capabilities.has(PinCapabilities::PullUp)) {
                     _attributes = _attributes | PinAttributes::PullUp;
+                    _name += ":pu";
                 } else {
-                    log_config_error(toString() << " does not support :pu attribute");
+                    log_config_error(name() << " does not support :pu attribute");
                 }
 
             } else if (opt.is("pd")) {
                 if (_capabilities.has(PinCapabilities::PullDown)) {
                     _attributes = _attributes | PinAttributes::PullDown;
+                    _name += ":pd";
                 } else {
-                    log_config_error(toString() << " does not support :pd attribute");
+                    log_config_error(name() << " does not support :pd attribute");
                 }
             } else if (opt.is("low")) {
                 _attributes = _attributes | PinAttributes::ActiveLow;
+                _name += ":low";
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
             } else if (opt.is("ds0")) {
                 setDriveStrength(0, PinAttributes::DS0);
+                _name += ":ds0";
             } else if (opt.is("ds1")) {
                 setDriveStrength(1, PinAttributes::DS1);
+                _name += ":ds1";
             } else if (opt.is("ds2")) {
                 setDriveStrength(2, PinAttributes::DS2);
+                _name += ":ds2";
             } else if (opt.is("ds3")) {
                 setDriveStrength(3, PinAttributes::DS3);
+                _name += ":ds3";
             } else {
                 Assert(false, "Bad GPIO option passed to pin %d: %.*s", int(index), static_cast<int>(opt().length()), opt().data());
             }
@@ -81,18 +88,18 @@ namespace Pins {
         return _capabilities;
     }
 
-    void IRAM_ATTR GPIOPinDetail::write(int high) {
+    void IRAM_ATTR GPIOPinDetail::write(bool high) {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
             if (!_attributes.has(PinAttributes::Output)) {
-                log_error(toString());
+                log_error(name());
             }
-            Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", toString().c_str());
-            int value = _inverted ^ (bool)high;
+            Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", name());
+            bool value = _inverted ^ (bool)high;
             gpio_write(_index, value);
         }
     }
-    int IRAM_ATTR GPIOPinDetail::read() {
+    bool IRAM_ATTR GPIOPinDetail::read() {
         auto raw = gpio_read(_index);
         return (bool)raw ^ _inverted;
     }
@@ -105,10 +112,10 @@ namespace Pins {
         // Check the attributes first:
         Assert(value.validateWith(this->_capabilities) || _index == 1 || _index == 3,
                "The requested attributes don't match the capabilities for %s",
-               toString().c_str());
+               name());
         Assert(!_attributes.conflictsWith(value) || _index == 1 || _index == 3,
                "The requested attributes on %s conflict with previous settings",
-               toString().c_str());
+               name());
 
         _attributes = _attributes | value;
 
@@ -155,31 +162,4 @@ namespace Pins {
         gpio_set_event(_index, reinterpret_cast<void*>(obj), _attributes.has(Pin::Attr::ActiveLow));
     }
 
-    std::string GPIOPinDetail::toString() {
-        std::string s("gpio.");
-        s += std::to_string(_index);
-        if (_attributes.has(PinAttributes::ActiveLow)) {
-            s += ":low";
-        }
-        if (_attributes.has(PinAttributes::PullUp)) {
-            s += ":pu";
-        }
-        if (_attributes.has(PinAttributes::PullDown)) {
-            s += ":pd";
-        }
-        if (_attributes.has(PinAttributes::DS0)) {
-            s += ":ds0";
-        }
-        if (_attributes.has(PinAttributes::DS1)) {
-            s += ":ds1";
-        }
-        if (_attributes.has(PinAttributes::DS2)) {
-            s += ":ds2";
-        }
-        if (_attributes.has(PinAttributes::DS3)) {
-            s += ":ds3";
-        }
-
-        return s;
-    }
 }

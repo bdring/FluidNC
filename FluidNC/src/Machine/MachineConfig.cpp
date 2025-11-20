@@ -4,24 +4,23 @@
 
 #include "MachineConfig.h"
 
-#include "src/Kinematics/Kinematics.h"
+#include "Kinematics/Kinematics.h"
 
-#include "src/Motors/MotorDriver.h"
-#include "src/Motors/NullMotor.h"
+#include "Motors/MotorDriver.h"
+#include "Motors/NullMotor.h"
 
-#include "src/Spindles/NullSpindle.h"
-#include "src/ToolChangers/atc.h"
-#include "src/UartChannel.h"
+#include "Spindles/NullSpindle.h"
+#include "ToolChangers/atc.h"
+#include "Driver/Console.h"
 
-#include "src/SettingsDefinitions.h"  // config_filename
-#include "src/FileStream.h"
+#include "SettingsDefinitions.h"  // config_filename
+#include "FileStream.h"
 
-#include "src/Configuration/Parser.h"
-#include "src/Configuration/ParserHandler.h"
-#include "src/Configuration/Validator.h"
-#include "src/Configuration/AfterParse.h"
-#include "src/Configuration/ParseException.h"
-#include "src/Config.h"  // ENABLE_*
+#include "Configuration/Parser.h"
+#include "Configuration/ParserHandler.h"
+#include "Configuration/Validator.h"
+#include "Configuration/AfterParse.h"
+#include "Config.h"  // ENABLE_*
 
 #include "Driver/restart.h"
 
@@ -42,19 +41,23 @@ namespace Machine {
 
         handler.section("stepping", _stepping);
 
-        handler.section("uart1", _uarts[1], 1);
-        handler.section("uart2", _uarts[2], 2);
-
-        handler.section("uart_channel1", _uart_channels[1], 1);
-        handler.section("uart_channel2", _uart_channels[2], 2);
-
+        handler.sections("uart", 1, MAX_N_UARTS, true, _uarts);
+        handler.sections("uart_channel", 1, MAX_N_UARTS, true, _uart_channels);
+#if MAX_N_I2SO
+        // We currently support only one I2S bus
         handler.section("i2so", _i2so);
-
-        handler.section("i2c0", _i2c[0], 0);
-        handler.section("i2c1", _i2c[1], 1);
-
+#endif
+#if MAX_N_I2SO
+        handler.sections("i2c", 0, MAX_N_I2C, false, _i2c);
+#endif
+#if MAX_N_SPI
+        // We currently support only one SPI bus
         handler.section("spi", _spi);
+#endif
+
+#if MAX_N_SDCARD
         handler.section("sdcard", _sdCard);
+#endif
 
         handler.section("kinematics", _kinematics);
         handler.section("axes", _axes);
@@ -63,6 +66,7 @@ namespace Machine {
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
         handler.section("macros", _macros);
+        handler.section("extenders", _extenders);
         handler.section("start", _start);
         handler.section("parking", _parking);
 
@@ -72,6 +76,7 @@ namespace Machine {
         ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
+        Listeners::SysListenerFactory::factory(handler);
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
@@ -109,13 +114,17 @@ namespace Machine {
             _userInputs = new UserInputs();
         }
 
+#if MAX_N_SDCARD
         if (_sdCard == nullptr) {
             _sdCard = new SDCard();
         }
+#endif
 
+#if MAX_N_SPI
         if (_spi == nullptr) {
             _spi = new SPIBus();
         }
+#endif
 
         if (_stepping == nullptr) {
             _stepping = new Stepping();
@@ -175,7 +184,7 @@ namespace Machine {
 
     void MachineConfig::load_file(const std::string_view filename) {
         try {
-            FileStream file(std::string { filename }, "r", "");
+            FileStream file(std::string { filename }, "rb", "");
 
             auto filesize = file.size();
             if (filesize <= 0) {
@@ -187,7 +196,7 @@ namespace Machine {
             buffer[filesize] = '\0';
             auto actual      = file.read(buffer.get(), filesize);
             if (actual != filesize) {
-                log_config_error("Configuration file:" << filename << " read error");
+                log_config_error("Configuration file:" << filename << " read error - expected " << filesize << " got " << actual);
                 return;
             }
             log_info("Configuration file:" << filename);
@@ -201,65 +210,73 @@ namespace Machine {
     }
 
     void MachineConfig::load_yaml(std::string_view input) {
-        bool successful = false;
         try {
-            Configuration::Parser        parser(input);
-            Configuration::ParserHandler handler(parser);
+            try {
+                Configuration::Parser        parser(input);
+                Configuration::ParserHandler handler(parser);
 
-            // instance() is by reference, so we can just get rid of an old instance and
-            // create a new one here:
-            {
-                auto& machineConfig = instance();
-                if (machineConfig != nullptr) {
-                    delete machineConfig;
+                // instance() is by reference, so we can just get rid of an old instance and
+                // create a new one here:
+                {
+                    auto& machineConfig = instance();
+                    if (machineConfig != nullptr) {
+                        delete machineConfig;
+                    }
+                    machineConfig = new MachineConfig();
                 }
-                machineConfig = new MachineConfig();
+                config = instance();
+
+                handler.enterSection("machine", config);
+
+                log_debug("Running after-parse tasks");
+            } catch (std::exception& ex) {
+                // Log exception:
+                log_config_error("Configuration parse error: " << ex.what());
             }
-            config = instance();
-
-            handler.enterSection("machine", config);
-
-            log_debug("Running after-parse tasks");
 
             try {
                 Configuration::AfterParse afterParse;
                 config->afterParse();
                 config->group(afterParse);
-            } catch (std::exception& ex) { log_error("Validation error: " << ex.what()); }
-
-            log_debug("Checking configuration");
+            } catch (std::exception& ex) {
+                // Log exception:
+                log_config_error("Configuration after-parse error: " << ex.what());
+            }
 
             try {
+                log_debug("Checking configuration");
+
                 Configuration::Validator validator;
                 config->validate();
                 config->group(validator);
-            } catch (std::exception& ex) { log_config_error("Validation error: " << ex.what()); }
 
-            // log_info("Heap size after configuation load is " << uint32_t(xPortGetFreeHeapSize()));
+                // log_info("Heap size after configuration load is " << uint32_t(xPortGetFreeHeapSize()));
+            } catch (std::exception& ex) {
+                // Log exception:
+                log_config_error("Configuration validation error: " << ex.what());
+            }
 
-        } catch (const Configuration::ParseException& ex) {
-            log_config_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
-        } catch (const AssertionFailed& ex) {
-            // Get rid of buffer and return
-            log_config_error("Configuration loading failed: " << ex.what());
-        } catch (std::exception& ex) {
-            // Log exception:
-            log_config_error("Configuration validation error: " << ex.what());
         } catch (...) {
             // Get rid of buffer and return
             log_config_error("Unknown error while processing config file");
         }
 
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+        std::atomic_thread_fence(std::memory_order_seq_cst);
     }
 
     MachineConfig::~MachineConfig() {
         delete _axes;
+#if MAX_N_I2SO
         delete _i2so;
+#endif
         delete _coolant;
         delete _probe;
+#if MAX_N_SDCARD
         delete _sdCard;
+#endif
+#if MAX_N_SDCARD
         delete _spi;
+#endif
         delete _control;
         delete _macros;
     }

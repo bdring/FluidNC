@@ -46,7 +46,7 @@ const std::map<Error, const char*> ErrorNames = {
     { Error::GcodeG43DynamicAxisError, "Gcode G43 dynamic axis error" },
     { Error::GcodeMaxValueExceeded, "Gcode max value exceeded" },
     { Error::PParamMaxExceeded, "P param max exceeded" },
-    { Error::CheckControlPins, "Check control pins" },
+    { Error::CheckStartupPins, "Check startup pins" },
     { Error::FsFailedMount, "Failed to mount device" },
     { Error::FsFailedRead, "Read failed" },
     { Error::FsFailedOpenDir, "Failed to open directory" },

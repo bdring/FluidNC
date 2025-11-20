@@ -1,6 +1,5 @@
 #include "OnOffSpindle.h"
-
-#include "../System.h"  // sys.abort
+#include "System.h"  // sys.abort
 
 namespace Spindles {
 
@@ -34,7 +33,7 @@ namespace Spindles {
     }
 
     void OnOff::setState(SpindleState state, SpindleSpeed speed) {
-        if (sys.abort) {
+        if (sys.abort()) {
             return;  // Block during abort.
         }
 
@@ -58,7 +57,7 @@ namespace Spindles {
     }
 
     void IRAM_ATTR OnOff::set_enable(bool enable) {
-        if (_disable_with_zero_speed && sys.spindle_speed == 0) {
+        if (_disable_with_zero_speed && sys.spindle_speed() == 0) {
             enable = false;
         }
 

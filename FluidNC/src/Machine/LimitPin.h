@@ -1,6 +1,10 @@
+// Copyright (c) 2021 -  Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
 
 #include "EventPin.h"
+#include "Types.h"
 
 namespace Machine {
     class LimitPin : public EventPin {
@@ -18,24 +22,24 @@ namespace Machine {
         // touch, increasing the accuracy of homing
         // _pExtraLimited lets the limit control two motors, as with
         // CoreXY
-        volatile bool* _pLimited;
+        volatile bool* _pLimited      = nullptr;
         volatile bool* _pExtraLimited = nullptr;
 
-        volatile uint32_t* _posLimits = nullptr;
-        volatile uint32_t* _negLimits = nullptr;
+        volatile MotorMask* _posLimits = nullptr;
+        volatile MotorMask* _negLimits = nullptr;
 
     public:
-        LimitPin(int axis, int motorNum, int direction, bool& phardLimits);
+        LimitPin(axis_t axis, motor_t motorNum, int8_t direction, bool& phardLimits);
 
         void trigger(bool active) override;
 
         void makeDualMask();  // makes this a mask for motor0 and motor1
-        void setExtraMotorLimit(int axis, int motorNum);
+        void setExtraMotorLimit(axis_t axis, motor_t motorNum);
 
         bool isHard() { return _pHardLimits; }
         void init();
 
-        int _axis;
-        int _motorNum;
+        axis_t  _axis;
+        motor_t _motorNum;
     };
 }

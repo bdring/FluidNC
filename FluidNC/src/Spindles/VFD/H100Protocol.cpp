@@ -12,7 +12,7 @@
 */
 
 #include "H100Protocol.h"
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 #include <algorithm>  // std::max
 

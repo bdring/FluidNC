@@ -1,11 +1,11 @@
 #pragma once
 
-#include "src/Config.h"
+#include "Config.h"
 
-#include "src/Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 
-#include "src/Channel.h"
-#include "src/Module.h"
+#include "Channel.h"
+#include "Module.h"
 #include "SSD1306_I2C.h"
 
 typedef const uint8_t* font_t;
@@ -43,8 +43,8 @@ private:
     float       _percent;
     std::string _ticker;
 
-    int _radio_delay        = 0;
-    int _report_interval_ms = 500;
+    int32_t _radio_delay        = 0;
+    int32_t _report_interval_ms = 500;
 
     uint8_t _i2c_num = 0;
 
@@ -58,7 +58,7 @@ private:
     void parse_WebUI();
 
     void parse_axes(std::string s, float* axes);
-    void parse_numbers(std::string s, float* nums, int maxnums);
+    void parse_numbers(std::string s, float* nums, uint8_t maxnums);
 
     void show_limits(bool probe, const bool* limits);
     void show_state();
@@ -95,8 +95,8 @@ public:
     // Configurable
 
     uint8_t _address = 0x3c;
-    int     _width   = 64;
-    int     _height  = 48;
+    int32_t _width   = 64;
+    int32_t _height  = 48;
     bool    _flip    = true;
     bool    _mirror  = false;
 

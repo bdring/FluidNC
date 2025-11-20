@@ -6,7 +6,7 @@
 */
 
 #include "TMC2209Driver.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 #include <atomic>
 
 namespace MotorDrivers {
@@ -52,7 +52,7 @@ namespace MotorDrivers {
         tmc2209->rms_current(run_i, TrinamicBase::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping
-        int usteps = _microsteps == 1 ? 0 : _microsteps;
+        uint32_t usteps = _microsteps == 1 ? 0 : _microsteps;
         tmc2209->microsteps(usteps);
         tmc2209->pdn_disable(true);  // powerdown pin is disabled. uses ihold.
 

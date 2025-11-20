@@ -4,15 +4,22 @@
 #include "ChannelPinDetail.h"
 
 namespace Pins {
-    ChannelPinDetail::ChannelPinDetail(UartChannel* channel, int number, const PinOptionsParser& options) :
-        PinDetail(number), _channel(channel) {
+    ChannelPinDetail::ChannelPinDetail(UartChannel* channel, pinnum_t index, const PinOptionsParser& options) :
+        PinDetail(index), _channel(channel) {
+        _name = _channel->name();
+        _name += ".";
+        _name += std::to_string(index);
+
         for (auto opt : options) {
             if (opt.is("pu")) {
                 setAttr(PinAttributes::PullUp);
+                _name += ":pu";
             } else if (opt.is("pd")) {
                 setAttr(PinAttributes::PullDown);
+                _name += ":pd";
             } else if (opt.is("low")) {
                 setAttr(PinAttributes::ActiveLow);
+                _name += ":low";
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
             }
@@ -23,7 +30,7 @@ namespace Pins {
         return PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::PWM | PinCapabilities::Void;
     }
 
-    void IRAM_ATTR ChannelPinDetail::write(int high) {
+    void IRAM_ATTR ChannelPinDetail::write(bool high) {
         if (high == _value) {
             return;
         }
@@ -39,7 +46,7 @@ namespace Pins {
         _channel->writeUTF8(0x10000 + (_index << 10) + duty);
     }
 
-    int ChannelPinDetail::read() {
+    bool ChannelPinDetail::read() {
         return _value;
     }
     void ChannelPinDetail::setAttr(PinAttributes attr, uint32_t frequency) {
@@ -71,26 +78,11 @@ namespace Pins {
         // The second parameter is used to maintain a list of pin values in the Channel
         Assert(_channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s),
                "Expander pin configuration failed: %s %s",
-               _channel->name().c_str(),
+               _channel->name(),
                s.c_str());
     }
     PinAttributes ChannelPinDetail::getAttr() const {
         return _attributes;
-    }
-    std::string ChannelPinDetail::toString() {
-        std::string s = _channel->name();
-        s += ".";
-        s += std::to_string(_index);
-        if (_attributes.has(PinAttributes::ActiveLow)) {
-            s += ":low";
-        }
-        if (_attributes.has(PinAttributes::PullUp)) {
-            s += ":pu";
-        }
-        if (_attributes.has(PinAttributes::PullDown)) {
-            s += ":pd";
-        }
-        return s;
     }
 
     void ChannelPinDetail::registerEvent(InputPin* obj) {

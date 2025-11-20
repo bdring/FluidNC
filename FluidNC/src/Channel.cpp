@@ -5,7 +5,7 @@
 #include "Report.h"                 // report_gcode_modes
 #include "Machine/MachineConfig.h"  // config
 #include "RealtimeCmd.h"            // execute_realtime_command
-#include "Limits.h"
+#include "Limit.h"
 #include "Logging.h"
 #include "Job.h"
 #include <string_view>
@@ -13,7 +13,7 @@
 
 Channel::Channel(const std::string& name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
 Channel::Channel(const char* name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
-Channel::Channel(const char* name, int num, bool addCR) : _name(name) {
+Channel::Channel(const char* name, objnum_t num, bool addCR) : _name(name) {
     _name += std::to_string(num);
     _linelen = 0;
     _addCR   = addCR;
@@ -147,9 +147,11 @@ void Channel::autoReport() {
     }
 }
 
-void Channel::pin_event(uint32_t pinnum, bool active) {
-    auto input_pin = _pins.at(pinnum);
-    protocol_send_event(active ? &pinActiveEvent : &pinInactiveEvent, input_pin);
+void Channel::pin_event(pinnum_t pinnum, bool active) {
+    try {
+        auto input_pin = _pins.at(pinnum);
+        protocol_send_event(active ? &pinActiveEvent : &pinInactiveEvent, input_pin);
+    } catch (const std::out_of_range& e) { log_error("Unregistered event from channel pin " << (int)pinnum); }
 }
 
 void Channel::handleRealtimeCharacter(uint8_t ch) {
@@ -212,7 +214,7 @@ Error Channel::pollLine(char* line) {
     }
     handle();
     while (1) {
-        int ch = -1;
+        int32_t ch = -1;
         if (line && _queue.size()) {
             ch = _queue.front();
             _queue.pop();
@@ -257,7 +259,7 @@ void Channel::out_acked(const std::string& s, const char* tag) {
 
 void Channel::ready() {}
 
-void Channel::registerEvent(uint8_t pinnum, InputPin* obj) {
+void Channel::registerEvent(pinnum_t pinnum, InputPin* obj) {
     _pins[pinnum] = obj;
 }
 
@@ -324,7 +326,7 @@ void Channel::sendLine(MsgLevel level, const std::string* line) {
 // via the std::string* version of send_line().  The original
 // string is freed by the caller sometime after send_line()
 // returns, while the new string is freed by the output task
-// after the message is forwared to the output channel.
+// after the message is forwarded to the output channel.
 // This is the least efficient form, requiring two strings
 // to be allocated and freed, with an intermediate copy.
 // It is used only rarely.
@@ -350,11 +352,11 @@ bool Channel::is_visible(const std::string& stem, std::string extension, bool is
     }
 
     // Convert extension to canonical lower case format
-    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return std::tolower(c); });
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return ::tolower(c); });
 
     // common gcode extensions
     std::string_view extensions(".g .gc .gco .gcode .nc .ngc .ncc .txt .cnc .tap");
-    int              pos = 0;
+    size_t           pos = 0;
     while (extensions.length()) {
         auto             next_pos       = extensions.find_first_of(' ', pos);
         std::string_view next_extension = extensions.substr(0, next_pos);

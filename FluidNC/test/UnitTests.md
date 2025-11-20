@@ -28,7 +28,7 @@ Making a test works as follows:
 2. The contents should be something like this:
 
 ```c++
-#include "../TestFramework.h"
+#include "TestFramework.h"
 
 #include <src/SomethingYouWantTested.h>
 
@@ -69,7 +69,7 @@ Code here is split into two parts:
 
 ## Folders and how this works
 
-Support libraries are implemented that sort-of mimick the Arduino API where
+Support libraries are implemented that sort-of mimic the Arduino API where
 appropriate. This functionality might be extended in the future, and is by 
 no means intended to be or a complete or even a "working" version; it's 
 designed to be _testable_.

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 #include "LimitPin.h"
 
 namespace MotorDrivers {
@@ -17,15 +17,15 @@ namespace Machine {
 
 namespace Machine {
     class Motor : public Configuration::Configurable {
+        axis_t  _axis;
+        motor_t _motorNum;
+
         LimitPin _negLimitPin;
         LimitPin _posLimitPin;
         LimitPin _allLimitPin;
 
-        int _axis;
-        int _motorNum;
-
     public:
-        Motor(int axis, int motorNum);
+        Motor(axis_t axis, motor_t motorNum);
 
         MotorDrivers::MotorDriver* _driver  = nullptr;
         float                      _pulloff = 1.0f;  // mm
@@ -38,9 +38,11 @@ namespace Machine {
         bool hasSwitches();
         bool isReal();
         void makeDualSwitches();
-        void limitOtherAxis(int axis);
+        void limitOtherAxis(axis_t axis);
         void init();
         void config_motor();
+        bool can_home();
+        bool supports_homing_dir(bool positive);
         ~Motor();
     };
 }

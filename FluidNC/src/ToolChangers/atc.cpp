@@ -3,14 +3,14 @@
 
 #include "atc.h"
 
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 
 ATCs::ATC* atc = nullptr;
 
 namespace ATCs {
     void probe_notification() {}
 
-    bool tool_change(uint8_t value, bool pre_select) {
+    bool tool_change(tool_t value, bool pre_select) {
         return true;
     }
 }

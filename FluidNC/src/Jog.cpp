@@ -7,7 +7,7 @@
 #include "Machine/MachineConfig.h"
 #include "MotionControl.h"  // mc_linear
 #include "Stepper.h"        // st_prep_buffer, st_wake_up
-#include "Limits.h"         // constrainToSoftLimits()
+#include "Limit.h"          // constrainToSoftLimits()
 
 // Sets up valid jog motion received from g-code parser, checks for soft-limits, and executes the jog.
 // cancelledInflight will be set to true if was not added to parser due to a cancelJog.

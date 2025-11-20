@@ -8,8 +8,7 @@
 */
 
 #include "Spindle.h"
-#include "esp32-hal.h"          // millis()
-#include "src/MotionControl.h"  // mc_critical
+#include "MotionControl.h"  // mc_critical
 
 namespace Spindles {
     // This is for an on/off spindle all RPMs above 0 are on
@@ -77,10 +76,6 @@ namespace Spindles {
         Pin _enable_pin;
 
         uint32_t _max_arc_wait = 1000;
-
-        // TO DO. These are not used in the class
-        // _disable_with_zero_speed forces a disable when speed is 0
-        bool _disable_with_zero_speed = false;
 
         bool         _arc_on = false;
         bool         use_delay_settings() const override { return false; }

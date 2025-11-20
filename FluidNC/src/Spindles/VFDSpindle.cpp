@@ -21,11 +21,10 @@
 #include "VFDSpindle.h"
 #include "VFD/VFDProtocol.h"
 
-#include "../Machine/MachineConfig.h"
-#include "../Protocol.h"  // rtAlarm
-#include "../Report.h"    // hex message
-#include "../Configuration/HandlerType.h"
-#include "../Platform.h"
+#include "Machine/MachineConfig.h"
+#include "Protocol.h"  // rtAlarm
+#include "Report.h"    // hex message
+#include "Configuration/HandlerType.h"
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -58,7 +57,7 @@ namespace Spindles {
             return;
         }
 
-        // These VFDs are always reversable, but most can be set via the operator panel
+        // These VFDs are always reversible, but most can be set via the operator panel
         // to only allow one direction.  In principle we could check that setting and
         // automatically set is_reversable.
         is_reversable = true;
@@ -67,7 +66,9 @@ namespace Spindles {
 
         // Initialization is complete, so now it's okay to run the queue task:
         if (!VFD::VFDProtocol::vfd_cmd_queue) {  // init can happen many times, we only want to start one task
-            VFD::VFDProtocol::vfd_cmd_queue = xQueueCreate(VFD_RS485_QUEUE_SIZE, sizeof(VFD::VFDProtocol::VFDaction));
+            VFD::VFDProtocol::vfd_cmd_queue   = xQueueCreate(VFD_RS485_QUEUE_SIZE, sizeof(VFD::VFDProtocol::VFDaction));
+            VFD::VFDProtocol::vfd_speed_queue = xQueueCreate(VFD_RS485_QUEUE_SIZE, sizeof(uint32_t));
+
             xTaskCreatePinnedToCore(VFD::VFDProtocol::vfd_cmd_task,  // task
                                     "vfd_cmdTaskHandle",             // name for task
                                     2048,                            // size of task stack
@@ -91,7 +92,7 @@ namespace Spindles {
     }
 
     void VFDSpindle::set_mode(SpindleState mode, bool critical) {
-        _last_override_value = sys.spindle_speed_ovr;  // sync these on mode changes
+        _last_override_value = sys.spindle_speed_ovr();  // sync these on mode changes
         if (VFD::VFDProtocol::vfd_cmd_queue) {
             VFD::VFDProtocol::VFDaction action;
             action.action   = VFD::VFDProtocol::actionSetMode;
@@ -105,76 +106,68 @@ namespace Spindles {
 
     void VFDSpindle::setState(SpindleState state, SpindleSpeed speed) {
         log_debug(name() << ": setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
-        if (sys.abort) {
+        if (sys.abort()) {
             return;  // Block during abort.
+        }
+
+        if (speed == 0 && _disable_with_zero_speed) {
+            log_debug("Disabling because speed is 0");
+            state = SpindleState::Disable;
         }
 
         bool critical = (state_is(State::Cycle) || state != SpindleState::Disable);
 
         uint32_t dev_speed = mapSpeed(state, speed);
 
-        if (_current_state != state) {
-            // Changing state
-            set_mode(state, critical);  // critical if we are in a job
-
+        if (_current_dev_speed != dev_speed) {
+            log_debug("setSpeed " << int(dev_speed));
             setSpeed(dev_speed);
-        } else {
-            // Not changing state
-            if (_current_dev_speed != dev_speed) {
-                // Changing speed
-                setSpeed(dev_speed);
-            }
         }
+
+        if (_current_state != state) {
+            log_debug("set_mode " << int(state));
+            set_mode(state, critical);  // critical if we are in a job
+            _current_state = state;
+        }
+
         if (detail_->use_delay_settings()) {
             spindleDelay(state, speed);
-        } else {
-            // _sync_dev_speed is set by a callback that handles
-            // responses from periodic get_current_speed() requests.
-            // It changes as the actual speed ramps toward the target.
+            return;
+        }
 
-            _syncing = true;  // poll for speed
+        // _sync_dev_speed is set by a callback that handles
+        // responses from periodic get_current_speed() requests.
+        // It changes as the actual speed ramps toward the target.
 
-            auto minSpeedAllowed = dev_speed > _slop ? (dev_speed - _slop) : 0;
-            auto maxSpeedAllowed = dev_speed + _slop;
+        _syncing = true;  // poll for speed
 
-            int       unchanged = 0;
-            const int limit     = 20;  // 20 * 0.5s = 10 sec
-            auto      last      = _sync_dev_speed;
+        auto minSpeedAllowed = dev_speed > _slop ? (dev_speed - _slop) : 0;
+        auto maxSpeedAllowed = dev_speed + _slop;
 
-            while ((_last_override_value == sys.spindle_speed_ovr) &&  // skip if the override changes
-                   ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit)) {
-                delay_ms(_poll_ms);
-                if (_debug > 1) {
-                    log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
-                }
-                // if (!mc_dwell(500)) {
-                //     // Something happened while we were dwelling, like a safety door.
-                //     unchanged = limit;
-                //     last      = _sync_dev_speed;
-                //     break;
-                // }
+        int unchanged = 0;
 
-                // unchanged counts the number of consecutive times that we see the same speed
-                unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;
-                last      = _sync_dev_speed;
-            }
-            _last_override_value = sys.spindle_speed_ovr;
+        const int limit = 100;  // 10 sec / 100 ms
 
-            if (_debug > 1) {
-                log_debug("Synced speed. Requested:" << int(dev_speed) << " current:" << int(_sync_dev_speed));
-            }
+        if (_debug > 1 && _sync_dev_speed != UINT32_MAX) {
+            log_info("Syncing to " << int(dev_speed));
+        }
 
-            if (unchanged == limit) {
+        while ((_last_override_value == sys.spindle_speed_ovr()) &&  // skip if the override changes
+               ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit)) {
+            if (!xQueueReceive(VFD::VFDProtocol::vfd_speed_queue, &_sync_dev_speed, 3000)) {
                 mc_critical(ExecAlarm::SpindleControl);
                 log_error(name() << ": spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
+                _syncing = false;
+                return;
             }
-
-            _syncing = false;
-            // spindleDelay() sets these when it is used
-            _current_state = state;
-            _current_speed = speed;
         }
-        //        }
+        _last_override_value = sys.spindle_speed_ovr();
+        _current_speed       = speed;
+        if (_debug > 1) {
+            log_info("Synced speed to " << int(dev_speed));
+        }
+
+        _syncing = false;
     }
 
     void IRAM_ATTR VFDSpindle::setSpeedfromISR(uint32_t dev_speed) {

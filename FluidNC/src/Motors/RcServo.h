@@ -5,11 +5,12 @@
 
 #include "Servo.h"
 #include "RcServoSettings.h"
+#include "System.h"
 
 namespace MotorDrivers {
     class RcServo : public Servo {
     protected:
-        int _timer_ms = 20;
+        int32_t _timer_ms = 20;
 
         void config_message() override;
 
@@ -27,7 +28,10 @@ namespace MotorDrivers {
         uint32_t _min_pulse_cnt = 0;  // microseconds
         uint32_t _max_pulse_cnt = 0;  // microseconds
 
-        int _axis_index = -1;
+        steps_t _min_steps;
+        steps_t _max_steps;
+
+        axis_t _axis = INVALID_AXIS;
 
         bool _has_errors = false;
 

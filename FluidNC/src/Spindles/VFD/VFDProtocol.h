@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include "../Spindle.h"
+#include "Spindles/Spindle.h"
+#include <freertos/message_buffer.h>
 
 namespace Spindles {
     class VFDSpindle;
@@ -64,14 +65,16 @@ namespace Spindles {
             static TaskHandle_t  vfd_cmdTaskHandle;
             static void          vfd_cmd_task(void* pvParameters);
 
-            static uint16_t ModRTU_CRC(uint8_t* buf, int msg_len);
+            static uint16_t ModRTU_CRC(uint8_t* buf, size_t msg_len);
             bool            prepareSetModeCommand(SpindleState mode, ModbusCommand& data, VFDSpindle* spindle);
             bool            prepareSetSpeedCommand(uint32_t speed, ModbusCommand& data, VFDSpindle* spindle);
 
             static void reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length);
-            static void reportCmdErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id);
+            static bool checkRx(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id);
 
         public:
+            static QueueHandle_t vfd_speed_queue;
+
             VFDProtocol() {}
             VFDProtocol(const VFDProtocol&)            = delete;
             VFDProtocol(VFDProtocol&&)                 = delete;

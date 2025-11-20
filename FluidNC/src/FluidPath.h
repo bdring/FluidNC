@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
 #include <filesystem>
 #include <string>
 #include "Driver/localfs.h"
@@ -30,6 +29,12 @@ public:
 private:
     FluidPath(const char* name, const char* fs, std::error_code*);
 
-    static int _refcnt;
-    bool       _isSD = false;
+    static uint32_t _refcnt;
+    bool            _isSD = false;
 };
+
+#include <Print.h>
+inline Print& operator<<(Print& lhs, FluidPath path) {
+    lhs.print(path.string().c_str());
+    return lhs;
+}

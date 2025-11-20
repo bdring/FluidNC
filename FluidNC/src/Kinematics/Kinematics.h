@@ -1,12 +1,13 @@
 #pragma once
 
 // Kinematics interface.
-#include "src/Configuration/Configurable.h"
-#include "src/Configuration/GenericFactory.h"
-#include "src/MotionControl.h"
-#include "src/Planner.h"
-#include "src/Types.h"
-#include "src/Machine/Homing.h"
+#include "Configuration/Configurable.h"
+#include "Configuration/GenericFactory.h"
+#include "MotionControl.h"
+#include "System.h"  // AxisMask, MotorMask
+#include "Planner.h"
+#include "Types.h"
+#include "Machine/Homing.h"
 
 /*
 Special types
@@ -37,18 +38,30 @@ namespace Kinematics {
         void init_position();
 
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
-        void motors_to_cartesian(float* cartesian, float* motors, int n_axis);
+        void motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis);
         bool transform_cartesian_to_motors(float* motors, float* cartesian);
 
         void constrain_jog(float* target, plan_line_data_t* pl_data, float* position);
         bool invalid_line(float* target);
-        bool invalid_arc(
-            float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc, int pword_rotations);
+        bool invalid_arc(float*            target,
+                         plan_line_data_t* pl_data,
+                         float*            position,
+                         float             center[3],
+                         float             radius,
+                         axis_t            caxes[3],
+                         bool              is_clockwise_arc,
+                         uint32_t          rotations);
 
         bool canHome(AxisMask axisMask);
         bool kinematics_homing(AxisMask axisMask);
         void releaseMotors(AxisMask axisMask, MotorMask motors);
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
+
+        float min_motor_pos(axis_t axis);
+        float max_motor_pos(axis_t axis);
+
+        void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms);
+        void set_homed_mpos(float* mpos);
 
     private:
         ::Kinematics::KinematicSystem* _system = nullptr;
@@ -72,12 +85,18 @@ namespace Kinematics {
 
         virtual void constrain_jog(float* cartesian, plan_line_data_t* pl_data, float* position) {}
         virtual bool invalid_line(float* cartesian) { return false; }
-        virtual bool invalid_arc(
-            float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc, int pword_rotations) {
+        virtual bool invalid_arc(float*            target,
+                                 plan_line_data_t* pl_data,
+                                 float*            position,
+                                 float             center[3],
+                                 float             radius,
+                                 axis_t            caxes[3],
+                                 bool              is_clockwise_arc,
+                                 uint32_t          rotations) {
             return false;
         }
 
-        virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis) = 0;
+        virtual void motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) = 0;
 
         virtual bool transform_cartesian_to_motors(float* motors, float* cartesian) = 0;
 
@@ -85,6 +104,12 @@ namespace Kinematics {
         virtual void releaseMotors(AxisMask axisMask, MotorMask motors) {}
         virtual bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) { return false; }
         virtual bool kinematics_homing(AxisMask& axisMask) { return false; }
+
+        virtual float min_motor_pos(axis_t axis) { return _min_motor_pos[axis]; }
+        virtual float max_motor_pos(axis_t axis) { return _max_motor_pos[axis]; }
+
+        virtual void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) {}
+        virtual void set_homed_mpos(float* mpos) {}
 
         // Configuration interface.
         void afterParse() override {}
@@ -96,6 +121,9 @@ namespace Kinematics {
 
         // Virtual base classes require a virtual destructor.
         virtual ~KinematicSystem() {}
+
+        float _min_motor_pos[MAX_N_AXIS];
+        float _max_motor_pos[MAX_N_AXIS];
     };
 
     using KinematicsFactory = Configuration::GenericFactory<KinematicSystem>;

@@ -26,7 +26,5 @@ public:
 
     std::string report_status();
 
-    bool startup_check();
-
     ~Control() = default;
 };

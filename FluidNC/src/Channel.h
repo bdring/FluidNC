@@ -16,14 +16,14 @@
 
 #pragma once
 
-#include "src/Error.h"        // Error
-#include "src/GCode.h"        // gc_modal_t
-#include "src/Types.h"        // MotorMask
-#include "src/RealtimeCmd.h"  // Cmd
-#include "src/UTF8.h"
+#include "Error.h"        // Error
+#include "GCode.h"        // gc_modal_t
+#include "Types.h"        // MotorMask
+#include "RealtimeCmd.h"  // Cmd
+#include "UTF8.h"
 
-#include "src/Pins/PinAttributes.h"
-#include "src/Machine/EventPin.h"
+#include "Pins/PinAttributes.h"
+#include "Machine/EventPin.h"
 
 #include <Stream.h>
 #include <freertos/FreeRTOS.h>  // TickType_T
@@ -31,7 +31,7 @@
 
 class Channel : public Stream {
 private:
-    void pin_event(uint32_t pinnum, bool active);
+    void pin_event(pinnum_t pinnum, bool active);
 
     static constexpr int PinACK = 0xB2;
     static constexpr int PinNAK = 0xB3;
@@ -47,7 +47,7 @@ public:
 
     static constexpr int maxLine = 255;
 
-    int _message_level = MsgLevelVerbose;
+    uint32_t _message_level = MsgLevelVerbose;
 
 protected:
     std::string _name;
@@ -90,15 +90,16 @@ protected:
 public:
     explicit Channel(const std::string& name, bool addCR = false);
     explicit Channel(const char* name, bool addCR = false);
-    Channel(const char* name, int num, bool addCR = false);
+    Channel(const char* name, objnum_t num, bool addCR = false);
     virtual ~Channel() = default;
 
-    int _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
+    int8_t _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
-    virtual void       handle() {};
-    virtual Error      pollLine(char* line);
-    virtual void       ack(Error status);
-    const std::string& name() { return _name; }
+    virtual void  init() {}
+    virtual void  handle() {}
+    virtual Error pollLine(char* line);
+    virtual void  ack(Error status);
+    const char*   name() { return _name.c_str(); }
 
     virtual void sendLine(MsgLevel level, const char* line);
     virtual void sendLine(MsgLevel level, const std::string* line);
@@ -191,7 +192,7 @@ public:
     virtual void out_acked(const std::string& s, const char* tag);
 
     void ready();
-    void registerEvent(uint8_t pinnum, InputPin* obj);
+    void registerEvent(pinnum_t pinnum, InputPin* obj);
 
     size_t lineNumber() { return _line_number; }
     void   setLineNumber(size_t line_number) { _line_number = line_number; }

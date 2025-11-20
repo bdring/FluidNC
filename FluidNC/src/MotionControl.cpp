@@ -7,7 +7,7 @@
 
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"  // run_cycles
-#include "Limits.h"          // limits_soft_check
+#include "Limit.h"           // limits_soft_check
 #include "Report.h"          // report_over_counter
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
@@ -41,7 +41,7 @@ void mc_init() {
 // kinematics.
 //
 // NOTE: This is the primary gateway to the planner. All line motions, including arc line
-// segments, must pass through this routine before being passed to the planner. The seperation of
+// segments, must pass through this routine before being passed to the planner. The separation of
 // mc_linear and plan_buffer_line is done primarily to place non-planner-type functions from being
 // in the planner and to let backlash compensation or canned cycle integration simple and direct.
 // returns true if line was submitted to planner, or false if intentionally dropped.
@@ -77,7 +77,7 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
         // While we are waiting for room in the buffer, look for realtime
         // commands and other situations that could cause state changes.
         protocol_execute_realtime();
-        if (sys.abort) {
+        if (sys.abort()) {
             mc_pl_data_inflight = NULL;
             return submitted_result;  // Bail, if system abort.
         }
@@ -128,16 +128,16 @@ void mc_arc(float*            target,
             float*            position,
             float*            offset,
             float             radius,
-            size_t            axis_0,
-            size_t            axis_1,
-            size_t            axis_linear,
+            axis_t            axis_0,
+            axis_t            axis_1,
+            axis_t            axis_linear,
             bool              is_clockwise_arc,
-            int               pword_rotations) {
+            uint32_t          rotations) {
     float center[3] = { position[axis_0] + offset[axis_0], position[axis_1] + offset[axis_1], 0 };
 
     // The first two axes are the circle plane and the third is the orthogonal plane
-    size_t caxes[3] = { axis_0, axis_1, axis_linear };
-    if (config->_kinematics->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc, pword_rotations)) {
+    axis_t caxes[3] = { axis_0, axis_1, axis_linear };
+    if (config->_kinematics->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc, rotations)) {
         return;
     }
 
@@ -147,7 +147,7 @@ void mc_arc(float*            target,
 
     auto n_axis = Axes::_numberAxis;
 
-    float previous_position[n_axis] = { 0.0 };
+    float previous_position[n_axis] = { 0.0f };
     for (size_t i = 0; i < n_axis; i++) {
         previous_position[i] = position[i];
     }
@@ -161,15 +161,15 @@ void mc_arc(float*            target,
         // See https://linuxcnc.org/docs/2.6/html/gcode/gcode.html#sec:G2-G3-Arc
         // The P word specifies the number of extra rotations.  Missing P, P0 or P1
         // is just the programmed arc.  Pn adds n-1 rotations
-        if (pword_rotations > 1) {
-            angular_travel -= (pword_rotations - 1) * 2 * float(M_PI);
+        if (rotations > 1) {
+            angular_travel -= (rotations - 1) * 2 * float(M_PI);
         }
     } else {
         if (angular_travel <= ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel += 2 * float(M_PI);
         }
-        if (pword_rotations > 1) {
-            angular_travel += (pword_rotations - 1) * 2 * float(M_PI);
+        if (rotations > 1) {
+            angular_travel += (rotations - 1) * 2 * float(M_PI);
         }
     }
 
@@ -256,7 +256,8 @@ void mc_arc(float*            target,
             previous_position[axis_1]      = position[axis_1];
             previous_position[axis_linear] = position[axis_linear];
             // Bail mid-circle on system abort. Runtime command check already performed by mc_linear.
-            if (sys.abort) {
+
+            if (sys.abort() || state_is(State::Alarm)) {
                 return;
             }
         }
@@ -280,7 +281,7 @@ bool probe_succeeded = false;
 
 // Perform tool length probe cycle. Requires probe switch.
 // NOTE: Upon probe failure, the program will be stopped and placed into ALARM state.
-GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, bool no_error, uint8_t offsetAxis, float offset) {
+GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, bool no_error, AxisMask offsetAxis, float offset) {
     if (!config->_probe->exists()) {
         log_error("Probe pin is not configured");
         return GCUpdatePos::None;
@@ -291,7 +292,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     }
     // Finish all queued commands and empty planner buffer before starting probe cycle.
     protocol_buffer_synchronize();
-    if (sys.abort) {
+    if (sys.abort()) {
         return GCUpdatePos::None;  // Return if system reset has been issued.
     }
 
@@ -316,7 +317,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     protocol_send_event(&cycleStartEvent);
     do {
         protocol_execute_realtime();
-        if (sys.abort) {
+        if (sys.abort()) {
             Stepping::endLowLatency();
             return GCUpdatePos::None;  // Check for system abort
         }
@@ -328,7 +329,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // Set state variables and error out, if the probe failed and cycle with error is enabled.
     if (probing) {
         if (no_error) {
-            get_motor_steps(probe_steps);
+            get_steps(probe_steps);
         } else {
             send_alarm(ExecAlarm::ProbeFailContact);
         }
@@ -348,13 +349,13 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
 
     if (probe_succeeded) {
         if (offset != __FLT_MAX__) {
-            float coord_data[MAX_N_AXIS];
-            float probe_contact[MAX_N_AXIS];
+            auto  n_axis = Axes::_numberAxis;
+            float coord_data[n_axis];
+            float probe_contact[n_axis];
 
-            motor_steps_to_mpos(probe_contact, probe_steps);
+            steps_to_mpos(probe_contact, probe_steps);
             coords[gc_state.modal.coord_select]->get(coord_data);  // get a copy of the current coordinate offsets
-            auto n_axis = Axes::_numberAxis;
-            for (int axis = 0; axis < n_axis; axis++) {  // find the axis specified. There should only be one.
+            for (axis_t axis = X_AXIS; axis < n_axis; axis++) {    // find the axis specified. There should only be one.
                 if (offsetAxis & (1 << axis)) {
                     coord_data[axis] = probe_contact[axis] - offset;
                     break;
@@ -375,10 +376,10 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
 void mc_override_ctrl_update(Override override_state) {
     // Finish all queued commands before altering override control state
     protocol_buffer_synchronize();
-    if (sys.abort) {
+    if (sys.abort()) {
         return;
     }
-    sys.override_ctrl = override_state;
+    sys.set_override_ctrl(override_state);
 }
 
 // Method to ready the system to reset by setting the realtime reset command and killing any

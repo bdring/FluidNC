@@ -6,7 +6,7 @@
 */
 
 #include "TMC2130Driver.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 #include <atomic>
 
 namespace MotorDrivers {
@@ -50,7 +50,7 @@ namespace MotorDrivers {
         tmc2130->rms_current(run_i, TrinamicSpiDriver::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping
-        int usteps = _microsteps == 1 ? 0 : _microsteps;
+        uint32_t usteps = _microsteps == 1 ? 0 : _microsteps;
         tmc2130->microsteps(usteps);
 
         tmc2130->diag0_error(_diag0_error);

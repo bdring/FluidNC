@@ -17,23 +17,20 @@ namespace Pins {
 
         bool _lastWrittenValue = false;
 
-        static void gpioAction(int, void*, int);
-        PwmPin*     _pwm;
+        PwmPin* _pwm;
 
         int8_t _driveStrength = -1;
 
-        void setDriveStrength(int n, PinAttributes attr);
+        void setDriveStrength(uint8_t n, PinAttributes attr);
 
     public:
-        static const int nGPIOPins = 40;
-
         GPIOPinDetail(pinnum_t index, PinOptionsParser options);
 
         PinCapabilities capabilities() const override;
 
         // I/O:
-        void          write(int high) override;
-        int           read() override;
+        void          write(bool high) override;
+        bool          read() override;
         void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
 
@@ -45,8 +42,6 @@ namespace Pins {
         bool canStep() override { return true; }
 
         void registerEvent(InputPin* obj) override;
-
-        std::string toString() override;
 
         ~GPIOPinDetail() override { _claimed[_index] = false; }
     };

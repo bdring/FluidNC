@@ -57,10 +57,17 @@ namespace Machine {
             _motors[0]->makeDualSwitches();
             _motors[1]->makeDualSwitches();
         }
+
+        // see if the configured switches support the homing direction.
+        if (motorsWithSwitches()) {  // do we have any switches?
+            if (!_motors[0]->supports_homing_dir(_homing->_positiveDirection)) {
+                log_warn("    defined switches do not support homing dir");
+            }
+        }
     }
 
     void Axis::config_motors() {
-        for (int motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; ++motor) {
+        for (motor_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; ++motor) {
             auto mot = _motors[motor];
             if (mot)
                 mot->config_motor();
@@ -84,9 +91,9 @@ namespace Machine {
     }
 
     // How many motors have switches defined?
-    int Axis::motorsWithSwitches() {
-        int count = 0;
-        for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
+    motor_t Axis::motorsWithSwitches() {
+        motor_t count = 0;
+        for (motor_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
             auto m = _motors[i];
             if (m && m->hasSwitches()) {
                 count++;
@@ -113,6 +120,17 @@ namespace Machine {
         } else {
             return 0.0f;
         }
+    }
+
+    bool Axis::can_home() {
+        for (motor_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
+            if (_motors[i]) {
+                if (_motors[i]->can_home()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     Axis::~Axis() {

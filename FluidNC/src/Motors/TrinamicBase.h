@@ -4,9 +4,9 @@
 #pragma once
 
 #include "StandardStepper.h"
-#include "../EnumItem.h"
+#include "EnumItem.h"
+#include <cstdint>       // Must be before TMCStepper.h
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
-#include <cstdint>
 
 namespace MotorDrivers {
 
@@ -34,17 +34,17 @@ namespace MotorDrivers {
         TrinamicMode _mode     = TrinamicMode::StealthChop;
 
         // Configurable
-        int   _homing_mode = StealthChop;
-        int   _run_mode    = StealthChop;
-        float _r_sense     = 0;
-        bool  _use_enable  = false;
+        uint32_t _homing_mode = StealthChop;
+        uint32_t _run_mode    = StealthChop;
+        float    _r_sense     = 0;
+        bool     _use_enable  = false;
 
-        float _run_current         = 0.50;
-        float _hold_current        = 0.50;
-        float _homing_current      = 0.0;
-        int   _microsteps          = 16;
-        int   _stallguard          = 0;
-        bool  _stallguardDebugMode = false;
+        float   _run_current         = 0.50;
+        float   _hold_current        = 0.50;
+        float   _homing_current      = 0.0;
+        int32_t _microsteps          = 16;
+        int32_t _stallguard          = 0;
+        bool    _stallguardDebugMode = false;
 
         uint8_t _toff_disable     = 0;
         uint8_t _toff_stealthchop = 5;

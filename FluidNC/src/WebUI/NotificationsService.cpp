@@ -12,11 +12,12 @@
 // - https://github.com/CosmicBoris/ESP8266SMTP
 // - https://www.electronicshub.org/send-an-email-using-esp8266/
 
-#include "src/Settings.h"
+#include "Settings.h"
 #include "NotificationsService.h"
 
-#include "src/Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <base64.h>
 
@@ -56,11 +57,7 @@ namespace WebUI {
     uint16_t    NotificationsService::_port;
 
     const enum_opt_t notificationOptions = {
-        { "NONE", 0 },
-        { "LINE", 3 },
-        { "PUSHOVER", 1 },
-        { "EMAIL", 2 },
-        { "TG", 4 },
+        { "NONE", 0 }, { "LINE", 3 }, { "PUSHOVER", 1 }, { "EMAIL", 2 }, { "TG", 4 },
     };
     EnumSetting*   notification_type;
     StringSetting* notification_t1;
@@ -331,25 +328,25 @@ namespace WebUI {
         Notificationclient.stop();
         return res;
     }
-    /// @brief Send notification message to telegram chat. 
+    /// @brief Send notification message to telegram chat.
     /// @param title message title
     /// @param message message content
     /// @return true on success
     /// @attention `$Notification/Type` should be "TG".
     /// @attention `$Notification/T1` should be Telegram bot token. See notes.
     /// @attention `$Notification/T2` should be Telegram chat id, e.g. `1234567890` or `-1234567890`. See notes.
-    /// @note * Obtaining bot token: Register bot with [@BotFather](https://t.me/BotFather), 
+    /// @note * Obtaining bot token: Register bot with [@BotFather](https://t.me/BotFather),
     ///   and get bot token, e.g. `1234567890:ABCdefGHi-JKLmNOpQR-stuvw-xyz012345`.
-    /// @note * Obtaining chat id for personal account: If you want to get notifications to your personal chat, 
-    ///   text `/start` to the bot, 
-    /// open `https://api.telegram.org/bot{bot-token}/getUpdates` in browser and get `..."chat":{"id":1234567890` here. 
-    /// @note * Obtaining chat id for group chat: If you want to get notifications to group chat, invite bot to group, 
-    ///   text to group chat `/nameOfYour_bot hello`, 
-    /// open `https://api.telegram.org/bot{bot-token}/getUpdates` in browser and get `..."chat":{"id":-1234567890` here. 
+    /// @note * Obtaining chat id for personal account: If you want to get notifications to your personal chat,
+    ///   text `/start` to the bot,
+    /// open `https://api.telegram.org/bot{bot-token}/getUpdates` in browser and get `..."chat":{"id":1234567890` here.
+    /// @note * Obtaining chat id for group chat: If you want to get notifications to group chat, invite bot to group,
+    ///   text to group chat `/nameOfYour_bot hello`,
+    /// open `https://api.telegram.org/bot{bot-token}/getUpdates` in browser and get `..."chat":{"id":-1234567890` here.
     /// Note, group chat id is negative.
     bool NotificationsService::sendTelegramMSG(const char* title, const char* message) {
         WiFiClientSecure Notificationclient;
-        Notificationclient.setInsecure(); //! Can not verify TLS certificates, as we don't load them into FW.
+        Notificationclient.setInsecure();  //! Can not verify TLS certificates, as we don't load them into FW.
         if (!Notificationclient.connect(_serveraddress.c_str(), _port)) {
             return false;
         }
@@ -371,22 +368,22 @@ namespace WebUI {
 
         //! WARNING:
         //  To save few bytes in flash memory, this code is so ugly.
-        //  Length of line marked as TG_PAYLOAD_LINE is precalculated as if all 
-        //    placeholders were zero-length and added to overall length on line 
+        //  Length of line marked as TG_PAYLOAD_LINE is precalculated as if all
+        //    placeholders were zero-length and added to overall length on line
         //    marked as TG_PAYLOAD_LINE_LEN
-        Notificationclient.printf(
-            "POST /bot%s/sendMessage HTTP/1.1\r\n"
-            "Host:%s\r\n"
-            "Content-Type:application/json\r\n"
-            "Content-Length:%d\r\n"
-            "\r\n"
-            "{\"parse_mode\":\"HTML\",\"chat_id\":\"%s\",\"text\":\"<b>%s</b>\n\n%s\"}" // TG_PAYLOAD_LINE
-            "\r\n",
-            _token1.c_str(),
-            _serveraddress.c_str(),
-            _token2.length() + strlen(title) + strlen(message) +
-            55, // TG_PAYLOAD_LINE_LEN
-            _token2.c_str(), title, message);
+        Notificationclient.printf("POST /bot%s/sendMessage HTTP/1.1\r\n"
+                                  "Host:%s\r\n"
+                                  "Content-Type:application/json\r\n"
+                                  "Content-Length:%d\r\n"
+                                  "\r\n"
+                                  "{\"parse_mode\":\"HTML\",\"chat_id\":\"%s\",\"text\":\"<b>%s</b>\n\n%s\"}"  // TG_PAYLOAD_LINE
+                                  "\r\n",
+                                  _token1.c_str(),
+                                  _serveraddress.c_str(),
+                                  _token2.length() + strlen(title) + strlen(message) + 55,  // TG_PAYLOAD_LINE_LEN
+                                  _token2.c_str(),
+                                  title,
+                                  message);
         return Wait4Answer(Notificationclient, "{", "\"ok\":true", TELEGRAMTIMEOUT);
     }
     //Email#serveraddress:port
@@ -405,8 +402,8 @@ namespace WebUI {
     //Email#serveraddress:port
     bool NotificationsService::getServerAddressFromSettings() {
         std::string tmp(notification_ts->get());
-        int         pos1 = tmp.find('#');
-        int         pos2 = tmp.rfind(':');
+        size_t      pos1 = tmp.find('#');
+        size_t      pos2 = tmp.rfind(':');
         if ((pos1 == std::string::npos) || (pos2 == std::string::npos)) {
             return false;
         }
@@ -418,7 +415,7 @@ namespace WebUI {
     //Email#serveraddress:port
     bool NotificationsService::getEmailFromSettings() {
         std::string tmp(notification_ts->get());
-        int         pos = tmp.find('#');
+        size_t      pos = tmp.find('#');
         if (pos == std::string::npos) {
             return false;
         }

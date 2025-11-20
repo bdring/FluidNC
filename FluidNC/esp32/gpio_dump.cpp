@@ -3,10 +3,10 @@
 #include "driver/gpio.h"
 #include "hal/gpio_hal.h"
 #include <vector>
-#include "src/Protocol.h"
+#include "Protocol.h"
 
 // Support functions for gpio_dump
-static int exists(gpio_num_t gpio) {
+static bool exists(gpio_num_t gpio) {
     if (gpio == 20) {
         // GPIO20 is listed in GPIO_PIN_MUX_REG[] but it is only
         // available on the ESP32-PICO-V3 package.
@@ -14,7 +14,7 @@ static int exists(gpio_num_t gpio) {
     }
     return GPIO_PIN_MUX_REG[gpio];  // Missing GPIOs have 0 entries in this array
 }
-static int output_level(gpio_num_t gpio) {
+static bool output_level(gpio_num_t gpio) {
     if (gpio < 32) {
         return REG_READ(GPIO_OUT_REG) & (1 << gpio);
     } else {
@@ -22,32 +22,32 @@ static int output_level(gpio_num_t gpio) {
     }
 }
 
-static int is_input(gpio_num_t gpio) {
+static bool is_input(gpio_num_t gpio) {
     return GET_PERI_REG_MASK(GPIO_PIN_MUX_REG[gpio], FUN_IE);
 }
-static int is_output(gpio_num_t gpio) {
+static bool is_output(gpio_num_t gpio) {
     if (gpio < 32) {
         return GET_PERI_REG_MASK(GPIO_ENABLE_REG, 1 << gpio);
     } else {
         return GET_PERI_REG_MASK(GPIO_ENABLE1_REG, 1 << (gpio - 32));
     }
 }
-static int gpio_function(gpio_num_t gpio) {
+static uint8_t gpio_function(gpio_num_t gpio) {
     return REG_GET_FIELD(GPIO_PIN_MUX_REG[gpio], MCU_SEL);
 }
 static uint32_t gpio_out_sel(gpio_num_t gpio) {
     return REG_READ(GPIO_FUNC0_OUT_SEL_CFG_REG + (gpio * 4));
 }
-static uint32_t gpio_in_sel(int function) {
+static uint32_t gpio_in_sel(uint32_t function) {
     return REG_READ(GPIO_FUNC0_IN_SEL_CFG_REG + (function * 4));
 }
 
 // another way to determine available gpios is the array GPIO_PIN_MUX_REG[SOC_GPIO_PIN_COUNT]
 // which has 0 in unavailable slots, see soc/gpio_periph.{ch}
-std::vector<int> avail_gpios = { 0, 1, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39 };
+std::vector<uint32_t> avail_gpios = { 0, 1, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39 };
 
 struct pin_mux {
-    int         pinnum;
+    pinnum_t    pinnum;
     const char* pinname;
     const char* functions[6];
 } const pins[] = {
@@ -85,9 +85,9 @@ struct pin_mux {
     { 37, "SENSOR_CAPP", { "GPIO37", "-", "GPIO37", "-", "-", "-" } },
     { 38, "SENSOR_CAPN", { "GPIO38", "-", "GPIO38", "-", "-", "-" } },
     { 39, "SENSOR_VN", { "GPIO39", "-", "GPIO39", "-", "-", "-" } },
-    { -1, "", { "" } },
+    { INVALID_PINNUM, "", { "" } },
 };
-const char* pin_function_name(gpio_num_t gpio, int function) {
+const char* pin_function_name(gpio_num_t gpio, uint8_t function) {
     const pin_mux* p;
     for (p = pins; p->pinnum != -1; ++p) {
         if (p->pinnum == gpio) {
@@ -97,215 +97,220 @@ const char* pin_function_name(gpio_num_t gpio, int function) {
     return "";
 }
 
+// clang-format off
+#define INVALID_MATRIX_NUM 255
 struct gpio_matrix_t {
-    int         num;
+    uint8_t     num;
     const char* in;
     const char* out;
-    int         iomux;
-} const gpio_matrix[] = { { 0, "SPICLK_in", "SPICLK_out", true },
-                          { 1, "SPIQ_in", "SPIQ_out", true },
-                          { 2, "SPID_in", "SPID_out", true },
-                          { 3, "SPIHD_in", "SPIHD_out", true },
-                          { 4, "SPIWP_in", "SPIWP_out", true },
-                          { 5, "SPICS0_in", "SPICS0_out", true },
-                          { 6, "SPICS1_in", "SPICS1_out", false },
-                          { 7, "SPICS2_in", "SPICS2_out", false },
-                          { 8, "HSPICLK_in", "HSPICLK_out", true },
-                          { 9, "HSPIQ_in", "HSPIQ_out", true },
-                          { 10, "HSPID_in", "HSPID_out", true },
-                          { 11, "HSPICS0_in", "HSPICS0_out", true },
-                          { 12, "HSPIHD_in", "HSPIHD_out", true },
-                          { 13, "HSPIWP_in", "HSPIWP_out", true },
-                          { 14, "U0RXD_in", "U0TXD_out", true },
-                          { 15, "U0CTS_in", "U0RTS_out", true },
-                          { 16, "U0DSR_in", "U0DTR_out", false },
-                          { 17, "U1RXD_in", "U1TXD_out", true },
-                          { 18, "U1CTS_in", "U1RTS_out", true },
-                          { 23, "I2S0O_BCK_in", "I2S0O_BCK_out", false },
-                          { 24, "I2S1O_BCK_in", "I2S1O_BCK_out", false },
-                          { 25, "I2S0O_WS_in", "I2S0O_WS_out", false },
-                          { 26, "I2S1O_WS_in", "I2S1O_WS_out", false },
-                          { 27, "I2S0I_BCK_in", "I2S0I_BCK_out", false },
-                          { 28, "I2S0I_WS_in", "I2S0I_WS_out", false },
-                          { 29, "I2CEXT0_SCL_in", "I2CEXT0_SCL_out", false },
-                          { 30, "I2CEXT0_SDA_in", "I2CEXT0_SDA_out", false },
-                          { 31, "pwm0_sync0_in", "sdio_tohost_int_out", false },
-                          { 32, "pwm0_sync1_in", "pwm0_out0a", false },
-                          { 33, "pwm0_sync2_in", "pwm0_out0b", false },
-                          { 34, "pwm0_f0_in", "pwm0_out1a", false },
-                          { 35, "pwm0_f1_in", "pwm0_out1b", false },
-                          { 36, "pwm0_f2_in", "pwm0_out2a", false },
-                          { 37, "", "pwm0_out2b", false },
-                          { 39, "pcnt_sig_ch0_in0", "", false },
-                          { 40, "pcnt_sig_ch1_in0", "", false },
-                          { 41, "pcnt_ctrl_ch0_in0", "", false },
-                          { 42, "pcnt_ctrl_ch1_in0", "", false },
-                          { 43, "pcnt_sig_ch0_in1", "", false },
-                          { 44, "pcnt_sig_ch1_in1", "", false },
-                          { 45, "pcnt_ctrl_ch0_in1", "", false },
-                          { 46, "pcnt_ctrl_ch1_in1", "", false },
-                          { 47, "pcnt_sig_ch0_in2", "", false },
-                          { 48, "pcnt_sig_ch1_in2", "", false },
-                          { 49, "pcnt_ctrl_ch0_in2", "", false },
-                          { 50, "pcnt_ctrl_ch1_in2", "", false },
-                          { 51, "pcnt_sig_ch0_in3", "", false },
-                          { 52, "pcnt_sig_ch1_in3", "", false },
-                          { 53, "pcnt_ctrl_ch0_in3", "", false },
-                          { 54, "pcnt_ctrl_ch1_in3", "", false },
-                          { 55, "pcnt_sig_ch0_in4", "", false },
-                          { 56, "pcnt_sig_ch1_in4", "", false },
-                          { 57, "pcnt_ctrl_ch0_in4", "", false },
-                          { 58, "pcnt_ctrl_ch1_in4", "", false },
-                          { 61, "HSPICS1_in", "HSPICS1_out", false },
-                          { 62, "HSPICS2_in", "HSPICS2_out", false },
-                          { 63, "VSPICLK_in", "VSPICLK_out_mux", true },
-                          { 64, "VSPIQ_in", "VSPIQ_out", true },
-                          { 65, "VSPID_in", "VSPID_out", true },
-                          { 66, "VSPIHD_in", "VSPIHD_out", true },
-                          { 67, "VSPIWP_in", "VSPIWP_out", true },
-                          { 68, "VSPICS0_in", "VSPICS0_out", true },
-                          { 69, "VSPICS1_in", "VSPICS1_out", false },
-                          { 70, "VSPICS2_in", "VSPICS2_out", false },
-                          { 71, "pcnt_sig_ch0_in5", "ledc_hs_sig_out0", false },
-                          { 72, "pcnt_sig_ch1_in5", "ledc_hs_sig_out1", false },
-                          { 73, "pcnt_ctrl_ch0_in5", "ledc_hs_sig_out2", false },
-                          { 74, "pcnt_ctrl_ch1_in5", "ledc_hs_sig_out3", false },
-                          { 75, "pcnt_sig_ch0_in6", "ledc_hs_sig_out4", false },
-                          { 76, "pcnt_sig_ch1_in6", "ledc_hs_sig_out5", false },
-                          { 77, "pcnt_ctrl_ch0_in6", "ledc_hs_sig_out6", false },
-                          { 78, "pcnt_ctrl_ch1_in6", "ledc_hs_sig_out7", false },
-                          { 79, "pcnt_sig_ch0_in7", "ledc_ls_sig_out0", false },
-                          { 80, "pcnt_sig_ch1_in7", "ledc_ls_sig_out1", false },
-                          { 81, "pcnt_ctrl_ch0_in7", "ledc_ls_sig_out2", false },
-                          { 82, "pcnt_ctrl_ch1_in7", "ledc_ls_sig_out3", false },
-                          { 83, "rmt_sig_in0", "ledc_ls_sig_out4", false },
-                          { 84, "rmt_sig_in1", "ledc_ls_sig_out5", false },
-                          { 85, "rmt_sig_in2", "ledc_ls_sig_out6", false },
-                          { 86, "rmt_sig_in3", "ledc_ls_sig_out7", false },
-                          { 87, "rmt_sig_in4", "rmtt_sig_out0", false },
-                          { 88, "rmt_sig_in5", "rmtt_sig_out1", false },
-                          { 89, "rmt_sig_in6", "rmtt_sig_out2", false },
-                          { 90, "rmt_sig_in7", "rmtt_sig_out3", false },
-                          { 91, "", "rmtt_sig_out4", false },
-                          { 92, "", "rmtt_sig_out5", false },
-                          { 93, "", "rmtt_sig_out6", false },
-                          { 94, "", "rmtt_sig_out7", false },
-                          { 95, "I2CEXT1_SCL_in", "I2CEXT1_SCL_out", false },
-                          { 96, "I2CEXT1_SDA_in", "I2CEXT1_SDA_out", false },
-                          { 97, "host_card_detect_n_1", "host_ccmd_od_pullup_en_n", false },
-                          { 98, "host_card_detect_n_2", "host_rst_n_1", false },
-                          { 99, "host_card_write_prt_1", "host_rst_n_2", false },
-                          { 100, "host_card_write_prt_2", "gpio_sd0_out", false },
-                          { 101, "host_card_int_n_1", "gpio_sd1_out", false },
-                          { 102, "host_card_int_n_2", "gpio_sd2_out", false },
-                          { 103, "pwm1_sync0_in", "gpio_sd3_out", false },
-                          { 104, "pwm1_sync1_in", "gpio_sd4_out", false },
-                          { 105, "pwm1_sync2_in", "gpio_sd5_out", false },
-                          { 106, "pwm1_f0_in", "gpio_sd6_out", false },
-                          { 107, "pwm1_f1_in", "gpio_sd7_out", false },
-                          { 108, "pwm1_f2_in", "pwm1_out0a", false },
-                          { 109, "pwm0_cap0_in", "pwm1_out0b", false },
-                          { 110, "pwm0_cap1_in", "pwm1_out1a", false },
-                          { 111, "pwm0_cap2_in", "pwm1_out1b", false },
-                          { 112, "pwm1_cap0_in", "pwm1_out2a", false },
-                          { 113, "pwm1_cap1_in", "pwm1_out2b", false },
-                          { 114, "pwm1_cap2_in", "", false },
-                          { 115, "", "", false },
-                          { 116, "", "", false },
-                          { 117, "", "", false },
-                          { 118, "", "", false },
-                          { 119, "", "", false },
-                          { 120, "", "", false },
-                          { 121, "", "", false },
-                          { 122, "", "", false },
-                          { 123, "", "", false },
-                          { 124, "", "", false },
-                          { 140, "I2S0I_DATA_in0", "I2S0O_DATA_out0", false },
-                          { 141, "I2S0I_DATA_in1", "I2S0O_DATA_out1", false },
-                          { 142, "I2S0I_DATA_in2", "I2S0O_DATA_out2", false },
-                          { 143, "I2S0I_DATA_in3", "I2S0O_DATA_out3", false },
-                          { 144, "I2S0I_DATA_in4", "I2S0O_DATA_out4", false },
-                          { 145, "I2S0I_DATA_in5", "I2S0O_DATA_out5", false },
-                          { 146, "I2S0I_DATA_in6", "I2S0O_DATA_out6", false },
-                          { 147, "I2S0I_DATA_in7", "I2S0O_DATA_out7", false },
-                          { 148, "I2S0I_DATA_in8", "I2S0O_DATA_out8", false },
-                          { 149, "I2S0I_DATA_in9", "I2S0O_DATA_out9", false },
-                          { 150, "I2S0I_DATA_in10", "I2S0O_DATA_out10", false },
-                          { 151, "I2S0I_DATA_in11", "I2S0O_DATA_out11", false },
-                          { 152, "I2S0I_DATA_in12", "I2S0O_DATA_out12", false },
-                          { 153, "I2S0I_DATA_in13", "I2S0O_DATA_out13", false },
-                          { 154, "I2S0I_DATA_in14", "I2S0O_DATA_out14", false },
-                          { 155, "I2S0I_DATA_in15", "I2S0O_DATA_out15", false },
-                          { 156, "", "I2S0O_DATA_out16", false },
-                          { 157, "", "I2S0O_DATA_out17", false },
-                          { 158, "", "I2S0O_DATA_out18", false },
-                          { 159, "", "I2S0O_DATA_out19", false },
-                          { 160, "", "I2S0O_DATA_out20", false },
-                          { 161, "", "I2S0O_DATA_out21", false },
-                          { 162, "", "I2S0O_DATA_out22", false },
-                          { 163, "", "I2S0O_DATA_out23", false },
-                          { 164, "I2S1I_BCK_in", "I2S1I_BCK_out", false },
-                          { 165, "I2S1I_WS_in", "I2S1I_WS_out", false },
-                          { 166, "I2S1I_DATA_in0", "I2S1O_DATA_out0", false },
-                          { 167, "I2S1I_DATA_in1", "I2S1O_DATA_out1", false },
-                          { 168, "I2S1I_DATA_in2", "I2S1O_DATA_out2", false },
-                          { 169, "I2S1I_DATA_in3", "I2S1O_DATA_out3", false },
-                          { 170, "I2S1I_DATA_in4", "I2S1O_DATA_out4", false },
-                          { 171, "I2S1I_DATA_in5", "I2S1O_DATA_out5", false },
-                          { 172, "I2S1I_DATA_in6", "I2S1O_DATA_out6", false },
-                          { 173, "I2S1I_DATA_in7", "I2S1O_DATA_out7", false },
-                          { 174, "I2S1I_DATA_in8", "I2S1O_DATA_out8", false },
-                          { 175, "I2S1I_DATA_in9", "I2S1O_DATA_out9", false },
-                          { 176, "I2S1I_DATA_in10", "I2S1O_DATA_out10", false },
-                          { 177, "I2S1I_DATA_in11", "I2S1O_DATA_out11", false },
-                          { 178, "I2S1I_DATA_in12", "I2S1O_DATA_out12", false },
-                          { 179, "I2S1I_DATA_in13", "I2S1O_DATA_out13", false },
-                          { 180, "I2S1I_DATA_in14", "I2S1O_DATA_out14", false },
-                          { 181, "I2S1I_DATA_in15", "I2S1O_DATA_out15", false },
-                          { 182, "", "I2S1O_DATA_out16", false },
-                          { 183, "", "I2S1O_DATA_out17", false },
-                          { 184, "", "I2S1O_DATA_out18", false },
-                          { 185, "", "I2S1O_DATA_out19", false },
-                          { 186, "", "I2S1O_DATA_out20", false },
-                          { 187, "", "I2S1O_DATA_out21", false },
-                          { 188, "", "I2S1O_DATA_out22", false },
-                          { 189, "", "I2S1O_DATA_out23", false },
-                          { 190, "I2S0I_H_SYNC", "", false },
-                          { 191, "I2S0I_V_SYNC", "", false },
-                          { 192, "I2S0I_H_ENABLE", "", false },
-                          { 193, "I2S1I_H_SYNC", "", false },
-                          { 194, "I2S1I_V_SYNC", "", false },
-                          { 195, "I2S1I_H_ENABLE", "", false },
-                          { 196, "", "", false },
-                          { 197, "", "", false },
-                          { 198, "U2RXD_in", "U2TXD_out", true },
-                          { 199, "U2CTS_in", "U2RTS_out", true },
-                          { 200, "emac_mdc_i", "emac_mdc_o", false },
-                          { 201, "emac_mdi_i", "emac_mdo_o", false },
-                          { 202, "emac_crs_i", "emac_crs_o", false },
-                          { 203, "emac_col_i", "emac_col_o", false },
-                          { 204, "pcmfsync_in", "bt_audio0_irq", false },
-                          { 205, "pcmclk_in", "bt_audio1_irq", false },
-                          { 206, "pcmdin", "bt_audio2_irq", false },
-                          { 207, "", "le_audio0_irq", false },
-                          { 208, "", "le_audio1_irq", false },
-                          { 209, "", "le_audio2_irq", false },
-                          { 210, "", "cmfsync_out", false },
-                          { 211, "", "cmclk_out", false },
-                          { 212, "", "cmdout", false },
-                          { 213, "", "le_audio_sync0_p", false },
-                          { 214, "", "le_audio_sync1_p", false },
-                          { 215, "", "le_audio_sync2_p", false },
-                          { 224, "", "ig_in_func224", false },
-                          { 225, "", "ig_in_func225", false },
-                          { 226, "", "ig_in_func226", false },
-                          { 227, "", "ig_in_func227", false },
-                          { 228, "", "ig_in_func228", false },
-                          { -1, "", "", false } };
+    bool        iomux;
+} const gpio_matrix[] = {
+ { 0, "SPICLK_in", "SPICLK_out", true },
+ { 1, "SPIQ_in", "SPIQ_out", true },
+ { 2, "SPID_in", "SPID_out", true },
+ { 3, "SPIHD_in", "SPIHD_out", true },
+ { 4, "SPIWP_in", "SPIWP_out", true },
+ { 5, "SPICS0_in", "SPICS0_out", true },
+ { 6, "SPICS1_in", "SPICS1_out", false },
+ { 7, "SPICS2_in", "SPICS2_out", false },
+ { 8, "HSPICLK_in", "HSPICLK_out", true },
+ { 9, "HSPIQ_in", "HSPIQ_out", true },
+ { 10, "HSPID_in", "HSPID_out", true },
+ { 11, "HSPICS0_in", "HSPICS0_out", true },
+ { 12, "HSPIHD_in", "HSPIHD_out", true },
+ { 13, "HSPIWP_in", "HSPIWP_out", true },
+ { 14, "U0RXD_in", "U0TXD_out", true },
+ { 15, "U0CTS_in", "U0RTS_out", true },
+ { 16, "U0DSR_in", "U0DTR_out", false },
+ { 17, "U1RXD_in", "U1TXD_out", true },
+ { 18, "U1CTS_in", "U1RTS_out", true },
+ { 23, "I2S0O_BCK_in", "I2S0O_BCK_out", false },
+ { 24, "I2S1O_BCK_in", "I2S1O_BCK_out", false },
+ { 25, "I2S0O_WS_in", "I2S0O_WS_out", false },
+ { 26, "I2S1O_WS_in", "I2S1O_WS_out", false },
+ { 27, "I2S0I_BCK_in", "I2S0I_BCK_out", false },
+ { 28, "I2S0I_WS_in", "I2S0I_WS_out", false },
+ { 29, "I2CEXT0_SCL_in", "I2CEXT0_SCL_out", false },
+ { 30, "I2CEXT0_SDA_in", "I2CEXT0_SDA_out", false },
+ { 31, "pwm0_sync0_in", "sdio_tohost_int_out", false },
+ { 32, "pwm0_sync1_in", "pwm0_out0a", false },
+ { 33, "pwm0_sync2_in", "pwm0_out0b", false },
+ { 34, "pwm0_f0_in", "pwm0_out1a", false },
+ { 35, "pwm0_f1_in", "pwm0_out1b", false },
+ { 36, "pwm0_f2_in", "pwm0_out2a", false },
+ { 37, "", "pwm0_out2b", false },
+ { 39, "pcnt_sig_ch0_in0", "", false },
+ { 40, "pcnt_sig_ch1_in0", "", false },
+ { 41, "pcnt_ctrl_ch0_in0", "", false },
+ { 42, "pcnt_ctrl_ch1_in0", "", false },
+ { 43, "pcnt_sig_ch0_in1", "", false },
+ { 44, "pcnt_sig_ch1_in1", "", false },
+ { 45, "pcnt_ctrl_ch0_in1", "", false },
+ { 46, "pcnt_ctrl_ch1_in1", "", false },
+ { 47, "pcnt_sig_ch0_in2", "", false },
+ { 48, "pcnt_sig_ch1_in2", "", false },
+ { 49, "pcnt_ctrl_ch0_in2", "", false },
+ { 50, "pcnt_ctrl_ch1_in2", "", false },
+ { 51, "pcnt_sig_ch0_in3", "", false },
+ { 52, "pcnt_sig_ch1_in3", "", false },
+ { 53, "pcnt_ctrl_ch0_in3", "", false },
+ { 54, "pcnt_ctrl_ch1_in3", "", false },
+ { 55, "pcnt_sig_ch0_in4", "", false },
+ { 56, "pcnt_sig_ch1_in4", "", false },
+ { 57, "pcnt_ctrl_ch0_in4", "", false },
+ { 58, "pcnt_ctrl_ch1_in4", "", false },
+ { 61, "HSPICS1_in", "HSPICS1_out", false },
+ { 62, "HSPICS2_in", "HSPICS2_out", false },
+ { 63, "VSPICLK_in", "VSPICLK_out_mux", true },
+ { 64, "VSPIQ_in", "VSPIQ_out", true },
+ { 65, "VSPID_in", "VSPID_out", true },
+ { 66, "VSPIHD_in", "VSPIHD_out", true },
+ { 67, "VSPIWP_in", "VSPIWP_out", true },
+ { 68, "VSPICS0_in", "VSPICS0_out", true },
+ { 69, "VSPICS1_in", "VSPICS1_out", false },
+ { 70, "VSPICS2_in", "VSPICS2_out", false },
+ { 71, "pcnt_sig_ch0_in5", "ledc_hs_sig_out0", false },
+ { 72, "pcnt_sig_ch1_in5", "ledc_hs_sig_out1", false },
+ { 73, "pcnt_ctrl_ch0_in5", "ledc_hs_sig_out2", false },
+ { 74, "pcnt_ctrl_ch1_in5", "ledc_hs_sig_out3", false },
+ { 75, "pcnt_sig_ch0_in6", "ledc_hs_sig_out4", false },
+ { 76, "pcnt_sig_ch1_in6", "ledc_hs_sig_out5", false },
+ { 77, "pcnt_ctrl_ch0_in6", "ledc_hs_sig_out6", false },
+ { 78, "pcnt_ctrl_ch1_in6", "ledc_hs_sig_out7", false },
+ { 79, "pcnt_sig_ch0_in7", "ledc_ls_sig_out0", false },
+ { 80, "pcnt_sig_ch1_in7", "ledc_ls_sig_out1", false },
+ { 81, "pcnt_ctrl_ch0_in7", "ledc_ls_sig_out2", false },
+ { 82, "pcnt_ctrl_ch1_in7", "ledc_ls_sig_out3", false },
+ { 83, "rmt_sig_in0", "ledc_ls_sig_out4", false },
+ { 84, "rmt_sig_in1", "ledc_ls_sig_out5", false },
+ { 85, "rmt_sig_in2", "ledc_ls_sig_out6", false },
+ { 86, "rmt_sig_in3", "ledc_ls_sig_out7", false },
+ { 87, "rmt_sig_in4", "rmtt_sig_out0", false },
+ { 88, "rmt_sig_in5", "rmtt_sig_out1", false },
+ { 89, "rmt_sig_in6", "rmtt_sig_out2", false },
+ { 90, "rmt_sig_in7", "rmtt_sig_out3", false },
+ { 91, "", "rmtt_sig_out4", false },
+ { 92, "", "rmtt_sig_out5", false },
+ { 93, "", "rmtt_sig_out6", false },
+ { 94, "", "rmtt_sig_out7", false },
+ { 95, "I2CEXT1_SCL_in", "I2CEXT1_SCL_out", false },
+ { 96, "I2CEXT1_SDA_in", "I2CEXT1_SDA_out", false },
+ { 97, "host_card_detect_n_1", "host_ccmd_od_pullup_en_n", false },
+ { 98, "host_card_detect_n_2", "host_rst_n_1", false },
+ { 99, "host_card_write_prt_1", "host_rst_n_2", false },
+ { 100, "host_card_write_prt_2", "gpio_sd0_out", false },
+ { 101, "host_card_int_n_1", "gpio_sd1_out", false },
+ { 102, "host_card_int_n_2", "gpio_sd2_out", false },
+ { 103, "pwm1_sync0_in", "gpio_sd3_out", false },
+ { 104, "pwm1_sync1_in", "gpio_sd4_out", false },
+ { 105, "pwm1_sync2_in", "gpio_sd5_out", false },
+ { 106, "pwm1_f0_in", "gpio_sd6_out", false },
+ { 107, "pwm1_f1_in", "gpio_sd7_out", false },
+ { 108, "pwm1_f2_in", "pwm1_out0a", false },
+ { 109, "pwm0_cap0_in", "pwm1_out0b", false },
+ { 110, "pwm0_cap1_in", "pwm1_out1a", false },
+ { 111, "pwm0_cap2_in", "pwm1_out1b", false },
+ { 112, "pwm1_cap0_in", "pwm1_out2a", false },
+ { 113, "pwm1_cap1_in", "pwm1_out2b", false },
+ { 114, "pwm1_cap2_in", "", false },
+ { 115, "", "", false },
+ { 116, "", "", false },
+ { 117, "", "", false },
+ { 118, "", "", false },
+ { 119, "", "", false },
+ { 120, "", "", false },
+ { 121, "", "", false },
+ { 122, "", "", false },
+ { 123, "", "", false },
+ { 124, "", "", false },
+ { 140, "I2S0I_DATA_in0", "I2S0O_DATA_out0", false },
+ { 141, "I2S0I_DATA_in1", "I2S0O_DATA_out1", false },
+ { 142, "I2S0I_DATA_in2", "I2S0O_DATA_out2", false },
+ { 143, "I2S0I_DATA_in3", "I2S0O_DATA_out3", false },
+ { 144, "I2S0I_DATA_in4", "I2S0O_DATA_out4", false },
+ { 145, "I2S0I_DATA_in5", "I2S0O_DATA_out5", false },
+ { 146, "I2S0I_DATA_in6", "I2S0O_DATA_out6", false },
+ { 147, "I2S0I_DATA_in7", "I2S0O_DATA_out7", false },
+ { 148, "I2S0I_DATA_in8", "I2S0O_DATA_out8", false },
+ { 149, "I2S0I_DATA_in9", "I2S0O_DATA_out9", false },
+ { 150, "I2S0I_DATA_in10", "I2S0O_DATA_out10", false },
+ { 151, "I2S0I_DATA_in11", "I2S0O_DATA_out11", false },
+ { 152, "I2S0I_DATA_in12", "I2S0O_DATA_out12", false },
+ { 153, "I2S0I_DATA_in13", "I2S0O_DATA_out13", false },
+ { 154, "I2S0I_DATA_in14", "I2S0O_DATA_out14", false },
+ { 155, "I2S0I_DATA_in15", "I2S0O_DATA_out15", false },
+ { 156, "", "I2S0O_DATA_out16", false },
+ { 157, "", "I2S0O_DATA_out17", false },
+ { 158, "", "I2S0O_DATA_out18", false },
+ { 159, "", "I2S0O_DATA_out19", false },
+ { 160, "", "I2S0O_DATA_out20", false },
+ { 161, "", "I2S0O_DATA_out21", false },
+ { 162, "", "I2S0O_DATA_out22", false },
+ { 163, "", "I2S0O_DATA_out23", false },
+ { 164, "I2S1I_BCK_in", "I2S1I_BCK_out", false },
+ { 165, "I2S1I_WS_in", "I2S1I_WS_out", false },
+ { 166, "I2S1I_DATA_in0", "I2S1O_DATA_out0", false },
+ { 167, "I2S1I_DATA_in1", "I2S1O_DATA_out1", false },
+ { 168, "I2S1I_DATA_in2", "I2S1O_DATA_out2", false },
+ { 169, "I2S1I_DATA_in3", "I2S1O_DATA_out3", false },
+ { 170, "I2S1I_DATA_in4", "I2S1O_DATA_out4", false },
+ { 171, "I2S1I_DATA_in5", "I2S1O_DATA_out5", false },
+ { 172, "I2S1I_DATA_in6", "I2S1O_DATA_out6", false },
+ { 173, "I2S1I_DATA_in7", "I2S1O_DATA_out7", false },
+ { 174, "I2S1I_DATA_in8", "I2S1O_DATA_out8", false },
+ { 175, "I2S1I_DATA_in9", "I2S1O_DATA_out9", false },
+ { 176, "I2S1I_DATA_in10", "I2S1O_DATA_out10", false },
+ { 177, "I2S1I_DATA_in11", "I2S1O_DATA_out11", false },
+ { 178, "I2S1I_DATA_in12", "I2S1O_DATA_out12", false },
+ { 179, "I2S1I_DATA_in13", "I2S1O_DATA_out13", false },
+ { 180, "I2S1I_DATA_in14", "I2S1O_DATA_out14", false },
+ { 181, "I2S1I_DATA_in15", "I2S1O_DATA_out15", false },
+ { 182, "", "I2S1O_DATA_out16", false },
+ { 183, "", "I2S1O_DATA_out17", false },
+ { 184, "", "I2S1O_DATA_out18", false },
+ { 185, "", "I2S1O_DATA_out19", false },
+ { 186, "", "I2S1O_DATA_out20", false },
+ { 187, "", "I2S1O_DATA_out21", false },
+ { 188, "", "I2S1O_DATA_out22", false },
+ { 189, "", "I2S1O_DATA_out23", false },
+ { 190, "I2S0I_H_SYNC", "", false },
+ { 191, "I2S0I_V_SYNC", "", false },
+ { 192, "I2S0I_H_ENABLE", "", false },
+ { 193, "I2S1I_H_SYNC", "", false },
+ { 194, "I2S1I_V_SYNC", "", false },
+ { 195, "I2S1I_H_ENABLE", "", false },
+ { 196, "", "", false },
+ { 197, "", "", false },
+ { 198, "U2RXD_in", "U2TXD_out", true },
+ { 199, "U2CTS_in", "U2RTS_out", true },
+ { 200, "emac_mdc_i", "emac_mdc_o", false },
+ { 201, "emac_mdi_i", "emac_mdo_o", false },
+ { 202, "emac_crs_i", "emac_crs_o", false },
+ { 203, "emac_col_i", "emac_col_o", false },
+ { 204, "pcmfsync_in", "bt_audio0_irq", false },
+ { 205, "pcmclk_in", "bt_audio1_irq", false },
+ { 206, "pcmdin", "bt_audio2_irq", false },
+ { 207, "", "le_audio0_irq", false },
+ { 208, "", "le_audio1_irq", false },
+ { 209, "", "le_audio2_irq", false },
+ { 210, "", "cmfsync_out", false },
+ { 211, "", "cmclk_out", false },
+ { 212, "", "cmdout", false },
+ { 213, "", "le_audio_sync0_p", false },
+ { 214, "", "le_audio_sync1_p", false },
+ { 215, "", "le_audio_sync2_p", false },
+ { 224, "", "ig_in_func224", false },
+ { 225, "", "ig_in_func225", false },
+ { 226, "", "ig_in_func226", false },
+ { 227, "", "ig_in_func227", false },
+ { 228, "", "ig_in_func228", false },
+ { INVALID_MATRIX_NUM, "", "", false }
+};
+// clang-format on
 
-static const char* out_sel_name(int function) {
+static const char* out_sel_name(uint8_t function) {
     const gpio_matrix_t* p;
-    for (p = gpio_matrix; p->num != -1; ++p) {
+    for (p = gpio_matrix; p->num != INVALID_MATRIX_NUM; ++p) {
         if (p->num == function) {
             return p->out;
         }
@@ -315,7 +320,7 @@ static const char* out_sel_name(int function) {
 
 static void show_matrix(Print& out) {
     const gpio_matrix_t* p;
-    for (p = gpio_matrix; p->num != -1; ++p) {
+    for (p = gpio_matrix; p->num != INVALID_MATRIX_NUM; ++p) {
         uint32_t in_sel = gpio_in_sel(p->num);
         if (in_sel & 0x80) {
             out << p->num << " " << p->in << " " << (in_sel & 0x3f);
@@ -328,7 +333,7 @@ static void show_matrix(Print& out) {
 }
 
 void gpio_dump(Print& out) {
-    for (int gpio = 0; gpio < SOC_GPIO_PIN_COUNT; ++gpio) {
+    for (uint32_t gpio = 0; gpio < SOC_GPIO_PIN_COUNT; ++gpio) {
         gpio_num_t gpio_num = static_cast<gpio_num_t>(gpio);
         if (exists(gpio_num)) {
             out << gpio_num << " ";
@@ -346,7 +351,7 @@ void gpio_dump(Print& out) {
             if (out_sel != 256) {
                 out << " " << out_sel_name(out_sel);
             }
-            //            int func = gpio_function(gpio_num);
+            //            uint8_t func = gpio_function(gpio_num);
             //            if (func) {
             //                out << " function " << func;
             //            }

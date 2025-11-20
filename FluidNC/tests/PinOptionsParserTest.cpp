@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "gtest/gtest.h"
-#include "src/Pins/PinOptionsParser.h"
+#include "Pins/PinOptionsParser.h"
 
 using PinOptionsParser = Pins::PinOptionsParser;
 static void test_for_loop(const PinOptionsParser& parser);

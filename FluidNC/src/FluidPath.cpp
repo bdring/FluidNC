@@ -9,7 +9,7 @@
 #include "FluidError.hpp"
 #include "HashFS.h"
 
-int FluidPath::_refcnt = 0;
+uint32_t FluidPath::_refcnt = 0;
 
 FluidPath::FluidPath(const char* name, const char* fs, std::error_code* ecptr) : std::filesystem::path(canonicalPath(name, fs)) {
     auto mount = *(++begin());  // Use the path iterator to get the first component

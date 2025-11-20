@@ -1,0 +1,14 @@
+## IDF Component Manager Manifest File
+dependencies:
+  esp32async/espasyncwebserver:
+    version: ^3.8.1
+    require: public
+    pre_release: true
+  esp32async/asynctcp:
+    require: public
+    version: ^3.4.8
+  espressif/esp_tinyusb: "^2.0.1"
+  espressif/usb_host_uvc: "^2.3.1"
+  ## Required IDF version
+  idf:
+    version: ">=5.0.0,<5.9.9"

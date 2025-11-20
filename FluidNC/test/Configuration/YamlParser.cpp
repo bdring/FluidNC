@@ -1,4 +1,4 @@
-#include "../TestFramework.h"
+#include "TestFramework.h"
 
 #include <src/Configuration/Tokenizer.h>
 #include <src/Configuration/Parser.h>
@@ -29,7 +29,7 @@ namespace Configuration {
             Assert(p.stringValue().equals("chocolade"), "Expected 'chocolade'");
         }
         p.Tokenize();
-        Assert(p.Eof(), "EOF failed.");
+        Assert(p.Eof(), "EOF failed");
     }
 
     Test(YamlParser, SimpleSection) {
@@ -62,7 +62,7 @@ namespace Configuration {
             Assert(p.stringValue().equals("chocolade"), "Expected 'chocolade'");
         }
         p.Tokenize();
-        Assert(p.Eof(), "EOF failed.");
+        Assert(p.Eof(), "EOF failed");
     }
 
     Test(YamlParser, TwoSequentialSections) {
@@ -107,7 +107,7 @@ namespace Configuration {
             Assert(p.stringValue().equals("wipwap"), "Expected 'wipwap'");
         }
         p.Tokenize();
-        Assert(p.Eof(), "EOF failed.");
+        Assert(p.Eof(), "EOF failed");
     }
 
     Test(YamlParser, TwoSequentialSectionsInASection) {
@@ -170,6 +170,6 @@ namespace Configuration {
             Assert(p.stringValue().equals("wipwap"), "Expected 'wipwap'");
         }
         p.Tokenize();
-        Assert(p.Eof(), "EOF failed.");
+        Assert(p.Eof(), "EOF failed");
     }
 }

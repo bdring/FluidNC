@@ -27,7 +27,7 @@ namespace Kinematics {
         bool canHome(AxisMask axisMask) override;
         void init_position() override;
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) override;
-        void motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
+        void motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) override;
         bool transform_cartesian_to_motors(float* cartesian, float* motors) override;
         bool kinematics_homing(AxisMask& axisMask) override;
 
@@ -48,13 +48,13 @@ namespace Kinematics {
         float last_motor_segment_end[MAX_N_AXIS];
 
         // Parameters
-        int   _left_axis     = 0;
-        float _left_anchor_x = -100;
-        float _left_anchor_y = 100;
+        int32_t _left_axis     = 0;
+        float   _left_anchor_x = -100;
+        float   _left_anchor_y = 100;
 
-        int   _right_axis     = 1;
-        float _right_anchor_x = 100;
-        float _right_anchor_y = 100;
-        float _segment_length = 10;
+        int32_t _right_axis     = 1;
+        float   _right_anchor_x = 100;
+        float   _right_anchor_y = 100;
+        float   _segment_length = 10;
     };
 }  //  namespace Kinematics

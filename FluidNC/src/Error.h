@@ -50,7 +50,7 @@ enum class Error : uint8_t {
     GcodeG43DynamicAxisError     = 37,
     GcodeMaxValueExceeded        = 38,
     PParamMaxExceeded            = 39,
-    CheckControlPins             = 40,
+    CheckStartupPins             = 40,
     FsFailedMount                = 60,  // Filesystem failed to mount
     FsFailedRead                 = 61,  // Failed to read file
     FsFailedOpenDir              = 62,  // Failed to open directory

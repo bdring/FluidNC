@@ -1,4 +1,4 @@
-#include "../TestFramework.h"
+#include "TestFramework.h"
 
 #include <src/Pin.h>
 
@@ -31,28 +31,28 @@ namespace Pins {
             Pin unassigned;
             Pin unassigned2;
 
-            Assert(unassigned == unassigned2, "Should evaluate to true.");
+            Assert(unassigned == unassigned2, "Should evaluate to true");
         }
 
         {
             Pin unassigned = Pin();
             Pin unassigned2;
 
-            Assert(unassigned == unassigned2, "Should evaluate to true.");
+            Assert(unassigned == unassigned2, "Should evaluate to true");
         }
 
         {
             Pin unassigned = Pin::create("void.2");
             Pin unassigned2;
 
-            Assert(unassigned != unassigned2, "Second void pin should match first.");
+            Assert(unassigned != unassigned2, "Second void pin should match first");
         }
 
         {
             Pin unassigned  = Pin::create("void.2");
             Pin unassigned2 = Pin::create("void.2");
 
-            Assert(unassigned != unassigned2, "Second void pin should not match first.");
+            Assert(unassigned != unassigned2, "Second void pin should not match first");
         }
     }
 }

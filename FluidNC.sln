@@ -1,11 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29306.81
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36310.24 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FluidNC", "FluidNC.vcxproj", "{11C8A44F-A303-4885-B5AD-5B65F7FE41C0}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UnitTests", "UnitTests.vcxproj", "{33ECE513-60D1-4949-A4A9-C95D353C2CF0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -22,13 +20,6 @@ Global
 		{11C8A44F-A303-4885-B5AD-5B65F7FE41C0}.Release|x64.Build.0 = Release|x64
 		{11C8A44F-A303-4885-B5AD-5B65F7FE41C0}.Release|x86.ActiveCfg = Release|Win32
 		{11C8A44F-A303-4885-B5AD-5B65F7FE41C0}.Release|x86.Build.0 = Release|Win32
-		{33ECE513-60D1-4949-A4A9-C95D353C2CF0}.Debug|x64.ActiveCfg = Debug|Win32
-		{33ECE513-60D1-4949-A4A9-C95D353C2CF0}.Debug|x86.ActiveCfg = Debug|Win32
-		{33ECE513-60D1-4949-A4A9-C95D353C2CF0}.Debug|x86.Build.0 = Debug|Win32
-		{33ECE513-60D1-4949-A4A9-C95D353C2CF0}.Release|x64.ActiveCfg = Release|x64
-		{33ECE513-60D1-4949-A4A9-C95D353C2CF0}.Release|x64.Build.0 = Release|x64
-		{33ECE513-60D1-4949-A4A9-C95D353C2CF0}.Release|x86.ActiveCfg = Release|Win32
-		{33ECE513-60D1-4949-A4A9-C95D353C2CF0}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -6,7 +6,7 @@
 */
 
 #include "TMC2208Driver.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 #include <atomic>
 
 namespace MotorDrivers {
@@ -20,7 +20,7 @@ namespace MotorDrivers {
             _r_sense = TMC2208_RSENSE_DEFAULT;
         }
 
-        tmc2208 = new TMC2209Stepper(_uart, _r_sense, _addr);
+        tmc2208 = new TMC2208Stepper(_uart, _r_sense);
 
         registration();
     }
@@ -37,8 +37,6 @@ namespace MotorDrivers {
             return;
         }
 
-        TrinamicMode _mode = static_cast<TrinamicMode>(trinamicModes[isHoming ? _homing_mode : _run_mode].value);
-
         // Run and hold current configuration items are in (float) Amps,
         // but the TMCStepper library expresses run current as (uint16_t) mA
         // and hold current as (float) fraction of run current.
@@ -50,7 +48,7 @@ namespace MotorDrivers {
         tmc2208->rms_current(run_i, TrinamicBase::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping
-        int usteps = _microsteps == 1 ? 0 : _microsteps;
+        int32_t usteps = _microsteps == 1 ? 0 : _microsteps;
         tmc2208->microsteps(usteps);
 
         // This driver does not support multiple modes

@@ -5,7 +5,7 @@
 #include "Machine/MachineConfig.h"  // config->
 
 std::string FileStream::path() {
-    return _fpath.c_str();
+    return _fpath.string();
 }
 
 std::string FileStream::name() {
@@ -28,7 +28,7 @@ int FileStream::peek() {
 
 void FileStream::flush() {}
 
-size_t FileStream::read(char* buffer, size_t length) {
+int FileStream::read(char* buffer, size_t length) {
     return fread(buffer, 1, length, _fd);
 }
 
@@ -49,11 +49,11 @@ size_t FileStream::position() {
 }
 
 void FileStream::setup(const char* mode) {
-    _fd = fopen(_fpath.c_str(), mode);
+    _fd = fopen(_fpath.string().c_str(), mode);
 
     if (!_fd) {
         bool opening = strcmp(mode, "w");
-        log_verbose("Cannot " << (opening ? "open" : "create") << " file " << _fpath.c_str());
+        log_verbose("Cannot " << (opening ? "open" : "create") << " file " << _fpath.string());
         throw opening ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;
     }
     _size = stdfs::file_size(_fpath);
@@ -79,7 +79,7 @@ void FileStream::save() {
 }
 
 void FileStream::restore() {
-    _fd = fopen(_fpath.c_str(), _mode);
+    _fd = fopen(_fpath.string().c_str(), _mode);
     if (_fd) {
         fseek(_fd, _saved_position, SEEK_SET);
     } else {

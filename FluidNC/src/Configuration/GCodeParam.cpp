@@ -1,6 +1,7 @@
 // Copyright (c) 2021 -	Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+#include "Config.h"
 #include "GCodeParam.h"
 
 #include <cstdlib>
@@ -99,13 +100,24 @@ namespace Configuration {
         }
     }
 
-    void GCodeParam::item(const char* name, int& value, const EnumItem* e) {
+    void GCodeParam::item(const char* name, uint32_t& value, const EnumItem* e) {
         if (is(name)) {
             isHandled_ = true;
             if (_get) {
                 _iovalue = value;
             } else {
                 value = _iovalue;
+            }
+        }
+    }
+
+    void GCodeParam::item(const char* name, axis_t& value) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (_get) {
+                _iovalue = float(value);
+            } else {
+                value = static_cast<axis_t>(_iovalue);
             }
         }
     }
@@ -129,6 +141,12 @@ namespace Configuration {
     }
 
     void GCodeParam::item(const char* name, EventPin& value) {
+        if (is(name)) {
+            error();
+        }
+    }
+
+    void GCodeParam::item(const char* name, InputPin& value) {
         if (is(name)) {
             error();
         }

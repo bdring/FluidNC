@@ -1,9 +1,9 @@
 // Copyright (c) 2024 Mitch Bradley All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/Module.h"
+#include "Module.h"
 
-#include "src/Logging.h"
+#include "Logging.h"
 #include <WiFi.h>
 #include "Driver/localfs.h"
 #include <ArduinoOTA.h>

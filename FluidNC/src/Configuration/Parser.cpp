@@ -4,11 +4,10 @@
 
 #include "Parser.h"
 
-#include "ParseException.h"
-#include "../EnumItem.h"
+#include "EnumItem.h"
 
-#include "../Config.h"
-#include "../string_util.h"
+#include "Config.h"
+#include "string_util.h"
 
 #include <climits>
 #include <math.h>  // round
@@ -16,15 +15,6 @@
 
 namespace Configuration {
     Parser::Parser(std::string_view yaml_string) : Tokenizer(yaml_string) {}
-
-    void Parser::parseError(const char* description) const {
-        // Attempt to use the correct position in the parser:
-        if (!_token._key.empty()) {
-            throw ParseException(_linenum, description);
-        } else {
-            Tokenizer::ParseError(description);
-        }
-    }
 
     bool Parser::is(const char* expected) {
         if (_token._state != TokenState::Matching || _token._key.empty()) {
@@ -54,7 +44,7 @@ namespace Configuration {
     }
 
     // cppcheck-suppress unusedFunction
-    int Parser::intValue() const {
+    int32_t Parser::intValue() const {
         auto    value_token = string_util::trim(_token._value);
         int32_t int_value;
         if (string_util::from_decimal(value_token, int_value)) {
@@ -186,7 +176,7 @@ namespace Configuration {
     }
 
     // cppcheck-suppress unusedFunction
-    int Parser::enumValue(const EnumItem* e) const {
+    uint32_t Parser::enumValue(const EnumItem* e) const {
         auto token = string_util::trim(_token._value);
         for (; e->name; ++e) {
             if (string_util::equal_ignore_case(token, e->name)) {

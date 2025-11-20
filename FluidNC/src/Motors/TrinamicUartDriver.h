@@ -5,8 +5,8 @@
 #pragma once
 
 #include "TrinamicBase.h"
-#include "../Pin.h"
-#include "../Uart.h"
+#include "Pin.h"
+#include "Uart.h"
 
 #include <cstdint>
 
@@ -18,7 +18,9 @@ namespace MotorDrivers {
 
         void init() override;
 
-        uint8_t _addr;
+        // TMC2208 and TMC2225 have a fixed addr = 0
+        // TMC2209 and TMC2226 configure these through MS1/MS2.
+        uint8_t _addr = 0;
 
         // Configuration handlers:
         void validate() override { StandardStepper::validate(); }
@@ -41,7 +43,7 @@ namespace MotorDrivers {
 
         Pin _cs_pin;
 
-        int _uart_num = -1;
+        int32_t _uart_num = -1;
 
         static bool _uart_started;
         void        config_message() override;

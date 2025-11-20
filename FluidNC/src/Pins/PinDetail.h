@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "Config.h"
 #include "PinAttributes.h"
 #include "PinOptionsParser.h"
 
@@ -17,12 +18,12 @@ namespace Pins {
 
     // Implementation details of pins.
     class PinDetail {
-    protected:
     public:
-        int  _index    = -1;
-        bool _inverted = false;
+        std::string _name;
+        pinnum_t    _index    = INVALID_PINNUM;
+        bool        _inverted = false;
 
-        PinDetail(int number) : _index(number) {}
+        PinDetail(pinnum_t index) : _index(index) {}
         PinDetail(const PinDetail& o)            = delete;
         PinDetail(PinDetail&& o)                 = delete;
         PinDetail& operator=(const PinDetail& o) = delete;
@@ -31,13 +32,13 @@ namespace Pins {
         virtual PinCapabilities capabilities() const = 0;
 
         // I/O:
-        virtual void          write(int high) = 0;
-        virtual void          synchronousWrite(int high);
+        virtual void          write(bool high) = 0;
+        virtual void          synchronousWrite(bool high);
         virtual void          setDuty(uint32_t duty) {};
         virtual uint32_t      maxDuty() { return 0; }
-        virtual int           read()                                                = 0;
-        virtual void          setAttr(PinAttributes value, uint32_t frequencey = 0) = 0;
-        virtual PinAttributes getAttr() const                                       = 0;
+        virtual bool          read()                                               = 0;
+        virtual void          setAttr(PinAttributes value, uint32_t frequency = 0) = 0;
+        virtual PinAttributes getAttr() const                                      = 0;
 
         virtual int8_t driveStrength() { return -1; }
 
@@ -45,9 +46,9 @@ namespace Pins {
 
         virtual void registerEvent(InputPin* obj);
 
-        virtual std::string toString() = 0;
+        const char* name() { return _name.c_str(); }
 
-        inline int number() const { return _index; }
+        inline pinnum_t number() const { return _index; }
 
         virtual ~PinDetail() {}
     };

@@ -1,8 +1,9 @@
 #include "Cartesian.h"
 
-#include "src/Machine/MachineConfig.h"
-#include "src/Machine/Axes.h"  // ambiguousLimit()
-#include "src/Limits.h"
+#include "Machine/MachineConfig.h"
+#include "Machine/Axes.h"  // ambiguousLimit()
+#include "Limit.h"
+#include <math.h>
 
 namespace Kinematics {
     void Cartesian::init() {
@@ -12,10 +13,17 @@ namespace Kinematics {
 
     // Initialize the machine position
     void Cartesian::init_position() {
-        auto n_axis = Axes::_numberAxis;
-        for (size_t axis = 0; axis < n_axis; axis++) {
-            set_motor_steps(axis, 0);  // Set to zeros
+        auto  n_axis = Axes::_numberAxis;
+        float min_mpos[n_axis];
+        float max_mpos[n_axis];
+
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+            set_steps(axis, 0);  // Set to zeros
+            min_mpos[axis] = limitsMinPosition(axis);
+            max_mpos[axis] = limitsMaxPosition(axis);
         }
+        transform_cartesian_to_motors(_min_motor_pos, min_mpos);
+        transform_cartesian_to_motors(_max_motor_pos, max_mpos);
     }
 
     // Check that the arc does not exceed the soft limits using a fast
@@ -23,13 +31,19 @@ namespace Kinematics {
     // caxes[] depends on the plane selection via G17, G18, and G19.  caxes[0] is the first
     // circle plane axis, caxes[1] is the second circle plane axis, and caxes[2] is the
     // orthogonal plane.  So for G17 mode, caxes[] is { 0, 1, 2} for { X, Y, Z}.  G18 is {2, 0, 1} i.e. {Z, X, Y}, and G19 is {1, 2, 0} i.e. {Y, Z, X}
-    bool Cartesian::invalid_arc(
-        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc, int pword_rotations) {
+    bool Cartesian::invalid_arc(float*            target,
+                                plan_line_data_t* pl_data,
+                                float*            position,
+                                float             center[3],
+                                float             radius,
+                                axis_t            caxes[3],
+                                bool              is_clockwise_arc,
+                                uint32_t          rotations) {
         pl_data->limits_checked = true;
 
         auto axes = config->_axes;
-        // Handle the orthognal axis first to get it out of the way.
-        size_t the_axis = caxes[2];
+        // Handle the orthogonal axis first to get it out of the way.
+        auto the_axis = caxes[2];
         if (axes->_axis[the_axis]->_softLimits) {
             float amin = std::min(position[the_axis], target[the_axis]);
             if (amin < limitsMinPosition(the_axis)) {
@@ -54,7 +68,7 @@ namespace Kinematics {
         bool p[2] = { false, false };
         bool m[2] = { false, false };
 
-        if (pword_rotations > 1) {
+        if (rotations > 1) {
             // The arc does at least a full circle around the center before arriving at
             // the target position, so we need to check all axis crossings.
             p[0] = p[1] = m[0] = m[1] = true;
@@ -193,7 +207,7 @@ namespace Kinematics {
         float*    current_position = get_mpos();
         MotorMask lim_pin_state    = limits_get_state();
 
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             auto axisSetting = axes->_axis[axis];
             // If the axis is moving from the current location and soft limits are on.
             if (axisSetting->_softLimits && target[axis] != current_position[axis]) {
@@ -205,7 +219,7 @@ namespace Kinematics {
                     if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
                         bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
                         target[axis] = current_position[axis];  // cancel the move on this axis
-                        log_debug("Soft limit violation on " << Machine::Axes::_names[axis]);
+                        log_debug("Soft limit violation on " << Machine::Axes::axisName(axis));
                         continue;
                     }
                     float jog_dist = target[axis] - current_position[axis];
@@ -219,7 +233,7 @@ namespace Kinematics {
                     if (posLimited != negLimited) {  // XOR, because ambiguous (both) is OK
                         if ((negLimited && (jog_dist < 0)) || (posLimited && (jog_dist > 0))) {
                             target[axis] = current_position[axis];  // cancel the move on this axis
-                            log_debug("Jog into active switch blocked on " << Machine::Axes::_names[axis]);
+                            log_debug("Jog into active switch blocked on " << Machine::Axes::axisName(axis));
                             continue;
                         }
                     }
@@ -249,7 +263,7 @@ namespace Kinematics {
         auto axes   = config->_axes;
         auto n_axis = Axes::_numberAxis;
 
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             float coordinate = cartesian[axis];
             if (axes->_axis[axis]->_softLimits && (coordinate < limitsMinPosition(axis) || coordinate > limitsMaxPosition(axis))) {
                 limit_error(axis, coordinate);
@@ -264,7 +278,7 @@ namespace Kinematics {
         return mc_move_motors(target, pl_data);
     }
 
-    void Cartesian::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
+    void Cartesian::motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) {
         // Motor space is cartesian space, so we do no transform.
         copyAxes(cartesian, motors);
     }
@@ -302,15 +316,209 @@ namespace Kinematics {
     void Cartesian::releaseMotors(AxisMask axisMask, MotorMask motors) {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 0))) {
-                    Stepping::unlimit(axis, 0);
+                    Stepping::unlimit(axis, MOTOR0);
                 }
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 1))) {
-                    Stepping::unlimit(axis, 1);
+                    Stepping::unlimit(axis, MOTOR1);
                 }
             }
+        }
+    }
+
+    void Cartesian::axesVector(
+        AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
+        copyAxes(target, get_mpos());
+
+        log_debug("Starting from " << target[0] << "," << target[1] << "," << target[2]);
+
+        float maxSeekTime = 0.0;
+        float ratesq      = 0.0;
+
+        settle_ms = 0;
+
+        //        log_debug("Cartesian homing " << int(axes) << " motors " << int(motors));
+
+        auto axes   = config->_axes;
+        auto n_axis = axes->_numberAxis;
+
+        float rates[n_axis]    = { 0 };
+        float distance[n_axis] = { 0 };
+
+        bool seeking  = phase == Machine::Homing::Phase::FastApproach;
+        bool approach = seeking || phase == Machine::Homing::Phase::SlowApproach;
+
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+            if (bitnum_is_true(axisMask, axis)) {
+                if (!axes->_axis[axis]->can_home()) {
+                    log_error("An axis in this homing cycle has no limit switches so it cannot be homed");
+                    Homing::fail(ExecAlarm::HomingFailApproach);
+                    return;
+                }
+            }
+        }
+
+        AxisMask activeAxes = 0;
+        // Find the axis that will take the longest
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+            if (bitnum_is_false(axisMask, axis)) {
+                continue;
+            }
+            if (bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 0)) && bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 1))) {
+                log_error("No motor for axis " << axes->axisName(axis) << " can be homed");
+                Homing::fail(ExecAlarm::HomingFailApproach);
+                return;
+            }
+
+            // Record active axes for the next phase
+            set_bitnum(activeAxes, axis);
+
+            auto axisConfig = axes->_axis[axis];
+            auto homing     = axisConfig->_homing;
+            if (!homing) {
+                continue;
+            }
+
+            settle_ms = std::max(settle_ms, homing->_settle_ms);
+
+            float axis_rate = 1;
+            float travel    = 0;
+            switch (phase) {
+                case Machine::Homing::Phase::FastApproach:
+                    axis_rate = homing->_seekRate;
+                    travel    = axisConfig->_maxTravel;
+                    break;
+                case Machine::Homing::Phase::PrePulloff:
+                case Machine::Homing::Phase::SlowApproach:
+                case Machine::Homing::Phase::Pulloff0:
+                case Machine::Homing::Phase::Pulloff1:
+                    axis_rate = homing->_feedRate;
+                    travel    = axisConfig->commonPulloff();
+                    break;
+                case Machine::Homing::Phase::Pulloff2:
+                    axis_rate = homing->_feedRate;
+                    travel    = axisConfig->extraPulloff();
+                    if (travel < 0) {
+                        // Motor0's pulloff is greater than motor1's, so we block motor1
+                        Stepping::block(axis, 1);
+                        travel = -travel;
+                    } else if (travel > 0) {
+                        // Motor1's pulloff is greater than motor0's, so we block motor0
+                        Stepping::block(axis, 0);
+                    }
+                    // All motors will be unblocked later by set_homing_mode()
+                    break;
+                default:  // None, CycleDone.
+                    break;
+            }
+
+            // Set target direction based on various factors
+            switch (phase) {
+                case Machine::Homing::Phase::PrePulloff: {
+                    // For PrePulloff, the motion depends on which switches are active.
+                    MotorMask axisMotors = Machine::Axes::axes_to_motors(1 << axis);
+                    bool      posLimited = bits_are_true(Machine::Axes::posLimitMask, axisMotors);
+                    bool      negLimited = bits_are_true(Machine::Axes::negLimitMask, axisMotors);
+                    if (posLimited && negLimited) {
+                        log_error("Both positive and negative limit switches are active for axis " << axes->axisName(axis));
+                        // xxx need to abort somehow
+                        return;
+                    }
+                    if (posLimited) {
+                        distance[axis] = -travel;
+                    } else if (negLimited) {
+                        distance[axis] = travel;
+                    } else {
+                        distance[axis] = 0;
+                    }
+                } break;
+
+                case Machine::Homing::Phase::FastApproach:
+                case Machine::Homing::Phase::SlowApproach:
+                    distance[axis] = homing->_positiveDirection ? travel : -travel;
+                    break;
+
+                case Machine::Homing::Phase::Pulloff0:
+                case Machine::Homing::Phase::Pulloff1:
+                case Machine::Homing::Phase::Pulloff2:
+                    distance[axis] = homing->_positiveDirection ? -travel : travel;
+                    break;
+
+                default:  // None, CycleDone.
+                    break;
+            }
+
+            // Accumulate the squares of the homing rates for later use
+            // in computing the aggregate feed rate.
+            ratesq += (axis_rate * axis_rate);
+
+            rates[axis] = axis_rate;
+
+            auto seekTime = travel / axis_rate;
+            if (seekTime > maxSeekTime) {
+                maxSeekTime = seekTime;
+            }
+        }
+
+        // When approaching add a fudge factor (scaler) to ensure that the limit is reached -
+        // but no fudge factor when pulling off.
+        // For fast approach, scale the distance array according to the axis that will
+        // take the longest time to reach its max range at its seek rate, preserving
+        // the speeds of the axes.
+
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+            if (bitnum_is_true(activeAxes, axis)) {
+                if (phase == Machine::Homing::Phase::FastApproach) {
+                    // For fast approach the vector direction is determined by the rates
+                    float absDistance = maxSeekTime * rates[axis];
+                    distance[axis]    = distance[axis] >= 0 ? absDistance : -absDistance;
+                }
+
+                auto paxis  = axes->_axis[axis];
+                auto homing = paxis->_homing;
+                if (homing) {
+                    auto scaler = approach ? (seeking ? homing->_seek_scaler : homing->_feed_scaler) : 1.0;
+                    distance[axis] *= scaler;
+                    target[axis] += distance[axis];
+                }
+            }
+        }
+
+        rate = sqrtf(ratesq);  // Magnitude of homing rate vector
+        log_debug("Planned move to " << target[0] << "," << target[1] << "," << target[2] << " @ " << rate);
+    }
+
+    void Cartesian::homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) {
+        releaseMotors(axisMask, motors);
+        float rate;
+        float target[Axes::_numberAxis];
+        axesVector(axisMask, motors, phase, target, rate, settling_ms);
+
+        plan_line_data_t plan_data      = {};
+        plan_data.spindle_speed         = 0;
+        plan_data.motion                = {};
+        plan_data.motion.systemMotion   = 1;
+        plan_data.motion.noFeedOverride = 1;
+        plan_data.spindle               = SpindleState::Disable;
+        plan_data.coolant               = {};
+        plan_data.line_number           = 0;
+        plan_data.is_jog                = false;
+        plan_data.feed_rate             = rate;  // Magnitude of homing rate vector
+
+        cartesian_to_motors(target, &plan_data, get_mpos());
+
+        protocol_send_event(&cycleStartEvent);
+    }
+
+    void Cartesian::set_homed_mpos(float* mpos) {
+        auto  n_axis = Axes::_numberAxis;
+        float motor_pos[n_axis];
+
+        transform_cartesian_to_motors(motor_pos, mpos);
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+            set_steps(axis, motor_pos_to_steps(motor_pos[axis], axis));
         }
     }
 

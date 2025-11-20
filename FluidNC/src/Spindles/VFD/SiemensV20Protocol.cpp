@@ -65,7 +65,7 @@ SINAMICS V20 at S7-1200 via Modbus Entry-ID: 63696870, V1.2, 11/2014
 
 
 VFD Settings:
-To use this spindle type - it assumes you have a working/ configued VFD with motor - the following settings
+To use this spindle type - it assumes you have a working/ configured VFD with motor - the following settings
 are to change the method of which the VFD takes it information.
 please do not enable this without a properly configured VFD
 
@@ -105,7 +105,7 @@ Take note that the serial interface use EVEN parity!
 
 #include "SiemensV20Protocol.h"
 
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 #include <algorithm>  // std::max
 
@@ -151,11 +151,9 @@ namespace Spindles {
                 log_warn("Siemens V20 requested freq " << uint32_t(speed) << " is outside of range (" << _minFrequency << ","
                                                        << _maxFrequency << ")");
             }
-            /*
-            V20 has a scalled input and is standardized to 16384 
-            please note Signed numbers work IE -16384 to 16384 
-            but for this implementation only posivite number are allowed
-            */
+            // V20 has a scaled input and is standardized to 16384
+            // please note Signed numbers work IE -16384 to 16384
+            // but for this implementation only posivite number are allowed
             int16_t ScaledFreq = int16_t(speed * _FreqScaler);
             log_debug("Setting VFD Scaled Value " << int16_t(ScaledFreq) << " Byte 1 " << uint8_t(ScaledFreq >> 8) << " Byte 2 "
                                                   << uint8_t(ScaledFreq & 0xFF));

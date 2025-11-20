@@ -24,7 +24,8 @@
 #include "Logging.h"
 
 #include <ctype.h>
-#include <math.h>
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,6 +87,8 @@ static void report_param_error(Error err) {
             break;
         case Error::ExpressionArgumentOutOfRange:
             log_error("Argument out of range");
+            break;
+        default:
             break;
     }
 }

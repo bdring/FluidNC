@@ -1,6 +1,6 @@
 #include "NowForeverProtocol.h"
 
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 namespace Spindles {
     namespace VFD {
@@ -13,7 +13,7 @@ namespace Spindles {
             data.msg[3] = 0x00;  // Register address, low byte (spindle status)
             data.msg[4] = 0x00;  // Number of elements, high byte
             data.msg[5] = 0x01;  // Number of elements, low byte (1 element)
-            data.msg[6] = 0x02;  // Length of first element in bytes (1 regsiter with 2 bytes length)
+            data.msg[6] = 0x02;  // Length of first element in bytes (1 register with 2 bytes length)
             data.msg[7] = 0x00;  // Data, high byte
 
             /*
@@ -56,7 +56,7 @@ namespace Spindles {
             data.msg[3] = 0x01;  // Register address, low byte (speed in hz)
             data.msg[4] = 0x00;  // Number of elements, high byte
             data.msg[5] = 0x01;  // Number of elements, low byte (1 element)
-            data.msg[6] = 0x02;  // Length of first element in bytes (1 regsiter with 2 bytes length)
+            data.msg[6] = 0x02;  // Length of first element in bytes (1 register with 2 bytes length)
 
             /*
         Contents of register 0x0901
@@ -121,7 +121,7 @@ namespace Spindles {
             if (_minFrequency > _maxFrequency) {
                 uint16_t tmp  = _minFrequency;
                 _minFrequency = _maxFrequency;
-                _maxFrequency = _minFrequency;
+                _maxFrequency = tmp;
             }
 
             if (spindle->_speeds.size() == 0) {
@@ -150,8 +150,6 @@ namespace Spindles {
         */
 
             return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
-                uint16_t currentHz = 0;
-
                 if (response[1] != 0x03) {
                     return false;
                 }

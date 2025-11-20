@@ -189,7 +189,7 @@ formData.append('path', currentpath);
 for (var i3 = 0; i3 < files.length; i3++) {
 var file = files[i3];
 var arg = currentpath + file.name + "S";
- //append file size first to check updload is complete
+ //append file size first to check upload is complete
  formData.append(arg, file.size);
  formData.append('myfiles[]', file, currentpath+file.name);}
 xmlhttpupload = new XMLHttpRequest();
@@ -289,7 +289,11 @@ xmlhttp.onreadystatechange = function() {
              }
              if (sublist[0].trim() == "webcommunication"){
                  websocket_port = sublist[2].trim();
-                 websocket_IP = sublist[3].trim();
+                 if (sublist.length>3) {
+                     websocket_IP = sublist[3].trim();
+                 } else {
+                     websocket_IP =  document.location.hostname;
+                 }
                  startSocket();
                  nbitem++;
              }
@@ -419,7 +423,7 @@ var formData = new FormData();
 for (var i4 = 0; i4 < files.length; i4++) {
 var file = files[i4];
 var arg =  "/" + file.name + "S";
- //append file size first to check updload is complete
+ //append file size first to check upload is complete
  formData.append(arg, file.size);
  formData.append('myfile[]', file, "/"+file.name);}
 typeupload = 0;

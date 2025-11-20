@@ -1,35 +1,38 @@
 // Class for creating JSON-encoded strings.
 
 #include "JSONEncoder.h"
-#include "src/Report.h"
-#include "src/Protocol.h"  // send_line()
-#include "src/UartChannel.h"
+#include "Report.h"
+#include "Protocol.h"  // send_line()
+#include "UartChannel.h"
 
 // Constructor.  If _encapsulate is true, the output is
 // encapsulated in [MSG:JSON: ...] lines
-JSONencoder::JSONencoder(bool encapsulate, Channel* channel) :
-    _encapsulate(encapsulate), level(0), _str(&linebuf), _channel(channel), category("nvs") {
+JSONencoder::JSONencoder(bool encapsulate, Channel* channel) : _encapsulate(encapsulate), level(0), _channel(channel), category("nvs") {
     count[level] = 0;
 }
-
-JSONencoder::JSONencoder(std::string* str) : level(0), _str(str), category("nvs") {
+JSONencoder::JSONencoder(JsonCallback callback) : level(0), _callback(callback) {
     count[level] = 0;
 }
 
 void JSONencoder::flush() {
-    if (_channel && (*_str).length()) {
-        if (_encapsulate) {
-            // Output to channels is encapsulated in [MSG:JSON:...]
-            (*_channel).out_acked(*_str, "JSON:");
+    if (_linebuf.length()) {
+        if (_channel) {
+            if (_encapsulate) {
+                // Output to channels is encapsulated in [MSG:JSON:...]
+                (*_channel).out_acked(_linebuf, "JSON:");
+            } else {
+                log_stream(*_channel, _linebuf);
+            }
+
         } else {
-            log_stream(*_channel, *_str);
+            _callback(_linebuf.c_str());
         }
-        (*_str).clear();
+        _linebuf.clear();
     }
 }
 void JSONencoder::add(char c) {
-    (*_str) += c;
-    if (_channel && (*_str).length() >= 100) {
+    _linebuf += c;
+    if (_channel && _linebuf.length() >= 100) {
         flush();
     }
 }
@@ -150,8 +153,8 @@ void JSONencoder::line() {
             // log_stream() always adds a newline
             // We want that for channels because they might not
             // be able to handle really long lines.
-            log_stream(*_channel, *_str);
-            (*_str).clear();
+            log_stream(*_channel, _linebuf);
+            _linebuf.clear();
             indent();
         }
     } else {
@@ -161,7 +164,11 @@ void JSONencoder::line() {
 }
 
 // Begins the JSON encoding process, creating an unnamed object
-void JSONencoder::begin() {
+void JSONencoder::begin(const std::string_view type) {
+    _type = type;
+    if (_channel && _encapsulate) {
+        (*_channel).out_acked(_type, "JSONBEGIN:");
+    }
     begin_object();
 }
 
@@ -171,6 +178,9 @@ void JSONencoder::end() {
     end_object();
     line();
     flush();
+    if (_channel && _encapsulate) {
+        (*_channel).out_acked(_type, "JSONEND:");
+    }
 }
 
 // Starts a member element.
@@ -233,11 +243,11 @@ void JSONencoder::member(const char* tag, const std::string& value) {
 }
 
 // Creates a "tag":"value" member from an integer
-void JSONencoder::member(const char* tag, int value) {
+void JSONencoder::member(const char* tag, int32_t value) {
     member(tag, std::to_string(value));
 }
 
-// Creates an Esp32_WebUI configuration item specification from
+// Creates a WebUI configuration item specification from
 // a value passed in as a C-style string.
 void JSONencoder::begin_webui(const std::string name, const char* type, const char* val) {
     begin_object();
@@ -253,15 +263,15 @@ void JSONencoder::begin_webui(const std::string name, const char* type, const ch
     member("V", val);
 }
 
-// Creates an Esp32_WebUI configuration item specification from
+// Creates an WebUI configuration item specification from
 // an integer value.
-void JSONencoder::begin_webui(const std::string name, const char* type, int val) {
+void JSONencoder::begin_webui(const std::string name, const char* type, int32_t val) {
     begin_webui(name, type, std::to_string(val).c_str());
 }
 
-// Creates an Esp32_WebUI configuration item specification from
+// Creates an WebUI configuration item specification from
 // a C-style string value, with additional min and max arguments.
-void JSONencoder::begin_webui(const std::string name, const char* type, const char* val, int min, int max) {
+void JSONencoder::begin_webui(const std::string name, const char* type, const char* val, int32_t min, int32_t max) {
     begin_webui(name, type, val);
     member("S", max);
     member("M", min);
@@ -280,6 +290,6 @@ void JSONencoder::id_value_object(const char* id, const std::string& value) {
     id_value_object(id, value.c_str());
 }
 
-void JSONencoder::id_value_object(const char* id, int value) {
+void JSONencoder::id_value_object(const char* id, int32_t value) {
     id_value_object(id, std::to_string(value));
 }

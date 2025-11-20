@@ -16,7 +16,7 @@
 */
 
 #include "H2AProtocol.h"
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 namespace Spindles {
     namespace VFD {
@@ -42,9 +42,6 @@ namespace Spindles {
             data.rx_length = 6;
 
             uint16_t speed = (uint32_t(dev_speed) * 10000L) / uint32_t(_maxRPM);
-            if (speed < 0) {
-                speed = 0;
-            }
             if (speed > 10000) {
                 speed = 10000;
             }
@@ -67,7 +64,7 @@ namespace Spindles {
                 data.msg[3] = 0x05;
                 data.msg[4] = 0x00;  // Read 2 values
                 data.msg[5] = 0x02;
-                    
+
                 //  Recv: 01 03 00 04 5D C0 03 F6
                 //                    -- -- = 24000 (val #1)
                 return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {

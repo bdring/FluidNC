@@ -2,10 +2,10 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Macros.h"
-#include "src/Serial.h"                 // Cmd
-#include "src/System.h"                 // sys
-#include "src/Machine/MachineConfig.h"  // config
-#include "src/Job.h"                    // Job::
+#include "Serial.h"                 // Cmd
+#include "System.h"                 // sys
+#include "Machine/MachineConfig.h"  // config
+#include "Job.h"                    // Job::
 #include <sstream>
 #include <iomanip>
 
@@ -70,8 +70,8 @@ bool Macro::run(Channel* channel) {
     return false;
 }
 
-Error MacroChannel::readLine(char* line, int maxlen) {
-    int                len       = 0;
+Error MacroChannel::readLine(char* line, size_t maxlen) {
+    size_t             len       = 0;
     const std::string& gcode     = _macro->_gcode;
     const int          gcode_len = gcode.length();
     while (_position < gcode_len) {
@@ -113,7 +113,7 @@ void MacroChannel::ack(Error status) {
         //        if (status != Error::GcodeUnsupportedCommand) {
         // Do not stop on unsupported commands because most senders do not stop.
         // Stop the macro job on other errors
-        notifyf("Macro job error", "Error:%d in %s at line: %d", status, name().c_str(), lineNumber());
+        notifyf("Macro job error", "Error:%d in %s at line: %d", status, name(), lineNumber());
         _pending_error = status;
         //        }
     }

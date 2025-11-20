@@ -4,7 +4,7 @@
 #pragma once
 
 #include <vector>
-#include "../Logging.h"
+#include "Logging.h"
 
 #include "HandlerBase.h"
 #include <algorithm>
@@ -19,7 +19,7 @@ namespace Configuration {
 
         GenericFactory() = default;
 
-        GenericFactory(const GenericFactory&) = delete;
+        GenericFactory(const GenericFactory&)            = delete;
         GenericFactory& operator=(const GenericFactory&) = delete;
 
         class BuilderBase {
@@ -28,7 +28,7 @@ namespace Configuration {
         public:
             BuilderBase(const char* name) : name_(name) {}
 
-            BuilderBase(const BuilderBase& o) = delete;
+            BuilderBase(const BuilderBase& o)            = delete;
             BuilderBase& operator=(const BuilderBase& o) = delete;
 
             virtual BaseType* create(const char* name) const = 0;
@@ -77,17 +77,20 @@ namespace Configuration {
             }
         };
 
-        // This factory() method is used when there can be only one instance of the type,
-        // as with a kinematics system.  The variable that points to the instance must
-        // be created externally and passed as an argument.
+        // This factory() method is used when there can be only one
+        // instance of the type, at a given level of the tree, as with
+        // a kinematics system or a motor driver.  The variable that
+        // points to the instance must be created externally and
+        // passed as an argument.
         static void factory(Configuration::HandlerBase& handler, BaseType*& inst) {
             if (inst == nullptr) {
                 auto& builders = instance().builders_;
                 auto  it       = std::find_if(
                     builders.begin(), builders.end(), [&](auto& builder) { return handler.matchesUninitialized(builder->name()); });
                 if (it != builders.end()) {
-                    inst = (*it)->create((*it)->name());
-                    handler.enterFactory((*it)->name(), *inst);
+                    auto name = (*it)->name();
+                    inst      = (*it)->create(name);
+                    handler.enterFactory(name, *inst);
                 }
             } else {
                 handler.enterSection(inst->name(), inst);

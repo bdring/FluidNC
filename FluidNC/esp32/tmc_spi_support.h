@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 void tmc_spi_bus_setup();
-void tmc_spi_transfer_data(uint8_t* out, int out_bitlen, uint8_t* in, int in_bitlen);
+void tmc_spi_transfer_data(uint8_t* out, size_t out_bitlen, uint8_t* in, int in_bitlen);
 void tmc_spi_rw_reg(uint8_t cmd, uint32_t data, int index);
 
 #ifdef __cplusplus

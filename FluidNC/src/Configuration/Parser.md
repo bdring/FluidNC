@@ -58,7 +58,7 @@ value.
 
 Can be found in `Parser.h` / `Parser.cpp`. The parser is responsible
 for handling the hierarchical nature of the yaml files, and provides
-some convienient way to enumerate it.
+some convenient way to enumerate it.
 
 It is important to note at this point, that the tree builder won't just 
 randomly traverse through the configuration file. All keys that are 

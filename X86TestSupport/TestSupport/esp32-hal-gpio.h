@@ -70,7 +70,7 @@ typedef enum {
 #define INPUT_PULLUP 0x05
 #define PULLDOWN 0x08
 #define INPUT_PULLDOWN 0x09
-// #define OPEN_DRAIN        0x10
+#define OPEN_DRAIN 0x10
 // #define OUTPUT_OPEN_DRAIN 0x12
 
 void attachInterrupt(uint8_t pin, void (*)(void), int mode);

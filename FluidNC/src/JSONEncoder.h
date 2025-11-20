@@ -1,31 +1,35 @@
 #pragma once
 
-#include "src/Channel.h"
+#include "Channel.h"
 #include <string>
+#include <functional>
 
 // Class for creating JSON-encoded strings.
+
+using JsonCallback = std::function<void(const char*)>;
 
 class JSONencoder {
 private:
     static const int MAX_JSON_LEVEL = 16;
 
-    bool _encapsulate = false;
-    int  level;
-    int  count[MAX_JSON_LEVEL];
-    void add(char c);
-    void comma_line();
-    void comma();
-    void inc_level();
-    void dec_level();
-    void indent();
-    void line();
+    bool     _encapsulate = false;
+    uint32_t level;
+    uint32_t count[MAX_JSON_LEVEL];
+    void     add(char c);
+    void     comma_line();
+    void     comma();
+    void     inc_level();
+    void     dec_level();
+    void     indent();
+    void     line();
 
     void quoted(const char* s);
 
-    std::string linebuf;
+    std::string _linebuf;
+    std::string _type;
 
-    std::string* _str     = nullptr;
     Channel*     _channel = nullptr;
+    JsonCallback _callback;
 
     std::string category;
 
@@ -34,10 +38,10 @@ private:
 public:
     // Constructor; set _encapsulate true for [MSG:JSON: ,,,] encapsulation
     JSONencoder(bool encapsulate, Channel* channel);
-    explicit JSONencoder(std::string* str);
+    JSONencoder(JsonCallback);
 
     // begin() starts the encoding process.
-    void begin();
+    void begin(std::string_view type = "");
 
     void setCategory(const char* cat) { category = cat; }
 
@@ -51,7 +55,7 @@ public:
     // member() creates a "tag":"value" element
     void member(const char* tag, const char* value);
     void member(const char* tag, const std::string& value);
-    void member(const char* tag, int value);
+    void member(const char* tag, int32_t value);
 
     // begin_array() starts a "tag":[  array element
     void begin_array(const char* tag);
@@ -71,11 +75,11 @@ public:
 
     void verbatim(const std::string& s);
 
-    // The begin_webui() methods are specific to Esp3D_WebUI
+    // The begin_webui() methods are specific to WebUI
     // WebUI sends JSON objects to the UI to generate configuration
     // page entries. Each object describes a named setting with a
     // type, current value, and a description of the possible values.
-    // The possible values can either be a minumum and maximum
+    // The possible values can either be a minimum and maximum
     // integer value, min/max string length, or an enumeration list.
     // When the user chooses a value, this command is sent back:
     //   [ESP401]P=p T=type V=value
@@ -94,10 +98,10 @@ public:
     //  I => 0 .. 2^31-1
     void begin_webui(const std::string name, const char* type, const std::string& val) { begin_webui(name, type, val.c_str()); }
     void begin_webui(const std::string name, const char* type, const char* val);
-    void begin_webui(const std::string name, const char* type, const int val);
-    void begin_webui(const std::string name, const char* type, const char* val, int min, int max);
+    void begin_webui(const std::string name, const char* type, const int32_t val);
+    void begin_webui(const std::string name, const char* type, const char* val, int32_t min, int32_t max);
 
     void id_value_object(const char* id, const char* value);
     void id_value_object(const char* id, const std::string& value);
-    void id_value_object(const char* id, int value);
+    void id_value_object(const char* id, int32_t value);
 };

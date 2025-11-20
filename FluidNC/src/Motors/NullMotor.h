@@ -11,6 +11,8 @@ namespace MotorDrivers {
 
         bool isReal() override { return false; }
 
+        bool can_self_home() override { return false; }
+
         // Configuration handlers:
         void group(Configuration::HandlerBase& handler) override {}
     };

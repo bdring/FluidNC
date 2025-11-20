@@ -38,7 +38,6 @@
 */
 
 #include "Serial.h"
-#include "UartChannel.h"
 #include "Machine/MachineConfig.h"
 #include "MotionControl.h"
 #include "Report.h"
@@ -59,21 +58,19 @@
 std::mutex AllChannels::_mutex_general;
 std::mutex AllChannels::_mutex_pollLine;
 
-static TaskHandle_t channelCheckTaskHandle = 0;
-
 void heapCheckTask(void* pvParameters) {
     static uint32_t heapSize = 0;
     while (true) {
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings and whatnot
+        std::atomic_thread_fence(std::memory_order_seq_cst);  // read fence for settings and whatnot
         uint32_t newHeapSize = xPortGetFreeHeapSize();
         if (newHeapSize != heapSize) {
             heapSize = newHeapSize;
             log_info("heap " << heapSize);
         }
-        vTaskDelay(3000 / portTICK_RATE_MS);  // Yield to other tasks
+        vTaskDelay(3000 / portTICK_PERIOD_MS);  // Yield to other tasks
 
-        static UBaseType_t uxHighWaterMark = 0;
 #ifdef DEBUG_TASK_STACK
+        static UBaseType_t uxHighWaterMark = 0;
         reportTaskStackSize(uxHighWaterMark);
 #endif
     }
@@ -175,7 +172,7 @@ void AllChannels::print_msg(MsgLevel level, const char* msg) {
     _mutex_general.unlock();
 }
 
-Channel* AllChannels::find(const std::string& name) {
+Channel* AllChannels::find(const std::string_view name) {
     _mutex_general.lock();
     for (auto channel : _channelq) {
         if (channel->name() == name) {
@@ -223,11 +220,11 @@ Channel* pollChannels(char* line) {
     // planner buffer starvation due to not calling Stepper::prep_buffer()
     // frequently enough, which is normally called periodically at the end
     // of protocol_exec_rt_system() via protocol_execute_realtime().
-    static int counter = 0;
+    static uint_fast8_t counter = 0;
     if (line) {
         counter = 0;
     }
-    if (counter > 0) {
+    if (counter) {
         --counter;
         return nullptr;
     }

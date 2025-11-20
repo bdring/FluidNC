@@ -6,12 +6,14 @@
 #include <stddef.h>
 #include <string>
 
+#include <cstdint>
 // TODO - make ngc_param_id_t an enum, give names to numbered parameters where
 // possible
-typedef int ngc_param_id_t;
+typedef uint32_t ngc_param_id_t;
 
 bool assign_param(const char* line, size_t& pos);
 bool read_number(const char* line, size_t& pos, float& value, bool in_expression = false);
+bool read_number(const std::string_view sv, float& value, bool in_expression = false);
 bool perform_assignments();
 bool named_param_exists(std::string& name);
 bool set_named_param(const char* name, float value);

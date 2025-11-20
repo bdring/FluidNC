@@ -2,9 +2,8 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "HBridgeSpindle.h"
-
-#include "../GCode.h"   // gc_state.modal
-#include "../System.h"  // sys
+#include "GCode.h"   // gc_state.modal
+#include "System.h"  // sys
 
 namespace Spindles {
     void HBridge::init() {
@@ -14,10 +13,9 @@ namespace Spindles {
 
         if (_output_cw_pin.defined()) {
             if (_output_cw_pin.capabilities().has(Pin::Capabilities::PWM)) {
-                auto outputNative = _output_cw_pin.getNative(Pin::Capabilities::PWM);
                 _output_cw_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
             } else {
-                log_error(name() << " output_cw_pin " << _output_cw_pin.name().c_str() << " cannot do PWM");
+                log_error(name() << " output_cw_pin " << _output_cw_pin.name() << " cannot do PWM");
             }
         } else {
             log_error(name() << " output_cw_pin not defined");
@@ -25,10 +23,9 @@ namespace Spindles {
 
         if (_output_ccw_pin.defined()) {
             if (_output_ccw_pin.capabilities().has(Pin::Capabilities::PWM)) {
-                auto outputBNative = _output_ccw_pin.getNative(Pin::Capabilities::PWM);
                 _output_ccw_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
             } else {
-                log_error(name() << " output_ccw_pin " << _output_ccw_pin.name().c_str() << " cannot do PWM");
+                log_error(name() << " output_ccw_pin " << _output_ccw_pin.name() << " cannot do PWM");
             }
         } else {
             log_error(name() << " output_ccw_pin not defined");
@@ -48,7 +45,7 @@ namespace Spindles {
     }
 
     void IRAM_ATTR HBridge::set_enable(bool enable) {
-        if (_disable_with_zero_speed && sys.spindle_speed == 0) {
+        if (_disable_with_zero_speed && sys.spindle_speed() == 0) {
             enable = false;
         }
 
@@ -61,7 +58,7 @@ namespace Spindles {
     }
 
     void HBridge::setState(SpindleState state, SpindleSpeed speed) {
-        if (sys.abort) {
+        if (sys.abort()) {
             return;  // Block during abort.
         }
 

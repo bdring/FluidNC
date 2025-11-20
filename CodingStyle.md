@@ -32,7 +32,7 @@ clang-format:
    problems, you should be fixing your includes, instead of disabling
    clang-format.
 2. Preprocessor commands are not formatted nicely in some cases.
-   This can hurt readibility in rare cases, in which case it's 
+   This can hurt readability in rare cases, in which case it's
    okay to disable clang-format temporarily with 
    `// clang-format off` and `// clang-format on`. Most notably, 
    machine definitions should have clang-format off.

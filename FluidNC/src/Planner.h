@@ -31,7 +31,7 @@ struct plan_block_t {
 
     uint32_t steps[MAX_N_AXIS];  // Step count along each axis
     uint32_t step_event_count;   // The maximum step axis count and number of steps required to complete this block.
-    uint8_t  direction_bits;     // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
+    AxisMask direction_bits;     // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
 
     // Block condition data to ensure correct execution depending on states and overrides.
     PlMotion     motion;       // Block bitflag motion conditions. Copied from pl_line_data.
@@ -84,7 +84,7 @@ void plan_reset_buffer();  // Reset buffer only.
 bool plan_buffer_line(float* target, plan_line_data_t* pl_data);
 
 // Called when the current block is no longer needed. Discards the block and makes the memory
-// availible for new blocks.
+// available for new blocks.
 void plan_discard_current_block();
 
 // Gets the planner block for the special system motion cases. (Parking/Homing)
@@ -92,9 +92,6 @@ plan_block_t* plan_get_system_motion_block();
 
 // Gets the current block. Returns NULL if buffer empty
 plan_block_t* plan_get_current_block();
-
-// Increment block index with wrap-around
-static uint8_t plan_next_block_index(uint8_t block_index);
 
 // Called by step segment buffer when computing executing block velocity profile.
 float plan_get_exec_block_exit_speed_sqr();

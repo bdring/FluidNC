@@ -1,10 +1,10 @@
 #include "CoreXY.h"
 
-#include "../Machine/MachineConfig.h"
-#include "../Limits.h"  // ambiguousLimit()
-#include "../Machine/Homing.h"
+#include "Machine/MachineConfig.h"
+#include "Limit.h"  // ambiguousLimit()
+#include "Machine/Homing.h"
 
-#include "../Protocol.h"  // protocol_execute_realtime
+#include "Protocol.h"  // protocol_execute_realtime
 
 #include <cmath>
 
@@ -35,6 +35,8 @@ namespace Kinematics {
         // A limit switch on either axis stops both motors
         Axes::_axis[X_AXIS]->_motors[0]->limitOtherAxis(Y_AXIS);
         Axes::_axis[Y_AXIS]->_motors[0]->limitOtherAxis(X_AXIS);
+
+        Cartesian::init_position();
     }
 
     bool CoreXY::canHome(AxisMask axisMask) {
@@ -75,12 +77,12 @@ namespace Kinematics {
         auto n_axis = axes->_numberAxis;
         // In CoreXY kinematics, the X and Y axes are coupled through two motors.
         if (bitnum_is_true(axisMask, X_AXIS) || bitnum_is_true(axisMask, Y_AXIS)) {
-            Stepping::unlimit(X_AXIS, 0);
-            Stepping::unlimit(Y_AXIS, 0);
+            Stepping::unlimit(X_AXIS, MOTOR0);
+            Stepping::unlimit(Y_AXIS, MOTOR0);
         }
-        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
+        for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
-                Stepping::unlimit(axis, 0);
+                Stepping::unlimit(axis, MOTOR0);
             }
         }
     }
@@ -123,13 +125,13 @@ namespace Kinematics {
       The status command uses motors_to_cartesian() to convert
       motor positions to cartesian X,Y,Z... coordinates.
     */
-    void CoreXY::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
+    void CoreXY::motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) {
         // apply the forward kinemetics to the machine coordinates
         // https://corexy.com/theory.html
         cartesian[X_AXIS] = 0.5 * (motors[X_AXIS] + motors[Y_AXIS]) / _x_scaler;
         cartesian[Y_AXIS] = 0.5 * (motors[X_AXIS] - motors[Y_AXIS]);
 
-        for (int axis = Z_AXIS; axis < n_axis; axis++) {
+        for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
             cartesian[axis] = motors[axis];
         }
     }
@@ -142,7 +144,7 @@ namespace Kinematics {
         motors[Y_AXIS] = (_x_scaler * cartesian[X_AXIS]) - cartesian[Y_AXIS];
 
         auto n_axis = Axes::_numberAxis;
-        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
+        for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
             motors[axis] = cartesian[axis];
         }
         return true;

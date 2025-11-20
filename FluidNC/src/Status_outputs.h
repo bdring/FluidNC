@@ -1,8 +1,8 @@
 #pragma once
 
-#include "src/Config.h"
-#include "src/Module.h"
-#include "src/Channel.h"
+#include "Config.h"
+#include "Module.h"
+#include "Channel.h"
 
 class Status_Outputs : public Channel, public ConfigurableModule {
     Pin _Idle_pin;
@@ -16,7 +16,7 @@ private:
     std::string _report;
     std::string _state;
 
-    int _report_interval_ms = 500;
+    int32_t _report_interval_ms = 500;
 
     void parse_report();
     void parse_status_report();

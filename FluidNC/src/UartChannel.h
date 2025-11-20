@@ -12,15 +12,15 @@ private:
     Lineedit* _lineedit;
     Uart*     _uart;
 
-    int _uart_num           = 0;
-    int _report_interval_ms = 0;
+    uint32_t _uart_num           = 0;
+    int32_t  _report_interval_ms = 0;
 
     static constexpr int _ack_timeout = 2000;
 
 public:
-    UartChannel(int num, bool addCR = false);
+    UartChannel(objnum_t num, bool addCR = false);
 
-    void init();
+    void init() override;
     void init(Uart* uart);
 
     // Print methods (Stream inherits from Print)
@@ -33,23 +33,23 @@ public:
     int read() override;
 
     // Channel methods
-    int    rx_buffer_available() override;
-    void   flushRx() override;
-    size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout);
-    size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); };
-    bool   realtimeOkay(char c) override;
-    bool   lineComplete(char* line, char c) override;
-    int    uart_num() { return _uart_num; }
-    Uart*  uart() { return _uart; }
+    int      rx_buffer_available() override;
+    void     flushRx() override;
+    size_t   timedReadBytes(char* buffer, size_t length, TickType_t timeout);
+    size_t   timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); };
+    bool     realtimeOkay(char c) override;
+    bool     lineComplete(char* line, char c) override;
+    uint32_t uart_num() { return _uart_num; }
+    Uart*    uart() { return _uart; }
 
-    bool setAttr(int index, bool* valuep, const std::string& s);
+    bool setAttr(pinnum_t index, bool* valuep, const std::string& s);
 
     void out(const std::string& s, const char* tag) override;
     void out_acked(const std::string& s, const char* tag) override;
 
     void getExpanderId();
 
-    void registerEvent(uint8_t pinnum, InputPin* obj);
+    void registerEvent(pinnum_t pinnum, InputPin* obj);
 
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {
@@ -58,7 +58,3 @@ public:
         handler.item("message_level", _message_level, messageLevels2);
     }
 };
-
-extern UartChannel Uart0;
-
-extern void uartInit();

@@ -3,37 +3,27 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
-#include "../GCode.h"
-
-#include <variant>
-#include <array>
+#include "Configuration/Configurable.h"
+#include "GCode.h"
+#include "InputPin.h"
 
 namespace Machine {
 
     class UserInputs : public Configuration::Configurable {
-        struct PinAndName {
-            std::string name;
-            Pin         pin;
-        };
-
-        std::array<PinAndName, MaxUserDigitalPin> _digitalInput;
-
         // TODO - analog pins are read the same as digital. The Pin
         // API should either be extended to support analog reads, or
         // a new AnalogPin class should be created.
-        std::array<PinAndName, MaxUserAnalogPin> _analogInput;
 
     public:
         UserInputs();
         virtual ~UserInputs();
 
+        static InputPin digitalInput[];
+        // Should be AnalogPin but we do not have such a thing yet
+        static InputPin analogInput[];
+
         void init();
         void group(Configuration::HandlerBase& handler) override;
-
-        using ReadInputResult = std::variant<bool, Error>;
-        ReadInputResult readDigitalInput(uint8_t input_number);
-        ReadInputResult readAnalogInput(uint8_t input_number);
     };
 
 }  // namespace Machine

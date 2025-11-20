@@ -1,12 +1,12 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 // #include <ESPmDNS.h>
-#include "src/Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 #include "TelnetClient.h"
 #include "TelnetServer.h"
 
 #include "Mdns.h"
-#include "src/Report.h"  // report_init_message()
+#include "Report.h"  // report_init_message()
 
 #include <WiFi.h>
 
@@ -73,7 +73,7 @@ namespace WebUI {
 
         //check if there are any new clients
         if (_wifiServer->hasClient()) {
-            WiFiClient* tcpClient = new WiFiClient(_wifiServer->available());
+            WiFiClient* tcpClient = new WiFiClient(_wifiServer->accept());
             if (!tcpClient) {
                 log_error("Creating telnet client failed");
             }

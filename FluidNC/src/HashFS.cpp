@@ -1,34 +1,43 @@
 #include "HashFS.h"
 #include "FileStream.h"
 
-#include <mbedtls/md.h>
+#ifdef WITH_MBEDTLS
+#    include <mbedtls/md.h>
+#    include "Driver/watchdog.h"
+#endif
 
 std::map<std::string, std::string> HashFS::localFsHashes;
 
-static char hexNibble(int i) {
+static char hexNibble(uint8_t i) {
     return "0123456789ABCDEF"[i & 0xf];
 }
 
 static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  // No ESP command
-    mbedtls_md_context_t ctx;
-
     uint8_t shaResult[32];
 
     try {
-        FileStream inFile { ipath, "r" };
+        FileStream inFile { ipath.string(), "r" };
         uint8_t    buf[512];
         size_t     len;
+
+#ifdef WITH_MBEDTLS
+        mbedtls_md_context_t ctx;
 
         mbedtls_md_init(&ctx);
         mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
         mbedtls_md_starts(&ctx);
         while ((len = inFile.read(buf, 512)) > 0) {
             mbedtls_md_update(&ctx, buf, len);
+            feed_watchdog();
         }
         mbedtls_md_finish(&ctx, shaResult);
         mbedtls_md_free(&ctx);
+#else
+        // Use the first 32 bytes of the file as a not-very-good "hash"
+        inFile.read(shaResult, 32);
+#endif
     } catch (const Error err) {
-        log_debug("Cannot hash file " << ipath);
+        log_debug("Cannot hash file " << ipath.string());
         return Error::FsFailedOpenFile;
     }
 
@@ -48,14 +57,14 @@ void HashFS::report_change() {
 }
 
 void HashFS::delete_file(const std::filesystem::path& path, bool report) {
-    localFsHashes.erase(path.filename());
+    localFsHashes.erase(path.filename().string());
     if (report) {
         report_change();
     }
 }
 
 bool HashFS::file_is_hashable(const std::filesystem::path& path) {
-    int count = 0;
+    uint32_t count = 0;
     for (auto it = path.begin(); it != path.end(); ++it) {
         ++count;
     }
@@ -75,7 +84,7 @@ void HashFS::rehash_file(const std::filesystem::path& path, bool report) {
         if (hashFile(path, hash) != Error::Ok) {
             delete_file(path, false);
         } else {
-            localFsHashes[path.filename()] = hash;
+            localFsHashes[path.filename().string()] = hash;
         }
     }
     if (report) {
@@ -98,7 +107,7 @@ void HashFS::hash_all() {
 
     auto iter = stdfs::directory_iterator { lfspath, ec };
     if (ec) {
-        log_error(lfspath << " " << ec.message());
+        log_error(lfspath.string() << " " << ec.message());
         return;
     }
     for (auto const& dir_entry : iter) {
@@ -110,7 +119,7 @@ void HashFS::hash_all() {
 std::string HashFS::hash(const std::filesystem::path& path, bool useCacheOnly /*= false*/) {
     if (file_is_hashable(path)) {
         std::map<std::string, std::string>::const_iterator it;
-        it = localFsHashes.find(path.filename());
+        it = localFsHashes.find(path.filename().string());
         if (it != localFsHashes.end()) {
             return it->second;
         }

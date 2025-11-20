@@ -5,20 +5,21 @@
 
 #include <sdkconfig.h>
 
-#if CONFIG_IDF_TARGET_ESP32
-#    include "esp32/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32S2
-#    include "esp32s2/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32S3
-#    include "esp32s3/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32C3
-#    include "esp32c3/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32H2
-#    include "esp32h2/clk.h"
-#endif
+// #include <esp_clk_tree.h>
+// esp_clk_cpu_freq() was present in some versions of ESP-IDF but the version
+// of framework-arduinoespressif32 that we are using does not have the associated
+// libesp_hw_support.a library in the esp32s3 subdirectory.  It is present in the
+// other subdirectories (esp32/, esp32s2/ and esp32c3)
+int esp_clk_cpu_freq(void) {
+    // This is how to do it with newer ESP-IDF versions
+    // uint32_t cpu_freq_hz;
+    // esp_clk_tree_src_get_freq_hz(SOC_CPU_CLK_SRC_XTAL, ESP_CLK_TREE_SRC_FREQ_PRECISION_APPROX, &cpu_freq_hz);
+    // return cpu_freq_hz;
+
+    return 240000000;
+}
 
 uint32_t ticks_per_us;
-int      esp_clk_cpu_freq(void);
 
 // cppcheck-suppress unusedFunction
 void timing_init() {

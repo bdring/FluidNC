@@ -3,14 +3,14 @@
 
 #pragma once
 
-#include "src/Config.h"
+#include "Config.h"
 
-#include "src/Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 
-#include "src/Channel.h"
-#include "src/Module.h"
+#include "Channel.h"
+#include "Module.h"
 #include "atc.h"
-#include "../Machine/Macros.h"
+#include "Machine/Macros.h"
 
 namespace ATCs {
     class Manual_ATC : public ATC {
@@ -33,11 +33,11 @@ namespace ATCs {
         std::vector<float> _change_mpos      = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };  // manual tool change location
         float              _ets_rapid_z_mpos = 0;
 
-        bool    _is_OK                   = false;
-        uint8_t _prev_tool               = 0;  // TODO This could be a NV setting
-        bool    _have_tool_setter_offset = false;
-        float   _tool_setter_offset      = 0.0;  // have we established an offset.
-        float   _tool_setter_position[MAX_N_AXIS];
+        bool   _is_OK                   = false;
+        tool_t _prev_tool               = 0;  // TODO This could be a NV setting
+        bool   _have_tool_setter_offset = false;
+        float  _tool_setter_offset      = 0.0;  // have we established an offset.
+        float  _tool_setter_position[MAX_N_AXIS];
 
         void move_to_change_location();
         void move_to_safe_z();
@@ -50,7 +50,7 @@ namespace ATCs {
     public:
         void init() override;
         void probe_notification() override;
-        bool tool_change(uint8_t value, bool pre_select, bool set_tool) override;
+        bool tool_change(tool_t value, bool pre_select, bool set_tool) override;
 
         void validate() override {}
 

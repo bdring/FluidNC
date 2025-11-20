@@ -45,7 +45,7 @@ public:
     // data, you either get it "immediately" or you get a response
     // saying you will never get it (error or end-of-file).
 
-    Error readLine(char* line, int len);
+    Error readLine(char* line, size_t len);
 
     // Channel methods
     size_t write(uint8_t c) override { return 0; }

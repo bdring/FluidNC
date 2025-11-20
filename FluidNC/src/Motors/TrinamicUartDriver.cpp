@@ -11,9 +11,10 @@
 
 #include "TrinamicUartDriver.h"
 
-#include "../Machine/MachineConfig.h"
-#include "../Uart.h"
+#include "Machine/MachineConfig.h"
+#include "Uart.h"
 
+#include <cstdint> // MUST be before TMCStepper.h
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <atomic>
 

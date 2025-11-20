@@ -7,9 +7,7 @@
 */
 #include "NullSpindle.h"
 
-#include "../System.h"  // sys.spindle_speed
-
-#include <esp_attr.h>  // IRAM_ATTR
+#include "System.h"  // sys.spindle_speed
 
 namespace Spindles {
     // ======================= Null ==============================
@@ -21,9 +19,10 @@ namespace Spindles {
         _speeds.clear();
     }
     void IRAM_ATTR Null::setSpeedfromISR(uint32_t dev_speed) {};
-    void           Null::setState(SpindleState state, SpindleSpeed speed) {
-        _current_state    = state;
-        sys.spindle_speed = speed;
+
+    void Null::setState(SpindleState state, SpindleSpeed speed) {
+        _current_state = state;
+        sys.set_spindle_speed(speed);
     }
     void Null::config_message() { /*log_info("No spindle");*/
     }

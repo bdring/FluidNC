@@ -77,6 +77,8 @@ typedef struct {
     bool                  use_ref_tick;        /*!< Set to true if UART should be clocked from REF_TICK */
 } uart_config_t;
 
+const int UART_FIFO_LEN = 128;
+
 esp_err_t uart_flush(uart_port_t uart_num);
 esp_err_t uart_param_config(uart_port_t uart_num, const uart_config_t* uart_config);
 esp_err_t uart_driver_install(

@@ -4,12 +4,13 @@
 #pragma once
 
 #include "HandlerType.h"
-#include "src/Pin.h"
-#include "src/Machine/EventPin.h"
-#include "src/EnumItem.h"
-#include "src/SpindleDatatypes.h"
-#include "src/UartTypes.h"
-#include "src/Macro.h"
+#include "Pin.h"
+#include "Machine/EventPin.h"
+#include "EnumItem.h"
+#include "SpindleDatatypes.h"
+#include "UartTypes.h"
+#include "Macro.h"
+#include "Platform.h"
 
 #include <IPAddress.h>
 #include <string>
@@ -53,10 +54,12 @@ namespace Configuration {
         virtual void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits)            = 0;
 
         virtual void item(const char* name, EventPin& value)  = 0;
+        virtual void item(const char* name, InputPin& value)  = 0;
         virtual void item(const char* name, Pin& value)       = 0;
         virtual void item(const char* name, IPAddress& value) = 0;
 
-        virtual void item(const char* name, int& value, const EnumItem* e) = 0;
+        virtual void item(const char* name, uint32_t& value, const EnumItem* e) = 0;
+        virtual void item(const char* name, axis_t& value)                      = 0;
 
         virtual void item(const char* name, std::string& value, const int minLength = 0, const int maxLength = 255) = 0;
 
@@ -75,6 +78,17 @@ namespace Configuration {
                 if (value != nullptr) {
                     enterSection(name, value);
                 }
+            }
+        }
+
+        template <typename T>
+        void sections(const char* name, uint32_t first_section, uint32_t limit_section, bool omit0, T* array) {
+            for (int i = first_section; i < limit_section; i++) {
+                std::string section_name(name);
+                if (i || !omit0) {
+                    section_name += std::to_string(i);
+                }
+                section(section_name.c_str(), array[i], i);
             }
         }
 

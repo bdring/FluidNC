@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
-#include "../GCode.h"  // MaxUserDigitalPin MaxUserAnalogPin
+#include "Configuration/Configurable.h"
+#include "GCode.h"  // MaxUserDigitalPin MaxUserAnalogPin
 
 namespace Machine {
     class UserOutputs : public Configuration::Configurable {
@@ -14,9 +14,9 @@ namespace Machine {
     public:
         UserOutputs();
 
-        Pin _analogOutput[MaxUserAnalogPin];
-        int _analogFrequency[MaxUserAnalogPin];
-        Pin _digitalOutput[MaxUserDigitalPin];
+        Pin     _analogOutput[MaxUserAnalogPin];
+        int32_t _analogFrequency[MaxUserAnalogPin];
+        Pin     _digitalOutput[MaxUserDigitalPin];
 
         void init();
         void all_off();

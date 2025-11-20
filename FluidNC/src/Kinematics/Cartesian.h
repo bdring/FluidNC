@@ -30,20 +30,25 @@ namespace Kinematics {
                                  float*            position,
                                  float             center[3],
                                  float             radius,
-                                 size_t            caxes[3],
+                                 axis_t            caxes[3],
                                  bool              is_clockwise_arc,
-                                 int               pword_rotations) override;
+                                 uint32_t          rotations) override;
 
         virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) override;
         virtual void init() override;
         virtual void init_position() override;
-        void         motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
+        void         motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) override;
         bool         transform_cartesian_to_motors(float* cartesian, float* motors) override;
 
         bool         canHome(AxisMask axisMask) override;
         void         releaseMotors(AxisMask axisMask, MotorMask motors) override;
         bool         limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) override;
         virtual bool kinematics_homing(AxisMask& axisMask) override;
+
+        void axesVector(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms);
+
+        void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) override;
+        void set_homed_mpos(float* mpos);
 
         // Configuration handlers:
         void afterParse() override {}

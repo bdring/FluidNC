@@ -1,13 +1,14 @@
 #pragma once
 
-#include "src/JSONEncoder.h"
-#include "src/WebUI/Authentication.h"
-#include "src/Report.h"  // info_channel
-#include "src/GCode.h"   // CoordIndex
+#include "JSONEncoder.h"
+#include "WebUI/Authentication.h"
+#include "Report.h"  // info_channel
+#include "GCode.h"   // CoordIndex
 
 #include <string_view>
 #include <map>
-#include <nvs.h>
+#include <Driver/NVS.h>
+#include <functional>
 
 // forward declarations
 namespace Machine {
@@ -40,9 +41,6 @@ void settings_restore(uint8_t restore_flag);
 // kinds of data.  Code that accesses settings should use only these
 // generic functions and should not use derived classes directly.
 
-enum {
-    NO_AXIS = 255,
-};
 typedef enum : uint8_t {
     GRBL = 1,  // Classic GRBL settings like $100
     EXTENDED,  // Settings added by early versions of Grbl_Esp32
@@ -60,8 +58,6 @@ typedef enum : uint8_t {
     WU,  // Readable and writable as user and admin
     WA,  // Readable as user and admin, writable as admin
 } permissions_t;
-
-typedef uint8_t axis_t;
 
 class Word {
 protected:
@@ -81,11 +77,11 @@ public:
 };
 
 class Command : public Word {
-private:
-    bool _synchronous = true;
-
 protected:
     bool (*_cmdChecker)();
+
+private:
+    bool _synchronous = true;
 
 public:
     // Command::List is a vector of all commands,
@@ -109,16 +105,17 @@ public:
     bool          synchronous() { return _synchronous; }
 };
 
+extern NVS nvs;
+
 class Setting : public Word {
 private:
 protected:
     // group_t _group;
-    axis_t      _axis = NO_AXIS;
+    axis_t      _axis = INVALID_AXIS;
     const char* _keyName;
 
 public:
-    static nvs_handle _handle;
-    static void       init();
+    static void init();
 
     // Setting::List is a vector of all settings,
     // so common code can enumerate them.
@@ -127,26 +124,17 @@ public:
     Error check_state();
 
     static Error report_nvs_stats(const char* value, AuthenticationLevel auth_level, Channel& out) {
-        nvs_stats_t stats;
-        if (esp_err_t err = nvs_get_stats(NULL, &stats)) {
+        size_t used, free, total;
+        if (nvs.get_stats(used, free, total)) {
             return Error::NvsGetStatsFailed;
         }
 
-        log_info("NVS Used:" << stats.used_entries << " Free:" << stats.free_entries << " Total:" << stats.total_entries);
-#if 0  // The SDK we use does not have this yet
-        nvs_iterator_t it = nvs_entry_find(NULL, NULL, NVS_TYPE_ANY);
-        while (it != NULL) {
-            nvs_entry_info_t info;
-            nvs_entry_info(it, &info);
-            it = nvs_entry_next(it);
-            log_info("namespace:"<<info.namespace_name<<" key:"<<info.key<<" type:"<< info.type);
-        }
-#endif
+        log_info("NVS Used:" << used << " Free:" << free << " Total:" << total);
         return Error::Ok;
     }
 
     static Error eraseNVS(const char* value, AuthenticationLevel auth_level, Channel& out) {
-        nvs_erase_all(_handle);
+        nvs.erase_all();
         return Error::Ok;
     }
 
@@ -198,7 +186,8 @@ public:
                int32_t       defVal,
                int32_t       minVal,
                int32_t       maxVal,
-               bool currentIsNvm = false) : IntSetting(NULL, type, permissions, grblName, name, defVal, minVal, maxVal, currentIsNvm) {}
+               bool          currentIsNvm = false) :
+        IntSetting(NULL, type, permissions, grblName, name, defVal, minVal, maxVal, currentIsNvm) {}
 
     void        load();
     void        setDefault();
@@ -264,9 +253,9 @@ public:
     // Return a pointer to the array
     const float* get() { return _currentValue; }
     // Get an individual component
-    const float get(int axis) { return _currentValue[axis]; }
+    float get(axis_t axis) { return _currentValue[axis]; }
     // Set an individual component
-    void set(int axis, float value) { _currentValue[axis] = value; }
+    void set(axis_t axis, float value) { _currentValue[axis] = value; }
 
     void set(float* value);
 };
@@ -278,8 +267,8 @@ private:
     std::string _defaultValue;
     std::string _currentValue;
     std::string _storedValue;
-    int         _minLength;
-    int         _maxLength;
+    int32_t     _minLength;
+    int32_t     _maxLength;
     void        _setStoredValue(const char* s);
 
 public:
@@ -289,8 +278,8 @@ public:
                   const char*   grblName,
                   const char*   name,
                   const char*   defVal,
-                  int           min,
-                  int           max);
+                  int32_t       min,
+                  int32_t       max);
 
     StringSetting(type_t type, permissions_t permissions, const char* grblName, const char* name, const char* defVal) :
         StringSetting(NULL, type, permissions, grblName, name, defVal, 0, 0) {};
@@ -347,6 +336,8 @@ extern bool anyState();
 extern bool cycleOrHold();
 extern bool allowConfigStates();
 
+extern bool usedGrblName;
+
 class IPaddrSetting : public Setting {
 private:
     uint32_t _defaultValue;
@@ -380,7 +371,8 @@ public:
                const char*   name,
                Error (*action)(const char*, AuthenticationLevel, Channel& out),
                bool (*cmdChecker)() = notIdleOrAlarm) :
-        Command(description, type, permissions, grblName, name, cmdChecker), _action(action) {}
+        Command(description, type, permissions, grblName, name, cmdChecker),
+        _action(action) {}
 
     Error action(const char* value, AuthenticationLevel auth_level, Channel& out);
 };
@@ -394,8 +386,10 @@ public:
                 const char* name,
                 Error (*action)(const char*, AuthenticationLevel, Channel&),
                 bool (*cmdChecker)(),
-                permissions_t auth = WG,
-                bool synchronous   = true) : Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker, synchronous), _action(action) {}
+                permissions_t auth        = WG,
+                bool          synchronous = true) :
+        Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker, synchronous),
+        _action(action) {}
 
     Error action(const char* value, AuthenticationLevel auth_level, Channel& response);
 };
@@ -405,7 +399,8 @@ public:
                      const char* name,
                      Error (*action)(const char*, AuthenticationLevel, Channel&),
                      bool (*cmdChecker)(),
-                     permissions_t auth = WG) : UserCommand(grblName, name, action, cmdChecker, auth, false) {}
+                     permissions_t auth = WG) :
+        UserCommand(grblName, name, action, cmdChecker, auth, false) {}
 };
 
 // Execute the startup script lines stored in non-volatile storage upon initialization

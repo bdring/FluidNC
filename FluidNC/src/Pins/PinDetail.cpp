@@ -3,9 +3,6 @@
 
 #include "PinDetail.h"
 
-#include "../Assert.h"
-#include <esp_attr.h>  // IRAM_ATTR
-
 namespace Pins {
     // cppcheck-suppress unusedFunction
     void PinDetail::registerEvent(InputPin* obj) {
@@ -13,7 +10,7 @@ namespace Pins {
     }
 
     // cppcheck-suppress unusedFunction
-    void IRAM_ATTR PinDetail::synchronousWrite(int high) {
+    void IRAM_ATTR PinDetail::synchronousWrite(bool high) {
         write(high);
     }
 }

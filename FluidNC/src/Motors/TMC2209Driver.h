@@ -4,8 +4,8 @@
 #pragma once
 
 #include "TrinamicUartDriver.h"
-#include "../Pin.h"
-#include "../PinMapper.h"
+#include "Pin.h"
+#include "PinMapper.h"
 
 #include <cstdint>
 
@@ -27,6 +27,7 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             TrinamicUartDriver::group(handler);
 
+            handler.item("addr", _addr);
             handler.item("run_mode", _run_mode, trinamicModes);
             handler.item("homing_mode", _homing_mode, trinamicModes);
             handler.item("homing_amps", _homing_current, 0.0, 10.0);
@@ -39,7 +40,6 @@ namespace MotorDrivers {
             TrinamicUartDriver::afterParse();
             if (_homing_current == 0) {
                 _homing_current = _run_current;
-                log_warn(axisName() << " " << name() << " homing current not in config. Using run current");
             }
         }
 

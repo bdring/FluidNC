@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 // #include "Axes.h"
 #include "Motor.h"
 #include "Homing.h"
@@ -15,13 +15,13 @@ namespace MotorDrivers {
 
 namespace Machine {
     class Axis : public Configuration::Configurable {
-        int _axis;
-        int motorsWithSwitches();
+        axis_t  _axis;
+        motor_t motorsWithSwitches();
 
     public:
-        Axis(int currentAxis) : _axis(currentAxis) {
-            for (int i = 0; i < MAX_MOTORS_PER_AXIS; ++i) {
-                _motors[i] = nullptr;
+        Axis(axis_t currentAxis) : _axis(currentAxis) {
+            for (motor_t motor = 0; motor < MAX_MOTORS_PER_AXIS; ++motor) {
+                _motors[motor] = nullptr;
             }
         }
 
@@ -49,6 +49,7 @@ namespace Machine {
 
         void init();
         void config_motors();
+        bool can_home();
 
         ~Axis();
     };

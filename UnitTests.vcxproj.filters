@@ -46,6 +46,12 @@
     <Filter Include="test\Pins">
       <UniqueIdentifier>{dc4ba3bc-4342-4a67-aea2-f68877f1ee69}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\Extenders">
+      <UniqueIdentifier>{2b9b9202-4bb3-450e-a90b-99f042de0af2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="test\Extender">
+      <UniqueIdentifier>{4f2af482-2e54-41bf-b698-1ab77a1a5ea3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FluidNC\src\SettingsDefinitions.h">
@@ -108,10 +114,10 @@
     <ClInclude Include="FluidNC\src\Channel.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="FluidNC\src\WebUI\WebServer.h">
+    <ClInclude Include="FluidNC\src\WebUI\WebUIServer.h">
       <Filter>src\WebUI</Filter>
     </ClInclude>
-    <ClInclude Include="FluidNC\src\Assert.h">
+    <ClInclude Include="FluidNC\src\Assertion.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Spindles\RelaySpindle.h">
@@ -224,9 +230,6 @@
     </ClInclude>
     <ClInclude Include="FluidNC\src\Configuration\AfterParse.h">
       <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="FluidNC\src\UserOutput.h">
-      <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Motors\MotorDriver.h">
       <Filter>src\Motors</Filter>
@@ -573,6 +576,33 @@
     <ClInclude Include="X86TestSupport\TestSupport\soc\uart_reg.h">
       <Filter>X86TestSupport</Filter>
     </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\Wire.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\StartupLog.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\I2CBus.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Extenders\PinExtender.h">
+      <Filter>src\Extenders</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Extenders\PinExtenderDriver.h">
+      <Filter>src\Extenders</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Extenders\Extenders.h">
+      <Filter>src\Extenders</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Pins\ExtPinDetail.h">
+      <Filter>src\Pins</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-i2c.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Extenders\I2CExtender.h">
+      <Filter>src\Extenders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FluidNC\src\System.cpp">
@@ -664,9 +694,6 @@
     </ClCompile>
     <ClCompile Include="FluidNC\src\Configuration\RuntimeSetting.cpp">
       <Filter>src\Configuration</Filter>
-    </ClCompile>
-    <ClCompile Include="FluidNC\src\UserOutput.cpp">
-      <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="FluidNC\src\StackTrace\AssertionFailed.cpp">
       <Filter>src\StackTrace</Filter>
@@ -814,9 +841,6 @@
     </ClCompile>
     <ClCompile Include="FluidNC\src\Spindles\NullSpindle.cpp">
       <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="FluidNC\src\version.cpp">
-      <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="FluidNC\src\Machine\LimitPin.cpp">
       <Filter>src\Machine</Filter>
@@ -988,6 +1012,33 @@
     </ClCompile>
     <ClCompile Include="X86TestSupport\TestSupport\driver\uartdriver.cpp">
       <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\StartupLog.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\version.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Machine\I2CBus.cpp">
+      <Filter>src\Machine</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Extenders\PinExtenderDriver.cpp">
+      <Filter>src\Extenders</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Extenders\Extenders.cpp">
+      <Filter>src\Extenders</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\Wire.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Pins\ExtPinDetail.cpp">
+      <Filter>src\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Extenders\I2CExtender.cpp">
+      <Filter>src\Extenders</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Extender\I2CExtenderTests.cpp">
+      <Filter>test\Extender</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

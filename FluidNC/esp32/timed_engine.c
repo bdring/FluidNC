@@ -20,13 +20,13 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint
     return _pulse_delay_us;
 }
 
-static int init_step_pin(int step_pin, int step_invert) {
+static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
     return step_pin;
 }
 
 static int _stepPulseEndTime;
 
-static void IRAM_ATTR set_pin(int pin, int level) {
+static void IRAM_ATTR set_pin(pinnum_t pin, bool level) {
     gpio_write(pin, level);
 }
 
@@ -44,9 +44,9 @@ static void IRAM_ATTR finish_step() {
     _stepPulseEndTime = usToEndTicks(_pulse_delay_us);
 }
 
-static int IRAM_ATTR start_unstep() {
+static bool IRAM_ATTR start_unstep() {
     spinUntil(_stepPulseEndTime);
-    return 0;
+    return false;
 }
 
 // This is a noop because each gpio_write() takes effect immediately,
@@ -84,7 +84,8 @@ static step_engine_t engine = {
     max_pulses_per_sec,
     set_timer_ticks,
     start_timer,
-    stop_timer
+    stop_timer,
+    NULL
 };
 
 REGISTER_STEP_ENGINE(Timed, &engine);

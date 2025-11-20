@@ -3,19 +3,18 @@
 
 #pragma once
 
+#include "Config.h"
 #include "Pins/PinDetail.h"
 
-#include <esp_attr.h>  // IRAM_ATTR
 #include <cstdint>
 #include <string>
 #include <cstring>
 #include <utility>
 #include <string_view>
-#include "Assert.h"
 
 // #define DEBUG_PIN_DUMP  // Pin debugging. WILL spam you with a lot of data!
 
-// Pin class. A pin is basically a thing that can 'output', 'input' or do both. GPIO on an ESP32 comes to mind,
+// Pin class. A pin is basically a thing that can 'output', 'input' or do both.
 // but there are way more possible pins. Think about I2S/I2C/SPI extenders, RS485 driven pin devices and even
 // WiFi wall sockets.
 //
@@ -107,13 +106,13 @@ public:
     // External libraries normally use digitalWrite, digitalRead and setMode. Since we cannot handle that behavior, we
     // just give back the pinnum_t for getNative.
     inline pinnum_t getNative(Capabilities expectedBehavior) const {
-        Assert(_detail->capabilities().has(expectedBehavior), "Requested pin %s does not have the expected behavior.", name().c_str());
+        Assert(_detail->capabilities().has(expectedBehavior), "Pin %s cannot be used as requested", name());
         return _detail->_index;
     }
-    inline int8_t driveStrength() const { return _detail->driveStrength(); }
-    inline bool   canStep() { return _detail->canStep(); }
-    inline int    index() { return _detail->_index; }
-    inline bool   inverted() { return _detail->_inverted; }
+    inline int8_t   driveStrength() const { return _detail->driveStrength(); }
+    inline bool     canStep() { return _detail->canStep(); }
+    inline pinnum_t index() { return _detail->_index; }
+    inline bool     inverted() { return _detail->_inverted; }
 
     // In principle, IRAM_ATTR would not be needed for inlined methods, but
     // the compiler does not seem to actually inline these.  Adding IRAM_ATTR
@@ -141,7 +140,7 @@ public:
     // Other functions:
     Capabilities capabilities() const { return _detail->capabilities(); }
 
-    inline std::string name() const { return _detail->toString(); }
+    inline const char* name() const { return _detail->name(); }
 
     void report(const char* legend);
     void report(const std::string& legend) { report(legend.c_str()); }
@@ -150,3 +149,9 @@ public:
 
     ~Pin();
 };
+
+#include <Print.h>
+inline Print& operator<<(Print& lhs, const Pin& v) {
+    lhs.print(v.name());
+    return lhs;
+}

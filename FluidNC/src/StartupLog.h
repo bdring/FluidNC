@@ -9,12 +9,11 @@
 
 class StartupLog : public Channel {
 public:
-    StartupLog() : Channel("Startup Log") {}
+    StartupLog();
     virtual ~StartupLog();
 
     size_t write(uint8_t data) override;
 
-    static void init();
     static void dump(Channel& channel);
 };
 

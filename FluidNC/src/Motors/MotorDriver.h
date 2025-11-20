@@ -3,11 +3,10 @@
 
 #pragma once
 
-#include "../Config.h"
-#include "../Assert.h"
-#include "../Configuration/GenericFactory.h"
-#include "../Configuration/HandlerBase.h"
-#include "../Configuration/Configurable.h"
+#include "Config.h"
+#include "Configuration/GenericFactory.h"
+#include "Configuration/HandlerBase.h"
+#include "Configuration/Configurable.h"
 
 /*
     Header file for Motor Classes
@@ -22,7 +21,7 @@
     See motorClass.cpp for more details
 */
 
-#include "../Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 
 #include <cstdint>
 
@@ -34,7 +33,7 @@ namespace MotorDrivers {
         MotorDriver(const char* name) : _name(name) {}
 
         static constexpr int      max_n_axis = MAX_N_AXIS;
-        static constexpr uint32_t axis_mask  = (1 << max_n_axis) - 1;
+        static constexpr AxisMask axis_mask  = (1 << max_n_axis) - 1;
 
         // init() establishes configured motor parameters.  It is called after
         // all motor objects have been constructed.
@@ -54,6 +53,10 @@ namespace MotorDrivers {
         // Some motor types require differ setups for homing and
         // normal operation.  Returns true if the motor can home
         virtual bool set_homing_mode(bool isHoming) = 0;
+
+        // this is used to determine if the motor can home
+        // it is tested when hoing cycles are requested.
+        virtual bool can_self_home() = 0;
 
         // set_disable() disables or enables a motor.  It is used to
         // make a motor transition between idle and non-idle states.
@@ -96,8 +99,8 @@ namespace MotorDrivers {
         //   tables can be indexed by these variables.
         // TODO Architecture: It might be useful to cache a
         // reference to the axis settings entry.
-        size_t axis_index() const;       // X_AXIS, etc
-        size_t dual_axis_index() const;  // motor number 0 or 1
+        axis_t axis_index() const;       // X_AXIS, etc
+        motor_t dual_axis_index() const;  // motor number 0 or 1
     };
 
     using MotorFactory = Configuration::GenericFactory<MotorDriver>;

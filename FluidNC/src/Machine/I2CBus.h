@@ -3,21 +3,17 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
-
-#include <esp_attr.h>
-
-class TwoWire;
+#include "Configuration/Configurable.h"
 
 namespace Machine {
     class I2CBus : public Configuration::Configurable {
-    private:
+    protected:
         bool _error = false;
 
     public:
-        I2CBus(int busNumber);
+        I2CBus(objnum_t busNumber);
 
-        int      _busNumber = 0;
+        objnum_t _busNumber = 0;
         Pin      _sda;
         Pin      _scl;
         uint32_t _frequency = 100000;

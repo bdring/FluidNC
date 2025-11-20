@@ -1,6 +1,7 @@
 #include "WallPlotter.h"
 
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
+#include "Limit.h"
 
 #include <cmath>
 
@@ -27,7 +28,7 @@ namespace Kinematics {
         last_motor_segment_end[0] = zero_left;
         last_motor_segment_end[1] = zero_right;
         auto n_axis               = Axes::_numberAxis;
-        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
+        for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
             last_motor_segment_end[axis] = 0.0;
         }
 
@@ -36,10 +37,18 @@ namespace Kinematics {
 
     // Initialize the machine position
     void WallPlotter::init_position() {
-        auto n_axis = Axes::_numberAxis;
-        for (size_t axis = 0; axis < n_axis; axis++) {
-            set_motor_steps(axis, 0);  // Set to zeros
+        // Same as cartesian
+        auto  n_axis = Axes::_numberAxis;
+        float min_mpos[n_axis];
+        float max_mpos[n_axis];
+
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+            set_steps(axis, 0);  // Set to zeros
+            min_mpos[axis] = limitsMinPosition(axis);
+            max_mpos[axis] = limitsMaxPosition(axis);
         }
+        transform_cartesian_to_motors(_min_motor_pos, min_mpos);
+        transform_cartesian_to_motors(_max_motor_pos, max_mpos);
     }
 
     bool WallPlotter::canHome(AxisMask axisMask) {
@@ -63,9 +72,6 @@ namespace Kinematics {
         position = an n_axis array of where the machine is starting from for this move
     */
     bool WallPlotter::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        float    dx, dy, dz;     // segment distances in each cartesian axis
-        uint32_t segment_count;  // number of segments the move will be broken in to.
-
         auto n_axis = Axes::_numberAxis;
 
         float total_cartesian_distance = vector_distance(position, target, n_axis);
@@ -80,7 +86,7 @@ namespace Kinematics {
         // Z axis is the same in both coord systems, so it does not undergo conversion
         float xydist = vector_distance(target, position, 2);  // Only compute distance for both axes. X and Y
         // Segment our G1 and G0 moves based on yaml file. If we choose a small enough _segment_length we can hide the nonlinearity
-        segment_count = xydist / _segment_length;
+        uint32_t segment_count = xydist / _segment_length;
         if (segment_count < 1) {  // Make sure there is at least one segment, even if there is no movement
             // We need to do this to make sure other things like S and M codes get updated properly by
             // the planner even if there is no movement??
@@ -90,7 +96,7 @@ namespace Kinematics {
 
         // Calc length of each cartesian segment - the same for all segments
         float cartesian_segment_components[n_axis];
-        for (size_t axis = X_AXIS; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             cartesian_segment_components[axis] = (target[axis] - position[axis]) / segment_count;
         }
 
@@ -99,18 +105,18 @@ namespace Kinematics {
 
         // Calculate desired cartesian feedrate distance ratio. Same for each seg.
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
-            if (sys.abort) {
+            if (sys.abort()) {
                 return true;
             }
             // calculate the cartesian end point of the next segment
-            for (size_t axis = X_AXIS; axis < n_axis; axis++) {
+            for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
                 cartesian_segment_end[axis] += cartesian_segment_components[axis];
             }
 
             // Convert cartesian space coords to motor space
             float motor_segment_end[n_axis];
             xy_to_lengths(cartesian_segment_end[X_AXIS], cartesian_segment_end[Y_AXIS], motor_segment_end[0], motor_segment_end[1]);
-            for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
+            for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
                 motor_segment_end[axis] = cartesian_segment_end[axis];
             }
 
@@ -145,7 +151,7 @@ namespace Kinematics {
             float cables[n_axis];
             cables[0] = 0 - (motor_segment_end[0] - zero_left);
             cables[1] = 0 + (motor_segment_end[1] - zero_right);
-            for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
+            for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
                 cables[axis] = cartesian_segment_end[axis];
             }
             if (!mc_move_motors(cables, pl_data)) {
@@ -162,7 +168,7 @@ namespace Kinematics {
 
       Convert the n_axis array of motor positions to cartesian in your code.
     */
-    void WallPlotter::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
+    void WallPlotter::motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) {
         // The motors start at zero, but effectively at zero_left, so we need to correct for the computation.
         // Note that the left motor runs backward.
         // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
@@ -172,7 +178,7 @@ namespace Kinematics {
 
         cartesian[X_AXIS] = absolute_x;
         cartesian[Y_AXIS] = absolute_y;
-        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
+        for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
             cartesian[axis] = motors[axis];
         }
         // Now we have numbers that if fed back into the system should produce the same values.

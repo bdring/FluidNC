@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "TMC5160Driver.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 #include <atomic>
 
 namespace MotorDrivers {
@@ -49,7 +49,7 @@ namespace MotorDrivers {
         tmc5160->rms_current(run_i, TrinamicSpiDriver::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping
-        int usteps = _microsteps == 1 ? 0 : _microsteps;
+        uint32_t usteps = _microsteps == 1 ? 0 : _microsteps;
         tmc5160->microsteps(usteps);
 
         tmc5160->tpfd(_tpfd);

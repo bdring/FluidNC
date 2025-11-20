@@ -15,7 +15,7 @@
 
 const int MAX_INT_DIGITS = 8;  // Maximum number of digits in int32 (and float)
 
-static float uint_to_float(uint32_t intval, int exp) {
+static float uint_to_float(uint32_t intval, int8_t exp) {
     float fval = (float)intval;
     // Apply decimal. Should perform no more than two floating point multiplications for the
     // expected range of E0 to E-4.
@@ -97,6 +97,10 @@ bool read_float(const char* line, size_t& pos, float& result) {
     return true;
 }
 
+uint32_t get_ms() {
+    return xTaskGetTickCount() * (1000 / configTICK_RATE_HZ);
+}
+
 void delay_ms(uint32_t ms) {
     vTaskDelay(ms / portTICK_PERIOD_MS);
 }
@@ -109,11 +113,11 @@ bool dwell_ms(uint32_t milliseconds, DwellMode mode) {
         } else {  // DwellMode::SysSuspend
             // Execute rt_system() only to avoid nesting suspend loops.
             protocol_exec_rt_system();
-            if (sys.suspend.bit.restartRetract) {
+            if (sys.suspend().bit.restartRetract) {
                 return false;  // Bail, if safety door reopens.
             }
         }
-        if (sys.abort) {
+        if (sys.abort()) {
             return false;
         }
         delay_ms(1);
@@ -162,10 +166,10 @@ const float secPerMinSq = 60.0 * 60.0;  // Seconds Per Minute Squared, for accel
 float limit_acceleration_by_axis_maximum(float* unit_vec) {
     float limit_value = SOME_LARGE_VALUE;
     auto  n_axis      = Axes::_numberAxis;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        auto axisSetting = Axes::_axis[idx];
-        if (unit_vec[idx] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[idx]));
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        auto axisSetting = Axes::_axis[axis];
+        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
+            limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[axis]));
         }
     }
     // The acceleration setting is stored and displayed in units of mm/sec^2,
@@ -178,10 +182,10 @@ float limit_acceleration_by_axis_maximum(float* unit_vec) {
 float limit_rate_by_axis_maximum(float* unit_vec) {
     float limit_value = SOME_LARGE_VALUE;
     auto  n_axis      = Axes::_numberAxis;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        auto axisSetting = Axes::_axis[idx];
-        if (unit_vec[idx] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, fabsf(axisSetting->_maxRate / unit_vec[idx]));
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        auto axisSetting = Axes::_axis[axis];
+        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
+            limit_value = MIN(limit_value, fabsf(axisSetting->_maxRate / unit_vec[axis]));
         }
     }
     return limit_value;
@@ -211,7 +215,7 @@ bool multiple_bits_set(uint32_t val) {
 
 const char* to_hex(uint32_t n) {
     static char hexstr[12];
-    snprintf(hexstr, 11, "0x%x", n);
+    snprintf(hexstr, 11, "0x%x", static_cast<unsigned int>(n));
     return hexstr;
 }
 

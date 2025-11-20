@@ -65,33 +65,33 @@ const std::map<const ngc_param_id_t, CoordIndex> axis_params = {
     { 5281, CoordIndex::G57 },
     { 5301, CoordIndex::G58 },
     { 5321, CoordIndex::G59 },
-    // { 5341, CoordIndex::G59_1 },  // Not implemented
-    // { 5361, CoordIndex::G59_2 },  // Not implemented
-    // { 5381, CoordIndex::G59_3 },  // Not implemented
+    { 5341, CoordIndex::G59_1 },
+    { 5361, CoordIndex::G59_2 },
+    { 5381, CoordIndex::G59_3 },
     { 5401, CoordIndex::TLO },
 };
 
-const std::map<const std::string, int> work_positions = {
-    { "_x", 0 },
-    { "_y", 1 },
-    { "_z", 2 },
-    { "_a", 3 },
-    { "_b", 4 },
-    { "_c", 5 },
-    //    { "_u", 0},
-    //    { "_v", 0},
-    //    { "_w", 0},
+const std::map<const std::string, axis_t> work_positions = {
+    { "_x", X_AXIS },
+    { "_y", Y_AXIS },
+    { "_z", Z_AXIS },
+    { "_a", A_AXIS },
+    { "_b", B_AXIS },
+    { "_c", C_AXIS },
+    { "_u", U_AXIS },
+    { "_v", V_AXIS },
+    { "_w", W_AXIS },
 };
-const std::map<const std::string, int> machine_positions = {
-    { "_abs_x", 0 },
-    { "_abs_y", 1 },
-    { "_abs_z", 2 },
-    { "_abs_a", 3 },
-    { "_abs_b", 4 },
-    { "_abs_c", 5 },
-    //    { "_abs_u", 0},
-    //    { "_abs_v", 0},
-    //    { "_abs_w", 0},
+const std::map<const std::string, axis_t> machine_positions = {
+    { "_abs_x", X_AXIS },
+    { "_abs_y", Y_AXIS },
+    { "_abs_z", Z_AXIS },
+    { "_abs_a", A_AXIS },
+    { "_abs_b", B_AXIS },
+    { "_abs_c", C_AXIS },
+    { "_abs_u", U_AXIS },
+    { "_abs_v", V_AXIS },
+    { "_abs_w", W_AXIS },
 };
 
 const std::array<const std::string, 6> unsupported_sys = {
@@ -111,45 +111,45 @@ bool ngc_param_is_rw(ngc_param_id_t id) {
     return true;
 }
 
-static bool is_axis(int axis) {
+static bool is_axis(axis_t axis) {
     return axis >= 0 && axis < MAX_N_AXIS;
 }
-static bool is_rotary(int axis) {
-    return axis >= A_AXIS && axis <= C_AXIS;
-}
-static float to_inches(int axis, float value) {  // convert to inches if required
-    if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
+static float to_inches(axis_t axis, float value) {
+    if (is_linear(axis) && gc_state.modal.units == Units::Inches) {
         return value * INCH_PER_MM;
     }
     return value;
 }
-static float to_mm(int axis, float value) {
-    if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
+static float to_mm(axis_t axis, float value) {
+    if (is_linear(axis) && gc_state.modal.units == Units::Inches) {
         return value * MM_PER_INCH;
     }
     return value;
 }
 
+axis_t axis_from_id(ngc_param_id_t id, ngc_param_id_t index) {
+    return static_cast<axis_t>(id - index);
+}
+
 bool get_numbered_param(ngc_param_id_t id, float& result) {
-    int axis;
+    axis_t axis;
     for (auto const& [key, coord_index] : axis_params) {
-        axis = id - key;
+        axis = axis_from_id(id, key);
         if (is_axis(axis)) {
             if (coord_index == CoordIndex::G92) {  //special case non-volatile G92
                 result = to_inches(axis, gc_state.coord_offset[axis]);
                 return true;
             }
-
             result = to_inches(axis, coords[coord_index]->get(axis));
             return true;
         }
     }
 
     // last probe
-    axis = id - 5061;
+    axis = axis_from_id(id, 5061);
     if (is_axis(axis)) {
         float probe_position[MAX_N_AXIS];
-        motor_steps_to_mpos(probe_position, probe_steps);
+        steps_to_mpos(probe_position, probe_steps);
         result = to_inches(axis, probe_position[axis]);
         return true;
     }
@@ -164,7 +164,7 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
     }
 
     // Current relative position in the active coordinate system including all offsets
-    axis = id - 5420;
+    axis = axis_from_id(id, 5420);
     if (is_axis(axis)) {
         float* my_position = get_mpos();
         mpos_to_wpos(my_position);
@@ -204,8 +204,8 @@ bool set_config_item(const std::string& name, float result) {
         if (gci.isHandled_) {
             return true;
         }
-    } catch (const AssertionFailed& ex) {
-        log_debug(ex.msg);
+    } catch (std::exception& ex) {
+        log_debug(ex.what());
         return false;
     }
     log_debug("Failed to set " << name);
@@ -219,19 +219,19 @@ bool get_config_item(const std::string& name, float& result) {
         if (gci.isHandled_) {
             return true;
         }
-    } catch (const AssertionFailed& ex) {
-        log_debug(ex.msg);
+    } catch (std::exception& ex) {
+        log_debug(ex.what());
         return false;
     }
     return false;
 }
 
-int coord_values[] = { 540, 550, 560, 570, 580, 590, 591, 592, 593 };
+uint32_t coord_values[] = { 540, 550, 560, 570, 580, 590, 591, 592, 593 };
 
 bool get_system_param(const std::string& name, float& result) {
     std::string sysn;
     for (auto const& c : name) {
-        sysn += tolower(c);
+        sysn += ::tolower(c);
     }
     if (auto search = work_positions.find(sysn); search != work_positions.end()) {
         auto axis = search->second;
@@ -269,19 +269,19 @@ bool get_system_param(const std::string& name, float& result) {
         return true;
     }
     if (sysn == "_speed_override") {
-        result = sys.spindle_speed_ovr != 100;
+        result = sys.spindle_speed_ovr() != 100;
         return true;
     }
     if (sysn == "_feed_override") {
-        result = sys.f_override != 100;
+        result = sys.f_override() != 100;
         return true;
     }
     if (sysn == "_feed_hold") {
-        result = sys.state == State::Hold;
+        result = state_is(State::Hold);
         return true;
     }
     if (sysn == "_feed") {
-        result = to_inches(0, gc_state.feed_rate);
+        result = to_inches(X_AXIS, gc_state.feed_rate);
         return true;
     }
     if (sysn == "_rpm") {
@@ -488,9 +488,9 @@ bool set_named_param(const std::string& name, float value) {
 }
 
 bool set_numbered_param(ngc_param_id_t id, float value) {
-    int axis;
+    axis_t axis;
     for (auto const& [key, coord_index] : axis_params) {
-        axis = id - key;
+        axis = axis_from_id(id, key);
         if (is_axis(axis)) {
             coords[coord_index]->set(axis, to_mm(axis, value));
             gc_ngc_changed(coord_index);
@@ -498,7 +498,7 @@ bool set_numbered_param(ngc_param_id_t id, float value) {
         }
     }
     // Non-volatile G92
-    axis = id - 5211;
+    axis = axis_from_id(id, 5211);
     if (is_axis(axis)) {
         gc_state.coord_offset[axis] = to_mm(axis, value);
         gc_ngc_changed(CoordIndex::G92);
@@ -541,6 +541,12 @@ bool set_param(const param_ref_t& param_ref, float value) {
     }
     log_debug("Attempt to set read-only parameter " << param_ref.id);
     return false;
+}
+
+bool read_number(const std::string_view sv, float& result, bool in_expression) {
+    std::string s(sv);
+    size_t      pos = 0;
+    return read_number(s.c_str(), pos, result);
 }
 
 // Gets a numeric value, either a literal number or a #-prefixed parameter value

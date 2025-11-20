@@ -71,7 +71,7 @@
 
 #include "YL620Protocol.h"
 
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 #include <algorithm>
 
@@ -197,8 +197,6 @@ namespace Spindles {
             //                 ---- = 1500
             return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 uint16_t freq = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
-
-                auto yl620 = static_cast<YL620Protocol*>(detail);
 
                 vfd->_sync_dev_speed = freq;
                 return true;

@@ -21,9 +21,9 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{33ece513-60d1-4949-a4a9-c95d353c2cf0}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -33,8 +33,15 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
+    <ClInclude Include="FluidNC\src\Extenders\Extenders.h" />
+    <ClInclude Include="FluidNC\src\Extenders\I2CExtender.h" />
+    <ClInclude Include="FluidNC\src\Extenders\PinExtender.h" />
+    <ClInclude Include="FluidNC\src\Extenders\PinExtenderDriver.h" />
+    <ClInclude Include="FluidNC\src\Machine\I2CBus.h" />
+    <ClInclude Include="FluidNC\src\Pins\ExtPinDetail.h" />
     <ClInclude Include="FluidNC\src\SettingsDefinitions.h" />
     <ClInclude Include="FluidNC\src\PinUsers\PwmPin.h" />
+    <ClInclude Include="FluidNC\src\StartupLog.h" />
     <ClInclude Include="FluidNC\src\WebUI\BTConfig.h" />
     <ClInclude Include="FluidNC\src\Config.h" />
     <ClInclude Include="FluidNC\src\Machine\Macros.h" />
@@ -53,8 +60,8 @@
     <ClInclude Include="FluidNC\src\Spindles\10vSpindle.h" />
     <ClInclude Include="FluidNC\src\Machine\WifiSTAConfig.h" />
     <ClInclude Include="FluidNC\src\Channel.h" />
-    <ClInclude Include="FluidNC\src\WebUI\WebServer.h" />
-    <ClInclude Include="FluidNC\src\Assert.h" />
+    <ClInclude Include="FluidNC\src\WebUI\WebUIServer.h" />
+    <ClInclude Include="FluidNC\src\Assertion.h" />
     <ClInclude Include="FluidNC\src\Spindles\RelaySpindle.h" />
     <ClInclude Include="FluidNC\src\Kinematics\WallPlotter.h" />
     <ClInclude Include="FluidNC\src\Kinematics\Midtbot.h" />
@@ -97,7 +104,6 @@
     <ClInclude Include="FluidNC\src\Pins\I2SOPinDetail.h" />
     <ClInclude Include="FluidNC\src\StringStream.h" />
     <ClInclude Include="FluidNC\src\Configuration\AfterParse.h" />
-    <ClInclude Include="FluidNC\src\UserOutput.h" />
     <ClInclude Include="X86TestSupport\TestSupport\driver\ledc.h" />
     <ClInclude Include="FluidNC\src\Motors\MotorDriver.h" />
     <ClInclude Include="X86TestSupport\TestSupport\driver\rmt.h" />
@@ -176,6 +182,7 @@
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-cpu.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-dac.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-gpio.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-i2c.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-ledc.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-matrix.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-timer.h" />
@@ -206,10 +213,17 @@
     <ClInclude Include="X86TestSupport\TestSupport\Stream.h" />
     <ClInclude Include="X86TestSupport\TestSupport\TMC\TMCStepper.h" />
     <ClInclude Include="X86TestSupport\TestSupport\TMC\TMCStepper_UTILITY.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\Wire.h" />
     <ClInclude Include="X86TestSupport\TestSupport\WString.h" />
     <ClInclude Include="X86TestSupport\TestSupport\xtensa\core-macros.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FluidNC\src\Extenders\Extenders.cpp" />
+    <ClCompile Include="FluidNC\src\Extenders\I2CExtender.cpp" />
+    <ClCompile Include="FluidNC\src\Extenders\PinExtenderDriver.cpp" />
+    <ClCompile Include="FluidNC\src\Machine\I2CBus.cpp" />
+    <ClCompile Include="FluidNC\src\Pins\ExtPinDetail.cpp" />
+    <ClCompile Include="FluidNC\src\StartupLog.cpp" />
     <ClCompile Include="FluidNC\src\System.cpp" />
     <ClCompile Include="FluidNC\src\Spindles\BESCSpindle.cpp" />
     <ClCompile Include="FluidNC\src\SettingsDefinitions.cpp" />
@@ -223,6 +237,7 @@
     <ClCompile Include="FluidNC\src\MotionControl.cpp" />
     <ClCompile Include="FluidNC\src\ProcessSettings.cpp" />
     <ClCompile Include="FluidNC\src\Motors\Servo.cpp" />
+    <ClCompile Include="FluidNC\src\version.cpp" />
     <ClCompile Include="FluidNC\src\WebUI\WifiServices.cpp" />
     <ClCompile Include="FluidNC\src\Regex.cpp" />
     <ClCompile Include="FluidNC\src\InputFile.cpp" />
@@ -240,7 +255,6 @@
     <ClCompile Include="FluidNC\src\Spindles\H2ASpindle.cpp" />
     <ClCompile Include="FluidNC\src\Motors\Dynamixel2.cpp" />
     <ClCompile Include="FluidNC\src\Configuration\RuntimeSetting.cpp" />
-    <ClCompile Include="FluidNC\src\UserOutput.cpp" />
     <ClCompile Include="FluidNC\src\StackTrace\AssertionFailed.cpp" />
     <ClCompile Include="FluidNC\src\PinMapper.cpp" />
     <ClCompile Include="FluidNC\src\Uart.cpp" />
@@ -265,6 +279,7 @@
     <ClCompile Include="FluidNC\test\Configuration\YamlComplete.cpp" />
     <ClCompile Include="FluidNC\test\Configuration\YamlParser.cpp" />
     <ClCompile Include="FluidNC\test\Configuration\YamlTreeBuilder.cpp" />
+    <ClCompile Include="FluidNC\test\Extender\I2CExtenderTests.cpp" />
     <ClCompile Include="FluidNC\test\Pins\BasicGPIO.cpp" />
     <ClCompile Include="FluidNC\test\Pins\ErrorPinTest.cpp" />
     <ClCompile Include="FluidNC\test\Pins\GPIO.cpp" />
@@ -305,7 +320,6 @@
     <ClCompile Include="FluidNC\src\Pins\GPIOPinDetail.cpp" />
     <ClCompile Include="FluidNC\src\Spindles\NullSpindle.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\driver\dac.cpp" />
-    <ClCompile Include="FluidNC\src\version.cpp" />
     <ClCompile Include="FluidNC\src\Machine\LimitPin.cpp" />
     <ClCompile Include="FluidNC\src\Pins\ErrorPinDetail.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\driver\rmt.cpp" />
@@ -347,6 +361,7 @@
     <ClCompile Include="X86TestSupport\TestSupport\SPI.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\SPIFFS.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\Stream.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\Wire.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\WString.cpp" />
   </ItemGroup>
   <ItemGroup>

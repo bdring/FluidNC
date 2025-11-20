@@ -42,7 +42,7 @@ enum class Message : uint8_t {
     FileQuit        = 60,  // mc_critical was called during a file job
 };
 
-typedef uint8_t Counter;  // Report interval
+typedef uint_fast8_t Counter;  // Report interval
 
 extern Counter report_ovr_counter;
 extern Counter report_wco_counter;
@@ -82,7 +82,7 @@ void report_realtime_debug();
 
 void reportTaskStackSize(UBaseType_t& saved);
 
-void hex_msg(uint8_t* buf, const char* prefix, int len);
+void hex_msg(uint8_t* buf, const char* prefix, size_t len);
 
 #include "MyIOStream.h"
 

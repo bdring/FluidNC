@@ -1,10 +1,6 @@
 // Copyright (c) 2021 -  Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-/*
- * UART driver that accesses the ESP32 hardware FIFOs directly.
- */
-
 #include "Uart.h"
 #include <Driver/fluidnc_uart.h>
 
@@ -82,11 +78,11 @@ const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParit
     return "";
 }
 
-Uart::Uart(int uart_num) : _uart_num(uart_num), _name("uart") {
+Uart::Uart(uint32_t uart_num) : _uart_num(uart_num), _name("uart") {
     _name += std::to_string(uart_num);
 }
 
-void Uart::changeMode(unsigned long baud, UartData dataBits, UartParity parity, UartStop stopBits) {
+void Uart::changeMode(uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits) {
     uart_mode(_uart_num, baud, dataBits, parity, stopBits);
 }
 void Uart::restoreMode() {
@@ -105,7 +101,7 @@ void Uart::exitPassthrough() {
 }
 
 // This version is used for the initial console UART where we do not want to change the pins
-void Uart::begin(unsigned long baud, UartData dataBits, UartStop stopBits, UartParity parity) {
+void Uart::begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity parity) {
     //    uart_driver_delete(_uart_num);
     changeMode(baud, dataBits, parity, stopBits);
 
@@ -155,7 +151,6 @@ size_t Uart::write(const uint8_t* buffer, size_t length) {
 size_t Uart::timedReadBytes(char* buffer, size_t len, TickType_t timeout) {
     int res = uart_read(_uart_num, (uint8_t*)buffer, len, timeout);
     // If res < 0, no bytes were read
-
     return res < 0 ? 0 : res;
 }
 
@@ -167,13 +162,13 @@ void Uart::forceXoff() {
     uart_xoff(_uart_num);
 }
 
-void Uart::setSwFlowControl(bool on, int xon_threshold, int xoff_threshold) {
+void Uart::setSwFlowControl(bool on, uint32_t xon_threshold, uint32_t xoff_threshold) {
     _sw_flowcontrol_enabled = on;
     _xon_threshold          = xon_threshold;
     _xoff_threshold         = xoff_threshold;
     uart_sw_flow_control(_uart_num, on, xon_threshold, xoff_threshold);
 }
-void Uart::getSwFlowControl(bool& enabled, int& xon_threshold, int& xoff_threshold) {
+void Uart::getSwFlowControl(bool& enabled, uint32_t& xon_threshold, uint32_t& xoff_threshold) {
     enabled        = _sw_flowcontrol_enabled;
     xon_threshold  = _xon_threshold;
     xoff_threshold = _xoff_threshold;
@@ -181,11 +176,11 @@ void Uart::getSwFlowControl(bool& enabled, int& xon_threshold, int& xoff_thresho
 bool Uart::setHalfDuplex() {
     return uart_half_duplex(_uart_num);
 }
-bool Uart::setPins(int tx_pin, int rx_pin, int rts_pin, int cts_pin) {
+bool Uart::setPins(pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts_pin, pinnum_t cts_pin) {
     return uart_pins(_uart_num, tx_pin, rx_pin, rts_pin, cts_pin);
 }
 bool Uart::flushTxTimed(TickType_t ticks) {
-    return uart_wait_output(_uart_num, ticks) != ESP_OK;
+    return !uart_wait_output(_uart_num, ticks);
 }
 
 void Uart::config_message(const char* prefix, const char* usage) {
@@ -193,7 +188,7 @@ void Uart::config_message(const char* prefix, const char* usage) {
 }
 
 int Uart::rx_buffer_available(void) {
-    return UART_FIFO_LEN - available();
+    return uart_bufavail(_uart_num);
 }
 
 int Uart::peek() {
@@ -217,6 +212,6 @@ void Uart::flushRx() {
     uart_discard_input(_uart_num);
 }
 
-void Uart::registerInputPin(uint8_t pinnum, InputPin* pin) {
+void Uart::registerInputPin(pinnum_t pinnum, InputPin* pin) {
     uart_register_input_pin(_uart_num, pinnum, pin);
 }

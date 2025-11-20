@@ -6,10 +6,10 @@
 #include <vector>
 #include <sstream>
 
-#include "src/Pin.h"
-#include "src/Report.h"    // report_gcode_modes()
-#include "src/Protocol.h"  // send_line()
-#include "src/string_util.h"
+#include "Pin.h"
+#include "Report.h"    // report_gcode_modes()
+#include "Protocol.h"  // send_line()
+#include "string_util.h"
 #include "HandlerBase.h"
 
 namespace Configuration {
@@ -19,9 +19,9 @@ namespace Configuration {
         Generator(const Generator&)            = delete;
         Generator& operator=(const Generator&) = delete;
 
-        int      indent_;
-        Channel& dst_;
-        bool     lastIsNewline_ = false;
+        int_fast8_t indent_;
+        Channel&    dst_;
+        bool        lastIsNewline_ = false;
 
         inline void indent() {
             lastIsNewline_ = false;
@@ -40,7 +40,7 @@ namespace Configuration {
         HandlerType handlerType() override { return HandlerType::Generator; }
 
     public:
-        Generator(Channel& dst, int indent = 0);
+        Generator(Channel& dst, int_fast8_t indent = 0);
 
         void send_item(const char* name, const std::string& value) {
             LogStream s(dst_, "");
@@ -61,7 +61,13 @@ namespace Configuration {
             }
         }
 
-        void item(const char* name, int& value, const int32_t minValue, const int32_t maxValue) override {
+        void send_item(const char* name, char value) {
+            std::string s;
+            s = value;
+            send_item(name, s);
+        }
+
+        void item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) override {
             send_item(name, std::to_string(value));
         }
 
@@ -113,11 +119,12 @@ namespace Configuration {
         void item(const char* name, bool& value) override { send_item(name, value ? "true" : "false"); }
 
         void item(const char* name, EventPin& value) override { send_item(name, value.name()); }
+        void item(const char* name, InputPin& value) override { send_item(name, value.name()); }
         void item(const char* name, Pin& value) override { send_item(name, value.name()); }
         void item(const char* name, Macro& value) override { send_item(name, value.get()); }
 
         void item(const char* name, IPAddress& value) override { send_item(name, IP_string(value)); }
-        void item(const char* name, int& value, const EnumItem* e) override {
+        void item(const char* name, uint32_t& value, const EnumItem* e) override {
             const char* str = "unknown";
             for (; e->name; ++e) {
                 if (value == e->value) {
@@ -127,5 +134,6 @@ namespace Configuration {
             }
             send_item(name, str);
         }
+        void item(const char* name, axis_t& value) override;
     };
 }

@@ -14,9 +14,6 @@ First off, wiring. Use a MAX-485 and wire it like this:
 - RE 
 - RO = RX (can be any D pin, 3.3V or 5V)
 
-An ESP32 cannot handle 5V unfortunately. So you either have to use 
-a voltage level converter for that, or use a 3.3V RS485 board.
-
 ## VFD settings
 
 **ALWAYS** read the manual for VFD's! This is imperative to 

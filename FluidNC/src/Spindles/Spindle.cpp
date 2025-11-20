@@ -6,8 +6,7 @@
 */
 #include "Spindle.h"
 
-#include "../System.h"  //sys.spindle_speed_ovr
-#include "src/UartChannel.h"
+#include "System.h"  //sys.spindle_speed_ovr
 
 Spindles::Spindle* spindle = nullptr;
 
@@ -15,8 +14,7 @@ namespace Spindles {
     // ========================= Spindle ==================================
 
     void Spindle::init_atc() {
-        ATCs::ATC* candidate = nullptr;
-        auto       atcs      = ATCs::ATCFactory::objects();
+        auto atcs = ATCs::ATCFactory::objects();
         _atc_name = string_util::trim(_atc_name);
         for (auto a : atcs) {
             if (_atc_name == a->name()) {
@@ -27,8 +25,7 @@ namespace Spindles {
         }
         if (!_atc_name.empty()) {
             _atc_info = " atc: '" + _atc_name + "' not found";
-        }
-        else if (!_m6_macro._gcode.empty()) {
+        } else if (!_m6_macro._gcode.empty()) {
             _atc_info = " with m6_macro";
         }
     }
@@ -68,11 +65,11 @@ namespace Spindles {
     }
 
     void Spindle::setupSpeeds(uint32_t max_dev_speed) {
-        int nsegments = _speeds.size() - 1;
+        size_t nsegments = _speeds.size() - 1;
         if (nsegments < 1) {
             return;
         }
-        int i;
+        size_t i;
 
         SpindleSpeed offset;
         uint32_t     scaler;
@@ -164,11 +161,11 @@ namespace Spindles {
     }
 
     uint32_t IRAM_ATTR Spindle::mapSpeed(SpindleState state, SpindleSpeed speed) {
-        speed             = speed * sys.spindle_speed_ovr / 100;
-        sys.spindle_speed = speed;
+        speed = speed * sys.spindle_speed_ovr() / 100;
+        sys.set_spindle_speed(speed);
         if (state == SpindleState::Disable) {  // Halt or set spindle direction and speed.
             if (_zero_speed_with_disable) {
-                sys.spindle_speed = 0.0;
+                sys.set_spindle_speed(0);
                 return 0;
             }
         }
@@ -181,8 +178,8 @@ namespace Spindles {
         if (speed == 0) {
             return _speeds[0].offset;
         }
-        int num_segments = _speeds.size() - 1;
-        int i;
+        size_t num_segments = _speeds.size() - 1;
+        size_t i;
         for (i = 0; i < num_segments; i++) {
             if (speed < _speeds[i + 1].speed) {
                 break;
@@ -222,6 +219,7 @@ namespace Spindles {
                         down = _current_speed;
                         break;
                 }
+                break;
             case SpindleState::Cw:
                 switch (_current_state) {
                     case SpindleState::Unknown:
@@ -242,6 +240,7 @@ namespace Spindles {
                         up   = speed;
                         break;
                 }
+                break;
             case SpindleState::Ccw:
                 switch (_current_state) {
                     case SpindleState::Unknown:
@@ -262,6 +261,7 @@ namespace Spindles {
                         }
                         break;
                 }
+                break;
         }
         if (down) {
             dwell_ms(down < maxSpeed() ? _spindown_ms * down / maxSpeed() : _spindown_ms, DwellMode::SysSuspend);
