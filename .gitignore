@@ -40,3 +40,4 @@ managed_components/
 /FluidNC/lib/*/
 /FluidNC/dependencies.lock
 experiments/
+.cache
