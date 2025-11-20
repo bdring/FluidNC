@@ -5,7 +5,7 @@
  */
 #ifdef IDFBUILD
 
-#    include "fnc_idf_uart.h"
+#    include "fnc_idf_uart_idfbuild.h"
 #    include <driver/uart.h>
 #    include <driver/uart_select.h>
 

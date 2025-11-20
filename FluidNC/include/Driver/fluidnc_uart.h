@@ -8,7 +8,7 @@ class InputPin;
 void uart_init(uint32_t uart_num);
 void uart_mode(uint32_t uart_num, uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits);
 bool uart_half_duplex(uint32_t uart_num);
-int  uart_read(uint32_t uart_num, uint8_t* buf, size_t len, uint32_t timeout_ms);
+int  uart_read(uint32_t uart_num, uint8_t* buf, uint32_t len, uint32_t timeout_ms);
 int  uart_write(uint32_t uart_num, const uint8_t* buf, size_t len);
 void uart_xon(uint32_t uart_num);
 void uart_xoff(uint32_t uart_num);
