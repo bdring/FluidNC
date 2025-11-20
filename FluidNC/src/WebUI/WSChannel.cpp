@@ -228,20 +228,23 @@ namespace WebUI {
                     // only deal with the last one connected, and disconnect the previous one.
                     for (auto const oldChannel : _wsChannels) {
                         if (oldChannel->session() == session && oldChannel->id() != num) {
-#if 0
-                            // If we send this, a new WebUI instance will shut down
-                            // existing ones from the same domain (computer)
+                            // This lets existing WebUI instances know that
+                            // a new one has started, so it can decide whether
+                            // or not to disconnect the old ones.
+
                             s = "activeID:";  // WebUI3 variant
                             s += std::to_string(num);
                             oldChannel->sendTXT(s);
-#endif
 
-                            // Do not send the WebUI2 variant
-                            // s = "ACTIVE_ID:";  // webui2
-                            // s += std::to_string(num);
-                            // oldChannel->sendTXT(s);
+                            s = "ACTIVE_ID:";  // WebUI2 variant
+                            s += std::to_string(num);
+                            oldChannel->sendTXT(s);
                         }
                     }
+
+                    // This tells WebUI the ID of the newly-created websocket
+                    // so it can include that ID in a PAGEID= argument to
+                    // direct output to that websocket
 
                     s = "currentID:";  // webui3
                     s += std::to_string(num);
