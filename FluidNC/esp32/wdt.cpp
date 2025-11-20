@@ -61,3 +61,9 @@ void feed_watchdog() {
     esp_task_wdt_reset();
 #endif
 }
+
+void add_watchdog_to_task() {
+#ifdef CONFIG_ESP_TASK_WDT_EN
+    esp_task_wdt_add(NULL);  // NULL means current task
+#endif
+}

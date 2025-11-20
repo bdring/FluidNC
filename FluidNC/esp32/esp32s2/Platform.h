@@ -30,9 +30,16 @@
 // and some serial monitor programs that assume 115200 might not work.
 const int BAUD_RATE = 115200;
 
+#include <esp_task_wdt.h>
+
 #include "esp32-hal.h"  // disableCore0WDT
 inline void platform_preinit() {
+#ifndef IDFBUILD
     disableCore0WDT();
+#else
+    // Add current task to the watchdog
+    esp_task_wdt_add(NULL);  // NULL means current task
+#endif
 }
 
 #ifdef IDFBUILD
