@@ -1211,8 +1211,8 @@ const ArgEvent alarmEvent { (void (*)(void*))protocol_do_alarm };
 QueueHandle_t event_queue;
 
 void protocol_init() {
-    event_queue   = xQueueCreate(10, sizeof(EventItem));
-    message_queue = xQueueCreate(10, sizeof(LogMessage));
+    event_queue   = xQueueCreate(50, sizeof(EventItem));
+    message_queue = xQueueCreate(15, sizeof(LogMessage));
 }
 
 void IRAM_ATTR protocol_send_event_from_ISR(const Event* evt, void* arg) {
