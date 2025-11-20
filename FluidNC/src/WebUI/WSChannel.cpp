@@ -122,7 +122,6 @@ namespace WebUI {
         Channel::autoReport();
     }
 
-    static AsyncWebSocket* _server;
     WSChannel::~WSChannel() {}
 
     std::vector<WSChannel*> WSChannels::_wsChannels;

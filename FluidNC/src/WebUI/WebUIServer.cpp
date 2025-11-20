@@ -364,8 +364,7 @@ namespace WebUI {
                     file = nullptr;
                     return 0;
                 }
-                int bytes  = int(min(file->size(), maxLen));
-                int actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
+                int bytes = int(min(file->size(), maxLen));
                 if (bytes == 0 || (bytes + total) >= file->size()) {
                     file = nullptr;
                 }

@@ -57,7 +57,6 @@ namespace Spindles {
         bool GenericProtocol::set_data(std::string_view token, std::basic_string_view<uint8_t>& response_view, const char* name, uint32_t& data) {
             if (string_util::starts_with_ignore_case(token, name)) {
                 uint32_t rval  = (response_view[0] << 8) + (response_view[1] & 0xff);
-                uint32_t orval = rval;
                 scale(rval, token.substr(strlen(name)), 1);
                 data = rval;
                 response_view.remove_prefix(2);
@@ -132,7 +131,6 @@ namespace Spindles {
                     continue;
                 }
                 if (string_util::starts_with_ignore_case(token, "rpm")) {
-                    uint32_t oout = out;
                     scale(out, token.substr(strlen("rpm")), _maxRPM);
                     data.msg[data.tx_length++] = out >> 8;
                     data.msg[data.tx_length++] = out & 0xff;
