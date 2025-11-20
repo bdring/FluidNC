@@ -55,3 +55,9 @@ void disable_core0_WDT() {
     }
 #endif
 }
+
+void feed_watchdog() {
+#ifdef CONFIG_ESP_TASK_WDT_EN
+    esp_task_wdt_reset();
+#endif
+}
