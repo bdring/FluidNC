@@ -11,8 +11,8 @@ const int PINNUM_MAX                        = 64;
 InputPin* objects[UART_NUM_MAX][PINNUM_MAX] = { nullptr };
 uint8_t   last[UART_NUM_MAX]                = { 0 };
 
-void uart_data_callback(uart_port_t uart_num, uint8_t* buf, uint32_t* len) {
-    size_t in_len = *len;
+void uart_data_callback(uart_port_t uart_num, uint8_t* buf, int* len) {
+    size_t in_len = size_t(*len);
     size_t in, out;
     for (in = 0, out = 0; in < in_len; in++, out++) {
         uint8_t c = buf[in];
@@ -31,7 +31,7 @@ void uart_data_callback(uart_port_t uart_num, uint8_t* buf, uint32_t* len) {
             }
         }
     }
-    *len = out;
+    *len = int(out);
 }
 void uart_register_input_pin(uint32_t uart_num, pinnum_t pinnum, InputPin* object) {
     objects[uart_num][pinnum] = object;
@@ -48,11 +48,18 @@ static void uart_driver_n_install(void* arg) {
 }
 
 void uart_init(uint32_t uart_num) {
-    // We init UARTs on core 0 so the interrupt handler runs there,
-    // thus avoiding conflict with the StepTimer interrupt
-    esp_ipc_call_blocking(0, uart_driver_n_install, &uart_num);
-    if (uart_num) {
-        fnc_uart_set_data_callback((uart_port_t)uart_num, uart_data_callback);
+    uart_port_t port = (uart_port_t)uart_num;
+
+    // For UART0, install directly on the current core (usually the main core)
+    // For other UARTs, use core 0 to avoid StepTimer conflicts
+    if (uart_num == 0) {
+        // Install UART0 on the current core so ISR can signal this task properly
+        uart_driver_n_install(&port);
+    } else {
+        // We init other UARTs on core 0 so the interrupt handler runs there,
+        // thus avoiding conflicts.
+        esp_ipc_call_blocking(0, uart_driver_n_install, &uart_num);
+        fnc_uart_set_data_callback(port, uart_data_callback);
     }
 }
 

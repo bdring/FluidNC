@@ -1190,6 +1190,10 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void* param) {
                 } else {
                     //After Copying the Data From FIFO ,Clear intr_status
                     uart_hal_clr_intsts_mask(&(uart_context[uart_num].hal), UART_INTR_RXFIFO_TOUT | UART_INTR_RXFIFO_FULL);
+                    if (p_uart->uart_data_callback) {
+                        p_uart->uart_data_callback(uart_num, p_uart->rx_data_buf, &rx_fifo_len);
+                    }
+
                     uart_event.type         = UART_DATA;
                     uart_event.size         = rx_fifo_len;
                     uart_event.timeout_flag = (uart_intr_status & UART_INTR_RXFIFO_TOUT) ? true : false;

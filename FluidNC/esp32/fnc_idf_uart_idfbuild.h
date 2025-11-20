@@ -27,9 +27,11 @@ extern "C" {
  */
 #    define UART_PIN_NO_CHANGE (-1)
 
-#    define UART_FIFO_LEN                                                                                                                  \
-        _Pragma("GCC warning \"'UART_FIFO_LEN' macro is deprecated, please use 'UART_HW_FIFO_LEN' instead\"")                              \
-            SOC_UART_FIFO_LEN  ///< Length of the HP UART HW FIFO
+#    ifndef UART_FIFO_LEN
+#        define UART_FIFO_LEN                                                                                                              \
+            _Pragma("GCC warning \"'UART_FIFO_LEN' macro is deprecated, please use 'UART_HW_FIFO_LEN' instead\"")                          \
+                SOC_UART_FIFO_LEN  ///< Length of the HP UART HW FIFO
+#    endif
 #    if (SOC_UART_LP_NUM >= 1)
 #        define UART_HW_FIFO_LEN(uart_num)                                                                                                 \
             ((uart_num < SOC_UART_HP_NUM) ? SOC_UART_FIFO_LEN : SOC_LP_UART_FIFO_LEN)  ///< Length of the UART HW FIFO
@@ -38,7 +40,7 @@ extern "C" {
 #    endif
 #    define UART_BITRATE_MAX SOC_UART_BITRATE_MAX  ///< Maximum configurable bitrate
 
-typedef void (*uart_data_callback_t)(uart_port_t uart_num, uint8_t* rx_buf, uint32_t* len);
+typedef void (*uart_data_callback_t)(uart_port_t uart_num, uint8_t* rx_buf, int* len);
 
 /**
  * @brief Set data callback function
