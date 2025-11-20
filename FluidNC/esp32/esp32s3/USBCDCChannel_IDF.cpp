@@ -1,9 +1,12 @@
 // Copyright (c) 2023, 2025 -  Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "USBCDCChannel_IDF.h"
+#include <sdkconfig.h>
+#include <esp_idf_version.h>
 
 #if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
+
+#    include "USBCDCChannel_IDF.h"
 
 #    include "Machine/MachineConfig.h"  // config
 #    include "Serial.h"                 // allChannels
