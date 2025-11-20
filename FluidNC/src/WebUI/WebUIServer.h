@@ -54,7 +54,6 @@ namespace WebUI {
         void deinit() override;
         void poll() override;
 
-        static long     get_client_ID();
         static uint16_t port() { return _port; }
 
         ~WebUI_Server();
@@ -108,7 +107,7 @@ namespace WebUI {
 
         static bool myStreamFile(AsyncWebServerRequest* request, const char* path, bool download = false, bool setSession = false);
 
-        static void pushError(AsyncWebServerRequest* request, uint16_t code, const char* st, int web_error = 500, uint16_t timeout = 1000);
+        static void pushError(AsyncWebServerRequest* request, uint16_t code, const char* st, int32_t web_error = 500, uint16_t timeout = 1000);
         static void cancelUpload(AsyncWebServerRequest* request);
         static void handleFileOps(AsyncWebServerRequest* request, const char* mountpoint);
         static void handle_direct_SDFileList(AsyncWebServerRequest* request);
@@ -126,7 +125,6 @@ namespace WebUI {
             AsyncWebServerRequest* request, const char* cmd, bool silent, AuthenticationLevel auth_level, bool allowedInMotion = false);
         static void websocketCommand(AsyncWebServerRequest* request, const char* cmd, uint32_t pageid, AuthenticationLevel auth_level);
 
-        static void sendFSError(Error err);
         static void sendJSON(AsyncWebServerRequest* request, uint16_t code, const char* s);
         static void sendJSON(AsyncWebServerRequest* request, uint16_t code, const std::string& s) {
             sendJSON(request, code, s.c_str());

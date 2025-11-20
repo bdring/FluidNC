@@ -364,7 +364,7 @@ namespace WebUI {
                     file = nullptr;
                     return 0;
                 }
-                int bytes  = min(file->size(), maxLen);
+                int bytes  = int(min(file->size(), maxLen));
                 int actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
                 if (bytes == 0 || (bytes + total) >= file->size()) {
                     file = nullptr;
@@ -1005,7 +1005,7 @@ namespace WebUI {
             if (path[path.length() - 1] == '/') {
                 path = path.substr(0, path.length() - 1);
             }
-            if (path.length() & path[0] == '/') {
+            if (path.length() && path[0] == '/') {
                 path = path.substr(1);
             }
         }
