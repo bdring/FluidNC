@@ -183,16 +183,16 @@ for version in versions:
     suffix = version["env_suffix"]
     for buildName in version["builds"]:
         envName = buildName + suffix
-        # if buildEnv(envName, verbose=verbose) != 0:
-        #    sys.exit(1)
+        if buildEnv(envName, verbose=verbose) != 0:
+            sys.exit(1)
         buildDir = os.path.join('.pio', 'build', envName)
         shutil.copy(os.path.join(buildDir, 'firmware.elf'), os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.elf'))
 
         addImage(mcu + '-' + buildName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + buildName)
 
         if buildName == 'wifi':
-            # if buildFs(envName, verbose=verbose) != 0:
-            #     sys.exit(1)
+            if buildFs(envName, verbose=verbose) != 0:
+                 sys.exit(1)
 
             # bootapp is a data partition that the bootloader and OTA use to determine which
             # image to run.  Its initial value is in a file "boot_app0.bin" in the platformio
