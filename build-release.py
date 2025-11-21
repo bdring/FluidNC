@@ -7,6 +7,7 @@ from zipfile import ZipFile, ZipInfo
 import subprocess, os, sys, shutil
 import urllib.request
 import io, hashlib
+from pprint import pprint
 
 verbose = '-v' in sys.argv
 
@@ -192,7 +193,7 @@ for version in versions:
 
         if buildName == 'wifi':
             if buildFs(envName, verbose=verbose) != 0:
-                 sys.exit(1)
+                sys.exit(1)
 
             # bootapp is a data partition that the bootloader and OTA use to determine which
             # image to run.  Its initial value is in a file "boot_app0.bin" in the platformio
@@ -205,9 +206,8 @@ for version in versions:
             addImage(mcu + '-bootloader', '0x1000' if mcu == 'esp32' else '0x0', 'bootloader.bin', buildDir, mcu)
             addImage(mcu + '-bootapp', '0xe000', 'boot_app0.bin', buildDir, mcu)
 
-currentList = manifest['installable']['choices']
+installableChoices = manifest['installable']['choices']
 def addSection(node, name, description, choice):
-    global currentList
     section = {
         "name": name,
         "description": description,
@@ -215,18 +215,18 @@ def addSection(node, name, description, choice):
     if choice != None:
         section['choice-name'] = choice
         section['choices'] = []
-    currentNode = section
     node.append(section)
+    return section['choices']
 
+mcuChoices = None
 def addMCU(name, description, choice=None):
-    global currentList
-    addSection(currentList, name, description, choice)
+    global mcuChoices
+    mcuChoices = addSection(installableChoices, name, description, choice)
 
+variantChoices = None
 def addVariant(variant, description, choice=None):
-    global currentList
-    node = currentList
-    nodelen = len(node)
-    addSection(node[nodelen-1]['choices'], variant, description, choice)
+    global variantChoices
+    variantChoices = addSection(mcuChoices, variant, description, choice)
 
 def addInstallable(install_type, erase, images):
     for image in images:
@@ -239,16 +239,13 @@ def addInstallable(install_type, erase, images):
         #    print("Duplicate image", image)
         #    sys.exit(2)
                       
-    node1 = currentList
-    children = node1[len(node1)-1]['choices']
-    images = children[len(children)-1]['choices']
     installable = {
         "name": install_type["name"],
         "description": install_type["description"],
         "erase": erase,
         "images": images
     }
-    images.append(installable)
+    variantChoices.append(installable)
 
 def addUpload(name, description, files):
     for file in files:
