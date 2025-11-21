@@ -38,7 +38,7 @@ EsptoolPath=esptool.py
 
 BaseArgs="--chip esp32 --baud 230400"
 
-SetupArgs="--before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect"
+SetupArgs="--before default-reset --after hard-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size detect"
 
 esptool_basic () {
     echo $EsptoolPath $BaseArgs $*
@@ -52,7 +52,7 @@ esptool_write () {
     esptool_basic $SetupArgs $*
 }
 check_security() {
-    esptool_basic dump_mem 0x3ff5a018 4 SecurityFuses.bin
+    esptool_basic dump-mem 0x3ff5a018 4 SecurityFuses.bin
 
     if ! cmp -s SecurityFuses.bin common/SecurityFusesOK.bin ; then
         if ! cmp -s SecurityFuses.bin common/SecurityFusesOK0.bin ; then
@@ -77,10 +77,9 @@ esptool_erase() {
         deactivate
         return 1
     fi
-    esptool_basic erase_flash
+    esptool-basic erase-flash
 }
 
-Bootloader="0x1000 ${BuildType}/bootloader.bin"
 Bootapp="0xe000 common/boot_app0.bin"
 Firmware="0x10000 ${BuildType}/firmware.bin"
 Partitions="0x8000 ${BuildType}/partitions.bin"

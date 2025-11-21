@@ -27,7 +27,7 @@ EsptoolPath=esptool.py
 
 BaseArgs="--chip esp32 --baud 230400"
 
-SetupArgs="--before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect"
+SetupArgs="--before default-reset --after hard-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size detect"
 
 esptool_basic () {
     echo echo $EsptoolPath $BaseArgs $*

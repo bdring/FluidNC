@@ -8,9 +8,9 @@ if not %ErrorLevel% equ 0 (
 set EsptoolPath=win64\esptool.exe
 
 set BaseArgs=--chip esp32 --baud 921600
-set SetupArgs=--before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect
+set SetupArgs=--before default-reset --after hard-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size detect
 
-echo %EsptoolPath% %BaseArgs% erase_flash
-%EsptoolPath% %BaseArgs% erase_flash
+echo %EsptoolPath% %BaseArgs% erase-flash
+%EsptoolPath% %BaseArgs% erase-flash
 
 pause

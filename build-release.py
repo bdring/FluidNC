@@ -179,6 +179,9 @@ versions = [
     { "mcu": "esp32",   "env_suffix": "", "builds":  ["wifi", "bt", "noradio"]},
     { "mcu": "esp32s3", "env_suffix": "_s3", "builds" : ["wifi", "noradio"]},
 ]
+bootapp = 'boot_app0.bin';
+bootloader = 'bootloader.bin'
+
 for version in versions:
     mcu = version["mcu"]
     suffix = version["env_suffix"]
@@ -193,18 +196,18 @@ for version in versions:
 
         if buildName == 'wifi':
             if buildFs(envName, verbose=verbose) != 0:
-                sys.exit(1)
+               sys.exit(1)
 
             # bootapp is a data partition that the bootloader and OTA use to determine which
             # image to run.  Its initial value is in a file "boot_app0.bin" in the platformio
             # framework package.  We copy it to the build directory so addImage can find it
-            bootappsrc = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools','partitions', 'boot_app0.bin')
+            bootappsrc = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools','partitions', bootapp)
             shutil.copy(bootappsrc, buildDir)
 
             addImage(mcu + '-' + buildName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + buildName + '/' + flashsize)
             addImage(mcu + '-' + flashsize + '-partitions', '0x8000', 'partitions.bin', buildDir, mcu + '/' + flashsize)
-            addImage(mcu + '-bootloader', '0x1000' if mcu == 'esp32' else '0x0', 'bootloader.bin', buildDir, mcu)
-            addImage(mcu + '-bootapp', '0xe000', 'boot_app0.bin', buildDir, mcu)
+            addImage(mcu + '-bootloader', '0x1000' if mcu == 'esp32' else '0x0', bootloader, buildDir, mcu)
+            addImage(mcu + '-bootapp', '0xe000', bootapp, buildDir, mcu)
 
 installableChoices = manifest['installable']['choices']
 def addSection(node, name, description, choice):
@@ -264,29 +267,31 @@ firmware_update = { "name": "firmware-update", "description": "Update FluidNC to
 filesystem_update = { "name": "filesystem-update", "description": "Update FluidNC filesystem only, erasing previous filesystem data."}
 
 def makeManifest():
-    addMCU("esp32", "ESP32-WROOM", "Firmware variant")
+    mcu = "esp32"
+    addMCU(mcu, "ESP32-WROOM", "Firmware variant")
 
     addVariant("wifi", "Supports WiFi and WebUI", "Installation type")
-    addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-wifi-firmware", "esp32-wifi-4m-filesystem"])
-    addInstallable(firmware_update, False, ["esp32-wifi-firmware"])
+    addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-firmware", mcu + "-wifi-4m-filesystem"])
+    addInstallable(firmware_update, False, [mcu + "-wifi-firmware"])
 
     addVariant("bt", "Supports Bluetooth serial", "Installation type")
-    addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-bt-firmware"])
-    addInstallable(firmware_update, False, ["esp32-bt-firmware"])
+    addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-bt-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-bt-firmware"])
 
     addVariant("noradio", "Supports neither WiFi nor Bluetooth", "Installation type")
-    addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-noradio-firmware"])
-    addInstallable(firmware_update, False, ["esp32-noradio-firmware"])
+    addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-noradio-firmware"])
 
-    addMCU("esp32s3", "ESP32-S3-WROOM-1", "Firmware variant")
+    mcu = "esp32s3"
+    addMCU(mcu, "ESP32-S3-WROOM-1", "Firmware variant")
 
     addVariant("wifi", "Supports WiFi and WebUI", "Installation type")
-    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-wifi-firmware", "esp32s3-wifi-4m-filesystem"])
-    addInstallable(firmware_update, False, ["esp32s3-wifi-firmware"])
+    addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-firmware", mcu + "-wifi-4m-filesystem"])
+    addInstallable(firmware_update, False, [mcu + "-wifi-firmware"])
 
     addVariant("noradio", "Does not support WiFi", "Installation type")
-    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-noradio-firmware"])
-    addInstallable(firmware_update, False, ["esp32s3-noradio-firmware"])
+    addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-noradio-firmware"])
 
     addFile("WebUI-2", "/localfs/index.html.gz", "index-webui-2.html.gz", os.path.join("release", "current", "data"), "data")
     addFile("WebUI-3", "/localfs/index.html.gz", "index-webui-3.html.gz", os.path.join("release", "current", "data"), "data")
@@ -322,6 +327,10 @@ for platform in ['win64', 'posix']:
         'win64': True,
         'posix': False,
     }
+    esptoolBinaryPlatformName = {
+        'win64': 'windows-amd64',
+        'posix': 'posix',
+    }
 
     zipDirName = os.path.join('fluidnc-' + tag + '-' + platform)
     zipFileName = os.path.join(relPath, zipDirName + '.zip')
@@ -332,10 +341,10 @@ for platform in ['win64', 'posix']:
 
         pioPath = os.path.join('.pio', 'build')
 
-        # Put boot_app binary in the archive
-        bootapp = 'boot_app0.bin';
+        # Put boot_app binary in the archive.  It is data, and the same for all MCUs and variants
         tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
         zipObj.write(os.path.join(tools, "partitions", bootapp), os.path.join(zipDirName, 'common', bootapp))
+
         for secFuses in ['SecurityFusesOK.bin', 'SecurityFusesOK0.bin']:
             zipObj.write(os.path.join(sharedPath, 'common', secFuses), os.path.join(zipDirName, 'common', secFuses))
 
@@ -343,7 +352,6 @@ for platform in ['win64', 'posix']:
         for envName in ['wifi','bt','wifi_s3']:
 
             # Put bootloader binaries in the archive
-            bootloader = 'bootloader.bin'
             zipObj.write(os.path.join(pioPath, envName, bootloader), os.path.join(zipDirName, envName, bootloader))
 
             # Put littlefs.bin and index.html.gz in the archive
@@ -361,7 +369,7 @@ for platform in ['win64', 'posix']:
             # E.g. posix/install-wifi.sh -> install-wifi.sh
             copyToZip(zipObj, platform, 'install-' + envName + scriptExtension[platform], zipDirName)
 
-        for script in ['install-fs', 'fluidterm', 'checksecurity', 'erase', 'tools']:
+        for script in ['install-fs', 'install-fs_s3', 'fluidterm', 'checksecurity', 'erase', 'tools']:
             # E.g. posix/fluidterm.sh -> fluidterm.sh
             copyToZip(zipObj, platform, script + scriptExtension[platform], zipDirName)
 
@@ -374,13 +382,13 @@ for platform in ['win64', 'posix']:
             obj = 'fluidterm' + exeExtension[platform]
             zipObj.write(os.path.join('fluidterm', obj), os.path.join(zipDirName, platform, obj))
 
-        EsptoolVersion = 'v3.1'
+        EsptoolVersion = 'v5.1.0'
 
         # Put esptool and related tools in the archive
         if withEsptoolBinary[platform]:
             name = 'README-ESPTOOL.txt'
             EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
-            EspDir = 'esptool-' + EsptoolVersion + '-' + platform
+            EspDir = 'esptool-' + EsptoolVersion + '-' + esptoolBinaryPlatformName[platform]
             zipObj.write(os.path.join(sharedPath, platform, name), os.path.join(zipDirName, platform,
                          name.replace('.txt', '-' + EsptoolVersion + '.txt')))
         else:
@@ -393,6 +401,8 @@ for platform in ['win64', 'posix']:
 
         # Download and unzip from ESP repo
         ZipFileName = EspDir + '.zip'
+        ZipFileURL = EspRepo + ZipFileName
+        # https://github.com/espressif/esptool/releases/download/v5.1.0/esptool-v5.1.0-windows-amd64.zip
         if not os.path.isfile(ZipFileName):
             with urllib.request.urlopen(EspRepo + ZipFileName) as u:
                 open(ZipFileName, 'wb').write(u.read())
@@ -400,7 +410,7 @@ for platform in ['win64', 'posix']:
         if withEsptoolBinary[platform]:
             for Binary in ['esptool']:
                 Binary += exeExtension[platform]
-                sourceFileName = EspDir + '/' + Binary
+                sourceFileName = 'esptool-' + esptoolBinaryPlatformName[platform] + '/' + Binary
                 with ZipFile(ZipFileName, 'r') as zipReader:
                     destFileName = os.path.join(zipDirName, platform, Binary)
                     info = ZipInfo(destFileName)
