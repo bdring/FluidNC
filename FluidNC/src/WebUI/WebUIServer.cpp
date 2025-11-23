@@ -839,7 +839,7 @@ namespace WebUI {
         response->addHeader(T_Cache_Control, T_no_cache);
 
         JSONencoder j([response](const char* s) { response->print(s); });
-        j.begin("Authentication");
+        j.begin();
         j.member("status", status);
         if (*level != '\0') {
             j.member("authentication_lvl", level);
@@ -857,7 +857,7 @@ namespace WebUI {
         response->addHeader(T_Cache_Control, T_no_cache);
 
         JSONencoder j([response](const char* s) { response->print(s); });
-        j.begin("Status");
+        j.begin();
         j.member("status", status);
         j.end();
         request->send(response);
@@ -1076,7 +1076,7 @@ namespace WebUI {
 
         JSONencoder j([response](const char* s) { response->print(s); });
 
-        j.begin("FilesList");
+        j.begin();
 
         if (list_files) {
             auto iter = stdfs::directory_iterator { fpath, ec };

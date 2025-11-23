@@ -117,7 +117,7 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
         log_error_to(out, "Missing line count");
         return Error::InvalidValue;
     }
-    JSONencoder j(true, &out);  // Encapsulated JSON
+    JSONencoder j(&out, "FileLines");  // Encapsulated JSON
 
     std::string_view first;
     string_util::split_prefix(line_range, first, ':');
@@ -134,7 +134,7 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
     }
 
     const char* error = "";
-    j.begin("FileLines");
+    j.begin();
     j.begin_array("file_lines");
 
     InputFile*  theFile;
@@ -179,8 +179,8 @@ static Error fileShowHash(const char* parameter, AuthenticationLevel auth_level,
 
     std::string hash = HashFS::hash(parameter);
     replace_string_in_place(hash, "\"", "");
-    JSONencoder j(true, &out);  // Encapsulated JSON
-    j.begin("FileHash");
+    JSONencoder j(&out, "FileHash");  // Encapsulated JSON
+    j.begin();
     j.begin_member_object("signature");
     j.member("algorithm", "SHA2-256");
     j.member("value", hash);
@@ -209,8 +209,8 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
 
     const char* status = "ok";
 
-    JSONencoder j(true, &out);  // Encapsulated JSON
-    j.begin("FileContents");
+    JSONencoder j(&out, "FileContents");  // Encapsulated JSON
+    j.begin();
     j.member("cmd", "$File/SendJSON");
     j.member("argument", parameter);
 
@@ -343,8 +343,8 @@ static Error listFilesystemJSON(const char* fs, const char* value, Authenticatio
         auto      space = stdfs::space(fpath);
         auto      iter  = stdfs::directory_iterator { fpath };
 
-        JSONencoder j(false, &out);
-        j.begin("FilesList");
+        JSONencoder j(&out);
+        j.begin();
 
         j.begin_array("files");
         for (auto const& dir_entry : iter) {
@@ -386,7 +386,7 @@ static Error listLocalFilesJSON(const char* parameter, AuthenticationLevel auth_
 static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
     const char* error = "";
 
-    JSONencoder j(true, &out);  // Encapsulated JSON
+    JSONencoder j(&out, "FilesList");  // Encapsulated JSON
 
     std::error_code ec;
 
@@ -395,7 +395,7 @@ static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_leve
         error = "No volume";
     }
 
-    j.begin("FilesList");
+    j.begin();
 
     j.begin_array("files");
     if (!*error) {  // Array is empty for failure to open the volume

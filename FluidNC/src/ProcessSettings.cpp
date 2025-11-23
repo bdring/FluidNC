@@ -1028,10 +1028,6 @@ void make_user_commands() {
     new AsyncUserCommand("G", "GCode/Modes", report_gcode, anyState);
 };
 
-// This is external because some web commands need to know that they were
-// invoked with the ESPNNN for for compatibility with WebUI
-bool usedGrblName;
-
 // This is the handler for all forms of settings commands,
 // $..= and [..], with and without a value.
 Error do_command_or_setting(std::string_view key, std::string_view value, AuthenticationLevel auth_level, Channel& out) {
@@ -1044,7 +1040,7 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
     // you cannot determine whether to set or display solely based on
     // the presence of a value.
     for (Command* cp : Command::List) {
-        usedGrblName = cp->getGrblName() && string_util::equal_ignore_case(cp->getGrblName(), key);
+        bool usedGrblName = cp->getGrblName() && string_util::equal_ignore_case(cp->getGrblName(), key);
         if (usedGrblName || string_util::equal_ignore_case(cp->getName(), key)) {
             if (auth_failed(cp, value, auth_level)) {
                 return Error::AuthenticationFailed;

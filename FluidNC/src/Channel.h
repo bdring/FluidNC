@@ -191,6 +191,9 @@ public:
     virtual void out(const std::string& s, const char* tag);
     virtual void out_acked(const std::string& s, const char* tag);
 
+    virtual void beginJSON(const char* json_tag) {}
+    virtual void endJSON(const char* json_tag) {}
+
     void ready();
     void registerEvent(pinnum_t pinnum, InputPin* obj);
 

@@ -12,7 +12,8 @@ class JSONencoder {
 private:
     static const int MAX_JSON_LEVEL = 16;
 
-    bool     _encapsulate = false;
+    const char* _json_tag = nullptr;
+
     uint32_t level;
     uint32_t count[MAX_JSON_LEVEL];
     void     add(char c);
@@ -36,12 +37,12 @@ private:
     void flush();
 
 public:
-    // Constructor; set _encapsulate true for [MSG:JSON: ,,,] encapsulation
-    JSONencoder(bool encapsulate, Channel* channel);
+    // Constructor; set _json_tag for [MSG:JSON: ,,,] encapsulation
+    JSONencoder(Channel* channel, const char* json_tag = nullptr);
     JSONencoder(JsonCallback);
 
     // begin() starts the encoding process.
-    void begin(std::string_view type = "");
+    void begin();
 
     void setCategory(const char* cat) { category = cat; }
 

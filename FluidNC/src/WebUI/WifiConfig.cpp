@@ -562,8 +562,8 @@ namespace WebUI {
 
         static Error showFwInfoJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
             if (strstr(parameter, "json=yes") != NULL) {
-                JSONencoder j(!usedGrblName, &out);
-                j.begin("FirmwareInfo");
+                JSONencoder j(&out);
+                j.begin();
                 j.member("cmd", "800");
                 j.member("status", "ok");
                 j.begin_member_object("data");
@@ -942,13 +942,15 @@ namespace WebUI {
             return result;
         }
 
-        static bool isOn() { return !(WiFi.getMode() == WIFI_OFF); }
+        static bool isOn() {
+            return !(WiFi.getMode() == WIFI_OFF);
+        }
 
         // Used by js/scanwifidlg.js
 
         static Error listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
-            JSONencoder j(!usedGrblName, &out);
-            j.begin("APList");
+            JSONencoder j(&out);
+            j.begin();
 
             if (parameter != NULL && (strstr(parameter, "json=yes")) != NULL) {
                 j.member("cmd", "410");
@@ -1067,7 +1069,9 @@ namespace WebUI {
             //        wifi_services.begin();
         }
 
-        void deinit() override { StopWiFi(); }
+        void deinit() override {
+            StopWiFi();
+        }
 
         void build_info(Channel& channel) {
             std::string sti = station_info();
@@ -1095,9 +1099,13 @@ namespace WebUI {
             }
         }
 
-        bool is_radio() override { return true; }
+        bool is_radio() override {
+            return true;
+        }
 
-        ~WiFiConfig() { deinit(); }
+        ~WiFiConfig() {
+            deinit();
+        }
     };
 
     ModuleFactory::InstanceBuilder<WiFiConfig> __attribute__((init_priority(105))) wifi_module("wifi", true);

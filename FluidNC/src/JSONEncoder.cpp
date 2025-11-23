@@ -7,7 +7,7 @@
 
 // Constructor.  If _encapsulate is true, the output is
 // encapsulated in [MSG:JSON: ...] lines
-JSONencoder::JSONencoder(bool encapsulate, Channel* channel) : _encapsulate(encapsulate), level(0), _channel(channel), category("nvs") {
+JSONencoder::JSONencoder(Channel* channel, const char* json_tag) : level(0), _channel(channel), category("nvs") {
     count[level] = 0;
 }
 JSONencoder::JSONencoder(JsonCallback callback) : level(0), _callback(callback) {
@@ -17,9 +17,9 @@ JSONencoder::JSONencoder(JsonCallback callback) : level(0), _callback(callback) 
 void JSONencoder::flush() {
     if (_linebuf.length()) {
         if (_channel) {
-            if (_encapsulate) {
+            if (_json_tag) {
                 // Output to channels is encapsulated in [MSG:JSON:...]
-                (*_channel).out_acked(_linebuf, "JSON:");
+                _channel->out_acked(_linebuf, "JSON:");
             } else {
                 log_stream(*_channel, _linebuf);
             }
@@ -146,7 +146,7 @@ void JSONencoder::string(const char* s) {
 // encapsulation packets.
 void JSONencoder::line() {
     if (_channel) {
-        if (_encapsulate) {
+        if (_json_tag) {
             // In encapsulated mode, we just collect data until
             // the line is almost full, then wrap it in [MSG:JSON:...]
         } else {
@@ -164,10 +164,9 @@ void JSONencoder::line() {
 }
 
 // Begins the JSON encoding process, creating an unnamed object
-void JSONencoder::begin(const std::string_view type) {
-    _type = type;
-    if (_channel && _encapsulate) {
-        (*_channel).out_acked(_type, "JSONBEGIN:");
+void JSONencoder::begin() {
+    if (_channel && _json_tag) {
+        _channel->beginJSON(_json_tag);
     }
     begin_object();
 }
@@ -178,8 +177,8 @@ void JSONencoder::end() {
     end_object();
     line();
     flush();
-    if (_channel && _encapsulate) {
-        (*_channel).out_acked(_type, "JSONEND:");
+    if (_channel && _json_tag) {
+        _channel->endJSON(_json_tag);
     }
 }
 

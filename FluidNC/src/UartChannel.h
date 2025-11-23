@@ -47,6 +47,9 @@ public:
     void out(const std::string& s, const char* tag) override;
     void out_acked(const std::string& s, const char* tag) override;
 
+    void beginJSON(const char* json_tag) override;
+    void endJSON(const char* json_tag) override;
+
     void getExpanderId();
 
     void registerEvent(pinnum_t pinnum, InputPin* obj);
