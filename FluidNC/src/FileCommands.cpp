@@ -652,10 +652,10 @@ void make_file_commands() {
     new WebCommand("FORMAT", WEBCMD, WA, "ESP710", "LocalFS/Format", formatLocalFS);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Show", showLocalFile);
     new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile, nullptr);
-    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/List", listLocalFiles);
-    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);
-    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile);
-    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Rename", renameLocalObject);
+    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/List", listLocalFiles, allowConfigStates);
+    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON, allowConfigStates);
+    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile, allowConfigStates);
+    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Rename", renameLocalObject, allowConfigStates);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Backup", backupLocalFS);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Restore", restoreLocalFS);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
@@ -673,7 +673,7 @@ void make_file_commands() {
     new WebCommand(NULL, WEBCMD, WU, "ESP200", "SD/Status", showSDStatus);
     new WebCommand("path", WEBCMD, WU, NULL, "Files/ListGCode", listGCodeFiles);
     new UserCommand("XR", "Xmodem/Receive", xmodem_receive, allowConfigStates);
-    new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrAlarm);
+    new UserCommand("XS", "Xmodem/Send", xmodem_send, allowConfigStates);
 
     new WebCommand("RESTART", WEBCMD, WA, NULL, "Bye", restart);
 }
