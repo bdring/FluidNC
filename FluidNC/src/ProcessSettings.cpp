@@ -1010,7 +1010,7 @@ void make_user_commands() {
     new UserCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
-    new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
+    new UserCommand("I", "Build/Info", get_report_build_info, allowConfigStates);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
     new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
