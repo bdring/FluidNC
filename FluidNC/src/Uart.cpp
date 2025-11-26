@@ -34,6 +34,7 @@ std::string encodeUartMode(UartData wordLength, UartParity parity, UartStop stop
 
 const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParity& parity, UartStop& stopBits) {
     str = string_util::trim(str);
+
     if (str.length() == 5 || str.length() == 3) {
         int32_t wordLenInt;
         if (!string_util::from_decimal(str.substr(0, 1), wordLenInt)) {
@@ -42,6 +43,23 @@ const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParit
             return "Number of data bits for uart is out of range. Expected format like [8N1].";
         }
         wordLength = UartData(int(UartData::Bits5) + (wordLenInt - 5));
+
+        // The String "8e2" is a perfectly valid floating point number in scientific notation so it is possible for an
+        // external YAML parser to accidentally turn "8e2" or "7e2" into 700.0 or 800.0 rather detirminstically.
+        
+        if (str.length() == 5) {
+            if (str == "800.0") {
+                wordLength = UartData::Bits8;
+                parity = UartParity::Even;
+                stopBits = UartStop::Bits2;
+                return "";
+            } else if (str == "700.0") {
+                wordLength = UartData::Bits7;
+                parity = UartParity::Even;
+                stopBits = UartStop::Bits2;
+                return "";
+            }
+        }
 
         switch (str[1]) {
             case 'N':
@@ -72,6 +90,20 @@ const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParit
             return "Uart stopbits can only be 1, 1.5 or 2. Syntax is [8N1]";
         }
 
+    } else if (str.length() == 4) {
+
+      // See above comment about the string "8e2". The string 80.0 is the floating point equivilent of 8e1
+      if (str == "80.0") {
+         wordLength = UartData::Bits8;
+         parity = UartParity::Even;
+         stopBits = UartStop::Bits1;
+      } else if (str == "70.0") {
+         wordLength = UartData::Bits7;
+         parity = UartParity::Even;
+         stopBits = UartStop::Bits1;
+      } else {
+         return "Uart mode should be specified as [Bits Parity Stopbits] like [8N1]";
+      }
     } else {
         return "Uart mode should be specified as [Bits Parity Stopbits] like [8N1]";
     }
