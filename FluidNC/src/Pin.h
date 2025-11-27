@@ -106,7 +106,9 @@ public:
     // External libraries normally use digitalWrite, digitalRead and setMode. Since we cannot handle that behavior, we
     // just give back the pinnum_t for getNative.
     inline pinnum_t getNative(Capabilities expectedBehavior) const {
-        Assert(_detail->capabilities().has(expectedBehavior), "Pin %s cannot be used as requested", name());
+        if (!_detail->capabilities().has(expectedBehavior)) {
+            log_config_error("Pin " << name() << " cannot be used as requested");
+        }
         return _detail->_index;
     }
     inline int8_t   driveStrength() const { return _detail->driveStrength(); }
