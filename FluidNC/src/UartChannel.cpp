@@ -156,10 +156,10 @@ void UartChannel::out_acked(const std::string& s, const char* tag) {
 }
 
 void UartChannel::beginJSON(const char* json_tag) {
-    out_acked(json_tag, "JSONBEGIN:");
+    //    out_acked(json_tag, "JSONBEGIN:");
 }
 void UartChannel::endJSON(const char* json_tag) {
-    out_acked(json_tag, "JSONEND:");
+    //    out_acked(json_tag, "JSONEND:");
 }
 
 void UartChannel::registerEvent(pinnum_t pinnum, InputPin* obj) {
