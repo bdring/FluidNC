@@ -27,7 +27,6 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             TrinamicUartDriver::group(handler);
 
-            handler.item("addr", _addr);
             handler.item("run_mode", _run_mode, trinamicModes);
             handler.item("homing_mode", _homing_mode, trinamicModes);
             handler.item("homing_amps", _homing_current, 0.0, 10.0);
