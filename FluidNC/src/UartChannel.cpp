@@ -170,12 +170,12 @@ void UartChannel::registerEvent(pinnum_t pinnum, InputPin* obj) {
 bool UartChannel::setAttr(pinnum_t index, bool* value, const std::string& attrString) {
     out(attrString, "EXP:");
     _ackwait = 1;
-    for (size_t i = 0; i < 20; i++) {
+    for (size_t i = 0; i < 75000; i++) { // allow uart channel 75 milliseconds to respond
         pollLine(nullptr);
         if (_ackwait < 1) {
             return _ackwait == 0;
         }
-        delay_us(100);
+        delay_us(10);
     }
     _ackwait = 0;
     log_error("IO Expander is unresponsive");
