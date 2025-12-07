@@ -54,7 +54,7 @@ namespace Spindles {
             n /= divider;
         }
 
-        bool GenericProtocol::set_data(std::string_view token, std::basic_string_view<uint8_t>& response_view, const char* name, uint32_t& data) {
+        bool GenericProtocol::set_data(std::string_view token, std::basic_string_view<uint8_t>& response_view, const char* name, uint32_t& data, bool is_big_endian) {
             /**
              *  Match token with name and process data accordingly
              * 
@@ -68,7 +68,12 @@ namespace Spindles {
              // check if the that the response format starts with the specified keyword
             if (string_util::starts_with_ignore_case(token, name)) {
                 // combine two-bytes from the device response into the value
-                uint32_t rval  = (response_view[0] << 8) + (response_view[1] & 0xff);
+                uint32_t rval;
+                if(is_big_endian){
+                    rval = (response_view[0] << 8) + (response_view[1] & 0xff);
+                } else {
+                    rval = ((response_view[1] & 0xFF) << 8) + (response_view[0] & 0xff);
+                }
                 // process the remaining part of the token string and adjust for scaling ([*][\][%])
                 scale(rval, token.substr(strlen(name)), 1);
                 data = rval;
@@ -93,7 +98,8 @@ namespace Spindles {
 
             std::string_view token;
             std::string_view format(_response_format);  // format to parse the response against
-            
+            // 'le' is a keyword modifier
+            bool _is_rx_big_endian = true;
             // for each of the tokens in the configured response format
             while (string_util::split_prefix(format, token, ' ')) {
                 uint8_t val;
@@ -102,11 +108,16 @@ namespace Spindles {
                     continue;
                 }
 
+                if (string_util::starts_with_ignore_case(token, "le")) {
+                    _is_rx_big_endian = false;
+                    continue;
+                }
+
                 // Sync must be in a temporary because it's volatile!
                 uint32_t dev_speed;
 
                 // handle rpm keyword
-                if (set_data(token, response_view, "rpm", dev_speed)) {
+                if (set_data(token, response_view, "rpm", dev_speed, _is_rx_big_endian)) {
                     if (spindle->_debug > 1) {
                         log_info("Current speed is " << int(dev_speed));
                     }
@@ -118,18 +129,18 @@ namespace Spindles {
 
                 // bypass 'ignore' keywords
                 uint32_t ignore;
-                if (set_data(token, response_view, "ignore", ignore)) {
+                if (set_data(token, response_view, "ignore", ignore, _is_rx_big_endian)) {
                     continue;
                 }
 
                 // handle minrpm keyword
-                if (set_data(token, response_view, "minrpm", instance->_minRPM)) {
+                if (set_data(token, response_view, "minrpm", instance->_minRPM, _is_rx_big_endian)) {
                     log_debug(spindle->name() << ": got minRPM " << instance->_minRPM);
                     continue;
                 }
 
                 // handle maxrpm keyword
-                if (set_data(token, response_view, "maxrpm", instance->_maxRPM)) {
+                if (set_data(token, response_view, "maxrpm", instance->_maxRPM, _is_rx_big_endian)) {
                     log_debug(spindle->name() << ": got maxRPM " << instance->_maxRPM);
                     continue;
                 }
@@ -180,20 +191,28 @@ namespace Spindles {
 
             
             // transmit frame :  set a value or request a value
-            // 'rpm' is the only keyword that is allowed in the transmit frame format
+            // 'rpm' and 'le' are the only keywords that is allowed in the transmit frame format
             std::string_view token;
+            // 'le' is a keyword modifier
+            bool _tx_is_big_endian = true;
             while (data.tx_length < (VFD_RS485_MAX_MSG_SIZE - 3) && string_util::split_prefix(out_view, token, ' ')) {
                 if (token == "") {
                     // Ignore repeated blanks
                     continue;
                 }
-
-                if (string_util::starts_with_ignore_case(token, "rpm")) {
+                if (string_util::starts_with_ignore_case(token, "le")) {
+                    _tx_is_big_endian = false;
+                } else if (string_util::starts_with_ignore_case(token, "rpm")) {
                     // adjust the data associated with the rpm based on scaling [*][/][%]
                     scale(out, token.substr(strlen("rpm")), _maxRPM);
                     // store the scaled data in the transmit frame
-                    data.msg[data.tx_length++] = out >> 8;
-                    data.msg[data.tx_length++] = out & 0xff;
+                    if(_tx_is_big_endian) {
+                        data.msg[data.tx_length++] = out >> 8;
+                        data.msg[data.tx_length++] = out & 0xff;
+                    } else {
+                        data.msg[data.tx_length++] = out & 0xff;
+                        data.msg[data.tx_length++] = out >> 8;
+                    }
                 } else if (string_util::from_hex(token, data.msg[data.tx_length])) {
                     // store the transmit format token's hex value in the transmit frame
                     ++data.tx_length;
@@ -202,10 +221,12 @@ namespace Spindles {
                     return;
                 }
             }
+
             // receive frame : determine the size of the expected response
             while (data.rx_length < (VFD_RS485_MAX_MSG_SIZE - 3) && string_util::split_prefix(in_view, token, ' ')) {
-                if (token == "") {
-                    // Ignore repeated spaces
+                if (token == "" || string_util::starts_with_ignore_case(token, "le")) {
+                    // ignore repeated spaces
+                    // also, 'le' is a keyword modifier and doesn't effect the size of the response
                     continue;
                 }
                 uint8_t x;
@@ -214,7 +235,7 @@ namespace Spindles {
                     data.rx_length = data.tx_length;
                     break;
                 }
-                if (string_util::starts_with_ignore_case(token, "rpm") || string_util::starts_with_ignore_case(token, "minrpm") ||
+                else if (string_util::starts_with_ignore_case(token, "rpm") || string_util::starts_with_ignore_case(token, "minrpm") ||
                     string_util::starts_with_ignore_case(token, "maxrpm") || string_util::starts_with_ignore_case(token, "ignore")) {
                     // other keywords are received as two-bytes
                     data.rx_length += 2;
