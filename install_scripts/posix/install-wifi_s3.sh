@@ -4,6 +4,9 @@ BuildType=wifi_s3
 
 if ! . ./tools.sh; then exit 1; fi
 
+chip="esp32s3"
+export chip
+
 Bootloader="0x0000 ${BuildType}/bootloader.bin"
 install
 
