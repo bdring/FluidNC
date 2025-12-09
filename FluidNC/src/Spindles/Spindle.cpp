@@ -185,6 +185,12 @@ namespace Spindles {
                 break;
             }
         }
+
+        // if the offset is that max value of uint32, then the offset was never set. therefore, bypass the mapping process
+        if(_speeds[i].offset == -1) {
+            return speed;
+        }
+
         uint32_t dev_speed = _speeds[i].offset;
 
         // If the requested speed is greater than the maximum map speed,
