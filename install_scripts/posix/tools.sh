@@ -36,7 +36,7 @@ fi
 
 EsptoolPath=esptool.py
 
-BaseArgs="--chip esp32 --baud 230400"
+BaseArgs="--chip $chip --baud 230400"
 
 
 SetupArgs="--before default-reset --after hard-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size detect"
@@ -78,7 +78,7 @@ check_security() {
 
 esptool_erase() {
     BaseArgs="--chip $chip --baud 230400"
-    if [ "$chip" != "esp32s3"]; then
+    if [ "$chip" == "esp32"]; then
         if ! check_security; then
             deactivate
             return 1
@@ -101,7 +101,7 @@ install() {
 
     echo $BaseArgs
     
-    if [ "$chip" != "esp32s3"]; then
+    if [ "$chip" == "esp32"]; then
         if ! check_security; then
             exit
         fi

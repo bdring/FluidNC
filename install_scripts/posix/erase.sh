@@ -2,8 +2,7 @@
 
 if ! . ./tools.sh; then exit 1; fi
 
-chip="esp32"
-export chip
+export chip="esp32"
 
 esptool_erase
 
