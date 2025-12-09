@@ -369,7 +369,7 @@ for platform in ['win64', 'posix']:
             # E.g. posix/install-wifi.sh -> install-wifi.sh
             copyToZip(zipObj, platform, 'install-' + envName + scriptExtension[platform], zipDirName)
 
-        for script in ['install-fs', 'install-fs_s3', 'fluidterm', 'checksecurity', 'erase', 'tools']:
+        for script in ['install-fs', 'install-fs_s3', 'fluidterm', 'checksecurity', 'erase', 'erase_s3', 'tools']:
             # E.g. posix/fluidterm.sh -> fluidterm.sh
             copyToZip(zipObj, platform, script + scriptExtension[platform], zipDirName)
 

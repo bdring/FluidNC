@@ -36,7 +36,8 @@ fi
 
 EsptoolPath=esptool.py
 
-BaseArgs="--chip esp32 --baud 230400"
+BaseArgs="--chip $chip --baud 230400"
+
 
 SetupArgs="--before default-reset --after hard-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size detect"
 
@@ -48,9 +49,12 @@ esptool_basic () {
         exit 1
     fi
 }
+
 esptool_write () {
+    BaseArgs="--chip $chip --baud 230400"
     esptool_basic $SetupArgs $*
 }
+
 check_security() {
     esptool_basic dump-mem 0x3ff5a018 4 SecurityFuses.bin
 
@@ -73,11 +77,15 @@ check_security() {
 }
 
 esptool_erase() {
-    if ! check_security; then
-        deactivate
-        return 1
-    fi
-    esptool-basic erase-flash
+    BaseArgs="--chip $chip --baud 230400"
+    if [ "$chip" == "esp32"]; then
+        if ! check_security; then
+            deactivate
+            return 1
+        fi
+    fi    
+
+    esptool_basic erase-flash
 }
 
 Bootapp="0xe000 common/boot_app0.bin"
@@ -89,8 +97,14 @@ run_fluidterm() {
 }
 
 install() {
-    if ! check_security; then
-        exit
+    BaseArgs="--chip $chip --baud 230400"
+
+    echo $BaseArgs
+    
+    if [ "$chip" == "esp32"]; then
+        if ! check_security; then
+            exit
+        fi
     fi
     esptool_write $Bootloader $Bootapp $Firmware $Partitions
 
