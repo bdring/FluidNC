@@ -78,7 +78,7 @@ check_security() {
 
 esptool_erase() {
     BaseArgs="--chip $chip --baud 230400"
-    if [ "$chip" == "esp32"]; then
+    if [ "$chip" == "esp32" ]; then
         if ! check_security; then
             deactivate
             return 1
@@ -101,7 +101,7 @@ install() {
 
     echo $BaseArgs
     
-    if [ "$chip" == "esp32"]; then
+    if [ "$chip" == "esp32" ]; then
         if ! check_security; then
             exit
         fi
