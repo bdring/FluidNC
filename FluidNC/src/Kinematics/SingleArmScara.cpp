@@ -181,8 +181,11 @@ namespace Kinematics {
 
         cartesian[X_AXIS] = cosf(A3) * D;
         cartesian[Y_AXIS] = sinf(A3) * D;
-        // The rest of cartesian are not changed
 
+        // Copy position for non-kinematic axes directly
+        for (int axis = Z_AXIS; axis < n_axis; axis++) {
+            cartesian[axis] = motors[axis];
+        }
         //log_info("cartesian (" << cartesian[X_AXIS] << "," << cartesian[Y_AXIS] << ")");
     }
 
