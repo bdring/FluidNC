@@ -130,7 +130,7 @@ namespace Kinematics {
                 return false;
             }
 
-            float motor_dist = vector_distance(_last_motor_segment_end, motor_segment_end, 2);
+            float motor_dist = vector_distance(_last_motor_segment_end, motor_segment_end, n_axis);
 
             // Remember the last motor position so the length can be computed the next time
             copyAxes(_last_motor_segment_end, motor_segment_end);
