@@ -182,8 +182,18 @@ namespace Kinematics {
         cartesian[X_AXIS] = cosf(A3) * D;
         cartesian[Y_AXIS] = sinf(A3) * D;
 
+        //Calculate A-Axis
+        if (n_axis > 3) {
+            float arm_orientation = (_elbow_motor) ? (motors[0] + motors[1]) : motors[1];
+            cartesian[3] = motors[3] + arm_orientation - _orientation_rad;
+        }
+        
+
         // Copy position for non-kinematic axes directly
         for (int axis = Z_AXIS; axis < n_axis; axis++) {
+            if (axis == 3) { 
+                continue; // skips A
+            }
             cartesian[axis] = motors[axis];
         }
         //log_info("cartesian (" << cartesian[X_AXIS] << "," << cartesian[Y_AXIS] << ")");
@@ -229,9 +239,18 @@ namespace Kinematics {
 
         //log_info("L1:" << L1 << " L2:" << L2 << " D:" << D);
         //log_info("Go to angles (" << angles[0] << "," << angles[1] << ")");
+        
+        // keep wrist stationary through motion
+        float arm_orientation = (_elbow_motor) ? (angles[0] + angles[1]) : angles[1];
+        if (config->_axes->_numberAxis > 3) {
+            angles[3] = cartesian[3] - arm_orientation + _orientation_rad; 
+        }
 
         // copy motors not affected by kinematics
         for (size_t axis = Z_AXIS; axis < config->_axes->_numberAxis; axis++) {
+            if (axis == 3) { 
+                continue; 
+            }
             angles[axis] = cartesian[axis];
         }
 
