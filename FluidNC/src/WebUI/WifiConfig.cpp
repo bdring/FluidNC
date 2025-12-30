@@ -24,6 +24,7 @@
 #include <cstring>
 
 #include <esp_ota_ops.h>
+#include <esp_sntp.h>
 
 // For modern compilers, we need some different function calls. Rather than
 // attempting to rewrite everything, let's just define the problem away:
@@ -231,6 +232,7 @@ namespace WebUI {
     static EnumSetting*     _sta_min_security;
     static PasswordSetting* _sta_password;
     static EnumSetting*     _wifi_ps_mode;
+    static EnumSetting*     _ntp_enable;
 
     class WiFiConfig : public Module {
     private:
@@ -719,6 +721,7 @@ namespace WebUI {
             switch (event) {
                 case SYSTEM_EVENT_STA_GOT_IP:
                     log_info_to(Console, "Got IP: " << IP_string(WiFi.localIP()));
+                    StartNTP();  // Start NTP when we get an IP address
                     break;
                 case WIFI_EVENT_STA_DISCONNECTED:
                     if (!disconnect_seen) {
@@ -763,6 +766,7 @@ namespace WebUI {
                         return false;
                     case WL_CONNECTED:
                         log_info("Connected - IP is " << IP_string(WiFi.localIP()));
+                        StartNTP();
                         return true;
                     default:
                         if ((dot > 3) || (dot == 0)) {
@@ -869,6 +873,74 @@ namespace WebUI {
             return false;
         }
 
+        static void ntp_sync_callback(struct timeval* tv) {
+            if (!tv) {
+                return;
+            }
+
+            try {
+                time_t now = time(nullptr);
+                // Sanity check: ensure time is reasonable (after year 2000)
+                if (now < 946684800) {  // Jan 1, 2000
+                    return; 
+                }
+
+                struct tm timeinfo;
+                if (gmtime_r(&now, &timeinfo) != nullptr) {
+                    char strftime_buf[64];
+                    if (strftime(strftime_buf, sizeof(strftime_buf), "%Y-%m-%d %H:%M:%S UTC", &timeinfo) > 0) {
+                        log_info("NTP sync successful: " << strftime_buf);
+                    }
+                }
+            } catch (...) {
+                // Silently ignore any errors in callback to prevent crashes
+            }
+        }
+
+        static void StartNTP() {
+            try {
+                if (!_ntp_enable) {
+                    return;
+                }
+
+                if (!_ntp_enable->get()) {
+                    log_info("NTP sync disabled");
+                    return;  
+                }
+
+                if (esp_sntp_enabled()) {
+                    return;  
+                }
+
+                // Configure multiple NTP servers for fallback reliability
+                // Priority: pool.ntp.org -> time.google.com 
+                esp_sntp_setoperatingmode((esp_sntp_operatingmode_t)SNTP_OPMODE_POLL);
+                esp_sntp_setservername(0, "pool.ntp.org");
+                esp_sntp_setservername(1, "time.google.com");
+
+                // Enable local NTP server discovery as fallback (DHCP Option 42)
+                esp_sntp_servermode_dhcp(1);
+
+                // Set callback to log successful sync
+                esp_sntp_set_time_sync_notification_cb(ntp_sync_callback);
+
+                esp_sntp_init();
+                log_info("NTP sync started with fallback servers");
+            } catch (...) {
+                log_error("NTP initialization failed, continuing without time sync");
+            }
+        }
+
+        static void StopNTP() {
+            try {
+                if (esp_sntp_enabled()) {
+                    esp_sntp_stop();
+                }
+            } catch (...) {
+                // Silently ignore errors during NTP stop - non-critical
+            }
+        }
+
         static void reset() {
             WiFi.persistent(false);
             WiFi.disconnect(true);
@@ -878,6 +950,7 @@ namespace WebUI {
         }
 
         static void StopWiFi() {
+            StopNTP();
             if (WiFi.getMode() != WIFI_OFF) {
                 if ((WiFi.getMode() == WIFI_STA) || (WiFi.getMode() == WIFI_AP_STA)) {
                     WiFi.disconnect(true);
@@ -1015,6 +1088,7 @@ namespace WebUI {
 
             _mode         = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions);
             _wifi_ps_mode = new EnumSetting("WiFi power saving mode", WEBSET, WA, NULL, "WiFi/PsMode", WIFI_PS_NONE, &wifiPsModeOptions);
+            _ntp_enable   = new EnumSetting("NTP Enable", WEBSET, WA, NULL, "NTP/Enable", 1, &onoffOptions);
 
             new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
             new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/Info", showFwInfo, anyState);
