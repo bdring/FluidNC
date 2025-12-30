@@ -121,22 +121,26 @@ void make_proxies() {
 
     axis = n_axis;
     do {
-        float_proxy(axis, 130, "Grbl/MaxTravel/", &(config->_axes->_axis[--axis]->_maxTravel));
+        --axis;
+        float_proxy(axis, 130, "Grbl/MaxTravel/", &(config->_axes->_axis[axis]->_maxTravel));
     } while (axis);
 
     axis = n_axis;
     do {
-        float_proxy(axis, 120, "Grbl/Acceleration/", &(config->_axes->_axis[--axis]->_acceleration));
+        --axis;
+        float_proxy(axis, 120, "Grbl/Acceleration/", &(config->_axes->_axis[axis]->_acceleration));
     } while (axis);
 
     axis = n_axis;
     do {
-        float_proxy(axis, 110, "Grbl/MaxRate/", &(config->_axes->_axis[--axis]->_maxRate));
+        --axis;
+        float_proxy(axis, 110, "Grbl/MaxRate/", &(config->_axes->_axis[axis]->_maxRate));
     } while (axis);
 
     axis = n_axis;
     do {
-        float_proxy(axis, 100, "Grbl/Resolution/", &(config->_axes->_axis[--axis]->_stepsPerMm));
+        --axis;
+        float_proxy(axis, 100, "Grbl/Resolution/", &(config->_axes->_axis[axis]->_stepsPerMm));
     } while (axis);
 
     INT_PROXY("32", "Grbl/LaserMode", spindle->isRateAdjusted())
