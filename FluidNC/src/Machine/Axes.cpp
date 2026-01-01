@@ -9,28 +9,28 @@
 #include "MachineConfig.h"  // config->
 
 // Pre-increment operator
-axis_t& operator++(axis_t& axis) {
+axis_t& IRAM_ATTR operator++(axis_t& axis) {
     // Cast to underlying integer type, increment, then cast back
     axis = static_cast<axis_t>((static_cast<int>(axis) + 1));
     return axis;
 }
 
 // Post-increment operator
-axis_t operator++(axis_t& axis, int) {
+axis_t IRAM_ATTR operator++(axis_t& axis, int) {
     axis_t old_axis = axis;
     ++axis;
     return old_axis;
 }
 
 // Pre-decrement operator
-axis_t& operator--(axis_t& axis) {
+axis_t& IRAM_ATTR operator--(axis_t& axis) {
     // Cast to underlying integer type, increment, then cast back
     axis = static_cast<axis_t>((static_cast<int>(axis) - 1));
     return axis;
 }
 
 // Post-deccrement operator
-axis_t operator--(axis_t& axis, int) {
+axis_t IRAM_ATTR operator--(axis_t& axis, int) {
     axis_t old_axis = axis;
     --axis;
     return old_axis;
