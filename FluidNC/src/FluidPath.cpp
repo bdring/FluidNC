@@ -22,7 +22,8 @@ FluidPath::FluidPath(const char* name, const char* fs, std::error_code* ecptr) :
                 *ecptr = ec;
                 return;
             }
-            throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
+            log_info("SD card is inaccessible");
+            throw Error::FsFailedMount;
         }
         if (_refcnt == 0) {
             auto ec = sd_mount();
@@ -31,19 +32,18 @@ FluidPath::FluidPath(const char* name, const char* fs, std::error_code* ecptr) :
                     *ecptr = ec;
                     return;
                 }
-                throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
+                log_info("SD card is inaccessible");
+                throw Error::FsFailedMount;
             }
         }
         ++_refcnt;
     }
-    // log_debug("construct " << _isSD << " " << _refcnt);
 }
 
 FluidPath::FluidPath(const FluidPath& o) : path(o), _isSD(o._isSD) {
     if (this != &o && _isSD) {
         ++_refcnt;
     }
-    // log_debug("path construct " << _isSD << " " << _refcnt);
 }
 
 FluidPath::FluidPath(FluidPath&& o) : path(std::move(o)), _isSD(o._isSD) {
@@ -52,7 +52,6 @@ FluidPath::FluidPath(FluidPath&& o) : path(std::move(o)), _isSD(o._isSD) {
         // to decrement the refcount on destruction
         o._isSD = false;
     }
-    // log_debug(" move construct " << _isSD << " " << _refcnt);
 }
 
 FluidPath& FluidPath::operator=(const FluidPath& o) {
@@ -62,19 +61,16 @@ FluidPath& FluidPath::operator=(const FluidPath& o) {
     if (&o != this && _isSD) {
         ++_refcnt;
     }
-    // log_debug(" copy assign " << _isSD << " " << _refcnt);
     return *this;
 }
 
 FluidPath& FluidPath::operator=(FluidPath&& o) {
     std::swap(_isSD, o._isSD);
     stdfs::path::operator=(std::move(o));
-    // log_debug(" move assign " << _isSD << " " << _refcnt);
     return *this;
 }
 
 FluidPath::~FluidPath() {
-    // log_debug("~ refcnt " << _isSD << " " << _refcnt);
     if (_isSD && (_refcnt && --_refcnt == 0)) {
         sd_unmount();
     }
