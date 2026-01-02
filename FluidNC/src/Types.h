@@ -28,10 +28,33 @@ typedef enum {
     INVALID_AXIS = 255,
 } axis_t;
 
-axis_t& operator++(axis_t& axis);
-axis_t  operator++(axis_t& axis, int);
-axis_t& operator--(axis_t& axis);
-axis_t  operator--(axis_t& axis, int);
+// Pre-increment operator
+inline axis_t& operator++(axis_t& axis) {
+    // Cast to underlying integer type, increment, then cast back
+    axis = static_cast<axis_t>((static_cast<int>(axis) + 1));
+    return axis;
+}
+
+// Post-increment operator
+inline axis_t operator++(axis_t& axis, int) {
+    axis_t old_axis = axis;
+    ++axis;
+    return old_axis;
+}
+
+// Pre-decrement operator
+inline axis_t& operator--(axis_t& axis) {
+    // Cast to underlying integer type, increment, then cast back
+    axis = static_cast<axis_t>((static_cast<int>(axis) - 1));
+    return axis;
+}
+
+// Post-deccrement operator
+inline axis_t operator--(axis_t& axis, int) {
+    axis_t old_axis = axis;
+    --axis;
+    return old_axis;
+}
 
 inline bool is_linear(axis_t axis) {
     return axis < A_AXIS || axis > C_AXIS;
