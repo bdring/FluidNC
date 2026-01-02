@@ -22,8 +22,7 @@ FluidPath::FluidPath(const char* name, const char* fs, std::error_code* ecptr) :
                 *ecptr = ec;
                 return;
             }
-            log_info("SD card is inaccessible");
-            throw Error::FsFailedMount;
+            throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
         }
         if (_refcnt == 0) {
             auto ec = sd_mount();

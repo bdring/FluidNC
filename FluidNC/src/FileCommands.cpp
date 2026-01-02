@@ -50,6 +50,9 @@ static Error openFile(const char* fs, const char* parameter, Channel& out, Input
 
     try {
         theFile = new InputFile(fs, path.c_str());
+    } catch (std::filesystem::filesystem_error const& ex) {
+        log_error_to(out, ex.what());
+        return Error::FsFailedOpenFile;
     } catch (Error err) { return err; }
     return Error::Ok;
 }
