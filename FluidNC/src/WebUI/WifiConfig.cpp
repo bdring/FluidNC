@@ -604,7 +604,7 @@ namespace WebUI {
                 j.member("HostPath", "/");
                 j.member("Time", "none");
                 std::string axisLetters;
-                for (axis_t axis; axis < Axes::_numberAxis; axis++) {
+                for (axis_t axis = X_AXIS; axis < Axes::_numberAxis; axis++) {
                     axisLetters += Axes::axisName(axis);
                 }
                 j.member("Axisletters", axisLetters);
