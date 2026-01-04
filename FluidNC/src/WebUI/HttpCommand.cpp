@@ -60,7 +60,7 @@ namespace WebUI {
     // Module for registering the HTTP command during system initialization
     class HttpCommandModule : public Module {
     public:
-        HttpCommandModule(const char* name) : Module(name) {}
+        explicit HttpCommandModule(const char* name) : Module(name) {}
 
         void init() override {
             new UserCommand("HTTP", "Custom/HTTP", http_command_handler, http_state_check, WG);
@@ -248,7 +248,7 @@ namespace WebUI {
                         replacement = escaped;
                         break;
                 }
-                value = value.substr(0, escape_pos) + replacement + value.substr(escape_pos + 2);
+                value.replace(escape_pos, 2, 1, replacement);
             }
             escape_pos++;
         }
