@@ -272,12 +272,12 @@ namespace Spindles {
         int32_t dwell = 0;
         if (down) {
             dwell = (down < maxSpeed() ? _spindown_ms * down / maxSpeed() : _spindown_ms);
+            log_debug("Spin down delay ms:" << dwell);
+            dwell_ms((uint32_t)dwell, DwellMode::SysSuspend);
         }
         if (up) {
             dwell = (up < maxSpeed() ? _spinup_ms * up / maxSpeed() : _spinup_ms);
-        }
-        if (dwell) {
-            log_debug("Spindle delay ms:" << dwell);
+            log_debug("Spin up delay ms:" << dwell);
             dwell_ms((uint32_t)dwell, DwellMode::SysSuspend);
         }
 
