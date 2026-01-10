@@ -22,7 +22,7 @@ namespace Machine {
         "X", "Y", "Z", "A", "B", "C", "U", "V", "W",
     };
     axis_t Axes::axisNum(std::string_view name) {
-        for (axis_t axis; axis < MAX_N_AXIS; axis++) {
+        for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
             if (string_util::equal_ignore_case(name, axisName(axis))) {
                 return axis;
             }
