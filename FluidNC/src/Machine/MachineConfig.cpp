@@ -184,7 +184,7 @@ namespace Machine {
 
     void MachineConfig::load_file(const std::string_view filename) {
         try {
-            FileStream file(std::string { filename }, "rb", "");
+            FileStream file(std::string { filename }, "rb", LocalFS);
 
             auto filesize = file.size();
             if (filesize <= 0) {

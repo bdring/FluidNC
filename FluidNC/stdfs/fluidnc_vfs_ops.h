@@ -1,8 +1,6 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
-bool isSPIFFS(const char* mountpoint);
-bool isSD(const char* mountpoint);
-bool isLittleFS(const char* mountpoint);
-bool fluidnc_vfs_stats(const char* mountpoint, uint64_t& total, uint64_t& used);
+bool fluidnc_vfs_stats(const std::string_view mountpoint, uint64_t& total, uint64_t& used);

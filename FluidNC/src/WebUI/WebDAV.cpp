@@ -17,7 +17,7 @@
 
 using namespace asyncsrv;
 
-WebDAV::WebDAV(const std::string_view url, const char* fsname) : _url(url), _fsname(fsname) {}
+WebDAV::WebDAV(const std::string_view url, const Volume& volume) : _url(url), _volume(volume) {}
 
 bool WebDAV::canHandle(AsyncWebServerRequest* request) const {
     if (request->url().startsWith(_url.c_str())) {
@@ -44,7 +44,7 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
 
     std::error_code ec;
 
-    FluidPath fpath = { path, _fsname, ec };
+    FluidPath fpath = { path, _volume, ec };
 
     if (ec) {
         resource = DavResource::NONE;
@@ -67,7 +67,7 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
         // handleBody will add stuff to the file later.
         FileStream* file = nullptr;
         try {
-            file = new FileStream(fpath, "a", "");
+            file = new FileStream(fpath, "a", LocalFS);
         } catch (const Error err) {
             log_debug(fpath << " cannot be opened");
             return request->send(500);
@@ -122,7 +122,7 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
 
     std::error_code ec;
 
-    FluidPath fpath(path.c_str(), _fsname, ec);
+    FluidPath fpath(path.c_str(), _volume, ec);
 
     if (ec) {
         resource = DavResource::NONE;
@@ -218,13 +218,13 @@ void WebDAV::handleGet(const FluidPath& fpath, DavResource resource, AsyncWebSer
             stdfs::path gzpath(fpath);
             gzpath += ".gz";
             try {
-                file   = new FileStream(gzpath, "r", "");
+                file   = new FileStream(gzpath, "r", LocalFS);
                 isGzip = true;
             } catch (const Error err) {}
         }
     } else {
         try {
-            file = new FileStream(fpath, "r", "");
+            file = new FileStream(fpath, "r", LocalFS);
         } catch (const Error err) {}
     }
 
@@ -273,7 +273,7 @@ void WebDAV::handlePut(
     }
 
     try {
-        FileStream file(fpath, index ? "a" : "w", "");
+        FileStream file(fpath, index ? "a" : "w", LocalFS);
         file.write(data, len);
         file.flush();
     } catch (const Error err) { log_debug(fpath << " cannot be opened"); }
@@ -346,7 +346,7 @@ void WebDAV::handleMove(const FluidPath& fpath, DavResource resource, AsyncWebSe
 
     // Should handle "Overwrite: {T,F}" header
     std::error_code ec;
-    FluidPath       newpath(newname, _fsname, ec);
+    FluidPath       newpath(newname, _volume, ec);
     if (ec) {
         response = request->beginResponse(500, "text/plain", "Unable to move");
     } else {

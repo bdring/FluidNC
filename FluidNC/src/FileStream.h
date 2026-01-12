@@ -32,8 +32,8 @@ class FileStream : public Channel {
 
 public:
     FileStream() = default;
-    FileStream(std::string filename, const char* mode, const char* defaultFs = "") : FileStream(filename.c_str(), mode, defaultFs) {}
-    FileStream(const char* filename, const char* mode, const char* defaultFs = "");
+    FileStream(std::string filename, const char* mode, const Volume& defaultFs = LocalFS) : FileStream(filename.c_str(), mode, defaultFs) {}
+    FileStream(const char* filename, const char* mode, const Volume& defaultFs = LocalFS);
     FileStream(FluidPath fpath, const char* mode);
 
     FluidPath fpath() { return _fpath; }
