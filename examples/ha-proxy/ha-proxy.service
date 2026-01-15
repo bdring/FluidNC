@@ -1,0 +1,19 @@
+[Unit]
+Description=Home Assistant Proxy for FluidNC
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/path/to/ha-proxy
+ExecStart=/usr/bin/python3 /path/to/ha-proxy/ha_proxy.py
+Restart=always
+RestartSec=5
+
+# Configuration - adjust these for your setup
+Environment=HA_URL=http://localhost:8123
+Environment=HA_TOKEN_FILE=/path/to/ha-proxy/.ha_token
+Environment=PORT=5050
+
+[Install]
+WantedBy=multi-user.target

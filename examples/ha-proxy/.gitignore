@@ -1,0 +1,17 @@
+# Never commit tokens or credentials
+.ha_token
+*.token
+
+# Environment files with secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/

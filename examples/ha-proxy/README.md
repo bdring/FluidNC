@@ -13,44 +13,69 @@ The proxy solves this by:
 
 ## Quick Start
 
-1. Copy this directory to your Home Assistant server
-2. Configure the environment variables in `.env`
+1. Copy this directory to a server on your network
+2. Create `.ha_token` with your Home Assistant long-lived access token
 3. Install dependencies: `pip install -r requirements.txt`
-4. Run: `python ha_proxy.py`
-5. (Optional) Install as systemd service: `sudo cp ha-proxy.service /etc/systemd/system/`
+4. Edit `ha_proxy.py` to customize `LASER_ENTITIES` for your devices
+5. Run: `python ha_proxy.py`
 
 ## Configuration
 
-Create a `.env` file with:
-```
-HA_HOST=http://localhost:8123
-HA_TOKEN=your_long_lived_access_token
-PROXY_PORT=5050
+Set environment variables or edit the defaults in `ha_proxy.py`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HA_URL` | `http://localhost:8123` | Home Assistant URL |
+| `HA_TOKEN_FILE` | `.ha_token` | Path to token file |
+| `PORT` | `5050` | Proxy listen port |
+
+**Important:** Use IP addresses instead of hostnames in GCode - ESP32 DNS resolution is unreliable.
+
+## Installation as Service
+
+```bash
+# Edit ha-proxy.service with your paths and user
+sudo cp ha-proxy.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable ha-proxy
+sudo systemctl start ha-proxy
 ```
 
 ## Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/laser/water/on` | POST | Turn on water cooling |
-| `/laser/water/off` | POST | Turn off water cooling |
-| `/laser/air/on` | POST | Turn on air assist |
-| `/laser/air/off` | POST | Turn off air assist |
-| `/laser/status` | GET | Get status of all laser switches |
+| `/laser/<device>/on` | GET/POST | Turn on device |
+| `/laser/<device>/off` | GET/POST | Turn off device |
+| `/laser/<device>/toggle` | GET/POST | Toggle device |
+| `/laser/<device>/status` | GET | Get device status |
+| `/laser/all/on` | GET/POST | Turn on water + air |
+| `/laser/all/off` | GET/POST | Turn off water + air |
+| `/laser/status` | GET | Get all device statuses |
 | `/health` | GET | Health check |
+
+Default devices: `water`, `air`, `vent`, `power` (customize in `LASER_ENTITIES`)
 
 ## GCode Usage
 
 ```gcode
 ; Turn on water cooling (critical - halt on failure)
-$HTTP=http://nara:5050/laser/water/on
+$HTTP=http://192.168.1.100:5050/laser/water/on
 
 ; Turn on air assist (non-critical - continue on failure)
-$HTTP=http://nara:5050/laser/air/on{"fail":false}
+$HTTP=http://192.168.1.100:5050/laser/air/on{"fail":false}
+
+; Turn on all laser support systems
+$HTTP=http://192.168.1.100:5050/laser/all/on
 
 ; Check status
-$HTTP=http://nara:5050/laser/status
+$HTTP=http://192.168.1.100:5050/laser/status
+
+; Turn off everything at end of job
+$HTTP=http://192.168.1.100:5050/laser/all/off
 ```
+
+Replace `192.168.1.100` with the IP address of your proxy server.
 
 ## Customization
 
