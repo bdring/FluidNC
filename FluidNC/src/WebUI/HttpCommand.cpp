@@ -34,7 +34,123 @@ namespace WebUI {
     // Static member initialization
     HttpResponse HttpCommand::_last_response;
 
-    // State check function for command registration
+    // ============================================================================
+    // HttpOptionsListener implementation
+    // Parses JSON like: {"method":"POST","timeout":5000,"headers":{...},"extract":{...}}
+    // ============================================================================
+
+    void HttpOptionsListener::startDocument() {
+        _depth     = 0;
+        _inHeaders = false;
+        _inExtract = false;
+        _currentKey.clear();
+        _nestedKey.clear();
+    }
+
+    void HttpOptionsListener::key(String key) {
+        if (_depth == 1) {
+            _currentKey = key;
+        } else if (_depth == 2 && (_inHeaders || _inExtract)) {
+            _nestedKey = key;
+        }
+    }
+
+    void HttpOptionsListener::value(String value) {
+        if (_depth == 1) {
+            // Top-level values
+            if (_currentKey == "method") {
+                _request.method = value.c_str();
+            } else if (_currentKey == "timeout") {
+                int timeout = value.toInt();
+                _request.timeout_ms = std::min(static_cast<uint32_t>(timeout), HttpCommand::MAX_TIMEOUT_MS);
+            } else if (_currentKey == "body") {
+                _request.body = value.c_str();
+                // Default to POST if body is present and method not set
+                if (_request.method == "GET") {
+                    _request.method = "POST";
+                }
+            }
+        } else if (_depth == 2) {
+            // Nested object values (headers or extract)
+            if (_inHeaders && !_nestedKey.isEmpty()) {
+                _request.headers[_nestedKey.c_str()] = value.c_str();
+            } else if (_inExtract && !_nestedKey.isEmpty()) {
+                _request.extract[_nestedKey.c_str()] = value.c_str();
+            }
+        }
+    }
+
+    void HttpOptionsListener::startObject() {
+        _depth++;
+        if (_depth == 2) {
+            if (_currentKey == "headers") {
+                _inHeaders = true;
+            } else if (_currentKey == "extract") {
+                _inExtract = true;
+            } else if (_currentKey == "body") {
+                // Body can be an object - we'll need to capture it differently
+                // For now, treat nested body objects as strings
+            }
+        }
+    }
+
+    void HttpOptionsListener::endObject() {
+        if (_depth == 2) {
+            _inHeaders = false;
+            _inExtract = false;
+        }
+        _depth--;
+    }
+
+    void HttpOptionsListener::startArray() {
+        _depth++;
+    }
+
+    void HttpOptionsListener::endArray() {
+        _depth--;
+    }
+
+    void HttpOptionsListener::endDocument() {
+        // Nothing to do
+    }
+
+    // ============================================================================
+    // ValueExtractorListener implementation
+    // Extracts specific float values from JSON response body
+    // ============================================================================
+
+    void ValueExtractorListener::key(String key) {
+        if (_depth == 1) {
+            _currentKey = key;
+        }
+    }
+
+    void ValueExtractorListener::value(String value) {
+        if (_depth == 1 && !_currentKey.isEmpty()) {
+            // Check if this key should be extracted
+            std::string keyStr = _currentKey.c_str();
+            for (const auto& mapping : _extractMap) {
+                if (mapping.second == keyStr) {
+                    // Try to convert value to float
+                    float floatVal = value.toFloat();
+                    _results[mapping.first] = floatVal;
+                }
+            }
+        }
+    }
+
+    void ValueExtractorListener::startObject() {
+        _depth++;
+    }
+
+    void ValueExtractorListener::endObject() {
+        _depth--;
+    }
+
+    // ============================================================================
+    // State check and command handler
+    // ============================================================================
+
     bool http_state_check() {
         // Block during states where HTTP requests are inappropriate
         if (state_is(State::Homing)) {
@@ -52,7 +168,6 @@ namespace WebUI {
         return false;  // Allow
     }
 
-    // Command handler
     Error http_command_handler(const char* value, AuthenticationLevel auth_level, Channel& out) {
         return HttpCommand::execute(value, auth_level, out);
     }
@@ -69,7 +184,6 @@ namespace WebUI {
     };
 
     // Register module with init_priority to ensure it runs after core initialization
-    // Second parameter 'true' means autocreate the module at startup
     ModuleFactory::InstanceBuilder<HttpCommandModule> http_command_module __attribute__((init_priority(110))) ("http_command", true);
 
     bool HttpCommand::state_check() {
@@ -84,11 +198,15 @@ namespace WebUI {
         return _last_response.body;
     }
 
+    // ============================================================================
+    // Main execute function
+    // ============================================================================
+
     Error HttpCommand::execute(const char* value, AuthenticationLevel auth_level, Channel& out) {
         // Check WiFi connection
         if (WiFi.status() != WL_CONNECTED) {
             log_error_to(out, "HTTP: WiFi not connected");
-            return Error::FsFailedOpenFile;  // Connection failure
+            return Error::FsFailedOpenFile;
         }
 
         // Parse command
@@ -133,11 +251,12 @@ namespace WebUI {
         return result;
     }
 
+    // ============================================================================
+    // Command parsing
+    // ============================================================================
+
     bool HttpCommand::parse_command(const char* value, std::string& url, std::string& json_options) {
         // Format: url{json} or url
-        // The value is everything after $HTTP=
-        // URL ends at '{' (start of JSON) or end of string
-
         if (!value || *value == '\0') {
             return false;
         }
@@ -150,7 +269,6 @@ namespace WebUI {
             url = std::string(value, json_start - value);
 
             // JSON is everything from '{' to matching '}'
-            // Find matching closing brace (handle nested braces)
             int         brace_count = 1;
             const char* p           = json_start + 1;
 
@@ -169,207 +287,27 @@ namespace WebUI {
 
             json_options = std::string(json_start, p - json_start);
         } else {
-            // No JSON options, URL is the entire value
             url = value;
             json_options.clear();
         }
 
-        // Validate URL is not empty
-        if (url.empty()) {
-            return false;
+        return !url.empty();
+    }
+
+    // ============================================================================
+    // JSON parsing using streaming parser
+    // ============================================================================
+
+    bool HttpCommand::parse_json_options(const std::string& json, HttpRequest& request) {
+        JsonStreamingParser parser;
+        HttpOptionsListener listener(request);
+        parser.setListener(&listener);
+
+        for (char c : json) {
+            parser.parse(c);
         }
 
         return true;
-    }
-
-    bool HttpCommand::extract_json_string(const std::string& json, const std::string& key, std::string& value) {
-        // Simple JSON string extraction
-        // Looks for "key":"value" pattern
-        std::string search = "\"" + key + "\"";
-        size_t      pos    = json.find(search);
-        if (pos == std::string::npos) {
-            return false;
-        }
-
-        pos += search.length();
-
-        // Skip whitespace and colon
-        while (pos < json.length() && (json[pos] == ' ' || json[pos] == ':')) {
-            pos++;
-        }
-
-        if (pos >= json.length() || json[pos] != '"') {
-            return false;
-        }
-
-        pos++;  // Skip opening quote
-        size_t start = pos;
-
-        // Find closing quote (handle escape sequences)
-        while (pos < json.length()) {
-            if (json[pos] == '\\' && pos + 1 < json.length()) {
-                pos += 2;  // Skip escaped character
-            } else if (json[pos] == '"') {
-                break;
-            } else {
-                pos++;
-            }
-        }
-
-        if (pos >= json.length()) {
-            return false;
-        }
-
-        value = json.substr(start, pos - start);
-
-        // Unescape basic sequences
-        size_t escape_pos = 0;
-        while ((escape_pos = value.find('\\', escape_pos)) != std::string::npos) {
-            if (escape_pos + 1 < value.length()) {
-                char escaped = value[escape_pos + 1];
-                char replacement;
-                switch (escaped) {
-                    case 'n':
-                        replacement = '\n';
-                        break;
-                    case 'r':
-                        replacement = '\r';
-                        break;
-                    case 't':
-                        replacement = '\t';
-                        break;
-                    case '"':
-                        replacement = '"';
-                        break;
-                    case '\\':
-                        replacement = '\\';
-                        break;
-                    default:
-                        replacement = escaped;
-                        break;
-                }
-                value.replace(escape_pos, 2, 1, replacement);
-            }
-            escape_pos++;
-        }
-
-        return true;
-    }
-
-    bool HttpCommand::extract_json_object(const std::string& json, const std::string& key, std::string& value) {
-        // Look for "key":{...} pattern
-        std::string search = "\"" + key + "\"";
-        size_t      pos    = json.find(search);
-        if (pos == std::string::npos) {
-            return false;
-        }
-
-        pos += search.length();
-
-        // Skip whitespace and colon
-        while (pos < json.length() && (json[pos] == ' ' || json[pos] == ':')) {
-            pos++;
-        }
-
-        if (pos >= json.length() || json[pos] != '{') {
-            return false;
-        }
-
-        size_t start       = pos;
-        int    brace_count = 1;
-        pos++;
-
-        while (pos < json.length() && brace_count > 0) {
-            if (json[pos] == '{') {
-                brace_count++;
-            } else if (json[pos] == '}') {
-                brace_count--;
-            } else if (json[pos] == '"') {
-                // Skip string content
-                pos++;
-                while (pos < json.length() && json[pos] != '"') {
-                    if (json[pos] == '\\' && pos + 1 < json.length()) {
-                        pos++;
-                    }
-                    pos++;
-                }
-            }
-            pos++;
-        }
-
-        if (brace_count != 0) {
-            return false;
-        }
-
-        value = json.substr(start, pos - start);
-        return true;
-    }
-
-    bool HttpCommand::extract_json_number(const std::string& json, const std::string& key, int& value) {
-        std::string search = "\"" + key + "\"";
-        size_t      pos    = json.find(search);
-        if (pos == std::string::npos) {
-            return false;
-        }
-
-        pos += search.length();
-
-        // Skip whitespace and colon
-        while (pos < json.length() && (json[pos] == ' ' || json[pos] == ':')) {
-            pos++;
-        }
-
-        if (pos >= json.length() || (!isdigit(json[pos]) && json[pos] != '-')) {
-            return false;
-        }
-
-        size_t start = pos;
-        if (json[pos] == '-') {
-            pos++;
-        }
-        while (pos < json.length() && isdigit(json[pos])) {
-            pos++;
-        }
-
-        value = std::stoi(json.substr(start, pos - start));
-        return true;
-    }
-
-    bool HttpCommand::extract_json_float(const std::string& json, const std::string& key, float& value) {
-        std::string search = "\"" + key + "\"";
-        size_t      pos    = json.find(search);
-        if (pos == std::string::npos) {
-            return false;
-        }
-
-        pos += search.length();
-
-        // Skip whitespace and colon
-        while (pos < json.length() && (json[pos] == ' ' || json[pos] == ':')) {
-            pos++;
-        }
-
-        if (pos >= json.length() || (!isdigit(json[pos]) && json[pos] != '-' && json[pos] != '.')) {
-            return false;
-        }
-
-        size_t start = pos;
-        if (json[pos] == '-') {
-            pos++;
-        }
-        while (pos < json.length() &&
-               (isdigit(json[pos]) || json[pos] == '.' || json[pos] == 'e' || json[pos] == 'E' || json[pos] == '+' || json[pos] == '-')) {
-            // Handle scientific notation properly - don't allow multiple signs except after e/E
-            if ((json[pos] == '+' || json[pos] == '-') && pos > start && json[pos - 1] != 'e' && json[pos - 1] != 'E') {
-                break;
-            }
-            pos++;
-        }
-
-        try {
-            value = std::stof(json.substr(start, pos - start));
-            return true;
-        } catch (...) { return false; }
     }
 
     void HttpCommand::extract_response_values(const HttpRequest& request, const HttpResponse& response, Channel& out) {
@@ -379,124 +317,35 @@ namespace WebUI {
 
         log_debug("HTTP: Response body for extraction: " << response.body);
 
+        // Use streaming parser to extract values
+        std::map<std::string, float> results;
+        JsonStreamingParser          parser;
+        ValueExtractorListener       listener(request.extract, results);
+        parser.setListener(&listener);
+
+        for (char c : response.body) {
+            parser.parse(c);
+        }
+
+        // Store extracted values in GCode parameters
+        for (const auto& result : results) {
+            set_named_param(result.first.c_str(), result.second);
+            log_debug("HTTP: Extracted " << result.first << " = " << result.second);
+        }
+
+        // Report any keys that weren't found
         for (const auto& mapping : request.extract) {
-            const std::string& param_name = mapping.first;
-            const std::string& json_key   = mapping.second;
-
-            float value;
-            if (extract_json_float(response.body, json_key, value)) {
-                set_named_param(param_name.c_str(), value);
-                log_debug("HTTP: Extracted " << param_name << " = " << value << " from key '" << json_key << "'");
-            } else {
-                log_warn_to(out, "HTTP: Failed to extract '" << json_key << "' for parameter " << param_name);
+            if (results.find(mapping.first) == results.end()) {
+                log_warn_to(out, "HTTP: Failed to extract '" << mapping.second << "' for parameter " << mapping.first);
             }
         }
     }
 
-    bool HttpCommand::parse_headers_object(const std::string& json_obj, std::map<std::string, std::string>& headers) {
-        // Parse {"key":"value", "key2":"value2"} format
-        size_t pos = 1;  // Skip opening brace
-
-        while (pos < json_obj.length() - 1) {
-            // Skip whitespace
-            while (pos < json_obj.length() && (json_obj[pos] == ' ' || json_obj[pos] == ',' || json_obj[pos] == '\n')) {
-                pos++;
-            }
-
-            if (pos >= json_obj.length() - 1 || json_obj[pos] == '}') {
-                break;
-            }
-
-            if (json_obj[pos] != '"') {
-                return false;
-            }
-
-            // Extract key
-            pos++;
-            size_t key_start = pos;
-            while (pos < json_obj.length() && json_obj[pos] != '"') {
-                pos++;
-            }
-            std::string key = json_obj.substr(key_start, pos - key_start);
-            pos++;
-
-            // Skip to value
-            while (pos < json_obj.length() && (json_obj[pos] == ' ' || json_obj[pos] == ':')) {
-                pos++;
-            }
-
-            if (pos >= json_obj.length() || json_obj[pos] != '"') {
-                return false;
-            }
-
-            // Extract value
-            pos++;
-            size_t value_start = pos;
-            while (pos < json_obj.length() && json_obj[pos] != '"') {
-                if (json_obj[pos] == '\\' && pos + 1 < json_obj.length()) {
-                    pos++;
-                }
-                pos++;
-            }
-            std::string value = json_obj.substr(value_start, pos - value_start);
-            pos++;
-
-            headers[key] = value;
-        }
-
-        return true;
-    }
-
-    bool HttpCommand::parse_json_options(const std::string& json, HttpRequest& request) {
-        // Parse optional fields from JSON
-
-        // Method (GET, POST, PUT, DELETE)
-        std::string method;
-        if (extract_json_string(json, "method", method)) {
-            request.method = method;
-        }
-
-        // Timeout
-        int timeout;
-        if (extract_json_number(json, "timeout", timeout)) {
-            request.timeout_ms = std::min(static_cast<uint32_t>(timeout), MAX_TIMEOUT_MS);
-        }
-
-        // Headers
-        std::string headers_obj;
-        if (extract_json_object(json, "headers", headers_obj)) {
-            parse_headers_object(headers_obj, request.headers);
-        }
-
-        // Body - can be object or string
-        std::string body_obj;
-        if (extract_json_object(json, "body", body_obj)) {
-            request.body = body_obj;
-            // Default to POST if body is present and method not specified
-            if (method.empty()) {
-                request.method = "POST";
-            }
-        } else {
-            std::string body_str;
-            if (extract_json_string(json, "body", body_str)) {
-                request.body = body_str;
-                if (method.empty()) {
-                    request.method = "POST";
-                }
-            }
-        }
-
-        // Extract - maps GCode parameter names to JSON keys to extract from response
-        std::string extract_obj;
-        if (extract_json_object(json, "extract", extract_obj)) {
-            parse_headers_object(extract_obj, request.extract);  // Same format as headers
-        }
-
-        return true;
-    }
+    // ============================================================================
+    // URL parsing
+    // ============================================================================
 
     bool HttpCommand::parse_url(const std::string& url, std::string& protocol, std::string& host, uint16_t& port, std::string& path) {
-        // Parse URL: protocol://host:port/path
         size_t protocol_end = url.find("://");
         if (protocol_end == std::string::npos) {
             return false;
@@ -529,6 +378,10 @@ namespace WebUI {
         return !host.empty();
     }
 
+    // ============================================================================
+    // HTTP request execution
+    // ============================================================================
+
     Error HttpCommand::execute_request(const HttpRequest& request, HttpResponse& response, Channel& out) {
         std::string protocol;
         std::string host;
@@ -543,15 +396,13 @@ namespace WebUI {
         log_debug("HTTP: " << request.method << " " << protocol << "://" << host << ":" << port << path);
 
         // Create client based on protocol
-        // HTTP: Use WiFiClient (plain TCP)
-        // HTTPS: Use WiFiClientSecure (TLS/SSL)
         WiFiClient       http_client;
         WiFiClientSecure https_client;
         WiFiClient*      client_ptr;
 
         bool connected = false;
         if (protocol == "https") {
-            https_client.setInsecure();  // Skip certificate validation
+            https_client.setInsecure();
             https_client.setTimeout(request.timeout_ms / 1000);
             connected  = https_client.connect(host.c_str(), port);
             client_ptr = &https_client;
@@ -563,7 +414,7 @@ namespace WebUI {
 
         if (!connected) {
             log_error_to(out, "HTTP: Connection failed to " << host << ":" << port);
-            return Error::FsFailedOpenFile;  // Connection failure
+            return Error::FsFailedOpenFile;
         }
 
         WiFiClient& client = *client_ptr;
@@ -582,7 +433,6 @@ namespace WebUI {
 
         // Add body
         if (!request.body.empty()) {
-            // Check if body looks like JSON
             if (request.body[0] == '{') {
                 http_request += "Content-Type: application/json\r\n";
             }
@@ -596,13 +446,13 @@ namespace WebUI {
         // Send request
         client.print(http_request.c_str());
 
-        // Read response status line
+        // Read response
         uint32_t start_time = millis();
         while (client.connected() && !client.available()) {
             if (millis() - start_time > request.timeout_ms) {
                 client.stop();
                 log_error_to(out, "HTTP: Response timeout");
-                return Error::AnotherInterfaceBusy;  // Timeout
+                return Error::AnotherInterfaceBusy;
             }
             delay(10);
         }
@@ -624,42 +474,36 @@ namespace WebUI {
         while (client.connected()) {
             std::string line = client.readStringUntil('\n').c_str();
             if (line.length() <= 1) {
-                break;  // Empty line signals end of headers
+                break;
             }
         }
 
-        // Read body (limited size)
-        // Note: Use OR not AND - server may close connection after sending, but data still in buffer
+        // Read body
         response.body.clear();
         while ((client.connected() || client.available()) && response.body.length() < MAX_RESPONSE_SIZE) {
             if (client.available()) {
                 char c = client.read();
                 response.body += c;
             } else if (client.connected()) {
-                delay(1);  // Wait for more data
+                delay(1);
             }
         }
         log_debug("HTTP: Read body length: " << response.body.length() << " bytes");
 
         client.stop();
 
-        // Check for success (2xx status)
         if (response.status_code >= 200 && response.status_code < 300) {
             return Error::Ok;
         } else if (response.status_code >= 400) {
             log_warn_to(out, "HTTP: Server returned " << response.status_code);
-            return Error::Ok;  // Still return Ok so GCode can check the status
+            return Error::Ok;
         }
 
         return Error::Ok;
     }
 
     void HttpCommand::store_response_params(const HttpResponse& response) {
-        // Store HTTP status code in named parameter
         set_named_param("_HTTP_STATUS", static_cast<float>(response.status_code));
-
-        // Note: Response body is stored in _last_response and accessible via last_response_body()
-        // We can't easily store strings in GCode parameters, so we store a hash or length
         set_named_param("_HTTP_RESPONSE_LEN", static_cast<float>(response.body.length()));
     }
 

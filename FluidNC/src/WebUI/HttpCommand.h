@@ -6,6 +6,8 @@
 #include "../Settings.h"
 #include "../Channel.h"
 
+#include <JsonListener.h>
+#include <JsonStreamingParser.h>
 #include <string>
 #include <map>
 
@@ -31,6 +33,56 @@ namespace WebUI {
         HttpResponse() : status_code(0) {}
     };
 
+    // JSON listener for parsing HTTP command options
+    // Handles: {"method":"POST","timeout":5000,"headers":{...},"body":"...","extract":{...}}
+    class HttpOptionsListener : public JsonListener {
+    public:
+        explicit HttpOptionsListener(HttpRequest& request) : _request(request) {}
+
+        void whitespace(char c) override {}
+        void startDocument() override;
+        void key(String key) override;
+        void value(String value) override;
+        void startObject() override;
+        void endObject() override;
+        void startArray() override;
+        void endArray() override;
+        void endDocument() override;
+
+    private:
+        HttpRequest& _request;
+        String       _currentKey;
+        String       _nestedKey;
+        int          _depth       = 0;
+        bool         _inHeaders   = false;
+        bool         _inExtract   = false;
+    };
+
+    // JSON listener for extracting float values from response
+    // Used to extract specific keys from JSON response body
+    class ValueExtractorListener : public JsonListener {
+    public:
+        explicit ValueExtractorListener(const std::map<std::string, std::string>& extractMap,
+                                        std::map<std::string, float>&             results) :
+            _extractMap(extractMap), _results(results) {}
+
+        void whitespace(char c) override {}
+        void startDocument() override {}
+        void key(String key) override;
+        void value(String value) override;
+        void startObject() override;
+        void endObject() override;
+        void startArray() override {}
+        void endArray() override {}
+        void endDocument() override {}
+
+    private:
+        const std::map<std::string, std::string>& _extractMap;
+        std::map<std::string, float>&             _results;
+        String                                    _currentKey;
+        int                                       _depth = 0;
+    };
+
     class HttpCommand {
     public:
         // Maximum response body size to store
@@ -43,7 +95,7 @@ namespace WebUI {
         static const uint32_t DEFAULT_TIMEOUT_MS = 5000;
 
         // Execute HTTP command
-        // Format: $HTTP[url]{json_options}
+        // Format: $HTTP=url{json_options}
         static Error execute(const char* value, AuthenticationLevel auth_level, Channel& out);
 
         // Check if current state allows HTTP requests
@@ -59,7 +111,7 @@ namespace WebUI {
         // Parse the command string into URL and JSON options
         static bool parse_command(const char* value, std::string& url, std::string& json_options);
 
-        // Parse JSON options into HttpRequest struct
+        // Parse JSON options into HttpRequest struct using streaming parser
         static bool parse_json_options(const std::string& json, HttpRequest& request);
 
         // Parse URL into host, port, and path
@@ -71,23 +123,8 @@ namespace WebUI {
         // Store response in GCode parameters
         static void store_response_params(const HttpResponse& response);
 
-        // Simple JSON string extraction helper
-        static bool extract_json_string(const std::string& json, const std::string& key, std::string& value);
-
-        // Simple JSON object extraction helper
-        static bool extract_json_object(const std::string& json, const std::string& key, std::string& value);
-
-        // Simple JSON number extraction helper (integer)
-        static bool extract_json_number(const std::string& json, const std::string& key, int& value);
-
-        // Simple JSON number extraction helper (float)
-        static bool extract_json_float(const std::string& json, const std::string& key, float& value);
-
         // Extract values from response and store in GCode parameters
         static void extract_response_values(const HttpRequest& request, const HttpResponse& response, Channel& out);
-
-        // Parse headers object into map
-        static bool parse_headers_object(const std::string& json_obj, std::map<std::string, std::string>& headers);
 
         // Last response data (for parameter access)
         static HttpResponse _last_response;
