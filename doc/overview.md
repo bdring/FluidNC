@@ -168,3 +168,29 @@ HTTP status codes are stored in `#<_HTTP_STATUS>` regardless of success/failure.
 4. **WiFi required**: Only works when WiFi is connected in STA mode
 5. **No streaming**: Cannot stream large responses
 6. **HTTPS recommended**: Both HTTP and HTTPS work, but HTTPS certificates are not validated (insecure mode)
+7. **Line length limit**: FluidNC commands are limited to 255 characters total. Long URLs or headers (e.g., JWT tokens) may exceed this limit.
+
+## Working with Authentication (Proxy Pattern)
+
+Services like Home Assistant require long JWT tokens for authentication, which can exceed FluidNC's 255-character line limit. The recommended solution is to use a lightweight proxy server on your network.
+
+**Problem:**
+```gcode
+; This exceeds 255 characters and will fail:
+$HTTP=http://homeassistant:8123/api/services/switch/turn_on{"headers":{"Authorization":"Bearer eyJhbGciOiJIUzI1NiIs...long-token..."},"body":"..."}
+```
+
+**Solution - Create a proxy with short URLs:**
+```gcode
+; Simple, short URLs that fit within the limit:
+$HTTP=http://proxy-server:5050/laser/water/on
+$HTTP=http://proxy-server:5050/laser/air/on
+```
+
+The proxy server handles authentication and forwards requests to the target service. See `examples/ha-proxy/` for a reference implementation that works with Home Assistant.
+
+**Benefits of the proxy pattern:**
+- Short, readable GCode commands
+- Centralized authentication management
+- Can add logging and monitoring
+- Can combine multiple API calls into single endpoints
