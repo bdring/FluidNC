@@ -37,10 +37,12 @@ private:
     void handleDelete(const FluidPath& path, DavResource resource, AsyncWebServerRequest* request);
     void handleHead(DavResource resource, AsyncWebServerRequest* request);
     void handleNotFound(AsyncWebServerRequest* request);
-    void sendPropResponse(AsyncResponseStream* response, int level, std::string fullPath, JSONencoder* j);
+    void sendPropResponse(AsyncResponseStream* response, int level, const stdfs::path& fpath, JSONencoder* j);
 
     std::string urlToUri(std::string url);
 
     bool acceptsType(AsyncWebServerRequest* request, const char*);
     bool acceptsEncoding(AsyncWebServerRequest* request, const char*);
+
+    stdfs::path replace_fs_name(const stdfs::path& p);
 };

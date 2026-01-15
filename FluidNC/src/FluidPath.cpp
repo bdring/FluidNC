@@ -23,6 +23,14 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
         return ret;
     }
 
+    // A std::filesystem::path with a trailing slash (except for just "/")
+    // is considered to be a path with an empty final component, not a
+    // final directory component.  That causes problems when trying to
+    // determine the file type, so we remove trailing slases.
+    while (filename.length() > 1 && filename[filename.length() - 1] == '/') {
+        filename.remove_suffix(1);
+    }
+
     if (filename[0] == '/') {
         auto        pos = filename.find('/', 1);
         std::string fsname;
