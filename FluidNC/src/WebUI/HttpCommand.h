@@ -21,8 +21,9 @@ namespace WebUI {
         std::string                        body;
         uint32_t                           timeout_ms;
         std::map<std::string, std::string> extract;  // Maps GCode param name -> JSON key to extract
+        bool                               fail_on_error;  // If true, errors halt GCode execution
 
-        HttpRequest() : method("GET"), timeout_ms(5000) {}
+        HttpRequest() : method("GET"), timeout_ms(5000), fail_on_error(true) {}
     };
 
     // HTTP response data

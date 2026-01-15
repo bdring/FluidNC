@@ -6,9 +6,22 @@
 //
 // Usage: $HTTP=url or $HTTP=url{json_options}
 //
+// JSON options:
+//   method  - HTTP method (GET, POST, PUT, DELETE). Default: GET (POST if body present)
+//   timeout - Request timeout in ms (max 10000). Default: 5000
+//   body    - Request body string
+//   headers - Object of custom headers, e.g. {"Authorization":"Bearer xyz"}
+//   extract - Object mapping GCode params to JSON keys, e.g. {"_temp":"temperature"}
+//   fail    - If true (default), errors halt GCode. If false, errors set _HTTP_STATUS=0
+//
 // Examples:
 //   $HTTP=http://example.com/api
 //   $HTTP=http://example.com/api{"method":"POST","body":"{\"key\":\"value\"}"}
+//   $HTTP=http://metrics.local/log{"fail":false}
+//
+// GCode parameters set after request:
+//   _HTTP_STATUS       - HTTP status code (0 if connection failed)
+//   _HTTP_RESPONSE_LEN - Response body length
 //
 // Limitations:
 //   - Blocks GCode processing (not stepper motion) during request
@@ -69,6 +82,9 @@ namespace WebUI {
                 if (_request.method == "GET") {
                     _request.method = "POST";
                 }
+            } else if (_currentKey == "fail") {
+                // "fail":true (default) = halt GCode on error, "fail":false = continue
+                _request.fail_on_error = (value == "true" || value == "1");
             }
         } else if (_depth == 2) {
             // Nested object values (headers or extract)
@@ -203,18 +219,12 @@ namespace WebUI {
     // ============================================================================
 
     Error HttpCommand::execute(const char* value, AuthenticationLevel auth_level, Channel& out) {
-        // Check WiFi connection
-        if (WiFi.status() != WL_CONNECTED) {
-            log_error_to(out, "HTTP: WiFi not connected");
-            return Error::MessageFailed;
-        }
-
-        // Parse command
+        // Parse command first so we can check fail_on_error
         std::string url;
         std::string json_options;
         if (!parse_command(value, url, json_options)) {
             log_error_to(out, "HTTP: Invalid command format. Use: $HTTP=url or $HTTP=url{json}");
-            return Error::InvalidStatement;
+            return Error::InvalidStatement;  // Syntax errors always fail
         }
 
         // Build request
@@ -223,7 +233,19 @@ namespace WebUI {
 
         if (!json_options.empty() && !parse_json_options(json_options, request)) {
             log_error_to(out, "HTTP: Failed to parse JSON options");
-            return Error::InvalidValue;
+            return Error::InvalidValue;  // Syntax errors always fail
+        }
+
+        // Check WiFi connection (runtime error - respects fail_on_error)
+        if (WiFi.status() != WL_CONNECTED) {
+            log_error_to(out, "HTTP: WiFi not connected");
+            if (request.fail_on_error) {
+                return Error::MessageFailed;
+            }
+            // Store zero status to indicate failure
+            _last_response = HttpResponse();
+            store_response_params(_last_response);
+            return Error::Ok;
         }
 
         // Warn if in Cycle state
@@ -246,6 +268,11 @@ namespace WebUI {
 
         if (result == Error::Ok) {
             log_info_to(out, "HTTP: " << response.status_code);
+        }
+
+        // If fail_on_error is false, convert errors to Ok
+        if (result != Error::Ok && !request.fail_on_error) {
+            return Error::Ok;
         }
 
         return result;
