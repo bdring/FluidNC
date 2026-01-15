@@ -156,17 +156,7 @@ void collapseGCode(char* line) {
     // outPtr is always less than or equal to inPtr.
     char* outPtr = line;
     char  c;
-    if (strcmp(line, "%") == 0 || strcmp(line, "%\r") == 0) {
-        // Per https://linuxcnc.org/docs/html/gcode/overview.html#gcode:file-requirements
-        // % only applies to "job" channels like files and macros, not to serial channels
-        // where the sequence of lines is potentially never-ending.  A sender that handles
-        // files on the host system could apply the % semantics.
-        if (Job::active()) {
-            Job::channel()->percent();
-        }
-        *outPtr = '\0';  // Return empty line
-        return;
-    }
+    bool  hasComment = false;
     for (char* inPtr = line; (c = *inPtr) != '\0'; inPtr++) {
         if (isspace(c)) {
             continue;
@@ -186,6 +176,8 @@ void collapseGCode(char* line) {
                     *line = '\0';
                     return;
                 }
+
+                hasComment = true;
 
                 // Start the comment at the character after (
                 parenPtr = inPtr + 1;
@@ -209,11 +201,28 @@ void collapseGCode(char* line) {
         }
     }
     // On loop exit, *inPtr is '\0'
+
+    *outPtr = '\0';
+
     if (parenPtr) {
         // Handle unterminated ( comments
         gcode_comment_msg(parenPtr);
     }
-    *outPtr = '\0';
+    if (!hasComment && strcmp(line, "%") == 0) {
+        // Per https://linuxcnc.org/docs/2.6/html/gcode/overview.html#_overview, % lines
+        // can contain spaces, so this check happens after space removal.
+
+        // Per https://linuxcnc.org/docs/html/gcode/overview.html#gcode:file-requirements
+        // % only applies to "job" channels like files and macros, not to serial channels
+        // where the sequence of lines is potentially never-ending.  A sender that handles
+        // files on the host system could apply the % semantics.
+
+        if (Job::active()) {
+            Job::channel()->percent();
+        }
+        // Do not pass the % to the GCode interpreter
+        *line = '\0';
+    }
 }
 
 void gc_ngc_changed(CoordIndex coord) {
