@@ -22,6 +22,19 @@
 // GCode parameters set after request:
 //   _HTTP_STATUS       - HTTP status code (0 if connection failed)
 //   _HTTP_RESPONSE_LEN - Response body length
+//   Plus any parameters defined in "extract" option
+//
+// Note: All GCode parameters are floats. Only numeric JSON values can be extracted.
+// String values in JSON responses cannot be stored in parameters.
+//
+// Example with extraction:
+//   ; Server returns: {"temperature": 25.5, "pressure": 101.3}
+//   $HTTP=http://sensor/api{"extract":{"_temp":"temperature","_psi":"pressure"}}
+//   ; Now use in GCode:
+//   #<_safe> = [#<_temp> LT 50]  ; Check if temperature < 50
+//   o100 if [#<_safe> EQ 0]
+//     M0 (Temperature too high!)
+//   o100 endif
 //
 // Limitations:
 //   - Blocks GCode processing (not stepper motion) during request
