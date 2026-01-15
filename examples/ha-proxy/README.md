@@ -63,7 +63,7 @@ Default devices: `water`, `air`, `vent`, `power` (customize in `LASER_ENTITIES`)
 $HTTP=http://192.168.1.100:5050/laser/water/on
 
 ; Turn on air assist (non-critical - continue on failure)
-$HTTP=http://192.168.1.100:5050/laser/air/on{"fail":false}
+$HTTP=http://192.168.1.100:5050/laser/air/on{"halt_on_error":false}
 
 ; Turn on all laser support systems
 $HTTP=http://192.168.1.100:5050/laser/all/on

@@ -11,13 +11,13 @@
 //   timeout - Request timeout in ms (max 10000). Default: 5000
 //   body    - Request body string
 //   headers - Object of custom headers, e.g. {"Authorization":"Bearer xyz"}
-//   extract - Object mapping GCode params to JSON keys, e.g. {"_temp":"temperature"}
-//   fail    - If true (default), errors halt GCode. If false, errors set _HTTP_STATUS=0
+//   extract       - Object mapping GCode params to JSON keys, e.g. {"_temp":"temperature"}
+//   halt_on_error - If true (default), errors halt GCode. If false, errors set _HTTP_STATUS=0
 //
 // Examples:
 //   $HTTP=http://example.com/api
 //   $HTTP=http://example.com/api{"method":"POST","body":"{\"key\":\"value\"}"}
-//   $HTTP=http://metrics.local/log{"fail":false}
+//   $HTTP=http://metrics.local/log{"halt_on_error":false}
 //
 // GCode parameters set after request:
 //   _HTTP_STATUS       - HTTP status code (0 if connection failed)
@@ -82,8 +82,8 @@ namespace WebUI {
                 if (_request.method == "GET") {
                     _request.method = "POST";
                 }
-            } else if (_currentKey == "fail") {
-                // "fail":true (default) = halt GCode on error, "fail":false = continue
+            } else if (_currentKey == "halt_on_error") {
+                // "halt_on_error":true (default) = halt GCode on error, "halt_on_error":false = continue
                 _request.fail_on_error = (value == "true" || value == "1");
             }
         } else if (_depth == 2) {
