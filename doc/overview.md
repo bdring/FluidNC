@@ -93,11 +93,12 @@ $HTTP=url{json_options}
 **Parameters**:
 - `url` - Full URL including protocol (http:// or https://)
 - `json_options` - Optional JSON object with fields:
-  - `headers` - Object of HTTP headers
-  - `body` - Request body (string)
-  - `method` - HTTP method (default: POST if body present, GET otherwise)
+  - `method` - HTTP method (GET, POST, PUT, DELETE). Default: GET (POST if body present)
   - `timeout` - Request timeout in milliseconds (default: 5000, max: 10000)
+  - `body` - Request body (string)
+  - `headers` - Object of custom HTTP headers
   - `extract` - Object mapping GCode parameter names to JSON keys to extract from response
+  - `fail` - Error handling: `true` (default) halts GCode on error, `false` continues execution
 
 **Examples**:
 
@@ -124,16 +125,38 @@ $HTTP=http://192.168.1.100:5000/sensors{"extract":{"_temp":"temperature","_humid
 ; Use them in GCode expressions, e.g., conditional logic based on temperature
 ```
 
+Non-blocking request (continues on error):
+```
+; Send metrics - don't halt job if server is unavailable
+$HTTP=http://metrics.local/log{"method":"POST","body":"{\"event\":\"job_start\"}","fail":false}
+; GCode continues regardless of success/failure
+; Check #<_HTTP_STATUS> if you need to know the result (0 = connection failed)
+```
+
+Critical request (halts on error):
+```
+; Enable water cooling - MUST succeed before cutting
+$HTTP=http://cooling.local/enable{"fail":true}
+; If this fails, GCode execution stops here
+```
+
 ## Error Handling
 
 The command returns FluidNC error codes:
 
-| Error | Meaning |
-|-------|---------|
-| `Error::Ok` | Request successful (2xx status) |
-| `Error::FsFailedOpenFile` | Connection failed |
-| `Error::InvalidValue` | Malformed URL or JSON |
-| `Error::InvalidStatement` | Bad command format |
+| Error | Code | Meaning |
+|-------|------|---------|
+| `Error::Ok` | 0 | Request successful |
+| `Error::InvalidStatement` | 3 | Bad command format (syntax error) |
+| `Error::InvalidValue` | 81 | Malformed URL or JSON options |
+| `Error::MessageFailed` | 90 | Connection failed or WiFi not connected |
+| `Error::AnotherInterfaceBusy` | 120 | Request timeout |
+
+**Error behavior with `fail` option:**
+- `"fail":true` (default): Errors halt GCode execution
+- `"fail":false`: Errors log a warning, GCode continues, `#<_HTTP_STATUS>` set to 0
+
+**Note**: Syntax errors (InvalidStatement, InvalidValue) always halt execution regardless of the `fail` setting.
 
 HTTP status codes are stored in `#<_HTTP_STATUS>` regardless of success/failure.
 
