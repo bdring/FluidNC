@@ -206,7 +206,7 @@ namespace WebUI {
         // Check WiFi connection
         if (WiFi.status() != WL_CONNECTED) {
             log_error_to(out, "HTTP: WiFi not connected");
-            return Error::FsFailedOpenFile;
+            return Error::MessageFailed;
         }
 
         // Parse command
@@ -414,7 +414,7 @@ namespace WebUI {
 
         if (!connected) {
             log_error_to(out, "HTTP: Connection failed to " << host << ":" << port);
-            return Error::FsFailedOpenFile;
+            return Error::MessageFailed;
         }
 
         WiFiClient& client = *client_ptr;
