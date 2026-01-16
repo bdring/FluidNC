@@ -693,7 +693,7 @@ static Error dump_config(const char* value, AuthenticationLevel auth_level, Chan
 
         try {
             //            ss = new FileStream(std::string(value), "", "w");
-            ss = new FileStream(value, "w", "");
+            ss = new FileStream(value, "w", LocalFS);
         } catch (Error err) { return err; }
     } else {
         ss = &out;

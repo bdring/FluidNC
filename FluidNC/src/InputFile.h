@@ -29,7 +29,7 @@ private:
 public:
     // fsname is the default file system on which the file is located, in case the path does not specify
     // path is the full path to the file
-    InputFile(const char* fsname, const char* path);
+    InputFile(const Volume& defaultFs, const char* path);
 
     InputFile(const InputFile&)            = delete;
     InputFile& operator=(const InputFile&) = delete;

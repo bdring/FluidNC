@@ -986,7 +986,7 @@ fs::space_info fs::space(const path& p, error_code& ec) noexcept {
 #    ifdef __FLUIDNC
     uint64_t total, used;
     auto     mount = *(++p.begin());
-    if (fluidnc_vfs_stats(mount.c_str(), total, used)) {
+    if (fluidnc_vfs_stats(mount.string(), total, used)) {
         info = space_info { static_cast<uintmax_t>(total), static_cast<uintmax_t>(total - used), static_cast<uintmax_t>(total - used) };
         ec.clear();
         return info;

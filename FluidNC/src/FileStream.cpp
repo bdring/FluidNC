@@ -59,7 +59,7 @@ void FileStream::setup(const char* mode) {
     _size = stdfs::file_size(_fpath);
 }
 
-FileStream::FileStream(const char* filename, const char* mode, const char* fs) : Channel(filename), _fpath(filename, fs), _mode(mode) {
+FileStream::FileStream(const char* filename, const char* mode, const Volume& fs) : Channel(filename), _fpath(filename, fs), _mode(mode) {
     setup(mode);
 }
 

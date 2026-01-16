@@ -17,7 +17,7 @@
 
 using namespace asyncsrv;
 
-WebDAV::WebDAV(const std::string_view url, const char* fsname) : _url(url), _fsname(fsname) {}
+WebDAV::WebDAV(const std::string_view url, const Volume& volume) : _url(url), _volume(volume) {}
 
 bool WebDAV::canHandle(AsyncWebServerRequest* request) const {
     if (request->url().startsWith(_url.c_str())) {
@@ -30,22 +30,23 @@ static const char* rootname = "/";
 static const char* slashstr = "/";
 static const char  slash    = '/';
 
+// Mac command to prevent .DS_Store files:
+// defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool TRUE
+
 void WebDAV::handleRequest(AsyncWebServerRequest* request) {
     // parse the url to a proper path
-    std::string path = std::string(request->url().substring(_url.length()).c_str());
-    if (path.empty()) {
-        path = rootname;
-    }
-    if (path != rootname && path[path.length() - 1] == '/') {
-        path.pop_back();  // Remove the trailing /
-    }
-
+    stdfs::path path { request->url().substring(_url.length()).c_str() };
     DavResource resource = DavResource::NONE;
 
+    if (path.filename() == ".DS_Store" || string_util::starts_with_ignore_case(path.filename().string(), "._")) {
+        // Reject MacOS metadata filenames right away.  We do not want
+        // to clutter the FLASH filesystem with them, nor do we want
+        // to read the filesystem, lest we interfere with motion.
+        return request->send(403);
+    }
     std::error_code ec;
 
-    FluidPath fpath = { path, _fsname, ec };
-
+    FluidPath fpath { path.string(), _volume, ec };
     if (ec) {
         resource = DavResource::NONE;
     } else if (stdfs::is_regular_file(fpath)) {
@@ -67,11 +68,10 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
         // handleBody will add stuff to the file later.
         FileStream* file = nullptr;
         try {
-            file = new FileStream(fpath, "a", "");
+            file = new FileStream(fpath, "a", LocalFS);
         } catch (const Error err) {
             log_debug(fpath << " cannot be opened");
             return request->send(500);
-            ;
         }
         return request->send(201);
     }
@@ -122,7 +122,7 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
 
     std::error_code ec;
 
-    FluidPath fpath(path.c_str(), _fsname, ec);
+    FluidPath fpath(path.c_str(), _volume, ec);
 
     if (ec) {
         resource = DavResource::NONE;
@@ -175,9 +175,6 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
         }
     }
 
-    std::string fullPath = fpath;
-    size_t      pos      = 0;
-
     JSONencoder* j = nullptr;
 
     bool wantJSON = acceptsType(request, T_application_json);
@@ -196,7 +193,7 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
         response->print("<d:multistatus xmlns:d=\"DAV:\">");
     }
     //    if (!is_dir || !noroot) {
-    sendPropResponse(response, (int)depth, fullPath, j);
+    sendPropResponse(response, (int)depth, fpath, j);
     //    }
 
     if (j) {
@@ -218,13 +215,13 @@ void WebDAV::handleGet(const FluidPath& fpath, DavResource resource, AsyncWebSer
             stdfs::path gzpath(fpath);
             gzpath += ".gz";
             try {
-                file   = new FileStream(gzpath, "r", "");
+                file   = new FileStream(gzpath, "r", LocalFS);
                 isGzip = true;
             } catch (const Error err) {}
         }
     } else {
         try {
-            file = new FileStream(fpath, "r", "");
+            file = new FileStream(fpath, "r", LocalFS);
         } catch (const Error err) {}
     }
 
@@ -273,7 +270,7 @@ void WebDAV::handlePut(
     }
 
     try {
-        FileStream file(fpath, index ? "a" : "w", "");
+        FileStream file(fpath, index ? "a" : "w", LocalFS);
         file.write(data, len);
         file.flush();
     } catch (const Error err) { log_debug(fpath << " cannot be opened"); }
@@ -346,7 +343,7 @@ void WebDAV::handleMove(const FluidPath& fpath, DavResource resource, AsyncWebSe
 
     // Should handle "Overwrite: {T,F}" header
     std::error_code ec;
-    FluidPath       newpath(newname, _fsname, ec);
+    FluidPath       newpath(newname, _volume, ec);
     if (ec) {
         response = request->beginResponse(500, "text/plain", "Unable to move");
     } else {
@@ -387,6 +384,9 @@ void WebDAV::handleDelete(const FluidPath& fpath, DavResource resource, AsyncWeb
 
 void WebDAV::handleHead(DavResource resource, AsyncWebServerRequest* request) {
     AsyncWebServerResponse* response = request->beginResponse(200);
+    response->addHeader("Dav", "1,2");
+    response->addHeader("Ms-Author-Via", "DAV");
+    //    response->addHeader("Date", "13 Jan 2026 21:44:27 GMT");
     if (resource == DavResource::FILE) {
         response->addHeader("Allow", "PROPFIND,OPTIONS,DELETE,COPY,MOVE,HEAD,POST,PUT,GET");
     }
@@ -417,10 +417,27 @@ std::string WebDAV::urlToUri(std::string url) {
     return url.substr(_url.length());
 }
 
-void WebDAV::sendPropResponse(AsyncResponseStream* response, int level, std::string fullPath, JSONencoder* j) {
-    auto   ftime  = stdfs::last_write_time(fullPath);
-    bool   is_dir = stdfs::is_directory(fullPath);
-    size_t size   = is_dir ? -1 : stdfs::file_size(fullPath);
+stdfs::path WebDAV::replace_fs_name(const stdfs::path& p) {
+    // Check if the path is empty
+    if (p.empty()) {
+        return p;
+    }
+
+    // Construct a new path from the second component to the end
+    stdfs::path new_path(_url);
+
+    // Add the rest of the components
+    for (auto it = std::next(p.begin(), 2); it != p.end(); ++it) {
+        new_path /= *it;
+    }
+
+    return new_path;
+}
+
+void WebDAV::sendPropResponse(AsyncResponseStream* response, int level, const stdfs::path& fpath, JSONencoder* j) {
+    auto   ftime  = stdfs::last_write_time(fpath);
+    bool   is_dir = stdfs::is_directory(fpath);
+    size_t size   = is_dir ? -1 : stdfs::file_size(fpath);
 
     // last modified
 #if __cpp_lib_format
@@ -437,57 +454,57 @@ void WebDAV::sendPropResponse(AsyncResponseStream* response, int level, std::str
 
     if (j) {
         j->begin_object();
-        j->member("name", fullPath);
+        j->member("name", replace_fs_name(fpath));
         // j->member("shortname", fullPath);
         j->member("size", is_dir ? -1 : size);
         j->member("datetime", timestr);
         if (is_dir && level--) {
             j->begin_array("files");
             std::error_code ec;
-            auto            iter = stdfs::directory_iterator { fullPath, ec };
+            auto            iter = stdfs::directory_iterator { fpath, ec };
             for (auto const& dirent : iter) {
-                sendPropResponse(response, level, dirent.path().string(), j);
+                sendPropResponse(response, level, dirent.path(), j);
             }
             j->end_array();
         }
         j->end_object();
     } else {
         // send response
-        response->print("<d:response>");
-        response->printf("<d:href>%s</d:href>", fullPath.c_str());
-        response->print("<d:propstat>");
-        response->print("<d:prop>");
+        response->printf("<d:response>");
+        response->printf("<d:href>%s</d:href>", replace_fs_name(fpath).string().c_str());
+        response->printf("<d:propstat>");
+        response->printf("<d:prop>");
 
         response->printf("<d:getlastmodified>%s</d:getlastmodified>", timestr.c_str());
 
         if (is_dir) {
             // resource type
-            response->print("<d:resourcetype><d:collection/></d:resourcetype>");
+            response->printf("<d:resourcetype><d:collection/></d:resourcetype>");
         } else {
-            std::string shadata(fullPath);
+            std::string shadata(fpath.string());
             shadata += timestr;
             // etag
             response->printf("<d:getetag>%s</d:getetag>", sha1(shadata.c_str()).c_str());
 
             // resource type
-            response->print("<d:resourcetype/>");
+            response->printf("<d:resourcetype/>");
 
             // content length
             response->printf("<d:getcontentlength>%d</d:getcontentlength>", size);
 
             // content type
-            response->print("<d:getcontenttype>text/plain</d:getcontenttype>");
+            response->printf("<d:getcontenttype>text/plain</d:getcontenttype>");
         }
-        response->print("</d:prop>");
-        response->print("<d:status>HTTP/1.1 200 OK</d:status>");
-        response->print("</d:propstat>");
+        response->printf("</d:prop>");
+        response->printf("<d:status>HTTP/1.1 200 OK</d:status>");
+        response->printf("</d:propstat>");
 
-        response->print("</d:response>");
+        response->printf("</d:response>");
         if (is_dir && level--) {
             std::error_code ec;
-            auto            iter = stdfs::directory_iterator { fullPath, ec };
+            auto            iter = stdfs::directory_iterator { fpath, ec };
             for (auto const& dirent : iter) {
-                sendPropResponse(response, level, dirent.path().string(), j);
+                sendPropResponse(response, level, dirent.path(), j);
             }
         }
     }

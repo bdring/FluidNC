@@ -100,7 +100,7 @@ void HashFS::hash_all() {
     localFsHashes.clear();
 
     std::error_code ec;
-    FluidPath       lfspath { "", localfsName, ec };
+    FluidPath       lfspath { "", LocalFS, ec };
     if (ec) {
         return;
     }

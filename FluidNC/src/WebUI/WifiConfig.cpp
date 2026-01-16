@@ -626,10 +626,6 @@ namespace WebUI {
             // TODO: change grbl-embedded to FluidNC after fixing WebUI
             s << " # FW target:grbl-embedded  # FW HW:";
 
-            // std::error_code ec;
-            // FluidPath { "/sd", ec };
-            // s << (ec ? "No SD" : "Direct SD");
-
             // We do not check the SD presence here because if the SD card is out,
             // WebUI will switch to M20 for SD access, which is wrong for FluidNC
             s << "Direct SD";

@@ -9,7 +9,7 @@ class WebDAV : public AsyncWebHandler {
     enum class DavDepth { NONE = 0, CHILD = 1, ALL = 999 };
 
 public:
-    WebDAV(const std::string_view url, const char* fsname);
+    WebDAV(const std::string_view url, const Volume& volume);
 
     bool canHandle(AsyncWebServerRequest* request) const override final;
     void handleRequest(AsyncWebServerRequest* request) override final;
@@ -19,7 +19,7 @@ public:
 
 private:
     std::string _url;
-    const char* _fsname;
+    const Volume& _volume;
 
     void handlePropfind(const FluidPath& path, DavResource resource, AsyncWebServerRequest* request);
     void handleGet(const FluidPath& path, DavResource resource, AsyncWebServerRequest* request);
@@ -37,10 +37,12 @@ private:
     void handleDelete(const FluidPath& path, DavResource resource, AsyncWebServerRequest* request);
     void handleHead(DavResource resource, AsyncWebServerRequest* request);
     void handleNotFound(AsyncWebServerRequest* request);
-    void sendPropResponse(AsyncResponseStream* response, int level, std::string fullPath, JSONencoder* j);
+    void sendPropResponse(AsyncResponseStream* response, int level, const stdfs::path& fpath, JSONencoder* j);
 
     std::string urlToUri(std::string url);
 
     bool acceptsType(AsyncWebServerRequest* request, const char*);
     bool acceptsEncoding(AsyncWebServerRequest* request, const char*);
+
+    stdfs::path replace_fs_name(const stdfs::path& p);
 };
