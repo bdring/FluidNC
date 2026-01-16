@@ -60,12 +60,17 @@ namespace Machine {
 
         // see if the configured switches support the homing direction.
         if (_homing) {
-            auto direction = _homing->_positiveDirection;
+            bool homing_dir_supported = false;
+            auto direction            = _homing->_positiveDirection;
             for (motor_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
                 auto m = _motors[i];
-                if (m && !m->supports_homing_dir(direction)) {
-                    log_warn("  Motor" << i << " switches do not support " << (direction ? "positive" : "negative") << " homing dir");
+                if (m && m->supports_homing_dir(direction)) {
+                    homing_dir_supported = true;
+                    break;
                 }
+            }
+            if (!homing_dir_supported) {
+                log_warn("  Limit switches do not support " << (direction ? "positive" : "negative") << " homing dir");
             }
         }
     }
