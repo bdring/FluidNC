@@ -20,7 +20,7 @@ namespace WebUI {
         std::map<std::string, std::string> headers;
         std::string                        body;
         uint32_t                           timeout_ms;
-        std::map<std::string, std::string> extract;  // Maps GCode param name -> JSON key to extract
+        std::map<std::string, std::string> extract;        // Maps GCode param name -> JSON key to extract
         bool                               fail_on_error;  // If true, errors halt GCode execution
 
         HttpRequest() : method("GET"), timeout_ms(5000), fail_on_error(true) {}
@@ -54,17 +54,16 @@ namespace WebUI {
         HttpRequest& _request;
         String       _currentKey;
         String       _nestedKey;
-        int          _depth       = 0;
-        bool         _inHeaders   = false;
-        bool         _inExtract   = false;
+        int          _depth     = 0;
+        bool         _inHeaders = false;
+        bool         _inExtract = false;
     };
 
     // JSON listener for extracting float values from response
     // Used to extract specific keys from JSON response body
     class ValueExtractorListener : public JsonListener {
     public:
-        explicit ValueExtractorListener(const std::map<std::string, std::string>& extractMap,
-                                        std::map<std::string, float>&             results) :
+        explicit ValueExtractorListener(const std::map<std::string, std::string>& extractMap, std::map<std::string, float>& results) :
             _extractMap(extractMap), _results(results) {}
 
         void whitespace(char c) override {}
@@ -95,9 +94,18 @@ namespace WebUI {
         // Default request timeout in milliseconds
         static const uint32_t DEFAULT_TIMEOUT_MS = 5000;
 
+        // Token file path on LocalFS
+        static constexpr const char* TOKEN_FILE_PATH = "/.http_tokens";
+
         // Execute HTTP command
         // Format: $HTTP=url{json_options}
         static Error execute(const char* value, AuthenticationLevel auth_level, Channel& out);
+
+        // Load tokens from file (called at init and by reload command)
+        static void load_tokens();
+
+        // Substitute ${token_name} patterns in a string
+        static std::string substitute_tokens(const std::string& input);
 
         // Check if current state allows HTTP requests
         static bool state_check();
@@ -129,6 +137,9 @@ namespace WebUI {
 
         // Last response data (for parameter access)
         static HttpResponse _last_response;
+
+        // Token storage (loaded from TOKEN_FILE_PATH)
+        static std::map<std::string, std::string> _tokens;
     };
 
     // Command handler for UserCommand registration

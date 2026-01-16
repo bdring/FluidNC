@@ -14,10 +14,24 @@
 //   extract       - Object mapping GCode params to JSON keys, e.g. {"_temp":"temperature"}
 //   halt_on_error - If true (default), errors halt GCode. If false, errors set _HTTP_STATUS=0
 //
+// Token substitution:
+//   Long tokens (like JWT auth tokens) can be stored in /localfs/.http_tokens and
+//   referenced using ${token_name} syntax. This avoids the 255-char GCode line limit.
+//
+//   Token file format (one per line):
+//     ha_token=Bearer eyJhbGciOiJIUzI1NiIs...
+//     api_key=sk-abc123
+//
+//   Usage in GCode:
+//     $HTTP=http://ha:8123/api{"headers":{"Authorization":"${ha_token}"}}
+//
+//   Tokens are loaded at startup. Use $HTTP/Tokens/Reload to reload without reboot.
+//
 // Examples:
 //   $HTTP=http://example.com/api
 //   $HTTP=http://example.com/api{"method":"POST","body":"{\"key\":\"value\"}"}
 //   $HTTP=http://metrics.local/log{"halt_on_error":false}
+//   $HTTP=http://ha:8123/api{"headers":{"Authorization":"${ha_token}"}}
 //
 // GCode parameters set after request:
 //   _HTTP_STATUS       - HTTP status code (0 if connection failed)
@@ -54,11 +68,93 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
+#include <LittleFS.h>
 
 namespace WebUI {
 
     // Static member initialization
-    HttpResponse HttpCommand::_last_response;
+    HttpResponse                       HttpCommand::_last_response;
+    std::map<std::string, std::string> HttpCommand::_tokens;
+
+    // ============================================================================
+    // Token loading and substitution
+    // ============================================================================
+
+    void HttpCommand::load_tokens() {
+        _tokens.clear();
+
+        std::string path = "/localfs";
+        path += TOKEN_FILE_PATH;
+
+        File file = LittleFS.open(TOKEN_FILE_PATH, "r");
+        if (!file) {
+            log_debug("HTTP: No token file at " << TOKEN_FILE_PATH);
+            return;
+        }
+
+        int count = 0;
+        while (file.available()) {
+            String line = file.readStringUntil('\n');
+            line.trim();
+
+            // Skip empty lines and comments
+            if (line.length() == 0 || line[0] == '#' || line[0] == ';') {
+                continue;
+            }
+
+            // Find the = separator
+            int sep = line.indexOf('=');
+            if (sep <= 0) {
+                log_warn("HTTP: Invalid token line (no '='): " << line.c_str());
+                continue;
+            }
+
+            String key   = line.substring(0, sep);
+            String value = line.substring(sep + 1);
+            key.trim();
+            value.trim();
+
+            if (key.length() == 0) {
+                log_warn("HTTP: Invalid token line (empty key)");
+                continue;
+            }
+
+            _tokens[key.c_str()] = value.c_str();
+            count++;
+            log_debug("HTTP: Loaded token '" << key.c_str() << "' (" << value.length() << " chars)");
+        }
+
+        file.close();
+        log_info("HTTP: Loaded " << count << " tokens from " << TOKEN_FILE_PATH);
+    }
+
+    std::string HttpCommand::substitute_tokens(const std::string& input) {
+        std::string result = input;
+        size_t      pos    = 0;
+
+        while ((pos = result.find("${", pos)) != std::string::npos) {
+            size_t end = result.find("}", pos + 2);
+            if (end == std::string::npos) {
+                // No closing brace, stop processing
+                break;
+            }
+
+            std::string token_name = result.substr(pos + 2, end - pos - 2);
+            auto        it         = _tokens.find(token_name);
+
+            if (it != _tokens.end()) {
+                result.replace(pos, end - pos + 1, it->second);
+                // Move past the substituted value
+                pos += it->second.length();
+            } else {
+                log_warn("HTTP: Unknown token '${" << token_name << "}'");
+                // Move past this token reference to avoid infinite loop
+                pos = end + 1;
+            }
+        }
+
+        return result;
+    }
 
     // ============================================================================
     // HttpOptionsListener implementation
@@ -87,7 +183,7 @@ namespace WebUI {
             if (_currentKey == "method") {
                 _request.method = value.c_str();
             } else if (_currentKey == "timeout") {
-                int timeout = value.toInt();
+                int timeout         = value.toInt();
                 _request.timeout_ms = std::min(static_cast<uint32_t>(timeout), HttpCommand::MAX_TIMEOUT_MS);
             } else if (_currentKey == "body") {
                 _request.body = value.c_str();
@@ -161,7 +257,7 @@ namespace WebUI {
             for (const auto& mapping : _extractMap) {
                 if (mapping.second == keyStr) {
                     // Try to convert value to float
-                    float floatVal = value.toFloat();
+                    float floatVal          = value.toFloat();
                     _results[mapping.first] = floatVal;
                 }
             }
@@ -201,6 +297,11 @@ namespace WebUI {
         return HttpCommand::execute(value, auth_level, out);
     }
 
+    Error http_tokens_reload_handler(const char* value, AuthenticationLevel auth_level, Channel& out) {
+        HttpCommand::load_tokens();
+        return Error::Ok;
+    }
+
     // Module for registering the HTTP command during system initialization
     class HttpCommandModule : public Module {
     public:
@@ -208,6 +309,8 @@ namespace WebUI {
 
         void init() override {
             new UserCommand("HTTP", "Custom/HTTP", http_command_handler, http_state_check, WG);
+            new UserCommand("HTTP/Tokens/Reload", "Custom/HTTP/Tokens/Reload", http_tokens_reload_handler, anyState, WA);
+            HttpCommand::load_tokens();
             log_info("HTTP command registered");
         }
     };
@@ -247,6 +350,13 @@ namespace WebUI {
         if (!json_options.empty() && !parse_json_options(json_options, request)) {
             log_error_to(out, "HTTP: Failed to parse JSON options");
             return Error::InvalidValue;  // Syntax errors always fail
+        }
+
+        // Substitute tokens (${token_name} patterns) in URL, headers, and body
+        request.url  = substitute_tokens(request.url);
+        request.body = substitute_tokens(request.body);
+        for (auto& header : request.headers) {
+            header.second = substitute_tokens(header.second);
         }
 
         // Check WiFi connection (runtime error - respects fail_on_error)
