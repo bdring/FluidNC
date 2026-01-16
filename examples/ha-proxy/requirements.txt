@@ -1,2 +1,0 @@
-flask>=2.0
-requests>=2.25

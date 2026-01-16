@@ -15,12 +15,11 @@
 //   halt_on_error - If true (default), errors halt GCode. If false, errors set _HTTP_STATUS=0
 //
 // Token substitution:
-//   Long tokens (like JWT auth tokens) can be stored in /localfs/.http_tokens and
+//   Long tokens (like JWT auth tokens) can be stored in /localfs/http_settings.json and
 //   referenced using ${token_name} syntax. This avoids the 255-char GCode line limit.
 //
-//   Token file format (one per line):
-//     ha_token=Bearer eyJhbGciOiJIUzI1NiIs...
-//     api_key=sk-abc123
+//   Settings file format (JSON):
+//     {"tokens":{"ha_token":"Bearer eyJhbGciOiJIUzI1NiIs...","api_key":"sk-abc123"}}
 //
 //   Usage in GCode:
 //     $HTTP=http://ha:8123/api{"headers":{"Authorization":"${ha_token}"}}
@@ -83,49 +82,32 @@ namespace WebUI {
     void HttpCommand::load_tokens() {
         _tokens.clear();
 
-        std::string path = "/localfs";
-        path += TOKEN_FILE_PATH;
-
-        File file = LittleFS.open(TOKEN_FILE_PATH, "r");
+        File file = LittleFS.open(SETTINGS_FILE_PATH, "r");
         if (!file) {
-            log_debug("HTTP: No token file at " << TOKEN_FILE_PATH);
+            log_debug("HTTP: No settings file at " << SETTINGS_FILE_PATH);
             return;
         }
 
-        int count = 0;
+        // Read entire file content
+        std::string content;
         while (file.available()) {
-            String line = file.readStringUntil('\n');
-            line.trim();
+            content += static_cast<char>(file.read());
+        }
+        file.close();
 
-            // Skip empty lines and comments
-            if (line.length() == 0 || line[0] == '#' || line[0] == ';') {
-                continue;
-            }
+        // Parse JSON using streaming parser
+        JsonStreamingParser parser;
+        TokenFileListener   listener(_tokens);
+        parser.setListener(&listener);
 
-            // Find the = separator
-            int sep = line.indexOf('=');
-            if (sep <= 0) {
-                log_warn("HTTP: Invalid token line (no '='): " << line.c_str());
-                continue;
-            }
-
-            String key   = line.substring(0, sep);
-            String value = line.substring(sep + 1);
-            key.trim();
-            value.trim();
-
-            if (key.length() == 0) {
-                log_warn("HTTP: Invalid token line (empty key)");
-                continue;
-            }
-
-            _tokens[key.c_str()] = value.c_str();
-            count++;
-            log_debug("HTTP: Loaded token '" << key.c_str() << "' (" << value.length() << " chars)");
+        for (char c : content) {
+            parser.parse(c);
         }
 
-        file.close();
-        log_info("HTTP: Loaded " << count << " tokens from " << TOKEN_FILE_PATH);
+        log_info("HTTP: Loaded " << _tokens.size() << " tokens from " << SETTINGS_FILE_PATH);
+        for (const auto& token : _tokens) {
+            log_debug("HTTP: Token '" << token.first << "' (" << token.second.length() << " chars)");
+        }
     }
 
     std::string HttpCommand::substitute_tokens(const std::string& input) {
@@ -269,6 +251,44 @@ namespace WebUI {
     }
 
     void ValueExtractorListener::endObject() {
+        _depth--;
+    }
+
+    // ============================================================================
+    // TokenFileListener implementation
+    // Parses JSON like: {"tokens":{"token_name":"token_value",...}}
+    // ============================================================================
+
+    void TokenFileListener::startDocument() {
+        _depth    = 0;
+        _inTokens = false;
+        _currentKey.clear();
+    }
+
+    void TokenFileListener::key(String key) {
+        _currentKey = key;
+        if (_depth == 1 && key == "tokens") {
+            // Next startObject will be the tokens object
+        }
+    }
+
+    void TokenFileListener::value(String value) {
+        if (_inTokens && _depth == 2 && !_currentKey.isEmpty()) {
+            _tokens[_currentKey.c_str()] = value.c_str();
+        }
+    }
+
+    void TokenFileListener::startObject() {
+        _depth++;
+        if (_depth == 2 && _currentKey == "tokens") {
+            _inTokens = true;
+        }
+    }
+
+    void TokenFileListener::endObject() {
+        if (_depth == 2 && _inTokens) {
+            _inTokens = false;
+        }
         _depth--;
     }
 

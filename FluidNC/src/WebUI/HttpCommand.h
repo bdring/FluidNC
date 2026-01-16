@@ -83,6 +83,29 @@ namespace WebUI {
         int                                       _depth = 0;
     };
 
+    // JSON listener for parsing http_settings.json file
+    // Format: {"tokens":{"token_name":"token_value",...}}
+    class TokenFileListener : public JsonListener {
+    public:
+        explicit TokenFileListener(std::map<std::string, std::string>& tokens) : _tokens(tokens) {}
+
+        void whitespace(char c) override {}
+        void startDocument() override;
+        void key(String key) override;
+        void value(String value) override;
+        void startObject() override;
+        void endObject() override;
+        void startArray() override {}
+        void endArray() override {}
+        void endDocument() override {}
+
+    private:
+        std::map<std::string, std::string>& _tokens;
+        String                              _currentKey;
+        int                                 _depth    = 0;
+        bool                                _inTokens = false;
+    };
+
     class HttpCommand {
     public:
         // Maximum response body size to store
@@ -94,8 +117,8 @@ namespace WebUI {
         // Default request timeout in milliseconds
         static const uint32_t DEFAULT_TIMEOUT_MS = 5000;
 
-        // Token file path on LocalFS
-        static constexpr const char* TOKEN_FILE_PATH = "/.http_tokens";
+        // Settings file path on LocalFS (stores tokens, etc.)
+        static constexpr const char* SETTINGS_FILE_PATH = "/http_settings.json";
 
         // Execute HTTP command
         // Format: $HTTP=url{json_options}
