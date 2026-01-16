@@ -63,11 +63,12 @@
 #include "../Parameters.h"
 #include "../Report.h"
 #include "../Module.h"
+#include "../FluidPath.h"
+#include "Driver/localfs.h"
 
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
-#include <LittleFS.h>
 
 namespace WebUI {
 
@@ -82,18 +83,24 @@ namespace WebUI {
     void HttpCommand::load_tokens() {
         _tokens.clear();
 
-        File file = LittleFS.open(SETTINGS_FILE_PATH, "r");
+        // Build full path using FluidNC's localfs prefix
+        std::string fullPath = "/";
+        fullPath += localfsName;
+        fullPath += SETTINGS_FILE_PATH;
+
+        FILE* file = fopen(fullPath.c_str(), "r");
         if (!file) {
-            log_debug("HTTP: No settings file at " << SETTINGS_FILE_PATH);
+            log_debug("HTTP: No settings file at " << fullPath);
             return;
         }
 
         // Read entire file content
         std::string content;
-        while (file.available()) {
-            content += static_cast<char>(file.read());
+        int         c;
+        while ((c = fgetc(file)) != EOF) {
+            content += static_cast<char>(c);
         }
-        file.close();
+        fclose(file);
 
         // Parse JSON using streaming parser
         JsonStreamingParser parser;
@@ -427,20 +434,43 @@ namespace WebUI {
 
     bool HttpCommand::parse_command(const char* value, std::string& url, std::string& json_options) {
         // Format: url{json} or url
+        // Note: ${...} is a token substitution pattern, NOT JSON start
         if (!value || *value == '\0') {
             return false;
         }
 
         // Find the start of JSON options (if any)
-        const char* json_start = strchr(value, '{');
+        // Skip ${...} patterns - JSON starts with { that is NOT preceded by $
+        const char* json_start = nullptr;
+        const char* p          = value;
+        while (*p) {
+            if (*p == '{') {
+                // Check if this is a token pattern (preceded by $)
+                if (p > value && *(p - 1) == '$') {
+                    // This is ${...}, skip to the closing }
+                    p++;
+                    while (*p && *p != '}') {
+                        p++;
+                    }
+                    if (*p == '}') {
+                        p++;
+                    }
+                    continue;
+                }
+                // This is the start of JSON options
+                json_start = p;
+                break;
+            }
+            p++;
+        }
 
         if (json_start) {
             // URL is everything before the '{'
             url = std::string(value, json_start - value);
 
             // JSON is everything from '{' to matching '}'
-            int         brace_count = 1;
-            const char* p           = json_start + 1;
+            int brace_count = 1;
+            p               = json_start + 1;
 
             while (*p && brace_count > 0) {
                 if (*p == '{') {
