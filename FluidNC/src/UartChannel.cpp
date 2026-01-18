@@ -163,8 +163,8 @@ void UartChannel::endJSON(const char* json_tag) {
 }
 
 void UartChannel::registerEvent(pinnum_t pinnum, InputPin* obj) {
+    Channel::registerEvent(pinnum, obj);  // Establish the handler function first
     _uart->registerInputPin(pinnum, obj);
-    Channel::registerEvent(pinnum, obj);
 }
 
 bool UartChannel::setAttr(pinnum_t index, bool* value, const std::string& attrString) {
