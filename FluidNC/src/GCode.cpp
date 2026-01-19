@@ -231,6 +231,9 @@ void gc_ngc_changed(CoordIndex coord) {
 
 void gc_ovr_changed() {
     allChannels.notifyOvr();
+
+    // Force the override to be reported on next status report
+    report_ovr_counter = 0;
 }
 
 void gc_wco_changed() {
