@@ -109,6 +109,7 @@ namespace WebUI {
         _headerFilter->keep("Accept-Encoding");
         _headerFilter->keep("Cookie");
         _headerFilter->keep("If-None-Match");
+        _headerFilter->keep("User-Agent");
 
         // WebDAV needs these
         _headerFilter->keep("Depth");
@@ -124,8 +125,9 @@ namespace WebUI {
 
         _webserver->addMiddlewares({ _headerFilter });
 
-        auto flash_dav = new WebDAV("/flash", LocalFS);
-        auto sd_dav    = new WebDAV("/sd", SD);
+        // No metadata on the FLASH filesystem; it consumes too much space
+        auto flash_dav = new WebDAV("/flash", LocalFS, true);
+        auto sd_dav    = new WebDAV("/sd", SD, true);
 
         _webserver->addHandler(flash_dav);
         _webserver->addHandler(sd_dav);
