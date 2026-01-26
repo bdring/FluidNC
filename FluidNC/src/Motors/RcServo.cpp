@@ -31,17 +31,11 @@ namespace MotorDrivers {
         }
 
         _axis = axis_index();
-
         _output_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
-
         _current_pwm_duty = 0;
-
         read_settings();
-
         config_message();
-
         _disabled = true;
-
         schedule_update(this, _timer_ms);
     }
 
@@ -97,22 +91,25 @@ namespace MotorDrivers {
     }
 
     void RcServo::set_location() {
+        static uint32_t last_pc = 0;
+
         if (_disabled || _has_errors) {
             return;
         }
-
-        //        if (live_tuning()) {
-        read_settings();
-        //        }
+ 
+        read_settings();  
 
         steps_t steps = get_axis_steps(_axis);  // get the axis machine position in mm
 
         // determine the pulse length
-        uint32_t pulse_count = mapConstrain(steps, _min_steps, _max_steps, _min_pulse_cnt, _max_pulse_cnt);
+        uint32_t pulse_count = mapConstrain(steps, _min_steps, _max_steps, (int32_t)_min_pulse_cnt, (int32_t)_max_pulse_cnt);
 
         _write_pwm(pulse_count);
 
-        // log_info("su " << servo_pulse_len);
+        // if (last_pc != pulse_count) {
+        //     log_info("pwm: " << pulse_count);
+        //     last_pc = pulse_count;
+        // }        
     }
 
     void RcServo::read_settings() {
