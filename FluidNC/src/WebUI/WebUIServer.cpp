@@ -109,6 +109,7 @@ namespace WebUI {
         _headerFilter->keep("Accept-Encoding");
         _headerFilter->keep("Cookie");
         _headerFilter->keep("If-None-Match");
+        _headerFilter->keep("User-Agent");
 
         // WebDAV needs these
         _headerFilter->keep("Depth");
@@ -124,8 +125,9 @@ namespace WebUI {
 
         _webserver->addMiddlewares({ _headerFilter });
 
-        auto flash_dav = new WebDAV("/flash", localfsName);
-        auto sd_dav    = new WebDAV("/sd", sdName);
+        // No metadata on the FLASH filesystem; it consumes too much space
+        auto flash_dav = new WebDAV("/flash", LocalFS, true);
+        auto sd_dav    = new WebDAV("/sd", SD, true);
 
         _webserver->addHandler(flash_dav);
         _webserver->addHandler(sd_dav);
@@ -272,7 +274,7 @@ namespace WebUI {
     // Send a file, either the specified path or path.gz
     bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
         std::error_code ec;
-        FluidPath       fpath { path, localfsName, ec };
+        FluidPath       fpath { path, LocalFS, ec };
         if (ec) {
             return false;
         }
@@ -337,14 +339,14 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file   = NULL;
         try {
-            file = new FileStream(path, "r", "");
+            file = new FileStream(path, "r", LocalFS);
         } catch (const Error err) {
             if (acceptGz) {
                 try {
                     std::string gzpath(fpath);
                     //                    std::filesystem::path gzpath(fpath);
                     gzpath += ".gz";
-                    file   = new FileStream(gzpath, "r", "");
+                    file   = new FileStream(gzpath, "r", LocalFS);
                     isGzip = true;
                 } catch (const Error err) {}
             }
@@ -802,7 +804,7 @@ namespace WebUI {
 
     //LocalFS files uploader handle
     void WebUI_Server::fileUpload(
-        AsyncWebServerRequest* request, const char* fs, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+        AsyncWebServerRequest* request, const Volume& fs, String filename, size_t index, uint8_t* data, size_t len, bool final) {
         if (!index) {
             std::string sizeargname(filename.c_str());
             sizeargname += "S";
@@ -868,10 +870,10 @@ namespace WebUI {
     }
 
     void WebUI_Server::LocalFSFileupload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
-        return fileUpload(request, localfsName, filename, index, data, len, final);
+        fileUpload(request, LocalFS, filename, index, data, len, final);
     }
     void WebUI_Server::SDFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
-        return fileUpload(request, sdName, filename, index, data, len, final);
+        fileUpload(request, SD, filename, index, data, len, final);
     }
 
     //Web Update handler
@@ -977,7 +979,7 @@ namespace WebUI {
         }
     }
 
-    void WebUI_Server::handleFileOps(AsyncWebServerRequest* request, const char* fs) {
+    void WebUI_Server::handleFileOps(AsyncWebServerRequest* request, const Volume& fs) {
         //this is only for admin and user
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatus::NONE;
@@ -1112,14 +1114,14 @@ namespace WebUI {
     }
 
     void WebUI_Server::handle_direct_SDFileList(AsyncWebServerRequest* request) {
-        handleFileOps(request, sdName);
+        handleFileOps(request, SD);
     }
     void WebUI_Server::handleFileList(AsyncWebServerRequest* request) {
-        handleFileOps(request, localfsName);
+        handleFileOps(request, LocalFS);
     }
 
     // File upload
-    void WebUI_Server::uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const char* fs) {
+    void WebUI_Server::uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const Volume& fs) {
         std::error_code ec;
 
         FluidPath fpath { filename, fs, ec };
@@ -1184,7 +1186,7 @@ namespace WebUI {
             _uploadFile = nullptr;
             log_debug("pathname " << pathname);
 
-            FluidPath filepath { pathname, "" };
+            FluidPath filepath { pathname, LocalFS };
 
             HashFS::rehash_file(filepath);
 

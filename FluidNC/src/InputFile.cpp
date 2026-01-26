@@ -5,7 +5,7 @@
 
 #include "Report.h"
 
-InputFile::InputFile(const char* defaultFs, const char* path) : FileStream(path, "r", defaultFs) {}
+InputFile::InputFile(const Volume& defaultFs, const char* path) : FileStream(path, "r", defaultFs) {}
 /*
   Read a line from the file
   Returns Error::Ok if a line was read, even if the line was empty.

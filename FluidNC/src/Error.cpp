@@ -20,7 +20,7 @@ const std::map<Error, const char*> ErrorNames = {
     { Error::Overflow, "Line too long" },
     { Error::MaxStepRateExceeded, "Max step rate exceeded" },
     { Error::CheckDoor, "Check door" },
-    { Error::LineLengthExceeded, "Startup line too long" },
+    { Error::LineLengthExceeded, "Line too long" },
     { Error::TravelExceeded, "Max travel exceeded during jog" },
     { Error::InvalidJogCommand, "Invalid jog command" },
     { Error::SettingDisabledLaser, "Laser mode requires PWM output" },

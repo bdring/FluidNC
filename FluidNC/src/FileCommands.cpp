@@ -17,7 +17,7 @@
 
 static Error localFSSize(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP720
     try {
-        auto space      = stdfs::space(FluidPath { "", localfsName });
+        auto space      = stdfs::space(FluidPath { "", LocalFS });
         auto totalBytes = space.capacity;
         auto freeBytes  = space.available;
         auto usedBytes  = totalBytes - freeBytes;
@@ -34,11 +34,11 @@ static Error formatLocalFS(const char* parameter, AuthenticationLevel auth_level
     if (localfs_format(parameter)) {
         return Error::FsFailedFormat;
     }
-    log_info("Local filesystem formatted to " << localfsName);
+    log_info("Local filesystem formatted to " << LocalFS.name);
     return Error::Ok;
 }
 
-static Error openFile(const char* fs, const char* parameter, Channel& out, InputFile*& theFile) {
+static Error openFile(const Volume& fs, const char* parameter, Channel& out, InputFile*& theFile) {
     if (*parameter == '\0') {
         log_string(out, "Missing file name!");
         return Error::InvalidValue;
@@ -57,7 +57,7 @@ static Error openFile(const char* fs, const char* parameter, Channel& out, Input
     return Error::Ok;
 }
 
-static Error showFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+static Error showFile(const Volume& fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
     if (notIdleOrAlarm()) {
         return Error::IdleError;
     }
@@ -84,10 +84,10 @@ static Error showFile(const char* fs, const char* parameter, AuthenticationLevel
 }
 
 static Error showSDFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
-    return showFile("sd", parameter, auth_level, out);
+    return showFile(SD, parameter, auth_level, out);
 }
 static Error showLocalFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    return showFile("", parameter, auth_level, out);
+    return showFile(LocalFS, parameter, auth_level, out);
 }
 
 // This is used by pendants to get partial file contents for preview
@@ -143,7 +143,7 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
     InputFile*  theFile;
     Error       err;
     std::string fn(args);
-    if ((err = openFile(sdName, fn.c_str(), out, theFile)) != Error::Ok) {
+    if ((err = openFile(SD, fn.c_str(), out, theFile)) != Error::Ok) {
         error = "Cannot open file";
     } else {
         char  fileLine[255];
@@ -219,7 +219,7 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
 
     InputFile* theFile;
     Error      err = Error::Ok;
-    if ((err = openFile(localfsName, fn.c_str(), out, theFile)) != Error::Ok) {
+    if ((err = openFile(LocalFS, fn.c_str(), out, theFile)) != Error::Ok) {
         err    = Error::FsFailedOpenFile;
         status = "Cannot open file";
     } else {
@@ -246,7 +246,7 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
     return err;
 }
 
-static Error runFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
+static Error runFile(const Volume& fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
     Error err;
     if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
         log_string(out, "Alarm");
@@ -264,15 +264,15 @@ static Error runFile(const char* fs, const char* parameter, AuthenticationLevel 
 }
 
 static Error runSDFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP220
-    return runFile("sd", parameter, auth_level, out);
+    return runFile(SD, parameter, auth_level, out);
 }
 
 // Used by js/controls.js
 static Error runLocalFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP700
-    return runFile("", parameter, auth_level, out);
+    return runFile(LocalFS, parameter, auth_level, out);
 }
 
-static Error deleteObject(const char* fs, const char* name, Channel& out) {
+static Error deleteObject(const Volume& fs, const char* name, Channel& out) {
     std::error_code ec;
 
     if (!name || !*name || (strcmp(name, "/") == 0)) {
@@ -297,14 +297,14 @@ static Error deleteObject(const char* fs, const char* name, Channel& out) {
 }
 
 static Error deleteSDObject(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP215
-    return deleteObject(sdName, parameter, out);
+    return deleteObject(SD, parameter, out);
 }
 
 static Error deleteLocalFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    return deleteObject(localfsName, parameter, out);
+    return deleteObject(LocalFS, parameter, out);
 }
 
-static Error listFilesystem(const char* fs, const char* value, AuthenticationLevel auth_level, Channel& out) {
+static Error listFilesystem(const Volume& fs, const char* value, AuthenticationLevel auth_level, Channel& out) {
     try {
         FluidPath fpath { value, fs };
         auto      iter  = stdfs::recursive_directory_iterator { fpath };
@@ -333,14 +333,14 @@ static Error listFilesystem(const char* fs, const char* value, AuthenticationLev
 }
 
 static Error listSDFiles(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
-    return listFilesystem(sdName, parameter, auth_level, out);
+    return listFilesystem(SD, parameter, auth_level, out);
 }
 
 static Error listLocalFiles(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-    return listFilesystem(localfsName, parameter, auth_level, out);
+    return listFilesystem(LocalFS, parameter, auth_level, out);
 }
 
-static Error listFilesystemJSON(const char* fs, const char* value, AuthenticationLevel auth_level, Channel& out) {
+static Error listFilesystemJSON(const Volume& fs, const char* value, AuthenticationLevel auth_level, Channel& out) {
     try {
         FluidPath fpath { value, fs };
         auto      space = stdfs::space(fpath);
@@ -378,11 +378,11 @@ static Error listFilesystemJSON(const char* fs, const char* value, Authenticatio
 }
 
 static Error listSDFilesJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
-    return listFilesystemJSON(sdName, parameter, auth_level, out);
+    return listFilesystemJSON(SD, parameter, auth_level, out);
 }
 
 static Error listLocalFilesJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-    return listFilesystemJSON(localfsName, parameter, auth_level, out);
+    return listFilesystemJSON(LocalFS, parameter, auth_level, out);
 }
 
 // This is used by pendants to get lists of GCode files
@@ -393,7 +393,7 @@ static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_leve
 
     std::error_code ec;
 
-    FluidPath fpath { parameter, sdName, ec };
+    FluidPath fpath { parameter, SD, ec };
     if (ec) {
         error = "No volume";
     }
@@ -447,7 +447,7 @@ static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
-static Error renameObject(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
+static Error renameObject(const Volume& fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
     if (!parameter || *parameter == '\0') {
         return Error::InvalidValue;
     }
@@ -469,17 +469,17 @@ static Error renameObject(const char* fs, const char* parameter, AuthenticationL
     return Error::Ok;
 }
 static Error renameSDObject(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    return renameObject(sdName, parameter, auth_level, out);
+    return renameObject(SD, parameter, auth_level, out);
 }
 static Error renameLocalObject(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    return renameObject(localfsName, parameter, auth_level, out);
+    return renameObject(LocalFS, parameter, auth_level, out);
 }
 
-static Error copyFile(const char* ipath, const char* opath, Channel& out) {  // No ESP command
+static Error copyFile(const Volume& ifs, const char* ipath, const Volume& ofs, const char* opath, Channel& out) {  // No ESP command
     std::filesystem::path filepath;
     try {
-        FileStream outFile { opath, "w" };
-        FileStream inFile { ipath, "r" };
+        FileStream outFile { opath, "w", ofs };
+        FileStream inFile { ipath, "r", ifs };
         uint8_t    buf[512];
         size_t     len;
         while ((len = inFile.read(buf, 512)) > 0) {
@@ -494,28 +494,28 @@ static Error copyFile(const char* ipath, const char* opath, Channel& out) {  // 
     HashFS::rehash_file(filepath);
     return Error::Ok;
 }
-static Error copyDir(const char* iDir, const char* oDir, Channel& out) {  // No ESP command
+static Error copyDir(const Volume& ifs, const std::string_view iDir, const Volume& ofs, const std::string_view oDir, Channel& out) {  // No ESP command
     std::error_code ec;
 
     {  // Block to manage scope of outDir
-        FluidPath outDir { oDir, "", ec };
+        FluidPath outDir { oDir, ofs, ec };
         if (ec) {
-            log_error_to(out, "Cannot mount /sd");
+            log_error_to(out, "Cannot mount " << SD.name);
             return Error::FsFailedMount;
         }
 
         if (outDir.hasTail()) {
             stdfs::create_directory(outDir, ec);
             if (ec) {
-                log_error_to(out, "Cannot create " << oDir);
+                log_error_to(out, "Cannot create " << oDir << " on " << ofs.name);
                 return Error::FsFailedOpenDir;
             }
         }
     }
 
-    FluidPath fpath { iDir, "", ec };
+    FluidPath fpath { iDir, ifs, ec };
     if (ec) {
-        log_error_to(out, "Cannot open " << iDir);
+        log_error_to(out, "Cannot open " << iDir << " on " << ifs.name);
         return Error::FsFailedMount;
     }
 
@@ -530,13 +530,19 @@ static Error copyDir(const char* iDir, const char* oDir, Channel& out) {  // No 
             log_error_to(out, "Not handling localfs subdirectories");
         } else {
             std::string opath(oDir);
-            opath += "/";
-            opath += dir_entry.path().filename().string();
+
+            std::string fn = dir_entry.path().filename().string();
+            if (oDir.empty() && oDir[oDir.length() - 1] != '/') {
+                opath += "/";
+            }
+            opath += fn;
             std::string ipath(iDir);
-            ipath += "/";
-            ipath += dir_entry.path().filename().string();
-            log_info_to(out, ipath << " -> " << opath);
-            auto err1 = copyFile(ipath.c_str(), opath.c_str(), out);
+            if (iDir.empty() && iDir[iDir.length() - 1] != '/') {
+                ipath += "/";
+            }
+            ipath += fn;
+            log_info_to(out, "/" << ifs.name << ipath << " -> /" << ofs.name << opath);
+            auto err1 = copyFile(ifs, ipath.c_str(), ofs, opath.c_str(), out);
             if (err1 != Error::Ok) {
                 err = err1;
             }
@@ -552,19 +558,19 @@ static Error showLocalFSHashes(const char* parameter, AuthenticationLevel auth_l
 }
 
 static Error backupLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-    return copyDir("/localfs", "/sd/localfs", out);
+    return copyDir(LocalFS, "/", SD, "/localfs_copy", out);
 }
 static Error restoreLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-    return copyDir("/sd/localfs", "/localfs", out);
+    return copyDir(SD, "/localfs_copy", LocalFS, "/", out);
 }
 static Error migrateLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
     const char* newfs = parameter && *parameter ? parameter : "littlefs";
-    if (strcmp(newfs, localfsName) == 0) {
+    if (strcmp(newfs, LocalFS.name) == 0) {
         log_error_to(out, "localfs format is already " << newfs);
         return Error::InvalidValue;
     }
     log_info("Backing up local filesystem contents to SD");
-    Error err = copyDir("/localfs", "/sd/localfs", out);
+    Error err = copyDir(LocalFS, "/", SD, "/localfs_copy", out);
     if (err != Error::Ok) {
         return err;
     }
@@ -573,13 +579,13 @@ static Error migrateLocalFS(const char* parameter, AuthenticationLevel auth_leve
         return Error::FsFailedFormat;
     }
     log_info("Restoring local filesystem contents");
-    return copyDir("/sd/localfs", "/localfs", out);
+    return copyDir(SD, "/localfs_copy", LocalFS, "/", out);
 }
 
 // Used by js/files.js
 static Error showSDStatus(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200
     try {
-        FluidPath path { "", "/sd" };
+        FluidPath path { "/", SD };
     } catch (std::filesystem::filesystem_error const& ex) {
         log_error_to(out, ex.what());
         log_string(out, "No SD card detected");

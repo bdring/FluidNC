@@ -1,17 +1,28 @@
 #pragma once
 
 #include <filesystem>
-#include <string>
+#include <string_view>
 #include "Driver/localfs.h"
 
 namespace stdfs = std::filesystem;
 
+struct Volume {
+    const char* name;
+    std::string prefix;
+};
+extern Volume SD;
+extern Volume LocalFS;
+
 class FluidPath : public stdfs::path {
+private:
+    FluidPath(const std::string_view name, const Volume& fs, std::error_code*);
+
+    static uint32_t _refcnt;
+    bool            _isSD = false;
+
 public:
-    FluidPath(const char* name, const char* fs, std::error_code& ec) noexcept : FluidPath(name, fs, &ec) {}
-    FluidPath(const std::string& name, const char* fs, std::error_code& ec) noexcept : FluidPath(name.c_str(), fs, &ec) {}
-    FluidPath(const char* name, const char* fs) : FluidPath(name, fs, nullptr) {}
-    FluidPath(const std::string& name, const char* fs) : FluidPath(name.c_str(), fs) {}
+    FluidPath(const std::string_view name, const Volume& fs, std::error_code& ec) noexcept : FluidPath(name, fs, &ec) {}
+    FluidPath(const std::string_view name, const Volume& fs) : FluidPath(name, fs, nullptr) {}
 
     ~FluidPath();
 
@@ -26,11 +37,7 @@ public:
     // /localfs/foo -> true,  /localfs -> false
     bool hasTail() { return ++(++begin()) != end(); }
 
-private:
-    FluidPath(const char* name, const char* fs, std::error_code*);
-
-    static uint32_t _refcnt;
-    bool            _isSD = false;
+    static const std::string canonPath(const std::string_view filename, const Volume& defaultFs);
 };
 
 #include <Print.h>

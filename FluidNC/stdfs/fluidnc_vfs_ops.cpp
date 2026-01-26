@@ -7,17 +7,17 @@
 #include "esp_littlefs.h"
 #include "Driver/littlefs.h"
 
-bool isSPIFFS(const char* mountpoint) {
-    return !strcmp(mountpoint, "spiffs");
+bool isSPIFFS(const std::string_view mountpoint) {
+    return mountpoint == "spiffs";
 }
-bool isSD(const char* mountpoint) {
-    return !strcmp(mountpoint, "sd");
+bool isSD(const std::string_view mountpoint) {
+    return mountpoint == "sd";
 }
-bool isLittleFS(const char* mountpoint) {
-    return !strcmp(mountpoint, "littlefs");
+bool isLittleFS(const std::string_view mountpoint) {
+    return mountpoint == "littlefs";
 }
 // cppcheck-suppress unusedFunction
-bool fluidnc_vfs_stats(const char* mountpoint, uint64_t& total, uint64_t& used) {
+bool fluidnc_vfs_stats(const std::string_view mountpoint, uint64_t& total, uint64_t& used) {
     if (isSD(mountpoint)) {
         FATFS* fsinfo;
         DWORD  fre_clust;

@@ -8,10 +8,65 @@
 #include "Machine/MachineConfig.h"
 #include "FluidError.hpp"
 #include "HashFS.h"
+#include "string_util.h"
+
+Volume SD { "sd" };
+Volume LocalFS { "localfs" };
 
 uint32_t FluidPath::_refcnt = 0;
 
-FluidPath::FluidPath(const char* name, const char* fs, std::error_code* ecptr) : std::filesystem::path(canonicalPath(name, fs)) {
+const std::string FluidPath::canonPath(std::string_view filename, const Volume& defaultFs) {
+    std::string ret;
+    //    log_debug("fn " << filename << " fs " << defaultFs.name);
+    if (filename.empty()) {
+        ret = defaultFs.prefix;
+        return ret;
+    }
+
+    // A std::filesystem::path with a trailing slash (except for just "/")
+    // is considered to be a path with an empty final component, not a
+    // final directory component.  That causes problems when trying to
+    // determine the file type, so we remove trailing slases.
+    while (filename.length() > 1 && filename[filename.length() - 1] == '/') {
+        filename.remove_suffix(1);
+    }
+
+    if (filename[0] == '/') {
+        auto        pos = filename.find('/', 1);
+        std::string fsname;
+        std::string tail;
+        if (pos != std::string::npos) {
+            fsname = filename.substr(1, pos - 1);
+            tail   = filename.substr(pos);
+        } else {
+            fsname = filename.substr(1);
+            tail   = "";
+        }
+        //            log_debug("FS " << fsname << " tail " << tail << " fn " << filename);
+        if (string_util::equal_ignore_case(fsname, LocalFS.name) || string_util::equal_ignore_case(fsname, "spiffs") ||
+            string_util::equal_ignore_case(fsname, "littlefs")) {
+            ret = LocalFS.prefix;
+            ret += tail;
+            return ret;
+        }
+        if (string_util::equal_ignore_case(fsname, SD.name)) {
+            ret = SD.prefix;
+            ret += tail;
+            return ret;
+        }
+        ret = defaultFs.prefix;
+        ret += filename;
+        return ret;
+    }
+
+    // The pathname did not begin with /
+    ret = defaultFs.prefix;
+    ret += "/";
+    ret += filename;
+    return ret;
+}
+
+FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_code* ecptr) : std::filesystem::path(canonPath(name, fs)) {
     auto mount = *(++begin());  // Use the path iterator to get the first component
     _isSD      = mount == "sd";
 
