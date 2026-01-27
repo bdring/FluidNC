@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Runs unit tests on commit. This does NOT block the commit.
-# It prints a warning and exits 0 if tests fail.
+# Runs unit tests on commit.
+# This blocks the commit on test failure, but does not affect local builds.
 
 set -uo pipefail
 
@@ -15,7 +15,7 @@ if [[ "${FLUIDNC_SKIP_TESTS:-}" == "1" ]]; then
   exit 0
 fi
 
-echo "[FluidNC] Running unit tests (non-blocking)..."
+echo "[FluidNC] Running unit tests..."
 
 # Prefer a local PlatformIO install if available
 if command -v pio >/dev/null 2>&1; then
@@ -23,12 +23,14 @@ if command -v pio >/dev/null 2>&1; then
   status=$?
 else
   echo "[FluidNC] WARNING: 'pio' not found; cannot run unit tests. Install PlatformIO and retry."
+  echo "[FluidNC] To proceed without tests: FLUIDNC_SKIP_TESTS=1 git commit (or git commit --no-verify)"
   exit 0
 fi
 
 if [[ $status -ne 0 ]]; then
-  echo "[FluidNC] WARNING: Unit tests FAILED (exit=$status). Commit allowed, but please fix before pushing."
-  exit 0
+  echo "[FluidNC] ERROR: Unit tests FAILED (exit=$status). Commit aborted."
+  echo "[FluidNC] To proceed without tests: FLUIDNC_SKIP_TESTS=1 git commit (or git commit --no-verify)"
+  exit $status
 fi
 
 echo "[FluidNC] Unit tests passed."

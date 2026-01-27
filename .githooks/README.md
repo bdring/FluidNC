@@ -11,8 +11,8 @@ git config core.hooksPath .githooks
 ## Included hooks
 
 - `pre-commit`: Runs PlatformIO unit tests (`pio test -e tests_nosan`) when you commit.
-  - **Non-blocking**: commits are allowed even if tests fail.
-  - Set `FLUIDNC_SKIP_TESTS=1` to skip locally.
+  - **Blocking**: commits are rejected if tests fail.
+  - Bypass locally with `FLUIDNC_SKIP_TESTS=1 git commit` or `git commit --no-verify`.
 
 To disable hooks:
 

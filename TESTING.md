@@ -13,8 +13,8 @@ pio test -e tests_nosan
 
 This repo includes an **optional** `pre-commit` hook that runs the unit tests whenever you `git commit`.
 
-- It is **non-blocking**: commits will still succeed if tests fail.
-- If tests fail, it prints a clear warning so failures are caught early.
+- It **blocks commits** when tests fail.
+- Local builds are unaffected; it only runs during `git commit`.
 
 Enable it once per clone:
 
@@ -26,6 +26,12 @@ Skip the hook for a single commit:
 
 ```bash
 FLUIDNC_SKIP_TESTS=1 git commit
+```
+
+Or bypass all hooks (Git standard):
+
+```bash
+git commit --no-verify
 ```
 
 Build time: ~12 seconds | All 370 tests pass
