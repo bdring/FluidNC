@@ -2,52 +2,57 @@
 
 ## Overview
 
-FluidNC now includes a comprehensive regression test suite (380+ tests) designed to catch regressions early and ensure code quality, especially important for an open source CNC firmware project where contributors frequently add features and fix bugs.
+FluidNC now includes a comprehensive regression test suite (370 tests) designed to catch regressions early and ensure code quality, especially important for an open source CNC firmware project where contributors frequently add features and fix bugs.
 
 **Quick Start:**
 ```bash
-pio test -e native
+pio test -e tests_nosan
 ```
 
-Build time: ~8 seconds | All tests pass ✅
+Build time: ~12 seconds | All 370 tests pass
 
 ## Running Tests
 
 ### Run all tests
 ```bash
-pio test -e native
+pio test -e tests_nosan
+```
+
+### Run with address sanitizer (catches memory bugs)
+```bash
+pio test -e tests
 ```
 
 ### Run specific test suite
 ```bash
-pio test -e native --filter StringUtilTest
-pio test -e native --filter ErrorTest
+pio test -e tests_nosan --filter StringUtilTest
+pio test -e tests_nosan --filter ErrorTest
 ```
 
 ### Run with verbose output
 ```bash
-pio test -e native -vv
+pio test -e tests_nosan -vv
 ```
 
 ## Test Coverage
 
-### Safety-Critical (89 tests)
+### Safety-Critical (129 tests)
 **ErrorTest.cpp** (91 tests)
 - All 91 Error enum values and their byte values
 - Error code ranges (GCode, filesystem, expression, flow control)
 - Ensures error codes remain consistent across versions
 
-**StateTest.cpp** (36 tests)
-- Machine state values (Idle, Alarm, ConfigAlarm, Critical, etc.)
-- State transitions and ordering
-- Safety states remain locked down
+**StateTest.cpp** (24 tests)
+- Machine state enum values (Idle, Alarm, ConfigAlarm, Critical, etc.)
+- State transition safety constraints
+- Safety-critical state validation
 
 **RealtimeCmdTest.cpp** (14 tests)
 - Realtime command codes (Reset, FeedHold, SafetyDoor, etc.)
 - Override command sequences
 - Ensures interrupt handling is reliable
 
-### Feature Stability (209 tests)
+### Feature Stability (241 tests)
 **StringUtilTest.cpp** (69 tests)
 - String comparison (case-insensitive)
 - Trimming and whitespace handling
