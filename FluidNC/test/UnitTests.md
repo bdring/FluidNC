@@ -15,6 +15,20 @@ Running unit tests is done by:
 
 `pio test -e native`
 
+## Test suites
+
+The native unit test environment (`-e native`) builds a reduced subset of the firmware along with a set of GoogleTest suites.
+Which sources are compiled is controlled by `platformio.ini` in the `[tests_common]` `build_src_filter`.
+
+Current suites in `FluidNC/tests` include:
+
+- `StringUtilTest.cpp` (string parsing/utilities)
+- `UTF8Test.cpp` (UTF-8 encode/decode)
+- `UtilityTest.cpp` (small template helpers / conversion constants)
+- `RegexprTest.cpp` (FluidNC simplified matcher with `^`, `$`, `*` used for settings name matching)
+- `ErrorTest.cpp` (`Error` enum numeric values and grouping/range invariants)
+- `StateTest.cpp` (`State` enum numeric values / ordering invariants)
+
 ## Making a unit test
 
 Normally, if you make a new piece of code, you want to know that it's correct
@@ -24,7 +38,7 @@ again in the face of constant changes.
 
 Making a test works as follows:
 
-1. Create a new CPP file in the `test` folder, probably in some sub-folder
+1. Create a new CPP file in the FluidNC/tests folder (this is the PlatformIO 	est_dir), probably in some sub-folder
 2. The contents should be something like this:
 
 ```c++

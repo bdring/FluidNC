@@ -48,7 +48,7 @@ TEST(UTF8, DecodeTwoByteSequence) {
     
     result = decoder.decode(0xA9, value);
     EXPECT_EQ(result, 1);
-    EXPECT_EQ(value, 0xA9);
+    EXPECT_EQ(value, 0x00A9);
 }
 
 TEST(UTF8, DecodeThreeByteSequence) {
@@ -182,7 +182,7 @@ TEST(UTF8, DecodeVectorTwoBytes) {
     
     bool result = decoder.decode(input, value);
     EXPECT_TRUE(result);
-    EXPECT_EQ(value, 0xA9);
+    EXPECT_EQ(value, 0x00A9);
 }
 
 TEST(UTF8, DecodeVectorThreeBytes) {
