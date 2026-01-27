@@ -9,10 +9,10 @@
 namespace Configuration {
     class Completer : public Configuration::HandlerBase {
     private:
-        std::string _key;
-        uint32_t    _reqMatch;
-        char*       _matchedStr;
-        std::string _currentPath;
+        std::string  _key;
+        uint32_t     _reqMatch;
+        std::string& _matchedStr;
+        std::string  _currentPath;
 
         void addCandidate(std::string fullName);
 
@@ -21,7 +21,7 @@ namespace Configuration {
         bool matchesUninitialized(const char* name) override { return false; }
 
     public:
-        Completer(const char* key, uint32_t requestedMatch, char* matchedStr);
+        Completer(const std::string_view key, uint32_t requestedMatch, std::string& matchedStr);
 
         uint32_t _numMatches;
 
