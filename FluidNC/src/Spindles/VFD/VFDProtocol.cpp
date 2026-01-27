@@ -237,12 +237,6 @@ namespace Spindles {
             // Do variant-specific command preparation
             set_speed_command(speed, data);
 
-#if 0
-            // Sometimes sync_dev_speed is retained between different set_speed_command's. We don't want that - we want
-            // spindle sync to kick in after we set the speed. This forces that.
-            spindle->_sync_dev_speed = UINT32_MAX;
-#endif
-
             return true;
         }
 
