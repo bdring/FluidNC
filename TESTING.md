@@ -9,6 +9,25 @@ FluidNC now includes a comprehensive regression test suite (370 tests) designed 
 pio test -e tests_nosan
 ```
 
+## Optional: run tests automatically on local changes (Git hook)
+
+This repo includes an **optional** `pre-commit` hook that runs the unit tests whenever you `git commit`.
+
+- It is **non-blocking**: commits will still succeed if tests fail.
+- If tests fail, it prints a clear warning so failures are caught early.
+
+Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Skip the hook for a single commit:
+
+```bash
+FLUIDNC_SKIP_TESTS=1 git commit
+```
+
 Build time: ~12 seconds | All 370 tests pass
 
 ## Running Tests
