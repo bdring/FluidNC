@@ -141,6 +141,28 @@ EXPECT_NEAR(calculated_value, 1.0f, 0.0001f);
 EXPECT_FLOAT_EQ(calculated_value, 1.0f);
 ```
 
+### Enum value testing
+Tests freeze enum values to catch regressions:
+```cpp
+TEST(StateEnum, IdleIsZero) {
+    EXPECT_EQ(static_cast<uint8_t>(State::Idle), 0);
+}
+```
+
+**Important:** Enum values are intentionally frozen. If you reorder enums, tests will fail. This is by design — it catches unintended changes and ensures backward compatibility. Document enum value changes in your PR.
+
+### Edge cases and degenerate inputs
+Test degenerate inputs (e.g., empty ranges, zero denominators):
+```cpp
+// Document expected behavior
+TEST(MyFunction, DegenerateRange) {
+    // Note: myMap(x, in_min, in_max, out_min, out_max) 
+    // divides by (in_max - in_min).
+    // Behavior is undefined when in_max == in_min.
+    // This is acceptable; document it in your code.
+}
+```
+
 ## Test Architecture
 
 ### Dependencies

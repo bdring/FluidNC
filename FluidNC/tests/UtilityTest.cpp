@@ -1,5 +1,5 @@
 // Test suite for utility templates and constants (without external dependencies)
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include <cstdint>
 
 namespace {
@@ -140,6 +140,18 @@ TEST(UtilityTemplates, ConversionMMPerInch) {
     float inches = 1.0f;
     float mm = inches * MM_PER_INCH;
     EXPECT_FLOAT_EQ(mm, 25.40f);
+}
+
+TEST(UtilityTemplates, MyMapBasic) {
+    // Test normal mapping from 0-100 to 0-10
+    float result = myMap(50.0f, 0.0f, 100.0f, 0.0f, 10.0f);
+    EXPECT_NEAR(result, 5.0f, 0.01f);
+}
+
+TEST(UtilityTemplates, MyMapNegativeRange) {
+    // Test mapping with negative range
+    float result = myMap(0.5f, 0.0f, 1.0f, -10.0f, 10.0f);
+    EXPECT_NEAR(result, 0.0f, 0.01f);
 }
 
 TEST(UtilityTemplates, ConversionInchPerMM) {

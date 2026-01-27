@@ -63,9 +63,9 @@ TEST(StateEnum, StateIsUint8) {
 // Test normal operational states
 TEST(StateEnum, NormalOperationalStates) {
     // These states are part of normal machine operation
-    EXPECT_LE(static_cast<uint8_t>(State::Idle), 0);
-    EXPECT_LE(static_cast<uint8_t>(State::Cycle), 4);
-    EXPECT_LE(static_cast<uint8_t>(State::Jog), 7);
+    EXPECT_EQ(static_cast<uint8_t>(State::Idle), 0);
+    EXPECT_EQ(static_cast<uint8_t>(State::Cycle), 4);
+    EXPECT_EQ(static_cast<uint8_t>(State::Jog), 7);
 }
 
 // Test machine control states (feedhold related)
@@ -134,7 +134,7 @@ TEST(StateEnum, AllStatesAreDistinct) {
 
 // Test state ranges fit in uint8_t
 TEST(StateEnum, StatesFitInUint8) {
-    EXPECT_LE(static_cast<uint8_t>(State::Starting), 255);
+    EXPECT_LT(static_cast<uint8_t>(State::Starting), 256);
 }
 
 // Test common state transitions
@@ -216,8 +216,8 @@ TEST(StateEnum, HoldStatesPaired) {
 
 // Test that state values don't overlap with other enums
 TEST(StateEnum, AllValuesReassonable) {
-    EXPECT_GE(static_cast<uint8_t>(State::Idle), 0);
-    EXPECT_LE(static_cast<uint8_t>(State::Starting), 20);
+    EXPECT_EQ(static_cast<uint8_t>(State::Idle), 0);
+    EXPECT_EQ(static_cast<uint8_t>(State::Starting), 12);
 }
 
 // Test state count
