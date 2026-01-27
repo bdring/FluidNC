@@ -135,10 +135,6 @@ namespace Spindles {
             return;
         }
 
-        // _sync_dev_speed is set by a callback that handles
-        // responses from periodic get_current_speed() requests.
-        // It changes as the actual speed ramps toward the target.
-
         _syncing = true;  // poll for speed
 
         auto minSpeedAllowed = dev_speed > _slop ? (dev_speed - _slop) : 0;
@@ -148,7 +144,7 @@ namespace Spindles {
 
         const int limit = 100;  // 10 sec / 100 ms
 
-        if (_debug > 1 && _sync_dev_speed != UINT32_MAX) {
+        if (_debug > 1) {
             log_info("Syncing to " << int(dev_speed));
         }
 

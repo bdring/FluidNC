@@ -196,9 +196,8 @@ namespace Spindles {
             //  Recv: 01 03 02 05 DC xx xx
             //                 ---- = 1500
             return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
-                uint16_t freq = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
-
-                vfd->_sync_dev_speed = freq;
+                uint32_t dev_speed = (uint16_t(response[3]) << 8) | response[4];
+                xQueueSend(VFD::VFDProtocol::vfd_speed_queue, &dev_speed, 0);
                 return true;
             };
         }
