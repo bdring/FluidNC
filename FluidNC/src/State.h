@@ -6,7 +6,7 @@
 // to manage each without overlapping. It is also used as a messaging flag for
 // critical events.
 enum class State : uint8_t {
-    Idle = 0,     // Must be zero.
+    Idle = 1,     // Must be zero.
     Alarm,        // In alarm state. Locks out all g-code processes. Allows settings access.
     CheckMode,    // G-code check mode. Locks out planner and motion only.
     Homing,       // Performing homing cycle
