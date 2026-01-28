@@ -17,9 +17,28 @@ fi
 
 echo "[FluidNC] Running unit tests..."
 
+# Display helpful information about unit tests
+echo ""
+echo "================================================================================"
+echo "Running FluidNC Unit Tests"
+echo "================================================================================"
+echo ""
+echo "Unit tests require G++/GCC to be installed and available in your PATH."
+echo "This is NOT a direct dependency of the main project."
+echo ""
+echo "For setup instructions and troubleshooting:"
+echo "  See: FluidNC/test/UnitTests.md"
+echo ""
+echo "Key setup steps:"
+echo "  1. Install G++ (e.g., via MSYS2 on Windows)"
+echo "  2. Verify G++ is in your PATH: g++ -v"
+echo "  3. Run tests: pio test -e tests_nosan -vv (or -e tests on Linux/macOS)"
+echo ""
+echo "================================================================================"
+echo ""
 # Prefer a local PlatformIO install if available
 if command -v pio >/dev/null 2>&1; then
-  pio test -e tests_nosan
+  pio test -e tests_nosan -vv
   status=$?
 else
   echo "[FluidNC] WARNING: 'pio' not found; cannot run unit tests. Install PlatformIO and retry."
