@@ -18,12 +18,14 @@ namespace Spindles {
         TaskHandle_t  VFDProtocol::vfd_cmdTaskHandle = nullptr;
 
         void VFDProtocol::reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length) {}
-        bool VFDProtocol::checkRx(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id) {
+        bool VFDProtocol::checkRx(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, VFDSpindle* instance) {
             if (read_length == 0) {
-                log_info("RS485 No response");
+                if (instance->_debug > 1) {
+                    log_info("RS485 No response");
+                }
                 return false;
             }
-            if (rx_message[0] != id) {
+            if (rx_message[0] != instance->_modbus_id) {
                 log_info("RS485 received message from other modbus device");
                 return false;
             }
@@ -169,7 +171,7 @@ namespace Spindles {
                         hex_msg(rx_message, "RS485 Rx: ", read_length);
                     }
 
-                    if (checkRx(cmd, rx_message, read_length, instance->_modbus_id)) {
+                    if (checkRx(cmd, rx_message, read_length, instance)) {
                         // The response is well-formed
 
                         // Parse it if we have a parser
