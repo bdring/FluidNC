@@ -54,7 +54,8 @@ namespace Spindles {
             n /= divider;
         }
 
-        bool GenericProtocol::set_data(std::string_view token, std::basic_string_view<uint8_t>& response_view, const char* name, uint32_t& data, bool is_big_endian) {
+        bool GenericProtocol::set_data(
+            std::string_view token, std::basic_string_view<uint8_t>& response_view, const char* name, uint32_t& data, bool is_big_endian) {
             /**
              *  Match token with name and process data accordingly
              * 
@@ -64,12 +65,12 @@ namespace Spindles {
              * @param data processed data (output)
              * @return is handling of the token successful
              */
-            
-             // check if the that the response format starts with the specified keyword
+
+            // check if the that the response format starts with the specified keyword
             if (string_util::starts_with_ignore_case(token, name)) {
                 // combine two-bytes from the device response into the value
                 uint32_t rval;
-                if(is_big_endian){
+                if (is_big_endian) {
                     rval = (response_view[0] << 8) + (response_view[1] & 0xff);
                 } else {
                     rval = ((response_view[1] & 0xFF) << 8) + (response_view[0] & 0xff);
@@ -122,7 +123,7 @@ namespace Spindles {
                         log_info("Current speed is " << int(dev_speed));
                     }
 
-                    // pass along the processed rpm data 
+                    // pass along the processed rpm data
                     xQueueSend(VFD::VFDProtocol::vfd_speed_queue, &dev_speed, 0);
                     continue;
                 }
@@ -189,7 +190,6 @@ namespace Spindles {
             string_util::split_prefix(in_view, out_view, '>');
             _response_format = in_view;  // Remember the response format for the parser
 
-            
             // transmit frame :  set a value or request a value
             // 'rpm' and 'le' are the only keywords that is allowed in the transmit frame format
             std::string_view token;
@@ -206,7 +206,7 @@ namespace Spindles {
                     // adjust the data associated with the rpm based on scaling [*][/][%]
                     scale(out, token.substr(strlen("rpm")), _maxRPM);
                     // store the scaled data in the transmit frame
-                    if(_tx_is_big_endian) {
+                    if (_tx_is_big_endian) {
                         data.msg[data.tx_length++] = out >> 8;
                         data.msg[data.tx_length++] = out & 0xff;
                     } else {
@@ -234,9 +234,8 @@ namespace Spindles {
                 if (string_util::equal_ignore_case(token, "echo")) {
                     data.rx_length = data.tx_length;
                     break;
-                }
-                else if (string_util::starts_with_ignore_case(token, "rpm") || string_util::starts_with_ignore_case(token, "minrpm") ||
-                    string_util::starts_with_ignore_case(token, "maxrpm") || string_util::starts_with_ignore_case(token, "ignore")) {
+                } else if (string_util::starts_with_ignore_case(token, "rpm") || string_util::starts_with_ignore_case(token, "minrpm") ||
+                           string_util::starts_with_ignore_case(token, "maxrpm") || string_util::starts_with_ignore_case(token, "ignore")) {
                     // other keywords are received as two-bytes
                     data.rx_length += 2;
                 } else if (string_util::from_hex(token, x)) {
@@ -424,12 +423,47 @@ namespace Spindles {
                 "03 f0 0e 00 01 > 03 02 minrpm*60/100",  // get_min_rpm
                 "03 f0 0c 00 01 > 03 02 maxrpm*60/100",  // get_max_rpm
             },
+            {
+                "FolinnBD600",
+                1,                                  // disable_with_s0
+                1,                                  // s0_with_disable
+                0xffffffff,                         // min_rpm
+                0xffffffff,                         // max_rpm
+                "06 10 00 00 02 > echo",            // cw
+                "06 10 00 00 01 > echo",            // ccw
+                "06 10 00 00 06 > echo",            // off
+                "06 30 00 rpm%*100 > echo",         // set_rpm
+                "03 30 01 00 01 > 03 02 rpm*3",     // get_rpm
+                "03 F0 05 00 01 > 03 02 minRPM*3",  // get_min_rpm
+                "03 F0 04 00 01 > 03 02 maxRPM*3",  // get_max_rpm
+            },
+            {
+                "DeltaMS300",
+                1,                                // disable_with_s0
+                1,                                // s0_with_disable
+                2000,                             // min_rpm
+                24000,                            // max_rpm
+                "06 20 00 00 12 > echo",          // cw
+                "06 20 00 00 22 > echo",          // ccw
+                "06 20 00 00 01 > echo",          // off
+                "06 20 01 rpm5/3 > echo",         // set_rpm
+                "03 21 03 00 01 > 03 02 rpm3/5",  // get_rpm
+                "",                               // get_min_rpm
+                "",                               // get_max_rpm
+            },
         };
         void GenericProtocol::afterParse() {
             _model = string_util::trim(_model);
             for (auto const& vfd : VFDtypes) {
                 if (string_util::equal_ignore_case(_model, vfd.name)) {
                     log_debug("Using predefined ModbusVFD " << vfd.name);
+                    if (vfd.min_rpm != 0xffffffff) {
+                        _minRPM = vfd.min_rpm;
+                    }
+                    if (vfd.max_rpm != 0xffffffff) {
+                        _maxRPM = vfd.max_rpm;
+                    }
+
                     if (_cw_cmd.empty()) {
                         _cw_cmd = vfd.cw_cmd;
                     }
