@@ -439,17 +439,17 @@ namespace Spindles {
             },
             {
                 "DeltaMS300",
-                1,                                // disable_with_s0
-                1,                                // s0_with_disable
-                2000,                             // min_rpm
-                24000,                            // max_rpm
-                "06 20 00 00 12 > echo",          // cw
-                "06 20 00 00 22 > echo",          // ccw
-                "06 20 00 00 01 > echo",          // off
-                "06 20 01 rpm5/3 > echo",         // set_rpm
-                "03 21 03 00 01 > 03 02 rpm3/5",  // get_rpm
-                "",                               // get_min_rpm
-                "",                               // get_max_rpm
+                1,                                    // disable_with_s0
+                1,                                    // s0_with_disable
+                2000,                                 // min_rpm
+                24000,                                // max_rpm
+                "06 20 00 00 12 > echo",              // cw
+                "06 20 00 00 22 > echo",              // ccw
+                "06 20 00 00 01 > echo",              // off
+                "06 20 01 rpm*100/60 > echo",         // set_rpm
+                "03 21 03 00 01 > 03 02 rpm*60/100",  // get_rpm
+                "",                                   // get_min_rpm
+                "",                                   // get_max_rpm
             },
         };
         void GenericProtocol::afterParse() {
