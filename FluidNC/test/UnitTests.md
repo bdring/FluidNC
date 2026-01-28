@@ -4,20 +4,19 @@
 
 Getting started with unit tests:
 
-1. Install G++/GCC. For Windows, I recommend MSYS2 (https://www.msys2.org/). 
-   GCC is not installed for native targets by platformio, so you have to do 
-   this. Make sure G++ is in the search path. This has been tested on gcc 
+1. Install G++/GCC. For Windows, I recommend MSYS2 (https://www.msys2.org/).
+   Make sure G++ is in the search path. This has been tested on gcc
    version 11.2.0, which is the default for GCC at the time of writing.
 2. Test G++. `g++ -v` from a command prompt should do the trick
 3. Run all unit tests. 
 
 Running unit tests is done by:
 
-`pio test -e native`
+`pio test -e tests_nosan`
 
 ## Test suites
 
-The native unit test environment (`-e native`) builds a reduced subset of the firmware along with a set of GoogleTest suites.
+The unit test environment (`-e tests_nosan`) builds a reduced subset of the firmware along with a set of GoogleTest suites.
 Which sources are compiled is controlled by `platformio.ini` in the `[tests_common]` `build_src_filter`.
 
 Current suites in `FluidNC/tests` include:
@@ -57,7 +56,7 @@ namespace Configuration {
 
 ```
 
-It's that easy. Once done, it should work with native unit tests.
+It's that easy. Once done, it should work with the unit test environment.
 
 # Google test code and unity tests
 
@@ -105,8 +104,8 @@ Unfortunately, not everything can be tested properly in an easy way. For
 example, it is very hard to test ESP32 DMA and low-level things. External 
 libraries are also very nasty to test. In some cases we want to exclude 
 portions of the source code. This can be done in PlatformIO.INI, in the
-`src_filter` property of `[env:native]`. Take note: if you add things 
-in the env section in PIO, it *must* be supported on both esp32 and native.
+`src_filter` property of the test environment. Take note: if you add things
+in an env section in PIO, it *must* be supported by the targets that build it.
 
 ## Test code
 
