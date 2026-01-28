@@ -14,6 +14,8 @@ Running unit tests is done by:
 
 `pio test -e tests_nosan`
 
+Tip: you can add `-v` (or `-vv`) to see the exact compile/link steps when diagnosing build issues.
+
 ## Test suites
 
 The unit test environment (`-e tests_nosan`) builds a reduced subset of the firmware along with a set of GoogleTest suites.
@@ -25,8 +27,11 @@ Current suites in `FluidNC/tests` include:
 - `UTF8Test.cpp` (UTF-8 encode/decode)
 - `UtilityTest.cpp` (small template helpers / conversion constants)
 - `RegexprTest.cpp` (FluidNC simplified matcher with `^`, `$`, `*` used for settings name matching)
+- `RealtimeCmdTest.cpp` (locks down realtime command byte values and ordering/grouping invariants)
 - `ErrorTest.cpp` (`Error` enum numeric values and grouping/range invariants)
+- `ErrorBehaviorTest.cpp` (observable behavior around `ErrorNames` lookup)
 - `StateTest.cpp` (`State` enum numeric values / ordering invariants)
+- `CommandCompletionTest.cpp` (completion behavior via production `num_initial_matches()`)
 
 ## Making a unit test
 
@@ -37,7 +42,7 @@ again in the face of constant changes.
 
 Making a test works as follows:
 
-1. Create a new CPP file in the FluidNC/tests folder (this is the PlatformIO 	est_dir), probably in some sub-folder
+1. Create a new CPP file in the `FluidNC/tests` folder (this is the PlatformIO `test_dir`), probably in some sub-folder
 2. The contents should be something like this:
 
 ```c++
@@ -57,6 +62,18 @@ namespace Configuration {
 ```
 
 It's that easy. Once done, it should work with the unit test environment.
+
+## A note on testing "production" code in the native unit test build
+
+The `tests_nosan` environment is intentionally a **reduced** build. The goal is fast feedback and stable, cross-platform unit tests.
+
+Some modules (e.g. completion) can be tested by compiling the real production source file and providing only small stubs for the missing firmware runtime.
+For example, `CommandCompletionTest.cpp` exercises the production `num_initial_matches()` implementation (built from `src/Configuration/Completer.cpp`).
+
+Other modules (notably `Settings.cpp`, protocol/RTOS plumbing, and runtime globals) pull in a large dependency graph.
+Trying to compile those directly into `tests_nosan` can easily turn into a full firmware build and/or a long chain of missing-symbol link errors.
+
+When that happens, prefer adding a separate, slower **integration** test environment rather than bloating `tests_nosan`.
 
 # Google test code and unity tests
 
@@ -109,7 +126,7 @@ in an env section in PIO, it *must* be supported by the targets that build it.
 
 ## Test code
 
-Unit tests can be found in the `Tests` folder.
+Unit tests can be found in the `FluidNC/tests` folder.
 
 # Compiler details
 
