@@ -70,7 +70,7 @@ namespace Spindles {
             bool            prepareSetSpeedCommand(uint32_t speed, ModbusCommand& data, VFDSpindle* spindle);
 
             static void reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length);
-            static bool checkRx(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id);
+            static bool checkRx(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, VFDSpindle* spindle);
 
         public:
             static QueueHandle_t vfd_speed_queue;

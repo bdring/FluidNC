@@ -43,7 +43,7 @@ namespace Spindles {
         volatile bool _syncing;
 
     public:
-        uint8_t _debug = 0;
+        uint8_t _debug = 2;
 
         VFDSpindle(const char* name, VFD::VFDProtocol* detail) : Spindle(name), detail_(detail) {}
         VFDSpindle(const VFDSpindle&)            = delete;
