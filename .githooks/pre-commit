@@ -32,13 +32,13 @@ echo ""
 echo "Key setup steps:"
 echo "  1. Install G++ (e.g., via MSYS2 on Windows)"
 echo "  2. Verify G++ is in your PATH: g++ -v"
-echo "  3. Run tests: pio test -e tests_nosan -vv (or -e tests on Linux/macOS)"
+echo "  3. Run tests: pio test -e tests_nosan -vv (or -e tests on Linux/macOS; note that -vv is optional for verbose output)"
 echo ""
 echo "================================================================================"
 echo ""
 # Prefer a local PlatformIO install if available
 if command -v pio >/dev/null 2>&1; then
-  pio test -e tests_nosan -vv
+  pio test -e tests_nosan
   status=$?
 else
   echo "[FluidNC] WARNING: 'pio' not found; cannot run unit tests. Install PlatformIO and retry."
