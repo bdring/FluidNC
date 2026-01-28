@@ -31,7 +31,12 @@ Current suites in `FluidNC/tests` include:
 - `ErrorTest.cpp` (`Error` enum numeric values and grouping/range invariants)
 - `ErrorBehaviorTest.cpp` (observable behavior around `ErrorNames` lookup)
 - `StateTest.cpp` (`State` enum numeric values / ordering invariants)
-- `CommandCompletionTest.cpp` (completion behavior via production `num_initial_matches()`)
+- `CommandCompletionTest.cpp` (completion behavior via production `num_initial_matches()` against both NVS settings and config trees)
+
+The completion test includes examples of both **settings-based** completion (non-`/` keys like `"sd/"`) 
+and **config-tree** completion (keys starting with `/` like `"/axes/"`). Config-tree tests use a minimal 
+`FakeConfigurable` to validate completion against a real config tree structure without initializing 
+the full firmware.
 
 ## Making a unit test
 

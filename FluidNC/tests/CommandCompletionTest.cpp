@@ -138,3 +138,44 @@ TEST(CommandCompletion, ExactMatchIsIncluded) {
     }
     EXPECT_TRUE(foundExact);
 }
+
+namespace {
+struct FakeConfigurable final : public Configuration::Configurable {
+    explicit FakeConfigurable(std::initializer_list<std::pair<const char*, FakeConfigurable*>> sections = {}) :
+        _sections(sections.begin(), sections.end()) {}
+
+    void group(Configuration::HandlerBase& handler) override {
+        for (auto const& s : _sections) {
+            handler.enterFactory(s.first, *s.second);
+        }
+    }
+
+private:
+    std::vector<std::pair<const char*, FakeConfigurable*>> _sections;
+};
+}  // namespace
+
+TEST(CommandCompletion, AxesPathCompletionMatchesConfiguredAxes) {
+    // Set up a tiny config tree directly for completion testing:
+    // /axes/{x,y,z}/
+    FakeConfigurable leaf;
+    FakeConfigurable axesSection({ { "x", &leaf }, { "y", &leaf }, { "z", &leaf } });
+    FakeConfigurable root({ { "axes", &axesSection } });
+
+    auto* previous = config;
+    config         = &root;
+
+    // Count matches for "/axes/" and verify the returned candidates.
+    uint32_t nfound = num_initial_matches("/axes/", 6, 0, nullptr);
+    EXPECT_EQ(nfound, 3u);
+
+    // Verify each match starts with the expected prefix
+    char out[128];
+    for (uint32_t i = 0; i < nfound; ++i) {
+        std::memset(out, 0, sizeof(out));
+        (void)num_initial_matches("/axes/", 6, i, out);
+        EXPECT_TRUE(starts_with_ci(out, "/axes/")) << "Match " << i << " was '" << out << "'";
+    }
+
+    config = previous;
+}
