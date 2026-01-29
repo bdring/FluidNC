@@ -23,6 +23,8 @@ from pathlib import Path
 def run(cmd, check=True):
     """Run a command and return success status."""
     print(f"$ {cmd}")
+    # Use shell=True for simple string commands (pio, python are trusted)
+    # Alternative: split cmd properly for list-based subprocess.run
     result = subprocess.run(cmd, shell=True)
     if check and result.returncode != 0:
         return False
@@ -78,9 +80,11 @@ def main():
         ])
         print(f"Generating HTML report: {output_file}")
     else:
-        gcovr_args.append("--print-summary")
+        # Default: show summary with branch coverage
+        gcovr_args.extend(["--print-summary"])
         if verbose:
-            gcovr_args.append("--branches")
+            # Verbose: add detailed line-by-line output
+            gcovr_args.extend(["--branches", "--txt"])
     
     gcovr_args.append(to_gcovr_path(build_dir))
     

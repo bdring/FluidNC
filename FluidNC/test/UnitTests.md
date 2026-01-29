@@ -16,43 +16,102 @@ Running unit tests is done by:
 
 Tip: you can add `-v` (or `-vv`) to see the exact compile/link steps when diagnosing build issues.
 
+### Pre-commit Hook
+
+The repository includes a pre-commit hook that automatically runs `pio test -e tests` before allowing commits.
+This ensures all tests pass before changes enter the repository.
+
+To temporarily bypass the hook (e.g., for work-in-progress commits):
+
+```powershell
+# PowerShell (Windows)
+$env:FLUIDNC_SKIP_TESTS=1; git commit -m "WIP: ..."
+```
+
+```bash
+# Bash (Linux/macOS)
+FLUIDNC_SKIP_TESTS=1 git commit -m "WIP: ..."
+```
+
 ### Code Coverage
+
+FluidNC provides two test environments:
+
+- **`tests`**: Fast test runs (~8 seconds) without coverage instrumentation. Use for development and pre-commit validation.
+- **`tests_coverage`**: Instrumented build with `--coverage` flags. Slower, but generates `.gcda` files for coverage analysis.
 
 To generate code coverage reports:
 
 ```bash
 pip install gcovr
-pio test -e tests_coverage
-python coverage.py                    # Text report
-python coverage.py --html             # Interactive HTML report
+python coverage.py                    # Runs tests_coverage + text report
+python coverage.py --html             # Runs tests_coverage + interactive HTML report
 ```
 
-The coverage script works cross-platform (Windows, macOS, Linux) and generates reports showing line, branch, and function coverage for the tested source files.
+The `coverage.py` script:
+1. Cleans previous coverage data
+2. Runs `pio test -e tests_coverage`
+3. Uses `gcovr` to generate reports showing line, branch, and function coverage
+
+Works cross-platform (Windows with MSYS2/MinGW, macOS, Linux).
 
 ## Test suites
 
-The unit test environment (`-e tests`) builds a reduced subset of the firmware along with a set of GoogleTest suites.
-Which sources are compiled is controlled by `platformio.ini` in the `[tests_common]` `build_src_filter`.
+The unit test environment (`-e tests`) builds a **minimal subset** of FluidNC sources along with GoogleTest suites.
+This is NOT a complete firmware build - it focuses on testable utility code (string parsing, UTF-8, regex, error handling).
 
-For coverage analysis, use `-e tests_coverage` which generates `.gcda` files that `gcovr` processes into detailed reports.
+Which sources are compiled is controlled by `platformio.ini` in the `[tests_common]` `build_src_filter`.
+Most firmware modules have tight coupling to FreeRTOS, hardware abstractions, and system globals - these are excluded from unit tests.
+
+For coverage analysis, use `-e tests_coverage` which adds `--coverage` flags and generates `.gcda` files for `gcovr`.
 
 Current suites in `FluidNC/tests` include:
 
-- `StringUtilTest.cpp` (string parsing/utilities)
-- `UTF8Test.cpp` (UTF-8 encode/decode)
-- `UtilityTest.cpp` (small template helpers / conversion constants)
-- `RegexprTest.cpp` (FluidNC simplified matcher with `^`, `$`, `*` used for settings name matching)
-- `RealtimeCmdTest.cpp` (locks down realtime command byte values and ordering/grouping invariants)
-- `ErrorTest.cpp` (`Error` enum numeric values and grouping/range invariants)
-- `ErrorBehaviorTest.cpp` (observable behavior around `ErrorNames` lookup)
-- `StateTest.cpp` (`State` enum numeric values / ordering invariants)
-- `CommandCompletionTest.cpp` (completion behavior via production `num_initial_matches()` against both NVS settings and config trees)
+- `StringUtilTest.cpp` (69 tests, 98.8% coverage - string parsing/utilities)
+- `UTF8Test.cpp` (59 tests, 95.4% coverage - UTF-8 encode/decode)
+- `RegexprTest.cpp` (72 tests, 100% coverage - simplified regex matcher with `^`, `$`, `*` for settings)
+- `UtilityTest.cpp` (32 tests - template helpers/conversion constants)
+- `ErrorBehaviorTest.cpp` (9 tests - observable behavior around `ErrorNames` lookup)
+- `StateTest.cpp` (7 tests - `State` enum values/ordering invariants)
+- `CommandCompletionTest.cpp` (10 tests, 85.4% coverage - tab completion for settings and config trees)
+- `FluidErrorTest.cpp` (5 tests, 100% coverage - std::error_code integration for FluidError enum)
+- `PinOptionsParserTest.cpp` (7 tests, 100% coverage - pin option string parsing)
 
-The completion test includes examples of both **settings-based** completion (non-`/` keys like `"sd/"`) 
-and **config-tree** completion (keys starting with `/` like `"/axes/"`). Config-tree tests use a minimal 
-`FakeConfigurable` to validate completion against a real config tree structure without initializing 
-the full firmware.
+Note: `RealtimeCmdTest.cpp` and `ErrorTest.cpp` test compile-time enum values and are not included in coverage metrics.
 
+The test suite achieves **88.1% line coverage** on 293 lines across 11 source files (as of 2026-01-28).
+### What's Tested vs. What's Not Tested
+
+**Currently Tested (Pure Utility Code):**
+- ✅ String parsing and manipulation (`string_util.cpp`)
+- ✅ UTF-8 encoding/decoding (`UTF8.cpp`)
+- ✅ Pattern matching (`Regexpr.cpp`)
+- ✅ Error categorization (`FluidError.cpp`, `Error.cpp`)
+- ✅ Pin option parsing (`PinOptionsParser.cpp`)
+- ✅ Command completion logic (`Completer.cpp`)
+- ✅ Template utilities (constrain, map, conversion constants)
+
+**Not Tested (Hardware/RTOS Dependencies):**
+- ❌ Motion control and stepper logic (requires FreeRTOS, hardware timers)
+- ❌ SD card and filesystem operations (requires SPIFFS/LittleFS)
+- ❌ WiFi, Bluetooth, Telnet (requires ESP32 radio hardware)
+- ❌ I2C/SPI/UART drivers (requires hardware peripherals)
+- ❌ GCode interpreter runtime (requires system globals, protocol state)
+- ❌ Settings persistence (requires NVS flash access)
+
+**Why This Approach?**
+
+FluidNC is firmware with tight hardware coupling. Rather than building extensive mocking frameworks
+(which would be brittle and maintenance-heavy), we focus on:
+
+1. **Pure utilities** that can be tested in isolation
+2. **Logic separation** - extracting testable algorithms from hardware layers
+3. **Fast feedback** - 8-second test runs encourage frequent execution
+
+For hardware-dependent features, prefer:
+- Integration tests on real hardware
+- Fixture tests (see `fixture_tests/` directory)
+- Manual testing with representative configurations
 ## Making a unit test
 
 Normally, if you make a new piece of code, you want to know that it's correct
@@ -62,24 +121,37 @@ again in the face of constant changes.
 
 Making a test works as follows:
 
-1. Create a new CPP file in the `FluidNC/tests` folder (this is the PlatformIO `test_dir`), probably in some sub-folder
+1. Create a new CPP file in the `FluidNC/tests` folder (this is the PlatformIO `test_dir`)
 2. The contents should be something like this:
 
 ```c++
-#include "TestFramework.h"
+#include "gtest/gtest.h"
+#include <SomethingYouWantTested.h>
 
-#include <src/SomethingYouWantTested.h>
+namespace {
 
-namespace Configuration {
-    Test(TestCollectionName, TestName) {
-        // doSomething...
-        Assert(myCondition, "Description; test fails if !condition");
+TEST(TestSuiteName, TestName) {
+    // Arrange - set up test data
+    int expected = 42;
 
-        // and do this for all functionalities exposed
-    }
+    // Act - call the function under test
+    int actual = myFunction();
+
+    // Assert - verify the result
+    EXPECT_EQ(actual, expected);
 }
 
+TEST(TestSuiteName, AnotherTest) {
+    // Add more tests...
+    EXPECT_TRUE(someCondition());
+    EXPECT_FLOAT_EQ(3.14f, calculatePi(), 0.01f);
+}
+
+}  // namespace
 ```
+
+3. Add the test file to `platformio.ini` in the `[tests_common]` `build_src_filter`
+4. If your code depends on source files, add those to `build_src_filter` as well
 
 It's that easy. Once done, it should work with the unit test environment.
 
@@ -147,6 +219,59 @@ in an env section in PIO, it *must* be supported by the targets that build it.
 ## Test code
 
 Unit tests can be found in the `FluidNC/tests` folder.
+
+## Troubleshooting
+
+### Common Issues on Windows
+
+**Problem: `g++: command not found` or tests fail to compile**
+
+Solution: Install MSYS2 and add GCC to PATH:
+1. Download and install MSYS2 from https://www.msys2.org/
+2. Open MSYS2 MinGW 64-bit terminal
+3. Install GCC: `pacman -S mingw-w64-x86_64-gcc`
+4. Add to PATH: `C:\msys64\mingw64\bin` (adjust path if needed)
+5. Verify: `g++ -v` should show version 11.2.0 or later
+
+**Problem: Tests pass but coverage.py fails with "gcovr: command not found"**
+
+Solution: Install gcovr via pip:
+```bash
+pip install gcovr
+```
+
+**Problem: "Permission denied" when running tests**
+
+Solution: Close any IDEs or debuggers that might be locking test executables, then try again.
+
+**Problem: Compilation errors about missing headers**
+
+Solution: Ensure you're using `-e tests` (not the old `windows_x86` environment). Run:
+```bash
+pio test -e tests -vv
+```
+The `-vv` flag shows detailed compilation commands for debugging.
+
+### Common Issues on macOS/Linux
+
+**Problem: Tests fail with linker errors about gcov**
+
+Solution: Ensure you have GCC (not just Clang) installed:
+```bash
+# macOS
+brew install gcc
+
+# Ubuntu/Debian
+sudo apt-get install gcc g++
+```
+
+**Problem: Coverage reports are empty**
+
+Solution: Verify `.gcda` files were generated:
+```bash
+find .pio/build/tests_coverage -name "*.gcda"
+```
+If empty, rebuild with: `pio test -e tests_coverage --verbose`
 
 # Compiler details
 
