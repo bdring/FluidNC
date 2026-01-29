@@ -12,14 +12,29 @@ Getting started with unit tests:
 
 Running unit tests is done by:
 
-`pio test -e tests_nosan`
+`pio test -e tests`
 
 Tip: you can add `-v` (or `-vv`) to see the exact compile/link steps when diagnosing build issues.
 
+### Code Coverage
+
+To generate code coverage reports:
+
+```bash
+pip install gcovr
+pio test -e tests_coverage
+python coverage.py                    # Text report
+python coverage.py --html             # Interactive HTML report
+```
+
+The coverage script works cross-platform (Windows, macOS, Linux) and generates reports showing line, branch, and function coverage for the tested source files.
+
 ## Test suites
 
-The unit test environment (`-e tests_nosan`) builds a reduced subset of the firmware along with a set of GoogleTest suites.
+The unit test environment (`-e tests`) builds a reduced subset of the firmware along with a set of GoogleTest suites.
 Which sources are compiled is controlled by `platformio.ini` in the `[tests_common]` `build_src_filter`.
+
+For coverage analysis, use `-e tests_coverage` which generates `.gcda` files that `gcovr` processes into detailed reports.
 
 Current suites in `FluidNC/tests` include:
 
@@ -70,15 +85,15 @@ It's that easy. Once done, it should work with the unit test environment.
 
 ## A note on testing "production" code in the native unit test build
 
-The `tests_nosan` environment is intentionally a **reduced** build. The goal is fast feedback and stable, cross-platform unit tests.
+The `tests` environment is intentionally a **reduced** build. The goal is fast feedback and stable, cross-platform unit tests.
 
 Some modules (e.g. completion) can be tested by compiling the real production source file and providing only small stubs for the missing firmware runtime.
 For example, `CommandCompletionTest.cpp` exercises the production `num_initial_matches()` implementation (built from `src/Configuration/Completer.cpp`).
 
 Other modules (notably `Settings.cpp`, protocol/RTOS plumbing, and runtime globals) pull in a large dependency graph.
-Trying to compile those directly into `tests_nosan` can easily turn into a full firmware build and/or a long chain of missing-symbol link errors.
+Trying to compile those directly into `tests` can easily turn into a full firmware build and/or a long chain of missing-symbol link errors.
 
-When that happens, prefer adding a separate, slower **integration** test environment rather than bloating `tests_nosan`.
+When that happens, prefer adding a separate, slower **integration** test environment rather than bloating `tests`.
 
 # Google test code and unity tests
 

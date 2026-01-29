@@ -41,3 +41,10 @@ managed_components/
 /FluidNC/dependencies.lock
 experiments/
 .cache
+
+# Coverage report output
+coverage.html
+coverage.css
+coverage.js
+coverage.functions.html
+coverage.*.html
