@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Runs unit tests on commit.
+# This blocks the commit on test failure, but does not affect local builds.
+
+set -uo pipefail
+
+# Only run when there are staged changes (avoid running on empty commits)
+if git diff --cached --quiet; then
+  exit 0
+fi
+
+# Allow opting out (useful for emergency commits)
+if [[ "${FLUIDNC_SKIP_TESTS:-}" == "1" ]]; then
+  echo "[FluidNC] Unit tests skipped (FLUIDNC_SKIP_TESTS=1)"
+  exit 0
+fi
+
+echo "[FluidNC] Running unit tests..."
+
+# Display helpful information about unit tests
+echo ""
+echo "================================================================================"
+echo "Running FluidNC Unit Tests"
+echo "================================================================================"
+echo ""
+echo "Unit tests require G++/GCC to be installed and available in your PATH."
+echo "This is NOT a direct dependency of the main project."
+echo ""
+echo "For setup instructions and troubleshooting:"
+echo "  See: FluidNC/test/UnitTests.md"
+echo ""
+echo "Key setup steps:"
+echo "  1. Install G++ (e.g., via MSYS2 on Windows)"
+echo "  2. Verify G++ is in your PATH: g++ -v"
+echo "  3. Run tests: pio test -e tests -vv (add -vv for verbose output)"
+echo ""
+echo "================================================================================"
+echo ""
+# Prefer a local PlatformIO install if available
+if command -v pio >/dev/null 2>&1; then
+  pio test -e tests
+  status=$?
+else
+  echo "[FluidNC] WARNING: 'pio' not found; cannot run unit tests. Install PlatformIO and retry."
+  echo "[FluidNC] To proceed without tests: FLUIDNC_SKIP_TESTS=1 git commit (or git commit --no-verify)"
+  exit 0
+fi
+
+if [[ $status -ne 0 ]]; then
+  echo "[FluidNC] ERROR: Unit tests FAILED (exit=$status). Commit aborted."
+  echo "[FluidNC] To proceed without tests: FLUIDNC_SKIP_TESTS=1 git commit (or git commit --no-verify)"
+  exit $status
+fi
+
+echo "[FluidNC] Unit tests passed."
+exit 0
