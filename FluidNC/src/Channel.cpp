@@ -223,17 +223,18 @@ Error Channel::pollLine(char* line) {
             if (ch < 0) {
                 break;
             }
+            _active = true;
+            if (realtimeOkay(ch) && is_realtime_command(ch)) {
+                handleRealtimeCharacter((uint8_t)ch);
+                continue;
+            }
+            if (!line) {
+                _queue.push(ch);
+                continue;
+            }
+            // Fall through if line is non-null and it is not a realtime character
         }
-        _active = true;
-        if (realtimeOkay(ch) && is_realtime_command(ch)) {
-            handleRealtimeCharacter((uint8_t)ch);
-            continue;
-        }
-        if (!line) {
-            _queue.push(ch);
-            continue;
-        }
-        // Fall through if line is non-null and it is not a realtime character
+
         if (lineComplete(line, ch)) {
             return Error::Ok;
         }
