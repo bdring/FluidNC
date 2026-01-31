@@ -27,5 +27,5 @@ namespace Pins {
     PinAttributes VoidPinDetail::getAttr() const {
         return PinAttributes::None;
     }
+    VoidPinDetail undefinedPin;
 }
-Pins::VoidPinDetail undefinedPin;

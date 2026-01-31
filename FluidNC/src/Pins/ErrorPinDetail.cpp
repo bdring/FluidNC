@@ -28,5 +28,5 @@ namespace Pins {
     PinAttributes ErrorPinDetail::getAttr() const {
         return PinAttributes::None;
     }
+    ErrorPinDetail errorPin("unknown");
 }
-Pins::ErrorPinDetail errorPin("unknown");

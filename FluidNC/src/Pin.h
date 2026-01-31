@@ -67,7 +67,7 @@ public:
     using Attr         = Pins::PinAttributes;
 
     // A default pin is an undefined pin.
-    inline Pin() : _detail(&undefinedPin) {}
+    inline Pin() : _detail(&Pins::undefinedPin) {}
 
     static const bool On  = true;
     static const bool Off = false;
@@ -99,7 +99,7 @@ public:
     inline bool operator==(const Pin& o) const { return _detail == o._detail; }
     inline bool operator!=(const Pin& o) const { return _detail != o._detail; }
 
-    inline bool undefined() const { return _detail == &undefinedPin; }
+    inline bool undefined() const { return _detail == &Pins::undefinedPin; }
     inline bool defined() const { return !undefined(); }
 
     // External libraries normally use digitalWrite, digitalRead and setMode. Since we cannot handle that behavior, we
@@ -134,7 +134,7 @@ public:
     inline void on() const { write(1); }
     inline void off() const { write(0); }
 
-    static Pin Error() { return Pin(&errorPin); }
+    static Pin Error() { return Pin(&Pins::errorPin); }
 
     void registerEvent(InputPin* obj) { _detail->registerEvent(obj); };
 
