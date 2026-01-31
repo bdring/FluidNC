@@ -222,9 +222,9 @@ namespace Spindles {
                 int16_t Scaledfrequency = ((response[3] << 8) | response[4]);
                 int16_t frequency       = int16_t(float(Scaledfrequency) / (-1 * (siemensV20->_FreqScaler)));
                 log_debug("VFD Measured Value " << int16_t(Scaledfrequency) << " Freq " << int16_t(frequency));
+                uint32_t dev_speed = std::abs(frequency);
+                xQueueSend(VFD::VFDProtocol::vfd_speed_queue, &dev_speed, 0);
 
-                // Store speed for synchronization
-                vfd->_sync_dev_speed = uint16_t(frequency);
                 return true;
             };
         }
