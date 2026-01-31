@@ -612,9 +612,9 @@ void report_realtime_status(Channel& channel) {
 void hex_msg(uint8_t* buf, const char* prefix, size_t len) {
     char report[200];
     char temp[20];
-    sprintf(report, "%s", prefix);
+    snprintf(report, 200, "%s", prefix);
     for (size_t i = 0; i < len; i++) {
-        sprintf(temp, " %02X", buf[i]);
+        snprintf(temp, 20, " %02X", buf[i]);
         strcat(report, temp);
     }
 

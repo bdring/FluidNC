@@ -451,12 +451,12 @@ static Error renameObject(const Volume& fs, const char* parameter, Authenticatio
     if (!parameter || *parameter == '\0') {
         return Error::InvalidValue;
     }
-    auto opath = strchr(parameter, '>');
-    if (*opath == '\0') {
+    std::string_view opath(parameter);
+    std::string_view ipath;
+    string_util::split_prefix(opath, ipath, '>');
+    if (opath.empty()) {
         return Error::InvalidValue;
     }
-    const char* ipath = parameter;
-    *opath++          = '\0';
     try {
         FluidPath inPath { ipath, fs };
         FluidPath outPath { opath, fs };

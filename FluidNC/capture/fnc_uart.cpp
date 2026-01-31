@@ -29,7 +29,7 @@ int uart_buflen(uint32_t uart_num) {
 
 extern int inchar();
 
-int uart_read(uint32_t uart_num, uint8_t* buf, size_t len, uint32_t timeout_ms) {
+int uart_read(uint32_t uart_num, uint8_t* buf, uint32_t len, uint32_t timeout_ms) {
     auto        key = uart_key(uart_num);
     const auto& val = Inputs::instance().get(key);
     auto        max = std::min(size_t(len), val.size());

@@ -79,7 +79,7 @@ namespace Configuration {
             send_item(name, std::to_string(value));
         }
 
-        void item(const char* name, std::vector<speedEntry>& value) {
+        void item(const char* name, std::vector<speedEntry>& value) override {
             if (value.size() == 0) {
                 send_item(name, "None");
             } else {
@@ -94,7 +94,7 @@ namespace Configuration {
             }
         }
 
-        void item(const char* name, std::vector<float>& value) {
+        void item(const char* name, std::vector<float>& value) override {
             if (value.size() == 0) {
                 send_item(name, "None");
             } else {

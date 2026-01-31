@@ -92,8 +92,8 @@ namespace Kinematics {
         // Z offset is the z distance from the motor axes to the end effector axes at zero angle
 
         auto n_axis = Axes::_numberAxis;
-        float cartesian[n_axis];
-        float motor_pos[n_axis];
+        float cartesian[MAX_N_AXIS];
+        float motor_pos[MAX_N_AXIS];
         setArray(angles, 0.0, n_axis);
         motors_to_cartesian(cartesian, motor_pos, n_axis);  // Sets the cartesian values
         log_info("  Z Offset: " << cartesian[Z_AXIS]);
@@ -146,17 +146,17 @@ namespace Kinematics {
     bool ParallelDelta::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         axis_t n_axis = Axes::_numberAxis;
 
-        float seg_target[n_axis];              // The target of the current segment
+        float seg_target[MAX_N_AXIS];          // The target of the current segment
         float feed_rate = pl_data->feed_rate;  // save original feed rate
 
         // Check the destination to see if it is in work area
-        float motors[n_axis];
+        float motors[MAX_N_AXIS];
         if (!transform_cartesian_to_motors(motors, target)) {
             log_warn("Kinematics error. Target unreachable (" << target[0] << "," << target[1] << "," << target[2] << ")");
             return false;
         }
 
-        float d[n_axis];
+        float d[MAX_N_AXIS];
         copyAxes(d, target, n_axis);
         subtractAxes(d, position, n_axis);
 
@@ -174,7 +174,7 @@ namespace Kinematics {
         float segment_dist = vector_length(d, n_axis) / segment_count;
 
         copyAxes(seg_target, position, n_axis);
-        float delta_d[n_axis];
+        float delta_d[MAX_N_AXIS];
         copyArray(delta_d, d, n_axis);
         multiplyArray(delta_d, 1.0f / segment_count, n_axis);
 
@@ -384,7 +384,7 @@ namespace Kinematics {
         // Prime the array with the current motor positions in all axes.
         // motorVector only adjusts the delta motors and we do not want
         // to move other ones
-        float motor_pos[n_axis];
+        float motor_pos[MAX_N_AXIS];
         copyAxes(motor_pos, get_motor_pos());
 
         motorVector(axisMask, motorMask, phase, motor_pos, plan_data.feed_rate, settling_ms);

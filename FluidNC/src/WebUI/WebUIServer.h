@@ -89,17 +89,13 @@ namespace WebUI {
         static void        handle_login(AsyncWebServerRequest* request);
         static void        handle_not_found(AsyncWebServerRequest* request);
         static void        _handle_web_command(AsyncWebServerRequest* request, bool);
-        static void        handle_web_command(AsyncWebServerRequest* request) {
-                   _handle_web_command(request, false);
-        }
-        static void handle_web_command_silent(AsyncWebServerRequest* request) {
-            _handle_web_command(request, true);
-        }
-        static void handleReloadBlocked(AsyncWebServerRequest* request);
-        static void handleFeedholdReload(AsyncWebServerRequest* request);
-        static void handleCyclestartReload(AsyncWebServerRequest* request);
-        static void handleRestartReload(AsyncWebServerRequest* request);
-        static void handleDidRestart(AsyncWebServerRequest* request);
+        static void        handle_web_command(AsyncWebServerRequest* request) { _handle_web_command(request, false); }
+        static void        handle_web_command_silent(AsyncWebServerRequest* request) { _handle_web_command(request, true); }
+        static void        handleReloadBlocked(AsyncWebServerRequest* request);
+        static void        handleFeedholdReload(AsyncWebServerRequest* request);
+        static void        handleCyclestartReload(AsyncWebServerRequest* request);
+        static void        handleRestartReload(AsyncWebServerRequest* request);
+        static void        handleDidRestart(AsyncWebServerRequest* request);
         static void LocalFSFileupload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final);
         static void handleFileList(AsyncWebServerRequest* request);
         static void handleUpdate(AsyncWebServerRequest* request);
@@ -126,9 +122,7 @@ namespace WebUI {
         static void websocketCommand(AsyncWebServerRequest* request, const char* cmd, uint32_t pageid, AuthenticationLevel auth_level);
 
         static void sendJSON(AsyncWebServerRequest* request, uint16_t code, const char* s);
-        static void sendJSON(AsyncWebServerRequest* request, uint16_t code, const std::string& s) {
-            sendJSON(request, code, s.c_str());
-        }
+        static void sendJSON(AsyncWebServerRequest* request, uint16_t code, const std::string& s) { sendJSON(request, code, s.c_str()); }
         static void sendAuth(AsyncWebServerRequest* request, const char* status, const char* level, const char* user);
         static void sendAuthFailed(AsyncWebServerRequest* request);
         static void sendStatus(AsyncWebServerRequest* request, uint16_t code, const char* str);

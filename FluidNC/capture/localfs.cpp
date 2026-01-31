@@ -11,7 +11,10 @@
 #include <filesystem>
 namespace stdfs = std::filesystem;
 
-bool localfs_format(const char* fsname) {
+const char* localfsDir = "./localfs";
+const char* sdDir      = "./sd";
+
+bool localfs_format(const std::string fsname) {
     return false;
 }
 bool localfs_mount() {

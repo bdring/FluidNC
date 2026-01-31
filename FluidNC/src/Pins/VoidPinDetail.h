@@ -22,4 +22,5 @@ namespace Pins {
 
         ~VoidPinDetail() override {}
     };
+    extern VoidPinDetail undefinedPin;
 }

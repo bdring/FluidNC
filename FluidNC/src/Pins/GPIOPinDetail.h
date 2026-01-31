@@ -37,7 +37,7 @@ namespace Pins {
         void     setDuty(uint32_t duty) override;
         uint32_t maxDuty() override { return _pwm->period(); };
 
-        int8_t driveStrength() { return _driveStrength; }
+        int8_t driveStrength() override { return _driveStrength; }
 
         bool canStep() override { return true; }
 
@@ -45,5 +45,4 @@ namespace Pins {
 
         ~GPIOPinDetail() override { _claimed[_index] = false; }
     };
-
 }

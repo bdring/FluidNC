@@ -60,6 +60,6 @@ namespace Spindles {
         uint32_t _pwm_freq = 5000;
 
         void         set_output(uint32_t duty) override;
-        virtual void deinit();
+        void         deinit() override;
     };
 }

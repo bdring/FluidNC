@@ -18,9 +18,6 @@
 #include <charconv>
 #include "Pins/ExtPinDetail.h"
 
-Pins::PinDetail* Pin::undefinedPin = new Pins::VoidPinDetail();
-Pins::PinDetail* Pin::errorPin     = new Pins::ErrorPinDetail("unknown");
-
 static constexpr bool verbose_debugging = false;
 
 const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementation) {
@@ -36,7 +33,7 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
 
     if (pin_str.empty()) {
         // Reuse undefined pins happens in 'create':
-        pinImplementation = undefinedPin;
+        pinImplementation = &Pins::undefinedPin;
         return nullptr;
     }
 
@@ -87,7 +84,7 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
     }
 
     if (string_util::equal_ignore_case(pin_type, "no_pin")) {
-        pinImplementation = undefinedPin;
+        pinImplementation = &Pins::undefinedPin;
         return nullptr;
     }
 
@@ -158,7 +155,7 @@ void Pin::report(const char* legend) {
 }
 
 Pin::~Pin() {
-    if (_detail != undefinedPin && _detail != errorPin) {
+    if (defined() && _detail != &Pins::errorPin) {
         delete _detail;
     }
 }

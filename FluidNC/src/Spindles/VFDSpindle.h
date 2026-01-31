@@ -51,9 +51,9 @@ namespace Spindles {
         VFDSpindle& operator=(const VFDSpindle&) = delete;
         VFDSpindle& operator=(VFDSpindle&&)      = delete;
 
-        void init();
-        void config_message();
-        void setState(SpindleState state, SpindleSpeed speed);
+        void init() override;
+        void config_message() override;
+        void setState(SpindleState state, SpindleSpeed speed) override;
         void setSpeedfromISR(uint32_t dev_speed) override;
 
         uint32_t     _sync_dev_speed;
