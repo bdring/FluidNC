@@ -362,7 +362,7 @@ namespace WebUI {
                     request->client()->close();
                     return 0;  //RESPONSE_TRY_AGAIN; // This only works for ChunkedResponse
                 }
-                if (total >= file->size() || request->methodToString() != "GET") {
+                if (total >= file->size() || request->method() != HTTP_GET) {
                     file = nullptr;
                     return 0;
                 }
@@ -500,13 +500,13 @@ namespace WebUI {
         char line[256];
         strncpy(line, cmd, 255);
         AsyncWebServerResponse* response;
-        if (request->methodToString() == "GET") {
+        if (request->method() == HTTP_GET) {
             WebClient* webClient = new WebClient();
             webClient->attachWS(silent);
             webClient->executeCommandBackground(line);
             response = request->beginChunkedResponse("", [webClient, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
                 // The method can change before the end... not good
-                //if(request->methodToString() != "GET")
+                //if(request->method() != HTTP_GET)
                 //    return 0;
                 auto ret = webClient->copyBufferSafe(buffer, min((int)maxLen, 1024), total);
                 return ret;
