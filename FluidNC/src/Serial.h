@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include "Channel.h"
 #include <freertos/FreeRTOS.h>  // TickType_T
-#include <freertos/Queue.h>
+#include <freertos/queue.h>
 #include <mutex>
 
 void channel_init();

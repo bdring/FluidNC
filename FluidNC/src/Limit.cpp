@@ -11,8 +11,8 @@
 #include "Platform.h"       // WEAK_LINK
 #include "Machine/Axis.h"
 
-#include <freertos/Task.h>
-#include <freertos/Queue.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
 #include <atomic>  // fence
 
 QueueHandle_t limit_sw_queue;  // used by limit switch debouncing

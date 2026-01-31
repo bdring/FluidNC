@@ -8,7 +8,7 @@
 #include "State.h"
 
 #include <freertos/FreeRTOS.h>
-#include <freertos/Queue.h>
+#include <freertos/queue.h>
 #include "Config.h"
 #include "Alarm.h"
 

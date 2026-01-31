@@ -3,8 +3,8 @@
 #include "Spindles/VFDSpindle.h"
 #include "MotionControl.h"  // mc_critical
 
-#include <freertos/Task.h>
-#include <freertos/Queue.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
 #include <atomic>
 
 namespace Spindles {
