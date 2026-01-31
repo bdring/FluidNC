@@ -58,7 +58,6 @@ class Pin {
     // Implementation details of this pin.
     Pins::PinDetail* _detail;
 
-private:
     static const char* parse(std::string_view str, Pins::PinDetail*& detail);
 
     explicit inline Pin(Pins::PinDetail* detail) : _detail(detail) {}
