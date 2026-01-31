@@ -53,7 +53,7 @@
 #include <cstring>
 #include <vector>
 #include <algorithm>
-#include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
+#include <freertos/Task.h>  // portMUX_TYPE, TaskHandle_T
 
 std::mutex AllChannels::_mutex_general;
 std::mutex AllChannels::_mutex_pollLine;

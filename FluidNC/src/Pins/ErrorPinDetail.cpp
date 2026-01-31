@@ -29,3 +29,4 @@ namespace Pins {
         return PinAttributes::None;
     }
 }
+Pins::ErrorPinDetail errorPin("unknown");

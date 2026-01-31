@@ -5,6 +5,8 @@
 
 #include "Config.h"
 #include "Pins/PinDetail.h"
+#include "Pins/VoidPinDetail.h"
+#include "Pins/ErrorPinDetail.h"
 
 #include <cstdint>
 #include <string>
@@ -31,12 +33,12 @@
 // Pins internally use PinDetail classes. PinDetail's are just implementation details for a certain type of pin.
 // PinDetail is not exposed to developers, because they should never be used directly. Pin class is your
 // one-stop-go-to-shop for an pin.
+
 class Pin {
     // Helper for handling callbacks and mapping them to the proper class:
     //
     // Take note: this is placing the code in FLASH instead of IRAM, like it should. Use the #define's above
     // until this is fixed!
-
     // template <typename ThisType, void (ThisType::*Callback)()>
     // struct InterruptCallbackHelper {
     //     static void IRAM_ATTR callback(void* ptr) { (static_cast<ThisType*>(ptr)->*Callback)(); }
@@ -53,12 +55,10 @@ class Pin {
     // These are useful for unit testing, and for initializing pins that _always_ have to be defined by a user
     // (or else). Undefined pins are basically pins with no functionality. They don't have to be defined, but also
     // have no functionality when they are used.
-    static Pins::PinDetail* undefinedPin;
-    static Pins::PinDetail* errorPin;
-
     // Implementation details of this pin.
     Pins::PinDetail* _detail;
 
+private:
     static const char* parse(std::string_view str, Pins::PinDetail*& detail);
 
     explicit inline Pin(Pins::PinDetail* detail) : _detail(detail) {}
@@ -68,7 +68,7 @@ public:
     using Attr         = Pins::PinAttributes;
 
     // A default pin is an undefined pin.
-    inline Pin() : _detail(undefinedPin) {}
+    inline Pin() : _detail(&undefinedPin) {}
 
     static const bool On  = true;
     static const bool Off = false;
@@ -100,7 +100,7 @@ public:
     inline bool operator==(const Pin& o) const { return _detail == o._detail; }
     inline bool operator!=(const Pin& o) const { return _detail != o._detail; }
 
-    inline bool undefined() const { return _detail == undefinedPin; }
+    inline bool undefined() const { return _detail == &undefinedPin; }
     inline bool defined() const { return !undefined(); }
 
     // External libraries normally use digitalWrite, digitalRead and setMode. Since we cannot handle that behavior, we
@@ -135,7 +135,7 @@ public:
     inline void on() const { write(1); }
     inline void off() const { write(0); }
 
-    static Pin Error() { return Pin(errorPin); }
+    static Pin Error() { return Pin(&errorPin); }
 
     void registerEvent(InputPin* obj) { _detail->registerEvent(obj); };
 

@@ -26,3 +26,4 @@ namespace Pins {
     };
 
 }
+extern Pins::ErrorPinDetail errorPin;

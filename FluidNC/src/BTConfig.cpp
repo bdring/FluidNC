@@ -48,7 +48,7 @@ namespace WebUI {
                 char str[18];
                 str[17]       = '\0';
                 uint8_t* addr = param->srv_open.rem_bda;
-                sprintf(str, "%02X:%02X:%02X:%02X:%02X:%02X", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+                snprintf(str, 18, "%02X:%02X:%02X:%02X:%02X:%02X", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
                 _btclient = str;
                 log_info("BT Connected with " << str);
             } break;
@@ -65,8 +65,8 @@ namespace WebUI {
         const uint8_t* point = esp_bt_dev_get_address();
         char*          str   = _deviceAddrBuffer;
         str[17]              = '\0';
-        sprintf(
-            str, "%02X:%02X:%02X:%02X:%02X:%02X", (int)point[0], (int)point[1], (int)point[2], (int)point[3], (int)point[4], (int)point[5]);
+        snprintf(
+            str, 17, "%02X:%02X:%02X:%02X:%02X:%02X", (int)point[0], (int)point[1], (int)point[2], (int)point[3], (int)point[4], (int)point[5]);
         return str;
     }
 

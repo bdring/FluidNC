@@ -28,3 +28,4 @@ namespace Pins {
         return PinAttributes::None;
     }
 }
+Pins::VoidPinDetail undefinedPin;

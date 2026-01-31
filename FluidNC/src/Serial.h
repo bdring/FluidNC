@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include "Channel.h"
 #include <freertos/FreeRTOS.h>  // TickType_T
-#include <freertos/queue.h>
+#include <freertos/Queue.h>
 #include <mutex>
 
 void channel_init();
@@ -36,7 +36,7 @@ public:
 
     void registration(Channel* channel);
     void deregistration(Channel* channel);
-    void init();
+    void init() override;
     void ready();
 
     size_t write(uint8_t data) override;
@@ -44,7 +44,7 @@ public:
 
     void print_msg(MsgLevel level, const char* msg) override;
 
-    void flushRx();
+    void flushRx() override;
 
     void notifyOvr();
     void notifyWco();

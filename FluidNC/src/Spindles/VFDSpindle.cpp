@@ -26,8 +26,8 @@
 #include "Report.h"    // hex message
 #include "Configuration/HandlerType.h"
 
-#include <freertos/task.h>
-#include <freertos/queue.h>
+#include <freertos/Task.h>
+#include <freertos/Queue.h>
 #include <atomic>
 
 namespace Spindles {

@@ -54,7 +54,7 @@ void float_proxy(axis_t axis, uint32_t grbl_number, const char* name, float* var
     snprintf(grbl_name, 4, "%d", int(grbl_number) + int(axis));
 
     char* fluidnc_name = new char[strlen(name) + 2];
-    sprintf(fluidnc_name, "%s%s", name, Axes::axisName(axis));
+    snprintf(fluidnc_name, strlen(name) + 2, "%s%s", name, Axes::axisName(axis));
 
     // Creation of any setting inserts it into the settings list, so we
     // do not need to keep the pointer here
