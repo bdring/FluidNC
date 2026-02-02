@@ -71,7 +71,7 @@ namespace Spindles {
 
             xTaskCreatePinnedToCore(VFD::VFDProtocol::vfd_cmd_task,  // task
                                     "vfd_cmdTaskHandle",             // name for task
-                                    2048,                            // size of task stack
+                                    4096,                            // size of task stack
                                     this,                            // parameters
                                     1,                               // priority
                                     &VFD::VFDProtocol::vfd_cmdTaskHandle,
@@ -202,6 +202,7 @@ namespace Spindles {
 
     void VFDSpindle::validate() {
         Spindle::validate();
+
         Assert(_uart != nullptr || _uart_num != -1, "VFD: missing UART configuration");
     }
 

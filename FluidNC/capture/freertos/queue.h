@@ -5,9 +5,12 @@
 
 #include <queue>
 #include <mutex>
+#include <condition_variable>
 
 struct QueueHandle {
     std::mutex mutex;
+    std::condition_variable not_empty_cv;
+    std::condition_variable not_full_cv;
 
     size_t numberItems = 16;
     size_t entrySize   = 1;
@@ -21,6 +24,7 @@ struct QueueHandle {
 using QueueHandle_t = QueueHandle*;
 
 #define errQUEUE_FULL ((BaseType_t)0)
+#define errQUEUE_EMPTY ((BaseType_t)0)
 #define queueSEND_TO_BACK ((BaseType_t)0)
 #define queueSEND_TO_FRONT ((BaseType_t)1)
 #define queueOVERWRITE ((BaseType_t)2)

@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include "Spindles/Spindle.h"
-#include <freertos/message_buffer.h>
 
 namespace Spindles {
     class VFDSpindle;
