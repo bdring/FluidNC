@@ -366,12 +366,12 @@ namespace WebUI {
                     file = nullptr;
                     return 0;
                 }
-                size_t bytes  = min(file->size(), maxLen);
+                size_t bytes  = min(file->size() - total, maxLen);
                 int    actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
                 if (actual == 0 || (actual + total) >= file->size()) {
                     file = nullptr;
                 }
-                return bytes;
+                return actual;  // Return actual bytes read, not requested bytes
             });
 
         request->onDisconnect([request, file]() { delete file; });
