@@ -143,14 +143,15 @@ namespace Spindles {
                 // Assume for the worst, and retry...
                 size_t retry_count = 0;
                 for (; retry_count < instance->_retries; ++retry_count) {
+                    if (instance->_debug > 2) {
+                        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
+                    }
+
                     // Flush the UART and write the data:
                     uart.flush();
                     uart.flushRx();
                     uart.write(cmd.msg, cmd.tx_length);
                     uart.flushTxTimed(response_ticks);
-                    if (instance->_debug > 2) {
-                        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
-                    }
 
                     // Read the response
                     size_t read_length  = 0;

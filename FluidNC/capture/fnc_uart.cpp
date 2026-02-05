@@ -1,3 +1,4 @@
+#include "Platform.h"
 #include "Driver/fluidnc_uart.h"
 
 #include "UartTypes.h"
@@ -6,9 +7,13 @@
 
 #include <sstream>
 #include <algorithm>
+#include "HuanyangSimulator.h"
+#include "NutsBolts.h"  // get_ms()
 
 class InputPin;
 void uart_register_input_pin(uint32_t uart_num, pinnum_t pinnum, InputPin* object) {}
+
+VFDSimulator* vfd_simulator[MAX_N_UARTS];
 
 inline std::string uart_key(uint32_t uart_num) {
     std::ostringstream key;
@@ -29,7 +34,19 @@ int uart_buflen(uint32_t uart_num) {
 
 extern int inchar();
 
+std::vector<uint8_t> vfd_output;
+uint32_t             vfd_ms;
+
 int uart_read(uint32_t uart_num, uint8_t* buf, uint32_t len, uint32_t timeout_ms) {
+    if (vfd_simulator[uart_num]) {
+        if (vfd_output.size()) {
+            auto copylen = std::min((size_t)len, vfd_output.size());
+            std::copy(vfd_output.begin(), vfd_output.begin() + copylen, buf);
+            vfd_output.erase(vfd_output.begin(), vfd_output.begin() + copylen);
+            return copylen;
+        }
+        return 0;
+    }
     auto        key = uart_key(uart_num);
     const auto& val = Inputs::instance().get(key);
     auto        max = std::min(size_t(len), val.size());
@@ -42,6 +59,15 @@ int uart_read(uint32_t uart_num, uint8_t* buf, uint32_t len, uint32_t timeout_ms
 }
 
 int uart_write(uint32_t uart_num, const uint8_t* buf, size_t len) {
+    if (vfd_simulator[uart_num]) {
+        int32_t this_ms = get_ms();
+        vfd_simulator[uart_num]->update((int32_t)this_ms - (int32_t)vfd_ms);
+        vfd_ms     = this_ms;
+        vfd_output = vfd_simulator[uart_num]->processModbusMessage(std::vector<uint8_t> { buf, buf + len });
+
+        return 0;
+    }
+
     auto key = uart_key(uart_num);
     auto val = Inputs::instance().get(key);
     for (size_t i = 0; i < len; ++i) {
@@ -54,7 +80,14 @@ int uart_write(uint32_t uart_num, const uint8_t* buf, size_t len) {
 void uart_mode(uint32_t uart_num, uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits) {}
 
 bool uart_half_duplex(uint32_t uart_num) {
-    return true;
+    if (vfd_simulator[uart_num]) {
+        delete vfd_simulator[uart_num];
+        vfd_simulator[uart_num] = nullptr;
+    }
+    vfd_simulator[uart_num] = new VFDSimulator();
+    vfd_ms                  = get_ms();
+
+    return false;
 }
 
 void uart_xon(uint32_t uart_num) {}
