@@ -73,6 +73,7 @@ namespace WebUI {
     const int         MAX_AUTH_IP          = 10;
 #endif
     FileStream* WebUI_Server::_uploadFile = nullptr;
+    std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
 
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
@@ -1002,6 +1003,13 @@ namespace WebUI {
         //get current path
         if (request->hasParam("path")) {
             path += request->getParam("path")->value().c_str();
+        } else if (!_uploadPath.empty()) {
+            // If no path parameter but we have a stored upload path, use it
+            path = _uploadPath;
+            _uploadPath.clear();  // Clear it after use
+        }
+
+        if (!path.empty()) {
             // path.trim();
             replace_string_in_place(path, "//", "/");
             if (path[path.length() - 1] == '/') {
@@ -1132,6 +1140,13 @@ namespace WebUI {
             return;
         }
 
+        // Store the directory path of the uploaded file for later listing
+        stdfs::path filepath(filename);
+        _uploadPath = filepath.parent_path().string();
+        if (_uploadPath == ".") {
+            _uploadPath = "";  // Root directory
+        }
+
         auto space = stdfs::space(fpath);
         if (filesize && filesize > space.available) {
             // If the file already exists, maybe there will be enough space
@@ -1217,6 +1232,7 @@ namespace WebUI {
     }
     void WebUI_Server::uploadStop() {
         _upload_status = UploadStatus::FAILED;
+        _uploadPath.clear();  // Clear stored upload path on failure
         if (_uploadFile) {
             log_info("Upload cancelled");
             std::filesystem::path filepath = _uploadFile->fpath();
