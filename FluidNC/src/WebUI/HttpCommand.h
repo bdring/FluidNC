@@ -1,0 +1,174 @@
+// Copyright (c) 2025 - FluidNC Contributors
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
+#pragma once
+
+#include "../Settings.h"
+#include "../Channel.h"
+
+#include <JsonListener.h>
+#include <JsonStreamingParser.h>
+#include <string>
+#include <map>
+
+namespace WebUI {
+
+    // HTTP request configuration parsed from JSON options
+    struct HttpRequest {
+        std::string                        url;
+        std::string                        method;
+        std::map<std::string, std::string> headers;
+        std::string                        body;
+        uint32_t                           timeout_ms;
+        std::map<std::string, std::string> extract;        // Maps GCode param name -> JSON key to extract
+        bool                               fail_on_error;  // If true, errors halt GCode execution
+
+        HttpRequest() : method("GET"), timeout_ms(5000), fail_on_error(true) {}
+    };
+
+    // HTTP response data
+    struct HttpResponse {
+        int         status_code;
+        std::string body;
+
+        HttpResponse() : status_code(0) {}
+    };
+
+    // JSON listener for parsing HTTP command options
+    // Handles: {"method":"POST","timeout":5000,"headers":{...},"body":"...","extract":{...}}
+    class HttpOptionsListener : public JsonListener {
+    public:
+        explicit HttpOptionsListener(HttpRequest& request) : _request(request) {}
+
+        void whitespace(char c) override {}
+        void startDocument() override;
+        void key(String key) override;
+        void value(String value) override;
+        void startObject() override;
+        void endObject() override;
+        void startArray() override;
+        void endArray() override;
+        void endDocument() override;
+
+    private:
+        HttpRequest& _request;
+        String       _currentKey;
+        String       _nestedKey;
+        int          _depth     = 0;
+        bool         _inHeaders = false;
+        bool         _inExtract = false;
+    };
+
+    // JSON listener for extracting float values from response
+    // Used to extract specific keys from JSON response body
+    class ValueExtractorListener : public JsonListener {
+    public:
+        explicit ValueExtractorListener(const std::map<std::string, std::string>& extractMap, std::map<std::string, float>& results) :
+            _extractMap(extractMap), _results(results) {}
+
+        void whitespace(char c) override {}
+        void startDocument() override {}
+        void key(String key) override;
+        void value(String value) override;
+        void startObject() override;
+        void endObject() override;
+        void startArray() override {}
+        void endArray() override {}
+        void endDocument() override {}
+
+    private:
+        const std::map<std::string, std::string>& _extractMap;
+        std::map<std::string, float>&             _results;
+        String                                    _currentKey;
+        int                                       _depth = 0;
+    };
+
+    // JSON listener for parsing http_settings.json file
+    // Format: {"tokens":{"token_name":"token_value",...}}
+    class TokenFileListener : public JsonListener {
+    public:
+        explicit TokenFileListener(std::map<std::string, std::string>& tokens) : _tokens(tokens) {}
+
+        void whitespace(char c) override {}
+        void startDocument() override;
+        void key(String key) override;
+        void value(String value) override;
+        void startObject() override;
+        void endObject() override;
+        void startArray() override {}
+        void endArray() override {}
+        void endDocument() override {}
+
+    private:
+        std::map<std::string, std::string>& _tokens;
+        String                              _currentKey;
+        int                                 _depth    = 0;
+        bool                                _inTokens = false;
+    };
+
+    class HttpCommand {
+    public:
+        // Maximum response body size to store
+        static const size_t MAX_RESPONSE_SIZE = 256;
+
+        // Maximum request timeout in milliseconds
+        static const uint32_t MAX_TIMEOUT_MS = 10000;
+
+        // Default request timeout in milliseconds
+        static const uint32_t DEFAULT_TIMEOUT_MS = 5000;
+
+        // Settings file path on LocalFS (stores tokens, etc.)
+        static constexpr const char* SETTINGS_FILE_PATH = "/http_settings.json";
+
+        // Execute HTTP command
+        // Format: $HTTP=url{json_options}
+        static Error execute(const char* value, AuthenticationLevel auth_level, Channel& out);
+
+        // Load tokens from file (called at init and by reload command)
+        static void load_tokens();
+
+        // Substitute ${token_name} patterns in a string
+        static std::string substitute_tokens(const std::string& input);
+
+        // Check if current state allows HTTP requests
+        static bool state_check();
+
+        // Get last HTTP status code (for parameter access)
+        static int last_status_code();
+
+        // Get last HTTP response body (for parameter access)
+        static const std::string& last_response_body();
+
+    private:
+        // Parse the command string into URL and JSON options
+        static bool parse_command(const char* value, std::string& url, std::string& json_options);
+
+        // Parse JSON options into HttpRequest struct using streaming parser
+        static bool parse_json_options(const std::string& json, HttpRequest& request);
+
+        // Parse URL into host, port, and path
+        static bool parse_url(const std::string& url, std::string& protocol, std::string& host, uint16_t& port, std::string& path);
+
+        // Execute the HTTP request
+        static Error execute_request(const HttpRequest& request, HttpResponse& response, Channel& out);
+
+        // Store response in GCode parameters
+        static void store_response_params(const HttpResponse& response);
+
+        // Extract values from response and store in GCode parameters
+        static void extract_response_values(const HttpRequest& request, const HttpResponse& response, Channel& out);
+
+        // Last response data (for parameter access)
+        static HttpResponse _last_response;
+
+        // Token storage (loaded from TOKEN_FILE_PATH)
+        static std::map<std::string, std::string> _tokens;
+    };
+
+    // Command handler for UserCommand registration
+    Error http_command_handler(const char* value, AuthenticationLevel auth_level, Channel& out);
+
+    // State check for UserCommand registration
+    bool http_state_check();
+
+}  // namespace WebUI

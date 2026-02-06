@@ -482,7 +482,7 @@ bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
     }
 }
 
-bool set_named_param(const std::string& name, float value) {
+bool set_named_param(const char* name, float value) {
     global_named_params[name] = value;
     return true;
 }
@@ -533,7 +533,7 @@ bool set_param(const param_ref_t& param_ref, float value) {
             log_debug("Attempt to set read-only parameter " << name);
             return false;
         }
-        return set_named_param(name, value);
+        return set_named_param(name.c_str(), value);
     }
 
     if (ngc_param_is_rw(param_ref.id)) {  // Numbered parameter
