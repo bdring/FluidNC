@@ -9,6 +9,10 @@ import urllib.request
 import io, hashlib
 from pprint import pprint
 
+# Add tools directory to path for addrinfo generation
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'tools', 'stack_trace_decoder'))
+from generate_addrinfo import generate_addrinfo
+
 verbose = '-v' in sys.argv
 
 environ = dict(os.environ)
@@ -190,7 +194,23 @@ for version in versions:
         if buildEnv(envName, verbose=verbose) != 0:
             sys.exit(1)
         buildDir = os.path.join('.pio', 'build', envName)
-        shutil.copy(os.path.join(buildDir, 'firmware.elf'), os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.elf'))
+        elfRelPath = os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.elf')
+        shutil.copy(os.path.join(buildDir, 'firmware.elf'), elfRelPath)
+
+        # Generate .addrinfo file for stack trace decoding
+        addrinfoPath = os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.addrinfo')
+        print(f'Generating {addrinfoPath}')
+        try:
+            generate_addrinfo(
+                elf_path=elfRelPath,
+                output_path=addrinfoPath,
+                mcu=mcu,
+                build=buildName,
+                tag=tag,
+                verbose=verbose,
+            )
+        except SystemExit:
+            print(f'Warning: Failed to generate .addrinfo for {envName}', file=sys.stderr)
 
         addImage(mcu + '-' + buildName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + buildName)
 
