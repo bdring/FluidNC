@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluidNC Stack Trace Decoder</title>
+    <style>
+        :root {
+            --bg: #f5f5f5;
+            --card-bg: #fff;
+            --text: #2c3e50;
+            --text-secondary: #555;
+            --accent: #3498db;
+            --accent-hover: #2980b9;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --border: #ddd;
+            --input-bg: #f8f9fa;
+            --code-bg: #2c3e50;
+            --code-text: #ecf0f1;
+            --mono: 'Courier New', Consolas, monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .container {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        h2 {
+            color: #34495e;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 5px;
+            margin-top: 0;
+        }
+
+        .section {
+            background: var(--input-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        label { font-weight: 600; }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            font-family: var(--mono);
+            font-size: 13px;
+            resize: vertical;
+            margin-top: 6px;
+        }
+        textarea:focus { border-color: var(--accent); outline: none; }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 6px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+        .btn-row { text-align: center; margin: 20px 0; }
+
+        button {
+            background: var(--accent);
+            color: white;
+            padding: 10px 22px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            margin: 4px;
+        }
+        button:hover { background: var(--accent-hover); }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+        button.secondary { background: #7f8c8d; }
+        button.secondary:hover { background: #636e72; }
+
+        .file-upload {
+            margin-top: 10px;
+        }
+        .file-upload input[type="file"] {
+            font-size: 13px;
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .status.info { background: #d6eaf8; color: #1a5276; }
+        .status.ok   { background: #d5f5e3; color: #186a3b; }
+        .status.err  { background: #f9e0e0; color: #922b21; }
+
+        /* Decoded output table */
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--mono);
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        .result-table th {
+            background: var(--code-bg);
+            color: var(--code-text);
+            text-align: left;
+            padding: 8px 10px;
+            position: sticky;
+            top: 0;
+        }
+        .result-table td {
+            padding: 6px 10px;
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+        }
+        .result-table tr:hover td { background: #eef6fb; }
+        .result-table .addr { color: #8e44ad; }
+        .result-table .func { color: #2c3e50; font-weight: 600; }
+        .result-table .file { color: var(--text-secondary); }
+        .result-table .offset { color: #999; font-size: 11px; }
+        .result-table .unknown { color: var(--error); font-style: italic; }
+
+        .output-wrap {
+            max-height: 500px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        .raw-output {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 15px;
+            border-radius: 6px;
+            font-family: var(--mono);
+            font-size: 13px;
+            white-space: pre-wrap;
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .info-box {
+            background: #eaf2f8;
+            border-left: 4px solid var(--accent);
+            padding: 15px 20px;
+            border-radius: 0 6px 6px 0;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .info-box h3 { margin-top: 0; }
+        .info-box code {
+            background: #d6e4f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .info-box ol { padding-left: 20px; }
+
+        #addrinfo-meta {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔍 FluidNC Stack Trace Decoder</h1>
+    <p class="subtitle">Client-side decoder &mdash; no backend server required</p>
+
+    <!-- Stack trace input -->
+    <div class="section">
+        <h2>📋 Stack Trace</h2>
+        <label for="stackTrace">Paste your ESP32 backtrace or crash dump:</label>
+        <textarea id="stackTrace" placeholder="Backtrace: 0x400936f6:0x3ffb1a30 0x4009200a:0x3ffb1a50 0x40090bc0:0x3ffb1a70 ...
+
+Or paste a full crash dump — addresses will be extracted automatically."></textarea>
+    </div>
+
+    <!-- Symbol data source -->
+    <div class="grid">
+        <div class="section">
+            <h2>🎯 FluidNC Release</h2>
+            <label for="releaseSelect">Release version:</label>
+            <select id="releaseSelect">
+                <option value="">Loading releases…</option>
+            </select>
+
+            <div style="margin-top:10px">
+                <label for="variantSelect">Firmware variant:</label>
+                <select id="variantSelect">
+                    <option value="wifi">WiFi (esp32)</option>
+                    <option value="bt">Bluetooth (esp32)</option>
+                    <option value="noradio">No-radio (esp32)</option>
+                    <option value="wifi_s3">WiFi (esp32-s3)</option>
+                    <option value="noradio_s3">No-radio (esp32-s3)</option>
+                </select>
+            </div>
+            <div id="addrinfo-meta"></div>
+        </div>
+
+        <div class="section">
+            <h2>📁 Local .addrinfo File</h2>
+            <p style="font-size:13px;margin-top:0">
+                Alternatively, load a <code>.addrinfo</code> file generated by
+                <code>generate_addrinfo.py</code>.
+            </p>
+            <div class="file-upload">
+                <input type="file" id="localFile" accept=".addrinfo,.json">
+            </div>
+        </div>
+    </div>
+
+    <div class="btn-row">
+        <button onclick="decodeTrace()" id="decodeBtn">🚀 Decode Stack Trace</button>
+        <button onclick="clearAll()" class="secondary">🗑️ Clear</button>
+    </div>
+
+    <div id="statusArea"></div>
+    <div id="outputArea"></div>
+
+    <div class="info-box">
+        <h3>ℹ️ How it works</h3>
+        <ol>
+            <li>Select the FluidNC release and firmware variant that matches your firmware, or load a local <code>.addrinfo</code> file.</li>
+            <li>Paste the <code>Backtrace:</code> line (or full crash dump) from your ESP32 serial output.</li>
+            <li>Click <strong>Decode</strong>. All processing happens in your browser — nothing is uploaded anywhere.</li>
+        </ol>
+        <p><strong>How <code>.addrinfo</code> files are made:</strong>
+        During the FluidNC release build, <code>generate_addrinfo.py</code> runs
+        the toolchain's <code>nm</code> and <code>addr2line</code> against each firmware ELF to produce
+        a compact JSON mapping of every code symbol to its source file and line number.
+        The <code>.addrinfo</code> file is published as a release asset alongside the firmware binaries.</p>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+// ── State ──────────────────────────────────────────────────────────
+let releases = [];
+let addrinfo = null;   // parsed .addrinfo data
+let addrinfoSource = ""; // description of where it came from
+
+// Variant name → { mcu, build } for constructing the path
+function variantInfo(variant) {
+    const map = {
+        "wifi":       { mcu: "esp32",   build: "wifi" },
+        "bt":         { mcu: "esp32",   build: "bt" },
+        "noradio":    { mcu: "esp32",   build: "noradio" },
+        "wifi_s3":    { mcu: "esp32s3", build: "wifi" },
+        "noradio_s3": { mcu: "esp32s3", build: "noradio" },
+    };
+    return map[variant] || map["wifi"];
+}
+
+// ── Address extraction ─────────────────────────────────────────────
+function extractAddresses(text) {
+    // Match addresses in "Backtrace:" lines (PC values before the colon in PC:SP pairs)
+    // and also standalone hex addresses
+    const results = [];
+    const seen = new Set();
+
+    // First try Backtrace format:  0xADDR:0xSP 0xADDR:0xSP ...
+    const btMatch = text.match(/Backtrace:\s*((?:0x[0-9a-fA-F]+:0x[0-9a-fA-F]+\s*)+)/i);
+    if (btMatch) {
+        const pairs = btMatch[1].matchAll(/0x([0-9a-fA-F]{8}):0x[0-9a-fA-F]{8}/g);
+        for (const m of pairs) {
+            const addr = parseInt(m[1], 16);
+            if (!seen.has(addr)) { seen.add(addr); results.push(addr); }
+        }
+    }
+
+    // Also look for "PC: 0x..." or "EXCVADDR: 0x..."
+    const pcMatch = text.matchAll(/\bPC\s*[:=]\s*0x([0-9a-fA-F]{8})/gi);
+    for (const m of pcMatch) {
+        const addr = parseInt(m[1], 16);
+        if (!seen.has(addr)) { seen.add(addr); results.push(addr); }
+    }
+
+    // Fallback: any 0x-prefixed 8-digit hex that looks like a code address (0x4xxxxxxx)
+    if (results.length === 0) {
+        const all = text.matchAll(/0x(4[0-9a-fA-F]{7})/g);
+        for (const m of all) {
+            const addr = parseInt(m[1], 16);
+            if (!seen.has(addr)) { seen.add(addr); results.push(addr); }
+        }
+    }
+
+    return results;
+}
+
+// ── Binary search in sorted symbol table ───────────────────────────
+function lookupAddress(symbols, addr) {
+    let lo = 0, hi = symbols.length - 1;
+    let best = null;
+    while (lo <= hi) {
+        const mid = (lo + hi) >>> 1;
+        const symAddr = symbols[mid][0];
+        if (symAddr <= addr) {
+            best = mid;
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if (best === null) return null;
+
+    const sym = symbols[best];
+    const offset = addr - sym[0];
+
+    // If we have a size field (sym[4]) and the address is beyond the function, not a match
+    if (sym.length > 4 && sym[4] > 0 && offset >= sym[4]) {
+        return null;
+    }
+
+    // Sanity: don't return matches with very large offsets (> 64KB) without explicit size
+    if (sym.length <= 4 && offset > 0x10000) {
+        return null;
+    }
+
+    return {
+        address: sym[0],
+        name: sym[1],
+        file: sym[2],
+        line: sym[3],
+        size: sym.length > 4 ? sym[4] : null,
+        offset: offset,
+    };
+}
+
+// ── Decode ─────────────────────────────────────────────────────────
+function decodeTrace() {
+    const text = document.getElementById("stackTrace").value.trim();
+    if (!text) { showStatus("Please paste a stack trace.", "err"); return; }
+
+    const addresses = extractAddresses(text);
+    if (addresses.length === 0) {
+        showStatus("No valid code addresses found in the input.", "err");
+        return;
+    }
+
+    // If no addrinfo loaded, try to load from release first
+    if (!addrinfo) {
+        loadFromRelease().then(ok => {
+            if (ok) renderResults(addresses);
+        });
+        return;
+    }
+
+    renderResults(addresses);
+}
+
+function renderResults(addresses) {
+    if (!addrinfo) {
+        showStatus("No symbol data loaded. Select a release or load a .addrinfo file.", "err");
+        return;
+    }
+
+    const symbols = addrinfo.symbols;
+    const rows = [];
+    let resolved = 0;
+
+    for (const addr of addresses) {
+        const sym = lookupAddress(symbols, addr);
+        if (sym) {
+            resolved++;
+            rows.push({
+                addr: addr,
+                func: sym.name,
+                file: sym.file,
+                line: sym.line,
+                offset: sym.offset,
+                found: true,
+            });
+        } else {
+            rows.push({ addr: addr, found: false });
+        }
+    }
+
+    showStatus(
+        `Decoded ${resolved}/${addresses.length} addresses using ${addrinfoSource}.`,
+        resolved > 0 ? "ok" : "info"
+    );
+
+    // Build table
+    let html = '<div class="output-wrap"><table class="result-table">';
+    html += '<thead><tr><th>#</th><th>Address</th><th>Function</th><th>Source Location</th></tr></thead><tbody>';
+
+    rows.forEach((r, i) => {
+        html += "<tr>";
+        html += `<td>${i}</td>`;
+        html += `<td class="addr">0x${r.addr.toString(16).padStart(8, "0")}</td>`;
+        if (r.found) {
+            html += `<td class="func">${escHtml(r.func)} <span class="offset">+0x${r.offset.toString(16)}</span></td>`;
+            const loc = r.file !== "??"
+                ? `${escHtml(r.file)}:${r.line}`
+                : '<span class="unknown">unknown source</span>';
+            html += `<td class="file">${loc}</td>`;
+        } else {
+            html += '<td class="unknown" colspan="2">not found in symbol table</td>';
+        }
+        html += "</tr>";
+    });
+
+    html += "</tbody></table></div>";
+
+    // Plain text for copy/paste
+    let textLines = rows.map((r, i) => {
+        if (r.found) {
+            const loc = r.file !== "??" ? `${r.file}:${r.line}` : "(unknown source)";
+            return `#${i}  0x${r.addr.toString(16).padStart(8,"0")}  ${r.func}+0x${r.offset.toString(16)}  at ${loc}`;
+        }
+        return `#${i}  0x${r.addr.toString(16).padStart(8,"0")}  ??`;
+    });
+    html += `<div class="raw-output">${escHtml(textLines.join("\n"))}</div>`;
+
+    document.getElementById("outputArea").innerHTML = html;
+}
+
+// ── Load .addrinfo from GitHub release ─────────────────────────────
+async function loadFromRelease() {
+    const tag = document.getElementById("releaseSelect").value;
+    const variant = document.getElementById("variantSelect").value;
+
+    if (!tag) {
+        showStatus("Please select a FluidNC release.", "err");
+        return false;
+    }
+
+    const vi = variantInfo(variant);
+    // The .addrinfo files are published in the fluidnc-releases repo under
+    // releases/<tag>/<mcu>/<build>/firmware.addrinfo
+    const urls = [
+        `https://raw.githubusercontent.com/bdring/fluidnc-releases/main/releases/${tag}/${vi.mcu}/${vi.build}/firmware.addrinfo`,
+    ];
+
+    showStatus(`Downloading firmware.addrinfo for ${tag} / ${variant}…`, "info");
+
+    try {
+        let data = null;
+        let lastErr = "";
+        for (const url of urls) {
+            try {
+                const resp = await fetch(url);
+                if (resp.ok) {
+                    data = await resp.json();
+                    break;
+                }
+                lastErr = `HTTP ${resp.status}`;
+            } catch (e) {
+                lastErr = e.message;
+            }
+        }
+        if (!data) {
+            throw new Error(`${lastErr} — the .addrinfo file may not exist for this release/variant.`);
+        }
+        if (!data.symbols || !Array.isArray(data.symbols)) {
+            throw new Error("Invalid .addrinfo file (no symbols array).");
+        }
+        addrinfo = data;
+        addrinfoSource = `${tag} / ${variant}`;
+        showAddrInfoMeta();
+        showStatus(`Loaded ${data.symbols.length.toLocaleString()} symbols from ${tag} / ${variant}.`, "ok");
+        return true;
+    } catch (e) {
+        showStatus(`Failed to load symbol data: ${e.message}`, "err");
+        addrinfo = null;
+        return false;
+    }
+}
+
+// ── Load local .addrinfo file ──────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("localFile").addEventListener("change", async (ev) => {
+        const file = ev.target.files[0];
+        if (!file) return;
+
+        showStatus(`Loading ${file.name}…`, "info");
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (!data.symbols || !Array.isArray(data.symbols)) {
+                throw new Error("Invalid .addrinfo file (no symbols array).");
+            }
+            addrinfo = data;
+            addrinfoSource = file.name;
+            showAddrInfoMeta();
+            showStatus(`Loaded ${data.symbols.length.toLocaleString()} symbols from ${file.name}.`, "ok");
+        } catch (e) {
+            showStatus(`Failed to load file: ${e.message}`, "err");
+        }
+    });
+});
+
+// ── Load GitHub releases list ──────────────────────────────────────
+async function loadReleases() {
+    try {
+        const resp = await fetch("https://api.github.com/repos/bdring/FluidNC/releases?per_page=30");
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        releases = await resp.json();
+
+        const sel = document.getElementById("releaseSelect");
+        sel.innerHTML = '<option value="">— select release —</option>';
+        for (const r of releases) {
+            const opt = document.createElement("option");
+            opt.value = r.tag_name;
+            opt.textContent = `${r.tag_name}  (${r.published_at?.split("T")[0] || "draft"})`;
+            sel.appendChild(opt);
+        }
+    } catch (e) {
+        const sel = document.getElementById("releaseSelect");
+        sel.innerHTML = '<option value="">Failed to load releases</option>';
+    }
+}
+
+// When the release or variant changes, reset loaded data
+document.addEventListener("DOMContentLoaded", () => {
+    const onSelChange = () => {
+        addrinfo = null;
+        document.getElementById("addrinfo-meta").textContent = "";
+    };
+    document.getElementById("releaseSelect").addEventListener("change", onSelChange);
+    document.getElementById("variantSelect").addEventListener("change", onSelChange);
+});
+
+// ── Helpers ────────────────────────────────────────────────────────
+function showStatus(msg, kind) {
+    document.getElementById("statusArea").innerHTML =
+        `<div class="status ${kind}">${kind === "err" ? "❌ " : kind === "ok" ? "✅ " : "⏳ "}${escHtml(msg)}</div>`;
+}
+
+function showAddrInfoMeta() {
+    if (!addrinfo) return;
+    const parts = [];
+    if (addrinfo.tag)   parts.push(`tag: ${addrinfo.tag}`);
+    if (addrinfo.mcu)   parts.push(`mcu: ${addrinfo.mcu}`);
+    if (addrinfo.build) parts.push(`build: ${addrinfo.build}`);
+    parts.push(`${addrinfo.symbols.length.toLocaleString()} symbols`);
+    document.getElementById("addrinfo-meta").textContent = parts.join(" · ");
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function clearAll() {
+    document.getElementById("stackTrace").value = "";
+    document.getElementById("outputArea").innerHTML = "";
+    document.getElementById("statusArea").innerHTML = "";
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+window.addEventListener("DOMContentLoaded", loadReleases);
+</script>
+</body>
+</html>

@@ -23,6 +23,7 @@
 #include "Config.h"  // ENABLE_*
 
 #include "Driver/restart.h"
+#include "Driver/backtrace.h"
 
 #include <cstdio>
 #include <cstring>
@@ -174,6 +175,20 @@ namespace Machine {
         // builtin config.  This helps prevent reset loops on bad config files.
         if (restart_was_panic()) {
             log_error("Skipping configuration file due to panic");
+            backtrace_t bt;
+            if (backtrace_get(&bt)) {
+                char buf[16];
+                snprintf(buf, sizeof(buf), "0x%08x", bt.pc);
+                log_error("Previous crash backtrace (PC=" << buf << " cause=" << bt.exccause << "):");
+                std::string btLine = "Backtrace:";
+                for (size_t i = 0; i < bt.num_addresses; i++) {
+                    snprintf(buf, sizeof(buf), " 0x%08x", bt.addresses[i]);
+                    btLine += buf;
+                    btLine += ":0x00000000";
+                }
+                log_error(btLine.c_str());
+                log_error("Use $BT to view again, $BT=clear to erase");
+            }
             log_info("Using default configuration");
             load_yaml(defaultConfig);
             set_state(State::ConfigAlarm);
