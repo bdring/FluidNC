@@ -20,6 +20,7 @@
 #include "FileStream.h"           // FileStream()
 #include "StartupLog.h"           // startupLog
 #include "Driver/gpio_dump.h"     // gpio_dump()
+#include "Driver/backtrace.h"     // backtrace_get(), etc.
 #include "FileCommands.h"         // make_file_commands()
 #include "Job.h"                  // Job::active()
 
@@ -735,6 +736,40 @@ static Error showStartupLog(const char* value, AuthenticationLevel auth_level, C
     return Error::Ok;
 }
 
+static Error showBacktrace(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    backtrace_t bt;
+    if (!backtrace_get(&bt)) {
+        log_stream(out, "No saved backtrace from a previous crash");
+        return Error::Ok;
+    }
+    log_stream(out, "Backtrace from previous crash:");
+    log_stream(out, "  PC:       0x" << String(bt.pc, HEX).c_str());
+    log_stream(out, "  ExcCause: " << bt.exccause);
+    if (bt.excvaddr) {
+        log_stream(out, "  ExcVAddr: 0x" << String(bt.excvaddr, HEX).c_str());
+    }
+    // Output in the standard ESP32 Backtrace format for the stack trace decoder
+    String btLine = "Backtrace:";
+    for (size_t i = 0; i < bt.num_addresses; i++) {
+        btLine += " 0x" + String(bt.addresses[i], HEX) + ":0x00000000";
+    }
+    log_stream(out, btLine.c_str());
+    if (value && strcmp(value, "clear") == 0) {
+        backtrace_clear();
+        log_stream(out, "Backtrace cleared");
+    }
+    return Error::Ok;
+}
+
+#ifdef CRASH_TEST
+static Error forceCrash(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    log_stream(out, "Forcing crash by writing to address 0");
+    delay(100);  // Let the message flush
+    *(volatile int*)0 = 0;
+    return Error::Ok;  // Never reached
+}
+#endif
+
 static Error showGPIOs(const char* value, AuthenticationLevel auth_level, Channel& out) {
     gpio_dump(out);
     return Error::Ok;
@@ -1016,6 +1051,10 @@ void make_user_commands() {
     new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
     new UserCommand("Heap", "Heap/Show", showHeap, anyState);
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
+    new UserCommand("BS", "Backtrace/Show", showBacktrace, anyState);
+#ifdef CRASH_TEST
+    new UserCommand("CRASH", "Crash/Test", forceCrash, anyState);
+#endif
     new UserCommand("UP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarm);
 
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
