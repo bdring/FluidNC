@@ -97,6 +97,7 @@ manifest = {
         "funding_url": "https://www.paypal.com/donate/?hosted_button_id=8DYLB6ZYYDG7Y",
         "images": {},
         "files": {},
+        "addrinfo": {},
         "upload": {
             "name": "upload",
             "description": "Things you can upload to the file system",
@@ -177,6 +178,32 @@ def addFile(name, controllerpath, filename, srcpath, dstpath):
     manifest['files'][name] = file
     # manifest['images'].append(image)
 
+def addAddrinfo(name, filepath):
+    """Register an .addrinfo file in the manifest."""
+    if not os.path.exists(filepath):
+        return
+
+    print("addrinfo", name)
+
+    with open(filepath, "rb") as f:
+        data = f.read()
+
+    # path relative to manifestRelPath
+    relpath = os.path.relpath(filepath, manifestRelPath).replace(os.sep, '/')
+
+    entry = {
+        "size": len(data),
+        "path": relpath,
+        "signature": {
+            "algorithm": "SHA2-256",
+            "value": hashlib.sha256(data).hexdigest()
+        }
+    }
+    if manifest['addrinfo'].get(name) != None:
+        print("Duplicate addrinfo name", name)
+        sys.exit(1)
+    manifest['addrinfo'][name] = entry
+
 flashsize = "4m"
 
 versions = [
@@ -197,8 +224,10 @@ for version in versions:
         elfRelPath = os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.elf')
         shutil.copy(os.path.join(buildDir, 'firmware.elf'), elfRelPath)
 
-        # Generate .addrinfo file for stack trace decoding
-        addrinfoPath = os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.addrinfo')
+        # Generate .addrinfo file for stack trace decoding, beside firmware.bin
+        addrinfoDir = os.path.join(manifestRelPath, mcu, buildName)
+        os.makedirs(addrinfoDir, exist_ok=True)
+        addrinfoPath = os.path.join(addrinfoDir, 'firmware.addrinfo')
         print(f'Generating {addrinfoPath}')
         try:
             generate_addrinfo(
@@ -211,6 +240,8 @@ for version in versions:
             )
         except SystemExit:
             print(f'Warning: Failed to generate .addrinfo for {envName}', file=sys.stderr)
+
+        addAddrinfo(mcu + '-' + buildName + '-addrinfo', addrinfoPath)
 
         addImage(mcu + '-' + buildName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + buildName)
 
@@ -385,6 +416,13 @@ for platform in ['win64', 'posix']:
             objPath = os.path.join(pioPath, envName)
             for obj in ['firmware.bin','partitions.bin']:
                 zipObj.write(os.path.join(objPath, obj), os.path.join(zipDirName, envName, obj))
+
+            # Add .addrinfo file beside firmware.bin in the zip
+            envMcu = 'esp32s3' if envName.endswith('_s3') else 'esp32'
+            envBuild = envName.removesuffix('_s3')
+            addrinfoSrc = os.path.join(manifestRelPath, envMcu, envBuild, 'firmware.addrinfo')
+            if os.path.exists(addrinfoSrc):
+                zipObj.write(addrinfoSrc, os.path.join(zipDirName, envName, 'firmware.addrinfo'))
 
             # E.g. posix/install-wifi.sh -> install-wifi.sh
             copyToZip(zipObj, platform, 'install-' + envName + scriptExtension[platform], zipDirName)

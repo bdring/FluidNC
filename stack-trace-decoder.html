@@ -284,14 +284,14 @@ let releases = [];
 let addrinfo = null;   // parsed .addrinfo data
 let addrinfoSource = ""; // description of where it came from
 
-// Variant name → asset filename pattern
-function addrinfoAssetName(variant) {
+// Variant name → { mcu, build } for constructing the path
+function variantInfo(variant) {
     const map = {
-        "wifi":       "esp32-wifi-firmware.addrinfo",
-        "bt":         "esp32-bt-firmware.addrinfo",
-        "noradio":    "esp32-noradio-firmware.addrinfo",
-        "wifi_s3":    "esp32s3-wifi-firmware.addrinfo",
-        "noradio_s3": "esp32s3-noradio-firmware.addrinfo",
+        "wifi":       { mcu: "esp32",   build: "wifi" },
+        "bt":         { mcu: "esp32",   build: "bt" },
+        "noradio":    { mcu: "esp32",   build: "noradio" },
+        "wifi_s3":    { mcu: "esp32s3", build: "wifi" },
+        "noradio_s3": { mcu: "esp32s3", build: "noradio" },
     };
     return map[variant] || map["wifi"];
 }
@@ -470,17 +470,33 @@ async function loadFromRelease() {
         return false;
     }
 
-    const assetName = addrinfoAssetName(variant);
-    const url = `https://github.com/bdring/FluidNC/releases/download/${tag}/${assetName}`;
+    const vi = variantInfo(variant);
+    // The .addrinfo files are published in the fluidnc-releases repo under
+    // releases/<tag>/<mcu>/<build>/firmware.addrinfo
+    const urls = [
+        `https://raw.githubusercontent.com/bdring/fluidnc-releases/main/releases/${tag}/${vi.mcu}/${vi.build}/firmware.addrinfo`,
+    ];
 
-    showStatus(`Downloading ${assetName} for ${tag}…`, "info");
+    showStatus(`Downloading firmware.addrinfo for ${tag} / ${variant}…`, "info");
 
     try {
-        const resp = await fetch(url);
-        if (!resp.ok) {
-            throw new Error(`HTTP ${resp.status} — the .addrinfo file may not exist for this release/variant.`);
+        let data = null;
+        let lastErr = "";
+        for (const url of urls) {
+            try {
+                const resp = await fetch(url);
+                if (resp.ok) {
+                    data = await resp.json();
+                    break;
+                }
+                lastErr = `HTTP ${resp.status}`;
+            } catch (e) {
+                lastErr = e.message;
+            }
         }
-        const data = await resp.json();
+        if (!data) {
+            throw new Error(`${lastErr} — the .addrinfo file may not exist for this release/variant.`);
+        }
         if (!data.symbols || !Array.isArray(data.symbols)) {
             throw new Error("Invalid .addrinfo file (no symbols array).");
         }
