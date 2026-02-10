@@ -84,7 +84,7 @@ namespace Kinematics {
 
         void motorVector(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms);
         void homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) override;
-        void set_homed_mpos(float* mpos);
+        void set_homed_mpos(float* mpos) override;
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) override;
 
         inline float pos_to_radians(float pos) { return pos * (M_PI / 180.0); }

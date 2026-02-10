@@ -3,6 +3,7 @@
 
 #include "AssertionFailed.h"
 
+#include "stdio.h"
 #include <cstdarg>
 #include <cstring>
 

@@ -199,16 +199,17 @@ const char* WebUI_Server::create_session_ID() {
     //get remote IP
     IPAddress remoteIP = _webserver->client().remoteIP();
     //generate SESSIONID
-    if (0 > sprintf(sessionID,
-                    "%02X%02X%02X%02X%02X%02X%02X%02X",
-                    remoteIP[0],
-                    remoteIP[1],
-                    remoteIP[2],
-                    remoteIP[3],
-                    (uint8_t)((now >> 0) & 0xff),
-                    (uint8_t)((now >> 8) & 0xff),
-                    (uint8_t)((now >> 16) & 0xff),
-                    (uint8_t)((now >> 24) & 0xff))) {
+    if (0 > snprintf(sessionID,
+                     17,
+                     "%02X%02X%02X%02X%02X%02X%02X%02X",
+                     remoteIP[0],
+                     remoteIP[1],
+                     remoteIP[2],
+                     remoteIP[3],
+                     (uint8_t)((now >> 0) & 0xff),
+                     (uint8_t)((now >> 8) & 0xff),
+                     (uint8_t)((now >> 16) & 0xff),
+                     (uint8_t)((now >> 24) & 0xff))) {
         strcpy(sessionID, "NONE");
     }
     return sessionID;

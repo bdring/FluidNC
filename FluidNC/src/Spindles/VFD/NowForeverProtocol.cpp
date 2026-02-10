@@ -160,10 +160,8 @@ namespace Spindles {
                 }
 
                 // Conversion from hz to rpm not required ?
-                vfd->_sync_dev_speed = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
-
-                log_debug("VFD: Current speed: " << vfd->_sync_dev_speed / 100 << "hz or " << (vfd->_sync_dev_speed * 60 / 100) << "rpm");
-
+                uint32_t dev_speed = (uint16_t(response[3]) << 8) | response[4];
+                xQueueSend(VFD::VFDProtocol::vfd_speed_queue, &dev_speed, 0);
                 return true;
             };
         }

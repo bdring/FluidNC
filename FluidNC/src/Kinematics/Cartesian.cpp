@@ -14,8 +14,8 @@ namespace Kinematics {
     // Initialize the machine position
     void Cartesian::init_position() {
         auto  n_axis = Axes::_numberAxis;
-        float min_mpos[n_axis];
-        float max_mpos[n_axis];
+        float min_mpos[MAX_N_AXIS];
+        float max_mpos[MAX_N_AXIS];
 
         for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             set_steps(axis, 0);  // Set to zeros
@@ -344,8 +344,8 @@ namespace Kinematics {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
 
-        float rates[n_axis]    = { 0 };
-        float distance[n_axis] = { 0 };
+        float rates[MAX_N_AXIS]    = { 0 };
+        float distance[MAX_N_AXIS] = { 0 };
 
         bool seeking  = phase == Machine::Homing::Phase::FastApproach;
         bool approach = seeking || phase == Machine::Homing::Phase::SlowApproach;
@@ -493,7 +493,7 @@ namespace Kinematics {
     void Cartesian::homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) {
         releaseMotors(axisMask, motors);
         float rate;
-        float target[Axes::_numberAxis];
+        float target[MAX_N_AXIS];
         axesVector(axisMask, motors, phase, target, rate, settling_ms);
 
         plan_line_data_t plan_data      = {};
@@ -514,7 +514,7 @@ namespace Kinematics {
 
     void Cartesian::set_homed_mpos(float* mpos) {
         auto  n_axis = Axes::_numberAxis;
-        float motor_pos[n_axis];
+        float motor_pos[MAX_N_AXIS];
 
         transform_cartesian_to_motors(motor_pos, mpos);
         for (axis_t axis = X_AXIS; axis < n_axis; axis++) {

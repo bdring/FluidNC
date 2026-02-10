@@ -105,9 +105,10 @@ static bool decode_format_string(const char* comment, size_t& index, size_t len,
 }
 
 static void gcode_comment_msg(const char* comment) {
-    char   msg[128];
-    size_t offset = strlen("MSG_");
-    size_t index;
+    const size_t msglen = 128;
+    char         msg[msglen];
+    size_t       offset = strlen("MSG_");
+    size_t       index;
     if (strstr(comment, "MSG")) {
         log_info("MSG," << &comment[offset]);
         return;
@@ -127,7 +128,7 @@ static void gcode_comment_msg(const char* comment) {
             } else if (c == '#') {
                 float number;
                 if (read_number(comment, index, number)) {
-                    msgindex += sprintf(&msg[msgindex], format, number);
+                    msgindex += snprintf(&msg[msgindex], msglen - msgindex, format, number);
                 } else {
                     msg[msgindex++] = c;
                 }
@@ -1065,7 +1066,7 @@ Error gc_execute_line(const char* input_line) {
         clear_bitnum(value_words, GCodeWord::E);
         clear_bitnum(value_words, GCodeWord::Q);
     }
-    if ((gc_block.modal.io_control == IoControl::WaitOnInput)) {
+    if (gc_block.modal.io_control == IoControl::WaitOnInput) {
         // M66 P<digital input> L<wait mode type> Q<timeout>
         // M66 E<analog input> L<wait mode type> Q<timeout>
         // Exactly one of P or E must be present
@@ -1654,7 +1655,7 @@ Error gc_execute_line(const char* input_line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     // [M6. Change tool ]:
     if (gc_block.modal.tool_change == ToolChange::Enable) {

@@ -379,10 +379,8 @@ namespace Spindles {
             data.msg[5] = 0x00;
 
             return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
-                uint16_t frequency = (response[4] << 8) | response[5];
-
-                // Store speed for synchronization
-                vfd->_sync_dev_speed = frequency;
+                uint32_t dev_speed = (uint16_t(response[4]) << 8) | response[5];
+                xQueueSend(VFD::VFDProtocol::vfd_speed_queue, &dev_speed, 0);
                 return true;
             };
         }

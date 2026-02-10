@@ -147,7 +147,7 @@ void mc_arc(float*            target,
 
     auto n_axis = Axes::_numberAxis;
 
-    float previous_position[n_axis] = { 0.0f };
+    float previous_position[MAX_N_AXIS] = { 0.0f };
     for (size_t i = 0; i < n_axis; i++) {
         previous_position[i] = position[i];
     }
@@ -178,7 +178,7 @@ void mc_arc(float*            target,
     // is desired, i.e. least-squares, midpoint on arc, just change the mm_per_arc_segment calculation.
     // For most uses, this value should not exceed 2000.
     uint16_t segments =
-        uint16_t(floorf(fabsf(0.5 * angular_travel * radius) / sqrtf(config->_arcTolerance * (2 * radius - config->_arcTolerance))));
+        uint16_t(floorf(fabsf(0.5F * angular_travel * radius) / sqrtf(config->_arcTolerance * (2 * radius - config->_arcTolerance))));
     if (segments) {
         // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
         // by a number of discrete segments. The inverse feed_rate should be correct for the sum of
@@ -188,7 +188,7 @@ void mc_arc(float*            target,
             pl_data->motion.inverseTime = 0;  // Force as feed absolute mode over arc segments.
         }
         float theta_per_segment = angular_travel / segments;
-        float linear_per_segment[n_axis];
+        float linear_per_segment[MAX_N_AXIS];
         linear_per_segment[axis_linear] = (target[axis_linear] - position[axis_linear]) / segments;
         for (size_t i = A_AXIS; i < n_axis; i++) {
             linear_per_segment[i] = (target[i] - position[i]) / segments;
@@ -350,8 +350,8 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     if (probe_succeeded) {
         if (offset != __FLT_MAX__) {
             auto  n_axis = Axes::_numberAxis;
-            float coord_data[n_axis];
-            float probe_contact[n_axis];
+            float coord_data[MAX_N_AXIS];
+            float probe_contact[MAX_N_AXIS];
 
             steps_to_mpos(probe_contact, probe_steps);
             coords[gc_state.modal.coord_select]->get(coord_data);  // get a copy of the current coordinate offsets

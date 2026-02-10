@@ -40,6 +40,9 @@ managed_components/
 /FluidNC/lib/*/
 /FluidNC/dependencies.lock
 experiments/
+native_sd/
+native_localfs/
+native_nvs/
 .cache
 
 # Coverage report output
