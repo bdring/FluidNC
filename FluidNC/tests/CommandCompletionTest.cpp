@@ -2,11 +2,12 @@
 
 #include <cctype>
 #include <cstring>
+#include <string_view>
 
 #include "Settings.h"
 #include "Configuration/Configurable.h"
 
-uint32_t num_initial_matches(const char* key, uint32_t keylen, uint32_t matchnum, char* matchname);
+uint32_t num_initial_matches(std::string_view key, uint32_t matchnum, std::string& matchname);
 
 // Stub config tree root used by production num_initial_matches() when key starts with '/'.
 Configuration::Configurable* config = nullptr;
@@ -91,47 +92,48 @@ static bool equals_ci(const char* a, const char* b) {
 TEST(CommandCompletion, SdSlashReturnsAtLeastOneMatch) {
     static MinimalSetting s("sd/list");
 
-    char out[128] = { 0 };
-    uint32_t nfound = num_initial_matches("sd/", 3, 0, out);
+    std::string out;
+    uint32_t nfound = num_initial_matches("sd/", 0, out);
     EXPECT_GE(nfound, 1u);
 }
 
 TEST(CommandCompletion, SdLReturnsPrefixMatch) {
     static MinimalSetting s("sd/list");
 
-    char out[128] = { 0 };
-    uint32_t nfound = num_initial_matches("sd/l", 4, 0, out);
+    std::string out;
+    uint32_t nfound = num_initial_matches("sd/l", 0, out);
 
     EXPECT_GE(nfound, 1u);
-    EXPECT_TRUE(starts_with_ci(out, "sd/l"));
+    EXPECT_TRUE(starts_with_ci(out.c_str(), "sd/l"));
 }
 
 TEST(CommandCompletion, CaseInsensitiveMatches) {
     static MinimalSetting s("sd/list");
 
-    char out1[128] = { 0 };
-    char out2[128] = { 0 };
+    std::string out1;
+    std::string out2;
 
-    uint32_t n1 = num_initial_matches("sd/l", 4, 0, out1);
-    uint32_t n2 = num_initial_matches("SD/L", 4, 0, out2);
+    uint32_t n1 = num_initial_matches("sd/l", 0, out1);
+    uint32_t n2 = num_initial_matches("SD/L", 0, out2);
 
     EXPECT_EQ(n1, n2);
-    EXPECT_TRUE(starts_with_ci(out1, "sd/l"));
-    EXPECT_TRUE(starts_with_ci(out2, "sd/l"));
+    EXPECT_TRUE(starts_with_ci(out1.c_str(), "sd/l"));
+    EXPECT_TRUE(starts_with_ci(out2.c_str(), "sd/l"));
 }
 
 TEST(CommandCompletion, ExactMatchIsIncluded) {
     static MinimalSetting s("sd/list");
 
-    const char* key = "sd/list";
-    uint32_t nfound = num_initial_matches(key, 7, 0, nullptr);
+    std::string_view key = "sd/list";
+    std::string dummy;
+    uint32_t nfound = num_initial_matches(key, 0, dummy);
     EXPECT_GE(nfound, 1u);
 
     bool foundExact = false;
     for (uint32_t i = 0; i < nfound; ++i) {
-        char out[128] = { 0 };
-        (void)num_initial_matches(key, 7, i, out);
-        if (equals_ci(out, "sd/list")) {
+        std::string out;
+        (void)num_initial_matches(key, i, out);
+        if (equals_ci(out.c_str(), "sd/list")) {
             foundExact = true;
             break;
         }
@@ -166,15 +168,16 @@ TEST(CommandCompletion, AxesPathCompletionMatchesConfiguredAxes) {
     config         = &root;
 
     // Count matches for "/axes/" and verify the returned candidates.
-    uint32_t nfound = num_initial_matches("/axes/", 6, 0, nullptr);
+    std::string dummy;
+    uint32_t nfound = num_initial_matches("/axes/", 0, dummy);
     EXPECT_EQ(nfound, 3u);
 
     // Verify each match starts with the expected prefix
-    char out[128];
+    std::string out;
     for (uint32_t i = 0; i < nfound; ++i) {
-        std::memset(out, 0, sizeof(out));
-        (void)num_initial_matches("/axes/", 6, i, out);
-        EXPECT_TRUE(starts_with_ci(out, "/axes/")) << "Match " << i << " was '" << out << "'";
+        out.clear();
+        (void)num_initial_matches("/axes/", i, out);
+        EXPECT_TRUE(starts_with_ci(out.c_str(), "/axes/")) << "Match " << i << " was '" << out << "'";
     }
 
     config = previous;
