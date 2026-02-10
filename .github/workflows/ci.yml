@@ -38,6 +38,13 @@ jobs:
       - name: Build target ${{ matrix.pio_env }}${{ matrix.pio_env_variant }}
         run: pio run -e ${{ matrix.pio_env }}${{ matrix.pio_env_variant }}
       - if: matrix.os == 'ubuntu-latest'
+        name: Generate .addrinfo for ${{ matrix.pio_env }}${{ matrix.pio_env_variant }}
+        run: |
+          python tools/stack_trace_decoder/generate_addrinfo.py \
+            .pio/build/${{ matrix.pio_env }}${{ matrix.pio_env_variant }}/firmware.elf \
+            -o .pio/build/${{ matrix.pio_env }}${{ matrix.pio_env_variant }}/firmware.addrinfo \
+            --build ${{ matrix.pio_env }}${{ matrix.pio_env_variant }} \
+            --verbose      - if: matrix.os == 'ubuntu-latest'
         name: Upload ${{ matrix.pio_env }}${{ matrix.pio_env_variant }} firmware.bin
         uses: actions/upload-artifact@v4
         with:
