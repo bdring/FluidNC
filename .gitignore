@@ -41,3 +41,6 @@ managed_components/
 /FluidNC/dependencies.lock
 experiments/
 .cache
+native_localfs/
+native_nvs/
+native_sd/
