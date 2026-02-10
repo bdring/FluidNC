@@ -41,7 +41,7 @@ void InputFile::ack(Error status) {
         if (status != Error::GcodeUnsupportedCommand) {
             // Do not stop on unsupported commands because most senders do not stop.
             // Stop the file job on other errors
-            notifyf("File job error", "Error:%d in %s at line: %d", status, name(), lineNumber());
+            notifyf("File job error", "Error:%d in %s at line: %d", status, name().c_str(), lineNumber());
             _pending_error = status;
         }
     }

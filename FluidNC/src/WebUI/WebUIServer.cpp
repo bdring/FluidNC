@@ -73,6 +73,7 @@ namespace WebUI {
     const int         MAX_AUTH_IP          = 10;
 #endif
     FileStream* WebUI_Server::_uploadFile = nullptr;
+    std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
 
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
@@ -362,16 +363,16 @@ namespace WebUI {
                     request->client()->close();
                     return 0;  //RESPONSE_TRY_AGAIN; // This only works for ChunkedResponse
                 }
-                if (total >= file->size() || request->methodToString() != "GET") {
+                if (total >= file->size() || request->method() != HTTP_GET) {
                     file = nullptr;
                     return 0;
                 }
-                size_t bytes  = min(file->size(), maxLen);
+                size_t bytes  = min(file->size() - total, maxLen);
                 int    actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
                 if (actual == 0 || (actual + total) >= file->size()) {
                     file = nullptr;
                 }
-                return bytes;
+                return actual;  // Return actual bytes read, not requested bytes
             });
 
         request->onDisconnect([request, file]() { delete file; });
@@ -500,13 +501,13 @@ namespace WebUI {
         char line[256];
         strncpy(line, cmd, 255);
         AsyncWebServerResponse* response;
-        if (request->methodToString() == "GET") {
+        if (request->method() == HTTP_GET) {
             WebClient* webClient = new WebClient();
             webClient->attachWS(silent);
             webClient->executeCommandBackground(line);
             response = request->beginChunkedResponse("", [webClient, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
                 // The method can change before the end... not good
-                //if(request->methodToString() != "GET")
+                //if(request->method() != HTTP_GET)
                 //    return 0;
                 auto ret = webClient->copyBufferSafe(buffer, min((int)maxLen, 1024), total);
                 return ret;
@@ -1002,6 +1003,13 @@ namespace WebUI {
         //get current path
         if (request->hasParam("path")) {
             path += request->getParam("path")->value().c_str();
+        } else if (!_uploadPath.empty()) {
+            // If no path parameter but we have a stored upload path, use it
+            path = _uploadPath;
+            _uploadPath.clear();  // Clear it after use
+        }
+
+        if (!path.empty()) {
             // path.trim();
             replace_string_in_place(path, "//", "/");
             if (path[path.length() - 1] == '/') {
@@ -1132,6 +1140,13 @@ namespace WebUI {
             return;
         }
 
+        // Store the directory path of the uploaded file for later listing
+        stdfs::path filepath(filename);
+        _uploadPath = filepath.parent_path().string();
+        if (_uploadPath == ".") {
+            _uploadPath = "";  // Root directory
+        }
+
         auto space = stdfs::space(fpath);
         if (filesize && filesize > space.available) {
             // If the file already exists, maybe there will be enough space
@@ -1217,6 +1232,7 @@ namespace WebUI {
     }
     void WebUI_Server::uploadStop() {
         _upload_status = UploadStatus::FAILED;
+        _uploadPath.clear();  // Clear stored upload path on failure
         if (_uploadFile) {
             log_info("Upload cancelled");
             std::filesystem::path filepath = _uploadFile->fpath();
@@ -1304,16 +1320,17 @@ namespace WebUI {
         //get remote IP
         IPAddress remoteIP = _webserver->client().remoteIP();
         //generate SESSIONID
-        if (0 > sprintf(sessionID,
-                        "%02X%02X%02X%02X%02X%02X%02X%02X",
-                        remoteIP[0],
-                        remoteIP[1],
-                        remoteIP[2],
-                        remoteIP[3],
-                        (uint8_t)((now >> 0) & 0xff),
-                        (uint8_t)((now >> 8) & 0xff),
-                        (uint8_t)((now >> 16) & 0xff),
-                        (uint8_t)((now >> 24) & 0xff))) {
+        if (0 > snprintf(sessionID,
+                         17,
+                         "%02X%02X%02X%02X%02X%02X%02X%02X",
+                         remoteIP[0],
+                         remoteIP[1],
+                         remoteIP[2],
+                         remoteIP[3],
+                         (uint8_t)((now >> 0) & 0xff),
+                         (uint8_t)((now >> 8) & 0xff),
+                         (uint8_t)((now >> 16) & 0xff),
+                         (uint8_t)((now >> 24) & 0xff))) {
             strcpy(sessionID, "NONE");
         }
         return sessionID;

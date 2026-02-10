@@ -145,14 +145,15 @@ namespace Spindles {
                 // Assume for the worst, and retry...
                 size_t retry_count = 0;
                 for (; retry_count < instance->_retries; ++retry_count) {
+                    if (instance->_debug > 2) {
+                        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
+                    }
+
                     // Flush the UART and write the data:
                     uart.flush();
                     uart.flushRx();
                     uart.write(cmd.msg, cmd.tx_length);
                     uart.flushTxTimed(response_ticks);
-                    if (instance->_debug > 2) {
-                        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
-                    }
 
                     // Read the response
                     size_t read_length  = 0;
@@ -238,12 +239,6 @@ namespace Spindles {
 
             // Do variant-specific command preparation
             set_speed_command(speed, data);
-
-#if 0
-            // Sometimes sync_dev_speed is retained between different set_speed_command's. We don't want that - we want
-            // spindle sync to kick in after we set the speed. This forces that.
-            spindle->_sync_dev_speed = UINT32_MAX;
-#endif
 
             return true;
         }

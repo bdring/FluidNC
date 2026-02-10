@@ -54,7 +54,7 @@ void float_proxy(axis_t axis, uint32_t grbl_number, const char* name, float* var
     snprintf(grbl_name, 4, "%d", int(grbl_number) + int(axis));
 
     char* fluidnc_name = new char[strlen(name) + 2];
-    sprintf(fluidnc_name, "%s%s", name, Axes::axisName(axis));
+    snprintf(fluidnc_name, strlen(name) + 2, "%s%s", name, Axes::axisName(axis));
 
     // Creation of any setting inserts it into the settings list, so we
     // do not need to keep the pointer here
@@ -105,7 +105,7 @@ void make_settings() {
     build_info = new StringSetting("OEM build info for $I command", EXTENDED, WG, NULL, "Firmware/Build", "", 0, 20);
 
     start_message =
-        new StringSetting("Message issued at startup", EXTENDED, WG, NULL, "Start/Message", "Grbl \\V [FluidNC \\B (\\R) \\H]", 0, 40);
+        new StringSetting("Message issued at startup", EXTENDED, WG, NULL, "Start/Message", "Grbl \\V [FluidNC \\B (\\X) \\H]", 0, 40);
 
     gcode_echo = new EnumSetting("GCode Echo Enable", WEBSET, WG, NULL, "GCode/Echo", 0, &onoffOptions);
 }

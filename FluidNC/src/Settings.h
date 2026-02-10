@@ -189,12 +189,12 @@ public:
                bool          currentIsNvm = false) :
         IntSetting(NULL, type, permissions, grblName, name, defVal, minVal, maxVal, currentIsNvm) {}
 
-    void        load();
-    void        setDefault();
-    void        addWebui(JSONencoder*);
-    Error       setStringValue(std::string_view s);
-    const char* getStringValue();
-    const char* getDefaultString();
+    void        load() override;
+    void        setDefault() override;
+    void        addWebui(JSONencoder*) override;
+    Error       setStringValue(std::string_view s) override;
+    const char* getStringValue() override;
+    const char* getDefaultString() override;
 
     int32_t get() { return _currentValue; }
 };
@@ -211,7 +211,7 @@ public:
         std::snprintf(strval, 31, "%.3f", *_valuep);
         return strval;
     }
-    Error       setStringValue(std::string_view value) { return Error::ReadOnlySetting; }
+    Error       setStringValue(std::string_view value) override { return Error::ReadOnlySetting; }
     const char* getDefaultString() override { return ""; }
 };
 
@@ -226,7 +226,7 @@ public:
     IntProxySetting(const char* grblName, const char* fullName, std::function<int(Machine::MachineConfig const&)> getter) :
         Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName), _getter(getter), _cachedValue("") {}
     const char* getStringValue() override;
-    Error       setStringValue(std::string_view value) { return Error::ReadOnlySetting; }
+    Error       setStringValue(std::string_view value) override { return Error::ReadOnlySetting; }
     const char* getDefaultString() override { return ""; }
 };
 
@@ -284,12 +284,12 @@ public:
     StringSetting(type_t type, permissions_t permissions, const char* grblName, const char* name, const char* defVal) :
         StringSetting(NULL, type, permissions, grblName, name, defVal, 0, 0) {};
 
-    void        load();
-    void        setDefault();
-    void        addWebui(JSONencoder*);
-    Error       setStringValue(std::string_view s);
-    const char* getStringValue();
-    const char* getDefaultString();
+    void        load() override;
+    void        setDefault() override;
+    void        addWebui(JSONencoder*) override;
+    Error       setStringValue(std::string_view s) override;
+    const char* getStringValue() override;
+    const char* getDefaultString() override;
 
     const char* get() { return _currentValue.c_str(); }
 };
@@ -319,12 +319,12 @@ public:
     EnumSetting(type_t type, permissions_t permissions, const char* grblName, const char* name, int8_t defVal, const enum_opt_t* opts) :
         EnumSetting(NULL, type, permissions, grblName, name, defVal, opts) {}
 
-    void        load();
-    void        setDefault();
-    void        addWebui(JSONencoder*);
-    Error       setStringValue(std::string_view s);
-    const char* getStringValue();
-    const char* getDefaultString();
+    void        load() override;
+    void        setDefault() override;
+    void        addWebui(JSONencoder*) override;
+    Error       setStringValue(std::string_view s) override;
+    const char* getStringValue() override;
+    const char* getDefaultString() override;
     void        showList();
 
     int8_t get() { return _currentValue; }
@@ -348,12 +348,12 @@ public:
     IPaddrSetting(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, uint32_t defVal);
     IPaddrSetting(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, const char* defVal);
 
-    void        load();
-    void        setDefault();
-    void        addWebui(JSONencoder*);
-    Error       setStringValue(std::string_view s);
-    const char* getStringValue();
-    const char* getDefaultString();
+    void        load() override;
+    void        setDefault() override;
+    void        addWebui(JSONencoder*) override;
+    Error       setStringValue(std::string_view s) override;
+    const char* getStringValue() override;
+    const char* getDefaultString() override;
 
     uint32_t get() { return _currentValue; }
 };

@@ -4,34 +4,19 @@
 #include "Config.h"
 #include "Completer.h"
 #include "Machine/MachineConfig.h"
+#include "string_util.h"
 
 #include "Report.h"
 
 #include <ctype.h>
-#include <atomic>
-#include <string_view>
-
-static bool isInitialSubstringCI(const std::string_view key, const std::string_view test) {
-    if (key.length() > test.length()) {
-        return false;
-    }
-    size_t i = 0;
-    for (auto const c : key) {
-        char c1 = test[i++];
-        if (::tolower(c) != ::tolower(c1)) {
-            return false;
-        }
-    }
-    return true;
-}
 
 namespace Configuration {
-    Completer::Completer(const char* key, uint32_t reqMatch, char* matchedStr) :
+    Completer::Completer(const std::string_view key, uint32_t reqMatch, std::string& matchedStr) :
         _key(key), _reqMatch(reqMatch), _matchedStr(matchedStr), _currentPath("/"), _numMatches(0) {}
 
     void Completer::addCandidate(std::string fullName) {
-        if (_matchedStr && _numMatches == _reqMatch) {
-            strcpy(_matchedStr, fullName.c_str());
+        if (_numMatches == _reqMatch) {
+            _matchedStr = fullName.c_str();
         }
         ++_numMatches;
     }
@@ -40,13 +25,13 @@ namespace Configuration {
         auto previous = _currentPath;
         _currentPath += name;
         _currentPath += "/";
-        if (isInitialSubstringCI(_currentPath, _key)) {
+        if (string_util::starts_with_ignore_case(_key, _currentPath)) {
             // If _currentPath is an initial substring of _key, this section
             // is part of a path leading to the key, so we have to check
             // this section's children
             // Example: _key = /axes/x/motor0/cy _currentPath=/axes/x/motor0
             value->group(*this);
-        } else if (isInitialSubstringCI(_key, _currentPath)) {
+        } else if (string_util::starts_with_ignore_case(_currentPath, _key)) {
             // If _key is an initial substring of _currentPath, this section
             // is a candidate.  Example:  _key = /axes/x/h _currentPath=/axes/x/homing
             addCandidate(_currentPath);
@@ -56,7 +41,7 @@ namespace Configuration {
 
     void Completer::item(const char* name) {
         std::string fullItemName = _currentPath + name;
-        if (isInitialSubstringCI(_key, fullItemName)) {
+        if (string_util::starts_with_ignore_case(fullItemName, _key)) {
             addCandidate(fullItemName);
         }
     }
@@ -75,29 +60,33 @@ namespace Configuration {
 // matchnum is the index of the match that we will return
 // matchname is the matchnum'th match
 
-uint32_t num_initial_matches(const char* key, uint32_t keylen, uint32_t matchnum, char* matchname) {
+uint32_t num_initial_matches(const std::string_view key, uint32_t matchnum, std::string& matchname) {
     uint32_t nfound = 0;
 
-    if (key[0] == '/') {
-        char keycstr[100];
-        memcpy(keycstr, key, keylen);
-        keycstr[keylen] = '\0';
-
+    if (key.length() && key[0] == '/') {
         // Match in configuration tree
-        Configuration::Completer completer(keycstr, matchnum, matchname);
+        Configuration::Completer completer(key, matchnum, matchname);
         config->group(completer);
         nfound = completer._numMatches;
     } else {
         // Match NVS settings
         for (Setting* s : Setting::List) {
-            if (isInitialSubstringCI(key, s->getName())) {
-                if (matchname && nfound == matchnum) {
-                    strcpy(matchname, s->getName());
+            if (string_util::starts_with_ignore_case(s->getName(), key)) {
+                if (nfound == matchnum) {
+                    matchname = s->getName();
+                }
+                ++nfound;
+            }
+        }
+        // Match commands
+        for (Command* cp : Command::List) {
+            if (string_util::starts_with_ignore_case(cp->getName(), key)) {
+                if (nfound == matchnum) {
+                    matchname = cp->getName();
                 }
                 ++nfound;
             }
         }
     }
-
     return nfound;
 }

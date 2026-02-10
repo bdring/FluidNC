@@ -57,7 +57,7 @@ namespace MotorDrivers {
         bool         report_short_to_ground(bool s2ga, bool s2gb);
         bool         report_over_temp(bool ot, bool otpw);
         bool         report_short_to_ps(bool vsa, bool vsb);
-        bool         set_homing_mode(bool isHoming);
+        bool         set_homing_mode(bool isHoming) override;
         virtual void set_registers(bool isHoming) {}
         bool         reportTest(uint8_t result);
         void         reportCommsFailure(void);
@@ -85,5 +85,4 @@ namespace MotorDrivers {
             handler.item("use_enable", _use_enable);
         }
     };
-
 }

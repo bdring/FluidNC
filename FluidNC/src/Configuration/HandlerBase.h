@@ -18,7 +18,7 @@
 namespace Configuration {
     class Configurable;
 
-    typedef struct {
+    typedef struct speed_entry_t {
         SpindleSpeed speed   = 0;
         float        percent = 0.0;
         uint32_t     offset  = 0;

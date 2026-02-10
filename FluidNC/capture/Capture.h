@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
+#include <chrono>
+#include <thread>
 
 // Capture here defines everything that we want to know. Specifically, we want to capture per ID:
 // 1. Timings. *When* did something happen?
@@ -66,13 +68,27 @@ public:
     }
 
     uint32_t current() { return currentTime; }
-    void     wait(uint32_t delay) { currentTime += delay; }
-    void     waitUntil(uint32_t value) {
+
+    void wait(uint32_t delay) {
+        // Actually wait in real time (delay is in milliseconds)
+        std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+        currentTime += delay;
+    }
+
+    void waitUntil(uint32_t value) {
         if (value > currentTime) {
+            uint32_t delay = value - currentTime;
+            // Actually wait in real time
+            std::this_thread::sleep_for(std::chrono::milliseconds(delay));
             currentTime = value;
         }
     }
-    void yield() { wait(1); }
+
+    void yield() {
+        // Yield to other threads with minimal delay
+        std::this_thread::yield();
+        currentTime += 1;
+    }
 };
 
 class Inputs {

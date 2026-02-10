@@ -31,7 +31,7 @@ class FileStream : public Channel {
     void setup(const char* mode);
 
 public:
-    FileStream() = default;
+    FileStream() = delete;
     FileStream(std::string filename, const char* mode, const Volume& defaultFs = LocalFS) : FileStream(filename.c_str(), mode, defaultFs) {}
     FileStream(const char* filename, const char* mode, const Volume& defaultFs = LocalFS);
     FileStream(FluidPath fpath, const char* mode);
@@ -45,7 +45,7 @@ public:
     int         peek() override;
     void        flush() override;
 
-    size_t readBytes(char* buffer, size_t length) { return read((uint8_t*)buffer, length); }
+    size_t readBytes(char* buffer, size_t length) override { return read((uint8_t*)buffer, length); }
 
     int read(char* buffer, size_t length);  // read chars from stream into buffer
     int read(uint8_t* buffer, size_t length) { return read((char*)buffer, length); }
@@ -54,8 +54,8 @@ public:
     size_t write(const uint8_t* buffer, size_t length) override;
 
     size_t size();
-    size_t position();
-    void   set_position(size_t);
+    size_t position() override;
+    void   set_position(size_t) override;
 
     // pollLine() is a required method of the Channel class that
     // FileStream implements as a no-op.

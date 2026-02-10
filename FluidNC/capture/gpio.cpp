@@ -92,13 +92,15 @@ static void gpio_send_event(int32_t gpio_num, bool active) {
 void poll_gpios() {
     gpio_mask_t gpios_active  = get_gpios();
     gpio_mask_t gpios_changed = (gpios_active ^ gpios_current) & gpios_interest;
-    if (gpios_changed) {
-        int zeros;
-        while ((zeros = __builtin_clzll(gpios_changed)) != 64) {
-            int32_t gpio_num = 63 - zeros;
-            gpio_send_event(gpio_num, gpios_active & gpio_mask(gpio_num));
-            // Remove bit from mask so clzll will find the next one
-            gpios_update(gpios_changed, gpio_num, false);
-        }
+
+    // Process each changed GPIO. We check gpios_changed != 0 explicitly because
+    // __builtin_clzll(0) is undefined behavior - the optimizer can assume it never
+    // happens and turn this into an infinite loop in release builds.
+    while (gpios_changed) {
+        int     zeros    = __builtin_clzll(gpios_changed);  // Safe: gpios_changed is non-zero here
+        int32_t gpio_num = 63 - zeros;
+        gpio_send_event(gpio_num, gpios_active & gpio_mask(gpio_num));
+        // Clear the bit we just processed
+        gpios_changed &= ~gpio_mask(gpio_num);
     }
 }
