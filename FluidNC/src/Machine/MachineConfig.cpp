@@ -187,7 +187,6 @@ namespace Machine {
                     btLine += ":0x00000000";
                 }
                 log_error(btLine.c_str());
-                log_error("Use $BT to view again, $BT=clear to erase");
             }
             log_info("Using default configuration");
             load_yaml(defaultConfig);

@@ -3,6 +3,8 @@
 
 #include "Settings.h"
 
+#define CRASH_TEST
+
 #include "Machine/MachineConfig.h"
 #include "Configuration/RuntimeSetting.h"
 #include "Configuration/AfterParse.h"
@@ -754,10 +756,6 @@ static Error showBacktrace(const char* value, AuthenticationLevel auth_level, Ch
         btLine += " 0x" + String(bt.addresses[i], HEX) + ":0x00000000";
     }
     log_stream(out, btLine.c_str());
-    if (value && strcmp(value, "clear") == 0) {
-        backtrace_clear();
-        log_stream(out, "Backtrace cleared");
-    }
     return Error::Ok;
 }
 
