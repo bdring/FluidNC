@@ -2,22 +2,23 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 // Stepping engine that uses direct GPIO accesses timed by spin loops.
-// RP2040 port using hardware timer at 1 MHz
+// RP2040 timed engine using hardware timer at 1 MHz
 
 #include "Driver/step_engine.h"
 #include "Driver/fluidnc_gpio.h"
 #include "Driver/delay_usecs.h"
 #include "StepTimer.h"
-#include "pico/stdlib.h"
+#include <stddef.h>
 
 static uint32_t _pulse_delay_us;
 static uint32_t _dir_delay_us;
+static int32_t  _stepPulseEndTime;
 
 static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*callback)(void)) {
     // RP2040 uses stepTimerAttach to register the callback
     // The frequency parameter is not used since the RP2040 timer runs at fixed 1 MHz
     (void)frequency;  // Unused parameter warning suppression
-    
+
     stepTimerAttach(callback);
     _dir_delay_us   = dir_delay_us;
     _pulse_delay_us = pulse_delay_us;
@@ -25,11 +26,9 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint
 }
 
 static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
-    (void)step_invert;  // Ignore invert flag; handled at configuration level
+    (void)step_invert;
     return step_pin;
 }
-
-static int32_t _stepPulseEndTime;
 
 static void set_pin(pinnum_t pin, bool level) {
     gpio_write(pin, level);

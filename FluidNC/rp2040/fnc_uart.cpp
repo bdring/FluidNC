@@ -7,18 +7,36 @@
 #include <Driver/fluidnc_uart.h>
 #include <Driver/fluidnc_gpio.h>
 #include "UartTypes.h"
+#include "Protocol.h"
 
 #include "hardware/uart.h"
 #include "hardware/gpio.h"
+#include "hardware/irq.h"
+#include "hardware/sync.h"
 #include "pico/time.h"
 
 class InputPin;
 
-// Array to track input pin event handlers (required by interface but not currently used on RP2040)
 const int PINNUM_MAX                        = 30;  // RP2040 has GPIO 0-29
-bool      events_enabled[2]                 = { false };  // 2 UARTs on RP2040
-InputPin* objects[2][PINNUM_MAX]            = { nullptr };
-uint8_t   last[2]                           = { 0 };
+
+// ISR-driven software RX queues
+constexpr uint16_t UART_RX_QUEUE_SIZE = 256;
+
+struct UartRxInfo {
+    uint8_t           queue[UART_RX_QUEUE_SIZE];
+    volatile uint16_t head;
+    volatile uint16_t tail;
+    volatile uint16_t count;
+    bool              events_enabled;
+    InputPin*         objects[PINNUM_MAX];
+    uint8_t           last;
+};
+
+UartRxInfo rx_info[2] = {
+    { { 0 }, 0, 0, 0, false, { nullptr }, 0 },
+    { { 0 }, 0, 0, 0, false, { nullptr }, 0 },
+};
+volatile bool irq_installed[2] = { false };
 
 // Software flow control tracking
 struct UartFlowControl {
@@ -37,11 +55,49 @@ static uart_inst_t* get_uart_instance(uint32_t uart_num) {
     return nullptr;
 }
 
+static void uart_rx_isr(uart_inst_t* uart, UartRxInfo* rxq) {
+    if (uart == nullptr || rxq == nullptr) {
+        return;
+    }
+
+    // Clear RX-related interrupt causes
+    uart_get_hw(uart)->icr = UART_UARTICR_RTIC_BITS | UART_UARTICR_RXIC_BITS;
+
+    while (uart_is_readable(uart)) {
+        uint8_t c = (uint8_t)uart_getc(uart);
+
+        if (rxq->last) {
+            pinnum_t pinnum = c % PINNUM_MAX;
+            protocol_send_event_from_ISR(rxq->last == 0xc4 ? &pinInactiveEvent : &pinActiveEvent, (void*)rxq->objects[pinnum]);
+            rxq->last = 0;
+            continue;
+        } else if (rxq->events_enabled && (c == 0xc4 || c == 0xc5)) {
+            rxq->last = c;
+            continue;
+        }
+
+        if (rxq->count < UART_RX_QUEUE_SIZE) {
+            rxq->queue[rxq->head] = c;
+            rxq->head             = (uint16_t)((rxq->head + 1u) & (UART_RX_QUEUE_SIZE - 1u));
+            rxq->count++;
+        }
+    }
+}
+
+static void uart0_irq_handler() {
+    uart_rx_isr(uart0, &rx_info[0]);
+}
+
+static void uart1_irq_handler() {
+    uart_rx_isr(uart1, &rx_info[1]);
+}
+
 void uart_register_input_pin(uint32_t uart_num, pinnum_t pinnum, InputPin* object) {
     if (uart_num < 2 && pinnum < PINNUM_MAX) {
-        events_enabled[uart_num]  = true;
-        objects[uart_num][pinnum] = object;
-        last[uart_num]            = 0;
+        auto rx             = &rx_info[uart_num];
+        rx->events_enabled  = true;
+        rx->objects[pinnum] = object;
+        rx->last            = 0;
     }
 }
 
@@ -54,9 +110,30 @@ void uart_init(uint32_t uart_num) {
     // Initialize UART with default baudrate (will be set by uart_mode)
     // We use a standard 115200 baud as default
     uart_init(uart, 115200);
-    
+
     // Enable FIFO
     uart_set_fifo_enabled(uart, true);
+
+    // Reset software RX queue
+    uint32_t irq_state = save_and_disable_interrupts();
+    auto     rx        = &rx_info[uart_num];
+    rx->head           = 0;
+    rx->tail           = 0;
+    rx->count          = 0;
+    restore_interrupts(irq_state);
+
+    // Install and enable UART RX IRQ path once
+    if (!irq_installed[uart_num]) {
+        if (uart_num == 0) {
+            irq_set_exclusive_handler(UART0_IRQ, uart0_irq_handler);
+            irq_set_enabled(UART0_IRQ, true);
+        } else {
+            irq_set_exclusive_handler(UART1_IRQ, uart1_irq_handler);
+            irq_set_enabled(UART1_IRQ, true);
+        }
+        irq_installed[uart_num] = true;
+    }
+    uart_set_irq_enables(uart, true, false);
 }
 
 void uart_mode(uint32_t uart_num, uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits) {
@@ -113,33 +190,36 @@ bool uart_half_duplex(uint32_t uart_num) {
 }
 
 int uart_read(uint32_t uart_num, uint8_t* buf, uint32_t len, uint32_t timeout_ms) {
-    uart_inst_t* uart = get_uart_instance(uart_num);
-    if (uart == nullptr || buf == nullptr || len == 0) {
+    if (uart_num >= 2 || buf == nullptr || len == 0) {
         return 0;
     }
 
     uint32_t bytes_read = 0;
-    uint32_t start_ms = to_ms_since_boot(get_absolute_time());
+    uint32_t start_ms   = to_ms_since_boot(get_absolute_time());
 
     while (bytes_read < len) {
-        // Check timeout
-        if (timeout_ms > 0) {
-            uint32_t elapsed = to_ms_since_boot(get_absolute_time()) - start_ms;
-            if (elapsed >= timeout_ms) {
-                break;
-            }
+        bool     popped    = false;
+        uint32_t irq_state = save_and_disable_interrupts();
+        auto     rx        = &rx_info[uart_num];
+        if (rx->count > 0) {
+            buf[bytes_read++] = rx->queue[rx->tail];
+            rx->tail          = (uint16_t)((rx->tail + 1u) & (UART_RX_QUEUE_SIZE - 1u));
+            rx->count--;
+            popped = true;
+        }
+        restore_interrupts(irq_state);
+
+        if (popped) {
+            continue;
         }
 
-        // Check if data is available
-        if (uart_is_readable(uart)) {
-            buf[bytes_read++] = uart_getc(uart);
-        } else if (timeout_ms == 0) {
-            // Non-blocking mode: return immediately if no data
+        if (timeout_ms == 0) {
             break;
-        } else {
-            // Busy-wait with small sleep to avoid CPU hogging
-            sleep_us(100);
         }
+        if ((to_ms_since_boot(get_absolute_time()) - start_ms) >= timeout_ms) {
+            break;
+        }
+        sleep_us(100);
     }
 
     return bytes_read;
@@ -212,32 +292,35 @@ bool uart_pins(uint32_t uart_num, pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts
 }
 
 int uart_buflen(uint32_t uart_num) {
-    uart_inst_t* uart = get_uart_instance(uart_num);
-    if (uart == nullptr) {
+    if (uart_num >= 2) {
         return 0;
     }
-
-    // RP2040 UART has a 32-byte FIFO buffer
-    // We return an approximation based on FIFO level
-    // In a real implementation, we might need to maintain a separate buffer
-    // For now, return 0 if no data is readable, 1 if data is available
-    return uart_is_readable(uart) ? 1 : 0;
+    uint32_t irq_state = save_and_disable_interrupts();
+    auto     rx        = &rx_info[uart_num];
+    int      used      = rx->count;
+    restore_interrupts(irq_state);
+    return used;
 }
 
 int uart_bufavail(uint32_t uart_num) {
-    // RP2040 UART FIFO is typically 32 bytes
-    // Return available space minus current buffer usage
     int used = uart_buflen(uart_num);
-    return 32 - used;
+    return UART_RX_QUEUE_SIZE - used;
 }
 
 void uart_discard_input(uint32_t uart_num) {
     uart_inst_t* uart = get_uart_instance(uart_num);
-    if (uart == nullptr) {
+    if (uart == nullptr || uart_num >= 2) {
         return;
     }
 
-    // Read and discard any available data
+    uint32_t irq_state = save_and_disable_interrupts();
+    auto     rx        = &rx_info[uart_num];
+    rx->head           = 0;
+    rx->tail           = 0;
+    rx->count          = 0;
+    restore_interrupts(irq_state);
+
+    // Flush any bytes still in the hardware FIFO
     while (uart_is_readable(uart)) {
         uart_getc(uart);
     }

@@ -10,6 +10,7 @@
 #define MAX_N_UARTS 2  // RP2040 has 2 UART instances
 #define MAX_N_I2C 2    // RP2040 has 2 I2C instances
 #define MAX_N_SPI 2    // RP2040 has 2 SPI instances
+#define MAX_N_I2SO 1
 // There are more GPIOs on some chips, but the Pico board only
 // brings out 0-28, with 23-25 used for on-board purposes
 #define MAX_N_GPIO 29  // RP2350 GPIO 0-28 (23, 24, 25, 29 connect to wireless)
@@ -22,7 +23,8 @@ const int BAUD_RATE = 115200;
 
 // Stepping engine options for RP2040
 #define USE_TIMED_STEPPER 1
-#define DEFAULT_STEPPING_ENGINE Stepping::TIMED
+#define MAX_N_PIO 1
+#define DEFAULT_STEPPING_ENGINE Stepping::PIO_ENGINE
 // #define USE_ERROR_ISR_DEBUG  // For debugging stepper ISR timing
 
 // Platform attribute macros

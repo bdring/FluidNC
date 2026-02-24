@@ -44,10 +44,24 @@ namespace Machine {
                                    { Stepping::I2S_STATIC, "I2S_STATIC" },
                                    { Stepping::I2S_STREAM, "I2S_STREAM" },
 #endif
+    #if defined(MAX_N_PIO) && MAX_N_PIO
+                                       { Stepping::PIO_ENGINE, "PIO" },
+    #endif
                                    EnumItem(DEFAULT_STEPPING_ENGINE) };
 
+        static const EnumItem* step_type_item(uint32_t value) {
+            for (const EnumItem* item = stepTypes; item->name; ++item) {
+                if (item->value == value) {
+                    return item;
+                }
+            }
+            return nullptr;
+        }
+
     void Stepping::afterParse() {
-        const char* name = stepTypes[_engine].name;
+            auto        item = step_type_item(_engine);
+            Assert(item, "Invalid stepping engine %d", _engine);
+            const char* name = item->name;
         step_engine      = find_engine(name);
         Assert(step_engine, "Cannot find stepping engine for %s", name);
 #if MAX_N_I2SO
@@ -56,7 +70,9 @@ namespace Machine {
     }
 
     void Stepping::init() {
-        log_info("Stepping:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
+            auto item = step_type_item(_engine);
+            Assert(item, "Invalid stepping engine %d", _engine);
+            log_info("Stepping:" << item->name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
                              << "us Dir Delay:" << _directionDelayUsecs << "us Idle Delay:" << _idleMsecs << "ms");
 
         if (step_engine) {
