@@ -263,7 +263,7 @@ namespace WebUI {
                 AwsFrameInfo* info = (AwsFrameInfo*)arg;
                 for (auto const wsChannel : _wsChannels) {
                     if (wsChannel->id() == num) {
-                        if (info->opcode == WS_TEXT) {
+                        if (info && info->opcode == WS_TEXT) {
                             //data[len]=0; // !!! this should not be safe? but was there before,
                             // will copy to a std::string of specified length to be on the safe side
                             std::string msg((const char*)data, len);

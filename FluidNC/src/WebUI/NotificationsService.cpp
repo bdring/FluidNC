@@ -234,7 +234,7 @@ namespace WebUI {
             //Read & log error message (in debug mode)
             if (atMsgLevel(MsgLevelDebug)) {
                 char      errMsg[150];
-                const int lastError = Notificationclient.lastError(errMsg, sizeof(errMsg));
+                const int lastError = Notificationclient.LAST_ERROR(errMsg, sizeof(errMsg));
                 if (0 == lastError) {
                     errMsg[0] = 0;
                 }

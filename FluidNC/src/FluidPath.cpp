@@ -11,16 +11,19 @@
 #include "string_util.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
-#include <mutex>
+#include "Arduino.h"
 
 Volume SD { "sd" };
 Volume LocalFS { "localfs" };
 
 uint32_t FluidPath::_refcnt = 0;
-static std::mutex sd_refcnt_mutex;
+static SemaphoreHandle_t sd_refcnt_mutex    = nullptr;
 static SemaphoreHandle_t sd_mount_lock = nullptr;
 
-static void ensure_sd_mount_lock() {
+static void ensure_sd_locks() {
+    if (!sd_refcnt_mutex) {
+        sd_refcnt_mutex = xSemaphoreCreateMutex();
+    }
     if (!sd_mount_lock) {
         sd_mount_lock = xSemaphoreCreateBinary();
         if (sd_mount_lock) {
@@ -82,10 +85,10 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
 
 FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_code* ecptr) : std::filesystem::path(canonPath(name, fs)) {
     auto mount = *(++begin());  // Use the path iterator to get the first component
-    _isSD      = mount == "sd";
+    ensure_sd_locks();
+    _isSD = mount == "sd";
 
     if (_isSD) {
-        std::lock_guard<std::mutex> ref_guard(sd_refcnt_mutex);
         if (!config->_sdCard->config_ok) {
             std::error_code ec = FluidError::SDNotConfigured;
             if (ecptr) {
@@ -94,16 +97,13 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
             }
             throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
         }
+        xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
         if (_refcnt == 0) {
-            ensure_sd_mount_lock();
-            if (sd_mount_lock) {
-                xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
-            }
+            xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
             auto ec = sd_mount();
             if (ec) {
-                if (sd_mount_lock) {
-                    xSemaphoreGive(sd_mount_lock);
-                }
+                xSemaphoreGive(sd_mount_lock);
+                xSemaphoreGive(sd_refcnt_mutex);
                 if (ecptr) {
                     *ecptr = ec;
                     return;
@@ -112,12 +112,15 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
             }
         }
         ++_refcnt;
+        xSemaphoreGive(sd_refcnt_mutex);
     }
 }
 
 FluidPath::FluidPath(const FluidPath& o) : path(o), _isSD(o._isSD) {
     if (this != &o && _isSD) {
+        xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
         ++_refcnt;
+        xSemaphoreGive(sd_refcnt_mutex);
     }
 }
 
@@ -133,8 +136,10 @@ FluidPath& FluidPath::operator=(const FluidPath& o) {
     stdfs::path::operator=(o);
 
     _isSD = o._isSD;
-    if (&o != this && _isSD) {
+    if (this != &o && _isSD) {
+        xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
         ++_refcnt;
+        xSemaphoreGive(sd_refcnt_mutex);
     }
     return *this;
 }
@@ -146,11 +151,11 @@ FluidPath& FluidPath::operator=(FluidPath&& o) {
 }
 
 FluidPath::~FluidPath() {
-    std::lock_guard<std::mutex> ref_guard(sd_refcnt_mutex);
+    xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
     if (_isSD && (_refcnt && --_refcnt == 0)) {
+        xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
         sd_unmount();
-        if (sd_mount_lock) {
-            xSemaphoreGive(sd_mount_lock);
-        }
+        xSemaphoreGive(sd_mount_lock);
     }
+    xSemaphoreGive(sd_refcnt_mutex);
 }

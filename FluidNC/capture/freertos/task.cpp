@@ -39,6 +39,7 @@ TickType_t xTaskGetTickCount(void) {
     return inst.current();
 }
 
+extern "C" {
 unsigned long millis() {
     return xTaskGetTickCount() / portTICK_PERIOD_MS;
 }
@@ -54,6 +55,7 @@ void delay(uint32_t value) {
 void delayMicroseconds(uint32_t us) {
     vTaskDelay(us * (portTICK_PERIOD_MS / 1000));  // delay a while
 }
+}  // extern "C"
 
 void cleanupThreads() {
     for (auto const& thread : threads) {

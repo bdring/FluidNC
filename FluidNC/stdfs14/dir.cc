@@ -23,121 +23,103 @@
 // <http://www.gnu.org/licenses/>.
 
 #ifndef _GLIBCXX_USE_CXX11_ABI
-# define _GLIBCXX_USE_CXX11_ABI 1
+#    define _GLIBCXX_USE_CXX11_ABI 1
 #endif
 #ifndef _GNU_SOURCE
 // Cygwin needs this for secure_getenv
-# define _GNU_SOURCE 1
+#    define _GNU_SOURCE 1
 #endif
 
-#include <bits/largefile-config.h>
-#include <experimental/filesystem>
+#include <filesystem>
 
 #ifndef _GLIBCXX_HAVE_DIRENT_H
-# error "the <dirent.h> header is needed to build the Filesystem TS"
+#    error "the <dirent.h> header is needed to build the Filesystem TS"
 #endif
 
 #include <utility>
 #include <stack>
 #include <string.h>
 #include <errno.h>
-#define _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM \
-  namespace experimental { namespace filesystem {
-#define _GLIBCXX_END_NAMESPACE_FILESYSTEM } }
+#define _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM namespace filesystem {
+#define _GLIBCXX_END_NAMESPACE_FILESYSTEM }
 #include "dir-common.h"
 
-namespace fs = std::experimental::filesystem;
+namespace fs    = std::filesystem;
 namespace posix = std::filesystem::__gnu_posix;
 
-struct fs::_Dir : std::filesystem::_Dir_base
-{
-  _Dir(const fs::path& p, bool skip_permission_denied, bool nofollow,
-       error_code& ec)
-  : _Dir_base(p.c_str(), skip_permission_denied, nofollow, ec)
-  {
-    if (!ec)
-      path = p;
-  }
-
-  _Dir(_Dir_base&& d, const path& p) : _Dir_base(std::move(d)), path(p) { }
-
-  _Dir(_Dir&&) = default;
-
-  // Returns false when the end of the directory entries is reached.
-  // Reports errors by setting ec.
-  bool advance(bool skip_permission_denied, error_code& ec) noexcept
-  {
-    if (const auto entp = _Dir_base::advance(skip_permission_denied, ec))
-      {
-	entry = fs::directory_entry{path / entp->d_name};
-	type = get_file_type(*entp);
-	return true;
-      }
-    else if (!ec)
-      {
-	// reached the end
-	entry = {};
-	type = file_type::none;
-      }
-    return false;
-  }
-
-  bool advance(error_code& ec) noexcept { return advance(false, ec); }
-
-  // Returns false when the end of the directory entries is reached.
-  // Reports errors by throwing.
-  bool advance(bool skip_permission_denied = false)
-  {
-    error_code ec;
-    const bool ok = advance(skip_permission_denied, ec);
-    if (ec)
-      _GLIBCXX_THROW_OR_ABORT(filesystem_error(
-	      "directory iterator cannot advance", ec));
-    return ok;
-  }
-
-  bool should_recurse(bool follow_symlink, error_code& ec) const
-  {
-    file_type type = this->type;
-    if (type == file_type::none || type == file_type::unknown)
-    {
-      type = entry.symlink_status(ec).type();
-      if (ec)
-	return false;
+struct fs::_Dir : std::filesystem::_Dir_base {
+    _Dir(const fs::path& p, bool skip_permission_denied, bool nofollow, error_code& ec) :
+        _Dir_base(p.c_str(), skip_permission_denied, nofollow, ec) {
+        if (!ec)
+            path = p;
     }
 
-    if (type == file_type::directory)
-      return true;
-    if (type == file_type::symlink)
-      return follow_symlink && is_directory(entry.status(ec));
-    return false;
-  }
+    _Dir(_Dir_base&& d, const path& p) : _Dir_base(std::move(d)), path(p) {}
 
-  // Return a pathname for the current directory entry, as an _At_path.
-  _Dir_base::_At_path
-  current() const noexcept
-  {
-    const fs::path& p = entry.path();
+    _Dir(_Dir&&) = default;
+
+    // Returns false when the end of the directory entries is reached.
+    // Reports errors by setting ec.
+    bool advance(bool skip_permission_denied, error_code& ec) noexcept {
+        if (const auto entp = _Dir_base::advance(skip_permission_denied, ec)) {
+            entry = fs::directory_entry { path / entp->d_name };
+            type  = get_file_type(*entp);
+            return true;
+        } else if (!ec) {
+            // reached the end
+            entry = {};
+            type  = file_type::none;
+        }
+        return false;
+    }
+
+    bool advance(error_code& ec) noexcept { return advance(false, ec); }
+
+    // Returns false when the end of the directory entries is reached.
+    // Reports errors by throwing.
+    bool advance(bool skip_permission_denied = false) {
+        error_code ec;
+        const bool ok = advance(skip_permission_denied, ec);
+        if (ec)
+            _GLIBCXX_THROW_OR_ABORT(filesystem_error("directory iterator cannot advance", ec));
+        return ok;
+    }
+
+    bool should_recurse(bool follow_symlink, error_code& ec) const {
+        file_type type = this->type;
+        if (type == file_type::none || type == file_type::unknown) {
+            type = entry.symlink_status(ec).type();
+            if (ec)
+                return false;
+        }
+
+        if (type == file_type::directory)
+            return true;
+        if (type == file_type::symlink)
+            return follow_symlink && is_directory(entry.status(ec));
+        return false;
+    }
+
+    // Return a pathname for the current directory entry, as an _At_path.
+    _Dir_base::_At_path current() const noexcept {
+        const fs::path& p = entry.path();
 #if _GLIBCXX_HAVE_DIRFD
-    auto len = std::prev(p.end())->native().size();
-    return {::dirfd(this->dirp), p.c_str(), p.native().size() - len};
+        auto len = std::prev(p.end())->native().size();
+        return { ::dirfd(this->dirp), p.c_str(), p.native().size() - len };
 #else
-    return p.c_str();
+        return p.c_str();
 #endif
-  }
+    }
 
-  // Create a new _Dir for the directory this->entry.path().
-  _Dir
-  open_subdir(bool skip_permission_denied, bool nofollow,
-	      error_code& ec) noexcept
-  {
-    _Dir_base d(current(), skip_permission_denied, nofollow, ec);
-    return _Dir(std::move(d), entry.path());
-  }
+    // Create a new _Dir for the directory this->entry.path().
+    _Dir open_subdir(bool skip_permission_denied, bool nofollow, error_code& ec) noexcept {
+        _Dir_base d(current(), skip_permission_denied, nofollow, ec);
+        return _Dir(std::move(d), entry.path());
+    }
 
-  fs::path		path;
-  directory_entry	entry;
-  file_type		type = file_type::none;
+    fs::path        path;
+    directory_entry entry;
+    file_type       type = file_type::none;
 };
 
 namespace

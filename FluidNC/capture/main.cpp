@@ -1,5 +1,4 @@
-extern void setup();
-extern void loop();
+#include "Main.h"
 
 int main() {
     setup();

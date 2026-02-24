@@ -23,34 +23,30 @@
 // <http://www.gnu.org/licenses/>.
 
 #ifndef _GLIBCXX_USE_CXX11_ABI
-# define _GLIBCXX_USE_CXX11_ABI 1
+#    define _GLIBCXX_USE_CXX11_ABI 1
 #endif
 
-#include <experimental/filesystem>
+// #include <experimental/filesystem>
+#include <filesystem>
 
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 using fs::path;
 
 fs::filesystem_error::~filesystem_error() = default;
 
 constexpr path::value_type path::preferred_separator [[gnu::used]];
 
-path&
-path::remove_filename()
-{
-  if (_M_type == _Type::_Multi)
-    {
-      if (!_M_cmpts.empty())
-	{
-	  auto cmpt = std::prev(_M_cmpts.end());
-	  _M_pathname.erase(cmpt->_M_pos);
-	  _M_cmpts.erase(cmpt);
-	  _M_trim();
-	}
-    }
-  else
-    clear();
-  return *this;
+path& path::remove_filename() {
+    if (_M_type == _Type::_Multi) {
+        if (!_M_cmpts.empty()) {
+            auto cmpt = std::prev(_M_cmpts.end());
+            _M_pathname.erase(cmpt->_M_pos);
+            _M_cmpts.erase(cmpt);
+            _M_trim();
+        }
+    } else
+        clear();
+    return *this;
 }
 
 path&
@@ -535,34 +531,29 @@ fs::hash_value(const path& p) noexcept
   return seed;
 }
 
-#include <experimental/string_view>
+#include <string_view>
 
-std::string
-fs::filesystem_error::_M_gen_what()
-{
-  const std::string pstr1 = _M_path1.u8string();
-  const std::string pstr2 = _M_path2.u8string();
-  experimental::string_view s = this->system_error::what();
-  const size_t len = 18 + s.length()
-    + (pstr1.length() || pstr2.length() ? pstr1.length() + 3 : 0)
-    + (pstr2.length() ? pstr2.length() + 3 : 0);
-  std::string w;
-  w.reserve(len);
-  w = "filesystem error: ";
-  w.append(s.data(), s.length());
-  if (!pstr1.empty())
-    {
-      w += " [";
-      w += pstr1;
-      w += ']';
+std::string fs::filesystem_error::_M_gen_what() {
+    const std::string pstr1 = _M_path1.u8string();
+    const std::string pstr2 = _M_path2.u8string();
+    std::string_view  s     = this->system_error::what();
+    const size_t      len =
+        18 + s.length() + (pstr1.length() || pstr2.length() ? pstr1.length() + 3 : 0) + (pstr2.length() ? pstr2.length() + 3 : 0);
+    std::string w;
+    w.reserve(len);
+    w = "filesystem error: ";
+    w.append(s.data(), s.length());
+    if (!pstr1.empty()) {
+        w += " [";
+        w += pstr1;
+        w += ']';
     }
-  if (!pstr2.empty())
-    {
-      if (pstr1.empty())
-	w += " []";
-      w += " [";
-      w += pstr2;
-      w += ']';
+    if (!pstr2.empty()) {
+        if (pstr1.empty())
+            w += " []";
+        w += " [";
+        w += pstr2;
+        w += ']';
     }
-  return w;
+    return w;
 }

@@ -1,0 +1,534 @@
+// Copyright (c) 2024 - FluidNC RP2040 Port
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
+// RP2040 Non-Volatile Storage (NVS) implementation
+// Simple key-value store using a dedicated flash sector
+
+#include "Driver/NVS.h"
+#include "hardware/flash.h"
+#include "pico/stdlib.h"
+#include <cstring>
+#include <cstdio>
+#include <Arduino.h>
+
+// Simple interrupt save/restore for RP2040
+// These work at any context (early boot, FreeRTOS, etc.)
+static inline uint32_t nvs_save_and_disable_irq() {
+    uint32_t primask;
+    asm volatile("mrs %0, primask" : "=r"(primask) : : "memory");
+    asm volatile("cpsid i" : : : "memory");
+    return primask;
+}
+
+static inline void nvs_restore_irq(uint32_t primask) {
+    asm volatile ("msr primask, %0" : : "r" (primask) : "memory");
+}
+
+// NVS Flash Configuration
+// Custom partition offsets can be defined in platformio.ini via build flags
+// If not defined, default to last 4KB for backward compatibility
+#ifndef NVS_FLASH_OFFSET
+#define NVS_FLASH_OFFSET (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
+#endif
+#ifndef NVS_SECTOR_SIZE
+#define NVS_SECTOR_SIZE FLASH_SECTOR_SIZE  // 4KB sector
+#endif
+#define NVS_MAX_ENTRIES 64
+
+// Record types
+enum RecordType : uint8_t {
+    RType_Empty = 0xFF,
+    RType_Deleted = 0x00,
+    RType_I8 = 0x01,
+    RType_I32 = 0x02,
+    RType_String = 0x03,
+    RType_Blob = 0x04,
+};
+
+// Record header format:
+// [type:1][key_len:1][value_len:2][key:key_len][value:value_len]
+struct RecordHeader {
+    uint8_t type;
+    uint8_t key_len;
+    uint16_t value_len;
+} __attribute__((packed));
+
+// Minimum record size is header + at least 1 byte key
+#define MIN_RECORD_SIZE (sizeof(RecordHeader) + 1)
+
+// Helper to check if a byte is erased (0xFF)
+static bool is_erased(uint8_t val) {
+    return val == 0xFF;
+}
+
+// Helper to check if all bytes in a buffer are erased
+static bool is_buffer_erased(const uint8_t* buf, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        if (!is_erased(buf[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// ========== NVS RAM Buffer Management ==========
+// Static buffer holding the entire NVS sector in RAM
+static uint8_t nvs_buffer[NVS_SECTOR_SIZE];
+static bool nvs_buffer_valid = false;
+
+// Load the NVS sector from flash into the RAM buffer
+static void load_nvs_buffer() {
+    const uint8_t* flash_base = (const uint8_t*)(XIP_BASE + NVS_FLASH_OFFSET);
+    memcpy(nvs_buffer, flash_base, NVS_SECTOR_SIZE);
+    nvs_buffer_valid = true;
+}
+
+// Commit the buffer back to flash by erasing and rewriting the entire sector
+// This is the minimum erase unit and simplest reliable approach
+static bool commit_buffer_to_flash() {
+    // Disable interrupts only for the flash operations
+    //    uint32_t save_irq = nvs_save_and_disable_irq();
+    uint32_t save_irq = save_and_disable_interrupts();
+
+    //    rp2040.idleOtherCore();
+    // Erase the entire NVS sector first (this is the minimum erase unit)
+    flash_range_erase(NVS_FLASH_OFFSET, NVS_SECTOR_SIZE);
+
+    // Write the buffer back in 256-byte page chunks
+    for (size_t i = 0; i < NVS_SECTOR_SIZE; i += FLASH_PAGE_SIZE) {
+        flash_range_program(NVS_FLASH_OFFSET + i, &nvs_buffer[i], FLASH_PAGE_SIZE);
+    }
+
+    //rp2040.resumeOtherCore();
+    // nvs_restore_irq(save_irq);
+    restore_interrupts(save_irq);
+    return false;
+}
+
+// Commit the buffer back to flash
+// Always commits the entire sector for simplicity and reliability
+static bool commit_buffer_pages(uint32_t page_offset, size_t num_pages) {
+    if (num_pages > 2) {
+        return true;  // Error: too many pages
+    }
+    
+    // Always commit the entire buffer to ensure pages are properly erased before writing
+    return commit_buffer_to_flash();
+}
+
+// Get pointer to NVS sector in flash (for reference only)
+static const uint8_t* get_nvs_base() {
+    return (const uint8_t*)(XIP_BASE + NVS_FLASH_OFFSET);
+}
+
+// Find a record by key in the buffer
+// Returns pointer to record value data
+static const uint8_t* find_record(const char* key, uint8_t* out_type, size_t* out_value_len, bool latest_only = true) {
+    const uint8_t* current = nvs_buffer;
+    const uint8_t* last_match = nullptr;
+    size_t last_match_value_len = 0;
+    uint8_t last_match_type = 0;
+    size_t key_len = strlen(key);
+    
+    while (current < nvs_buffer + NVS_SECTOR_SIZE) {
+        if (is_erased(current[0])) {
+            break;
+        }
+        
+        const RecordHeader* header = (const RecordHeader*)current;
+        if (header->key_len == 0 || header->key_len > 255) {
+            break;
+        }
+        
+        size_t record_size = sizeof(RecordHeader) + header->key_len + header->value_len;
+        if (current + record_size > nvs_buffer + NVS_SECTOR_SIZE) {
+            break;
+        }
+        
+        const uint8_t* record_key = current + sizeof(RecordHeader);
+        const uint8_t* record_value = record_key + header->key_len;
+        
+        if (header->key_len == key_len && strncmp((const char*)record_key, key, key_len) == 0) {
+            if (header->type != RType_Deleted) {
+                last_match = record_value;
+                last_match_value_len = header->value_len;
+                last_match_type = header->type;
+            }
+        }
+        
+        current += record_size;
+    }
+
+    if (last_match) {
+        *out_type = last_match_type;
+        *out_value_len = last_match_value_len;
+        return last_match;
+    }
+    return nullptr;
+}
+
+// Find the current write position (end of valid records) in the buffer
+static uint8_t* find_write_position() {
+    uint8_t* current = nvs_buffer;
+
+    while (current < nvs_buffer + NVS_SECTOR_SIZE) {
+        if (is_erased(current[0])) {
+            break;
+        }
+
+        const RecordHeader* header = (const RecordHeader*)current;
+        
+        if (header->key_len == 0 || header->key_len > 255) {
+            break;
+        }
+        
+        size_t record_size = sizeof(RecordHeader) + header->key_len + header->value_len;
+        
+        if (current + record_size > nvs_buffer + NVS_SECTOR_SIZE) {
+            break;
+        }
+
+        current += record_size;
+    }
+
+    return current;
+}
+
+// Forward declaration for compaction function
+static bool compact_sector();
+
+// Detect if NVS sector is corrupted
+static bool detect_corruption() {
+    uint8_t* current = nvs_buffer;
+    
+    while (current < nvs_buffer + NVS_SECTOR_SIZE) {
+        if (is_erased(current[0])) {
+            return false;
+        }
+        
+        const RecordHeader* header = (const RecordHeader*)current;
+        
+        if (header->key_len == 0 || header->key_len > 255) {
+            return true;
+        }
+        
+        size_t record_size = sizeof(RecordHeader) + header->key_len + header->value_len;
+        
+        if (record_size < MIN_RECORD_SIZE || current + record_size > nvs_buffer + NVS_SECTOR_SIZE) {
+            return true;
+        }
+        
+        current += record_size;
+    }
+    
+    return false;
+}
+
+// Write a record - updates buffer and commits affected pages
+
+static bool write_record(const char* key, RecordType type, const void* value, size_t value_len) {
+    uint8_t* write_pos = find_write_position();
+    size_t key_len = strlen(key);
+    size_t record_size = sizeof(RecordHeader) + key_len + value_len;
+
+    // Check if we have space
+    if (write_pos + record_size > nvs_buffer + NVS_SECTOR_SIZE) {
+        if (!compact_sector()) {
+            return true;  // Failure
+        }
+        write_pos = find_write_position();
+        if (write_pos + record_size > nvs_buffer + NVS_SECTOR_SIZE) {
+            return true;  // Failure
+        }
+    }
+
+    // Build the record in the buffer
+    RecordHeader* hdr = (RecordHeader*)write_pos;
+    hdr->type = type;
+    hdr->key_len = key_len;
+    hdr->value_len = value_len;
+
+    uint8_t* buf_key = write_pos + sizeof(RecordHeader);
+    memcpy(buf_key, key, key_len);
+
+    uint8_t* buf_value = buf_key + key_len;
+    if (value && value_len > 0) {
+        memcpy(buf_value, value, value_len);
+    }
+
+    // Calculate which pages need to be written
+    uint32_t record_offset = write_pos - nvs_buffer;
+    uint32_t page_offset = record_offset / FLASH_PAGE_SIZE;
+    uint32_t offset_in_page = record_offset % FLASH_PAGE_SIZE;
+    uint32_t record_end = record_offset + record_size;
+    uint32_t end_page = (record_end + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE;
+    uint32_t num_pages = end_page - page_offset;
+    
+    if (num_pages > 2) {
+        Serial.println("NVS ERROR: Record spans more than 2 pages");
+        return true;
+    }
+
+    return commit_buffer_pages(page_offset, num_pages);
+}
+
+// Compact the buffer by removing deleted records and consolidating duplicates
+static bool compact_sector() {
+    uint8_t compact_buffer[NVS_SECTOR_SIZE];
+    size_t compact_pos = 0;
+    
+    uint8_t* current = nvs_buffer;
+    
+    // First pass: collect non-deleted records, keeping only latest version of each key
+    while (current < nvs_buffer + NVS_SECTOR_SIZE) {
+        if (is_erased(current[0])) {
+            break;
+        }
+        
+        const RecordHeader* hdr = (const RecordHeader*)current;
+        if (hdr->key_len == 0) {
+            break;
+        }
+        
+        size_t rec_size = sizeof(RecordHeader) + hdr->key_len + hdr->value_len;
+        if (current + rec_size > nvs_buffer + NVS_SECTOR_SIZE) {
+            break;
+        }
+        
+        const uint8_t* rec_key = current + sizeof(RecordHeader);
+        
+        // Check if this key appears later (if so, skip this record)
+        bool key_appears_later = false;
+        uint8_t* scan_later = current + rec_size;
+        
+        while (scan_later < nvs_buffer + NVS_SECTOR_SIZE) {
+            if (is_erased(scan_later[0])) {
+                break;
+            }
+            const RecordHeader* scan_hdr = (const RecordHeader*)scan_later;
+            if (scan_hdr->key_len == 0) {
+                break;
+            }
+            size_t scan_size = sizeof(RecordHeader) + scan_hdr->key_len + scan_hdr->value_len;
+            if (scan_later + scan_size > nvs_buffer + NVS_SECTOR_SIZE) {
+                break;
+            }
+            const uint8_t* scan_key = scan_later + sizeof(RecordHeader);
+            
+            if (scan_hdr->key_len == hdr->key_len &&
+                strncmp((const char*)scan_key, (const char*)rec_key, hdr->key_len) == 0) {
+                key_appears_later = true;
+                break;
+            }
+            scan_later += scan_size;
+        }
+        
+        // Copy record if not deleted and this is the latest version
+        if (hdr->type != RType_Deleted && !key_appears_later) {
+            if (compact_pos + rec_size <= NVS_SECTOR_SIZE) {
+                memcpy(&compact_buffer[compact_pos], current, rec_size);
+                compact_pos += rec_size;
+            } else {
+                return true;  // Failure - compacted data doesn't fit
+            }
+        }
+        
+        current += rec_size;
+    }
+    
+
+
+    // Erase and reload the buffer
+    memset(nvs_buffer, 0xFF, NVS_SECTOR_SIZE);
+    if (compact_pos > 0) {
+        memcpy(nvs_buffer, compact_buffer, compact_pos);
+    }
+
+    // Write all pages back to flash
+    uint32_t save_irq = nvs_save_and_disable_irq();
+    flash_range_erase(NVS_FLASH_OFFSET, NVS_SECTOR_SIZE);
+    
+    // Write pages in 256-byte chunks
+    for (size_t i = 0; i < NVS_SECTOR_SIZE; i += FLASH_PAGE_SIZE) {
+        flash_range_program(NVS_FLASH_OFFSET + i, &nvs_buffer[i], FLASH_PAGE_SIZE);
+    }
+    nvs_restore_irq(save_irq);
+    
+
+    return false;  // Success
+}
+
+// NVS class implementation
+
+NVS::NVS(const char* name) {
+    // Store namespace name (we could use it to support multiple namespaces)
+    // For now, we use a single shared storage
+}
+
+bool NVS::init() {
+    // Load the NVS sector from flash into the RAM buffer
+    load_nvs_buffer();
+    
+    // Check for corruption and auto-recover if needed
+    if (detect_corruption()) {
+        erase_all();
+        return true;
+    }
+
+    return false;
+}
+
+bool NVS::get_str(const char* key, char* out_value, size_t* out_len) {
+    uint8_t type;
+    size_t value_len;
+    const uint8_t* value = find_record(key, &type, &value_len);
+
+    if (!value || type != RType_String) {
+        return true;  // Key not found or wrong type
+    }
+
+    if (out_value && out_len) {
+        size_t copy_len = (*out_len > value_len) ? value_len : *out_len - 1;
+        memcpy(out_value, value, copy_len);
+        out_value[copy_len] = '\0';
+        *out_len = value_len;
+    } else if (out_len) {
+        *out_len = value_len;
+    }
+
+    return false;  // Success
+}
+
+bool NVS::set_str(const char* key, const char* value) {
+    if (!key || !value) {
+        return true;
+    }
+    size_t value_len = strlen(value);
+    return !write_record(key, RType_String, value, value_len);
+}
+
+bool NVS::get_i32(const char* key, int32_t* out_value) {
+    uint8_t type;
+    size_t value_len;
+    const uint8_t* value = find_record(key, &type, &value_len);
+
+    if (!value || type != RType_I32 || value_len != sizeof(int32_t)) {
+        return true;  // Key not found or wrong type
+    }
+
+    if (out_value) {
+        memcpy(out_value, value, sizeof(int32_t));
+    }
+
+    return false;  // Success
+}
+
+bool NVS::set_i32(const char* key, int32_t value) {
+    if (!key) {
+        return true;
+    }
+    return !write_record(key, RType_I32, &value, sizeof(int32_t));
+}
+
+bool NVS::get_i8(const char* key, int8_t* out_value) {
+    uint8_t type;
+    size_t value_len;
+    const uint8_t* value = find_record(key, &type, &value_len);
+
+    if (!value || type != RType_I8 || value_len != sizeof(int8_t)) {
+        return true;  // Key not found or wrong type
+    }
+
+    if (out_value) {
+        *out_value = *((int8_t*)value);
+    }
+
+    return false;  // Success
+}
+
+bool NVS::set_i8(const char* key, int8_t value) {
+    if (!key) {
+        return true;
+    }
+    return !write_record(key, RType_I8, &value, sizeof(int8_t));
+}
+
+bool NVS::get_blob(const char* key, void* out_value, size_t* out_len) {
+    uint8_t type;
+    size_t value_len;
+    const uint8_t* value = find_record(key, &type, &value_len);
+
+    if (!value || type != RType_Blob) {
+        return true;  // Key not found or wrong type
+    }
+
+    if (out_value && out_len) {
+        size_t copy_len = (*out_len > value_len) ? value_len : *out_len;
+        memcpy(out_value, value, copy_len);
+        *out_len = value_len;
+    } else if (out_len) {
+        *out_len = value_len;
+    }
+
+    return false;  // Success
+}
+
+bool NVS::set_blob(const char* key, const void* value, size_t value_len) {
+    if (!key || !value) {
+        return true;
+    }
+    return !write_record(key, RType_Blob, value, value_len);
+}
+
+bool NVS::erase_key(const char* key) {
+    if (!key) {
+        return true;
+    }
+    // Write a deleted marker
+    return !write_record(key, RType_Deleted, nullptr, 0);
+}
+
+bool NVS::erase_all() {
+    // Clear the buffer
+    memset(nvs_buffer, 0xFF, NVS_SECTOR_SIZE);
+    
+    // Erase flash and write the erased buffer
+    uint32_t save_irq = nvs_save_and_disable_irq();
+    
+    flash_range_erase(NVS_FLASH_OFFSET, NVS_SECTOR_SIZE);
+    
+    // Write erased pages back
+    for (size_t i = 0; i < NVS_SECTOR_SIZE; i += FLASH_PAGE_SIZE) {
+        flash_range_program(NVS_FLASH_OFFSET + i, &nvs_buffer[i], FLASH_PAGE_SIZE);
+    }
+    
+    nvs_restore_irq(save_irq);
+    return false;  // Success
+}
+
+bool NVS::get_stats(size_t& used, size_t& free, size_t& total) {
+    uint8_t* current = nvs_buffer;
+    size_t used_bytes = 0;
+
+    while (current < nvs_buffer + NVS_SECTOR_SIZE) {
+        if (is_erased(current[0])) {
+            break;
+        }
+
+        const RecordHeader* header = (const RecordHeader*)current;
+        size_t record_size = sizeof(RecordHeader) + header->key_len + header->value_len;
+
+        if (current + record_size > nvs_buffer + NVS_SECTOR_SIZE) {
+            break;
+        }
+
+        used_bytes += record_size;
+        current += record_size;
+    }
+
+    total = NVS_SECTOR_SIZE;
+    used = used_bytes;
+    free = total - used;
+
+    return false;  // Success
+}

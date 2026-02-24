@@ -32,7 +32,6 @@ namespace WebUI {
         int    read(void) override;
         int    peek(void) override;
         int    available() override;
-        void   flush() override {}
         void   flushRx() override;
 
         void closeOnDisconnect();

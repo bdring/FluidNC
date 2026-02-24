@@ -167,6 +167,9 @@ extern void make_settings();
 extern void make_user_commands();
 
 void settings_init() {
+    // Initialize NVS - detects and recovers from corruption
+    nvs.init();
+
     make_settings();
     make_file_commands();
 }
@@ -762,7 +765,7 @@ static Error showBacktrace(const char* value, AuthenticationLevel auth_level, Ch
 #ifdef CRASH_TEST
 static Error forceCrash(const char* value, AuthenticationLevel auth_level, Channel& out) {
     log_stream(out, "Forcing crash by writing to address 0");
-    delay(100);  // Let the message flush
+    delay_ms(100);  // Let the message flush
     *(volatile int*)0 = 0;
     return Error::Ok;  // Never reached
 }
@@ -916,6 +919,13 @@ static Error readGPIO(const char* value, AuthenticationLevel auth_level, Channel
 }
 
 static Error writeGPIOOn(const char* value, AuthenticationLevel auth_level, Channel& out) {
+#if defined PIN_LED
+    if (strcmp(value, "led") == 0) {
+        cyw43_digitalWrite(PIN_LED, HIGH);
+        return Error::Ok;
+    }
+#endif
+
     if (pins.find(value) == pins.end()) {
         Pin* thePin = new Pin(Pin::create(value));
         pins[value] = thePin;
@@ -929,6 +939,13 @@ static Error writeGPIOOn(const char* value, AuthenticationLevel auth_level, Chan
 }
 
 static Error writeGPIOOff(const char* value, AuthenticationLevel auth_level, Channel& out) {
+#if defined PIN_LED
+    if (strcmp(value, "led") == 0) {
+        cyw43_digitalWrite(PIN_LED, LOW);
+        return Error::Ok;
+    }
+#endif
+
     if (pins.find(value) == pins.end()) {
         Pin* thePin = new Pin(Pin::create(value));
         pins[value] = thePin;

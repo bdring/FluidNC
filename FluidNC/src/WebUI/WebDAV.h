@@ -50,7 +50,7 @@ private:
     void sendPropResponse(AsyncResponseStream* response, int level, const stdfs::path& fpath, JSONencoder* j);
 
     void sendXMLResponse(
-        AsyncResponseStream* response, bool is_dir, const std::string& name, const std::string& tag, const std::string& time, uint32_t size);
+        AsyncResponseStream* response, bool is_dir, const std::string& name, const std::string& tag, const std::string& time, size_t size);
 
     std::string urlToUri(std::string url);
 

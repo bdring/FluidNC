@@ -12,6 +12,7 @@
 
 #include "Channel.h"
 #include "FluidPath.h"
+#include "Error.h"
 
 extern "C" {
 #include <stdio.h>
@@ -43,9 +44,6 @@ public:
     int         available() override;
     int         read() override;
     int         peek() override;
-    void        flush() override;
-
-    size_t readBytes(char* buffer, size_t length) override { return read((uint8_t*)buffer, length); }
 
     int read(char* buffer, size_t length);  // read chars from stream into buffer
     int read(uint8_t* buffer, size_t length) { return read((char*)buffer, length); }

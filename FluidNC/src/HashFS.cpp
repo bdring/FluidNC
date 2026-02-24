@@ -36,7 +36,7 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
         // Use the first 32 bytes of the file as a not-very-good "hash"
         inFile.read(shaResult, 32);
 #endif
-    } catch (const Error err) {
+    } catch (const ErrorException& err) {
         log_debug("Cannot hash file " << ipath.string());
         return Error::FsFailedOpenFile;
     }

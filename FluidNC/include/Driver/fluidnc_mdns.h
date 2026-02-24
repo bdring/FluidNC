@@ -3,8 +3,6 @@
 
 #pragma once
 #include "Settings.h"
-#include "esp_wifi.h"
-#include <mdns.h>
 
 namespace WebUI {
     class Mdns : public Module {
@@ -15,6 +13,7 @@ namespace WebUI {
 
         void        init() override;
         void        deinit() override;
+        void        poll() override;
         static void add(const char* service, const char* proto, uint16_t port);
         static void remove(const char* service, const char* proto);
         ~Mdns() {}

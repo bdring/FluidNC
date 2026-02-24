@@ -59,9 +59,11 @@ namespace Machine {
         log_info("Stepping:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
                              << "us Dir Delay:" << _directionDelayUsecs << "us Idle Delay:" << _idleMsecs << "ms");
 
-        uint32_t actual = step_engine->init(_directionDelayUsecs, _pulseUsecs, fStepperTimer, Stepper::pulse_func);
-        if (actual != _pulseUsecs) {
-            log_warn("stepping/pulse_us adjusted to " << actual);
+        if (step_engine) {
+            uint32_t actual = step_engine->init(_directionDelayUsecs, _pulseUsecs, fStepperTimer, Stepper::pulse_func);
+            if (actual != _pulseUsecs) {
+                log_warn("stepping/pulse_us adjusted to " << actual);
+            }
         }
 
         // Register pulse_func with the I2S subsystem

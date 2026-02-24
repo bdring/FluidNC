@@ -2,8 +2,11 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Module.h"
-#include "Mdns.h"
+#include "Driver/fluidnc_mdns.h"
 #include <WiFi.h>
+#include "esp_wifi.h"
+#include <esp_err.h>
+#include <mdns.h>
 
 namespace WebUI {
     EnumSetting* Mdns::_enable;
@@ -38,6 +41,7 @@ namespace WebUI {
             mdns_service_remove(service, proto);
         }
     }
+    void Mdns::poll() {}
 
     ModuleFactory::InstanceBuilder<Mdns> __attribute__((init_priority(107))) mdns_module("mdns", true);
 }

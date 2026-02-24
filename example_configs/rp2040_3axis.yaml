@@ -1,0 +1,59 @@
+// Copyright (c) 2024 - FluidNC RP2040 Port - Machine Configuration
+// Example configuration for a simple 3-axis CNC on RP2040
+
+name: "RP2040 3-Axis CNC"
+board: "Raspberry Pi Pico"
+stepping:
+  engine: "Timed"  # Using timed stepping engine
+
+axes:
+  x:
+    steps_per_mm: 100
+    max_rate_mm_per_min: 1000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 200
+    motor0:
+      type: "standard_stepper"
+      driver: "UartStepper"
+      step_pin: "0.2"    # GPIO 2
+      direction_pin: "0.3"  # GPIO 3
+      
+  y:
+    steps_per_mm: 100
+    max_rate_mm_per_min: 1000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 200
+    motor0:
+      type: "standard_stepper"
+      driver: "UartStepper"
+      step_pin: "0.4"    # GPIO 4
+      direction_pin: "0.5"  # GPIO 5
+      
+  z:
+    steps_per_mm: 100
+    max_rate_mm_per_min: 500
+    acceleration_mm_per_sec2: 30
+    max_travel_mm: 100
+    motor0:
+      type: "standard_stepper"
+      driver: "UartStepper"
+      step_pin: "0.6"    # GPIO 6
+      direction_pin: "0.7"  # GPIO 7
+
+# Control pins
+control:
+  probe_pin: "0.28"     # GPIO 28 for probe
+  feed_hold_pin: "0.26" # GPIO 26 for feed hold
+  cycle_start_pin: "0.27" # GPIO 27 for cycle start
+
+# Coolant control
+coolant:
+  - pin: "0.14"  # GPIO 14 for flood coolant
+    type: "digital"
+
+# Spindle configuration
+spindles:
+  - type: "PWM"
+    output_pin: "0.15"  # GPIO 15 for PWM spindle
+    pwm_freq_hz: 5000
+    rated_rpm: 12000

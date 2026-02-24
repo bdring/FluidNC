@@ -6,7 +6,10 @@
 #include "Logging.h"
 #include <WiFi.h>
 #include "Driver/localfs.h"
+
+#ifndef DISABLE_ARDUINO_OTA
 #include <ArduinoOTA.h>
+#endif
 
 class OTA : public Module {
 public:
@@ -17,6 +20,7 @@ public:
             return;
         }
 
+#ifndef DISABLE_ARDUINO_OTA
         ArduinoOTA
             // By default, ArduinoOTA starts MDNS and advertises itself to the ArduinoIDE
             // We don't care about the Arduino IDE, and we want to start MDNS explicitly
@@ -61,11 +65,20 @@ public:
                 log_info("OTA Error(" << error << "):" << errorName);
             })
             .begin();
+#endif
     }
 
-    void deinit() override { ArduinoOTA.end(); }
+    void deinit() override {
+#ifndef DISABLE_ARDUINO_OTA
+        ArduinoOTA.end();
+#endif
+    }
 
-    void poll() override { ArduinoOTA.handle(); }
+    void poll() override {
+#ifndef DISABLE_ARDUINO_OTA
+        ArduinoOTA.handle();
+#endif
+    }
 
     ~OTA() {}
 };

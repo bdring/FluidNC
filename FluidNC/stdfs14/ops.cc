@@ -23,17 +23,16 @@
 // <http://www.gnu.org/licenses/>.
 
 #ifndef _GLIBCXX_USE_CXX11_ABI
-# define _GLIBCXX_USE_CXX11_ABI 1
-# define NEED_DO_COPY_FILE
-# define NEED_DO_SPACE
+#    define _GLIBCXX_USE_CXX11_ABI 1
+#    define NEED_DO_COPY_FILE
+#    define NEED_DO_SPACE
 #endif
 #ifndef _GNU_SOURCE
 // Cygwin needs this for secure_getenv
-# define _GNU_SOURCE 1
+#    define _GNU_SOURCE 1
 #endif
 
-#include <bits/largefile-config.h>
-#include <experimental/filesystem>
+#include <filesystem>
 #include <functional>
 #include <ostream>
 #include <stack>
@@ -43,52 +42,47 @@
 #include <errno.h>
 #include <limits.h>  // PATH_MAX
 #ifdef _GLIBCXX_HAVE_FCNTL_H
-# include <fcntl.h>  // AT_FDCWD, AT_SYMLINK_NOFOLLOW
+#    include <fcntl.h>  // AT_FDCWD, AT_SYMLINK_NOFOLLOW
 #endif
 #ifdef _GLIBCXX_HAVE_SYS_STAT_H
-# include <sys/stat.h>   // stat, utimensat, fchmodat
+#    include <sys/stat.h>  // stat, utimensat, fchmodat
 #endif
 #ifdef _GLIBCXX_HAVE_SYS_STATVFS_H
-# include <sys/statvfs.h> // statvfs
+#    include <sys/statvfs.h>  // statvfs
 #endif
 #if !_GLIBCXX_USE_UTIMENSAT && _GLIBCXX_HAVE_UTIME_H
-# include <utime.h> // utime
+#    include <utime.h>  // utime
 #endif
 #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
-# define WIN32_LEAN_AND_MEAN
-# include <windows.h>
+#    define WIN32_LEAN_AND_MEAN
+#    include <windows.h>
 #endif
 
-#define _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM \
-  namespace experimental { namespace filesystem {
-#define _GLIBCXX_END_NAMESPACE_FILESYSTEM } }
+#define _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM namespace filesystem {
+#define _GLIBCXX_END_NAMESPACE_FILESYSTEM }
 #include "ops-common.h"
 
-#include <filesystem> // std::filesystem::remove_all
+#include <filesystem>  // std::filesystem::remove_all
 
-namespace fs = std::experimental::filesystem;
+namespace fs    = std::filesystem;
 namespace posix = std::filesystem::__gnu_posix;
 
-fs::path
-fs::absolute(const path& p, const path& base)
-{
-  const bool has_root_dir = p.has_root_directory();
-  const bool has_root_name = p.has_root_name();
-  path abs;
-  if (has_root_dir && has_root_name)
-    abs = p;
-  else
-    {
-      abs = base.is_absolute() ? base : absolute(base);
-      if (has_root_dir)
-	abs = abs.root_name() / p;
-      else if (has_root_name)
-	abs = p.root_name() / abs.root_directory() / abs.relative_path()
-	  / p.relative_path();
-      else
-	abs = abs / p;
+fs::path fs::absolute(const path& p, const path& base) {
+    const bool has_root_dir  = p.has_root_directory();
+    const bool has_root_name = p.has_root_name();
+    path       abs;
+    if (has_root_dir && has_root_name)
+        abs = p;
+    else {
+        abs = base.is_absolute() ? base : absolute(base);
+        if (has_root_dir)
+            abs = abs.root_name() / p;
+        else if (has_root_name)
+            abs = p.root_name() / abs.root_directory() / abs.relative_path() / p.relative_path();
+        else
+            abs = abs / p;
     }
-  return abs;
+    return abs;
 }
 
 namespace

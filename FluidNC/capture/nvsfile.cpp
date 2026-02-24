@@ -4,103 +4,105 @@
 
 namespace stdfs = std::filesystem;
 
-static stdfs::path NVSdir { "native_nvs" };
+class FILE_NVS : public NVS {
+private:
+    stdfs::path NVSdir { "native_nvs" };
 
-static stdfs::path munge(const char* name) {
-    std::string mname(name);
-    std::replace(mname.begin(), mname.end(), '/', '.');
-    return NVSdir / mname;
-}
+    stdfs::path munge(const char* name) {
+        std::string mname(name);
+        std::replace(mname.begin(), mname.end(), '/', '.');
+        return NVSdir / mname;
+    }
 
-NVS::NVS(const char* name) {
-    stdfs::create_directory(NVSdir);
-}
+public:
+    FILE_NVS(const char* name) : NVS(name) { stdfs::create_directory(NVSdir); }
 
-bool NVS::get_blob(const char* name, void* value, size_t* len) {
-    std::ifstream file(munge(name));
-    if (file.is_open()) {
-        file.read((char*)value, *len);
-        *len = file.gcount();
-        return false;
+    bool init() override { return false; }
+    bool get_i32(const char* key, int32_t* out_value) override {
+        std::ifstream file(munge(key));
+        if (file.is_open()) {
+            file.read((char*)out_value, 4);
+            return false;
+        }
+        return true;
     }
-    *len = 0;
-    return true;
-}
-
-bool NVS::get_str(const char* name, char* value, size_t* len) {
-    std::ifstream file(munge(name));
-    if (file.is_open()) {
-        file.read(value, *len);
-        *len        = file.gcount();
-        value[*len] = '\0';
-        return false;
+    bool get_i8(const char* key, int8_t* out_value) override {
+        std::ifstream file(munge(key));
+        if (file.is_open()) {
+            file.read((char*)out_value, 1);
+            return false;
+        }
+        return true;
     }
-    *len = 0;
-    return true;
-}
-bool NVS::set_blob(const char* name, const void* value, size_t length) {
-    std::ofstream file(munge(name));
-    if (file.is_open()) {
-        file.write((const char*)value, length);
-        return false;
+    bool get_str(const char* key, char* out_value, size_t* length) override {
+        std::ifstream file(munge(key));
+        if (file.is_open()) {
+            file.read(out_value, *length);
+            *length            = file.gcount();
+            out_value[*length] = '\0';
+            return false;
+        }
+        *length = 0;
+        return true;
     }
-    return true;
-}
-
-bool NVS::set_str(const char* name, const char* value) {
-    std::ofstream file(munge(name));
-    if (file.is_open()) {
-        file.write(value, strlen(value));
-        return false;
+    bool get_blob(const char* key, void* out_value, size_t* length) override {
+        std::ifstream file(munge(key));
+        if (file.is_open()) {
+            file.read((char*)out_value, *length);
+            *length = file.gcount();
+            return false;
+        }
+        *length = 0;
+        return true;
     }
-    return true;
-}
-
-bool NVS::get_i8(const char* name, int8_t* value) {
-    std::ifstream file(munge(name));
-    if (file.is_open()) {
-        file.read((char*)value, 1);
-        return false;
+    bool erase_key(const char* key) override {
+        std::error_code ec;
+        stdfs::remove(munge(key), ec);
+        return !!ec;
     }
-    return true;
-}
-bool NVS::get_i32(const char* name, int32_t* value) {
-    std::ifstream file(munge(name));
-    if (file.is_open()) {
-        file.read((char*)value, 4);
-        return false;
+    bool erase_all() override {
+        std::error_code ec;
+        stdfs::remove_all(NVSdir, ec);
+        return !!ec;
     }
-    return true;
-}
-bool NVS::set_i8(const char* name, int8_t value) {
-    std::ofstream file(munge(name));
-    if (file.is_open()) {
-        file.write((char*)&value, 1);
-        return false;
+    bool set_i8(const char* key, int8_t value) override {
+        std::ofstream file(munge(key));
+        if (file.is_open()) {
+            file.write((char*)&value, 1);
+            return false;
+        }
+        return true;
     }
-    return true;
-}
-bool NVS::set_i32(const char* name, int32_t value) {
-    std::ofstream file(munge(name));
-    if (file.is_open()) {
-        file.write((char*)&value, 4);
-        return false;
+    bool set_i32(const char* key, int32_t value) override {
+        std::ofstream file(munge(key));
+        if (file.is_open()) {
+            file.write((char*)&value, 4);
+            return false;
+        }
+        return true;
     }
-    return true;
-}
-bool NVS::erase_key(const char* name) {
-    std::error_code ec;
-    stdfs::remove(munge(name), ec);
-    return !!ec;
-}
-bool NVS::erase_all() {
-    std::error_code ec;
-    stdfs::remove_all(NVSdir, ec);
-    return !!ec;
-}
-bool NVS::get_stats(size_t& used, size_t& free, size_t& total) {
-    used  = 0;
-    free  = 0;
-    total = 0;
-    return true;
-}
+    bool set_str(const char* key, const char* value) override {
+        std::ofstream file(munge(key));
+        if (file.is_open()) {
+            file.write(value, strlen(value));
+            return false;
+        }
+        return true;
+    }
+    bool set_blob(const char* key, const void* value, size_t length) override {
+        std::ofstream file(munge(key));
+        if (file.is_open()) {
+            file.write((const char*)value, length);
+            return false;
+        }
+        return true;
+    }
+    bool get_stats(size_t& used, size_t& free, size_t& total) override {
+        used  = 0;
+        free  = 0;
+        total = 0;
+        return true;
+    }
+};
+FILE_NVS file_nvs("FluidNC");
+NVS&     nvs = file_nvs;

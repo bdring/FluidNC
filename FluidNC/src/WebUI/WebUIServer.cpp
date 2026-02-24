@@ -4,15 +4,19 @@
 #include "Machine/MachineConfig.h"
 #include "Serial.h"    // is_realtime_command()
 #include "Settings.h"  // settings_execute_line()
+#include "Error.h"     // ErrorException
 
 #include "WebUIServer.h"
 
-#include "Mdns.h"
+#include "Driver/fluidnc_mdns.h"
 
 #include <WiFi.h>
 #include <StreamString.h>
-#include <Update.h>
-#include <esp_wifi_types.h>
+#ifdef ESP32
+#    include <Update.h>
+#    include <esp_wifi_types.h>
+#    include <esp_ota_ops.h>
+#endif
 #include <DNSServer.h>
 
 #include "WSChannel.h"
@@ -28,8 +32,11 @@
 
 #include "Mime.h"  // getContentType
 
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
+#ifdef ESP32
+// #    include <AsyncTCP.h>
+#else
+#    include <RPAsyncTCP.h>
+#endif
 #include "WebDAV.h"
 
 namespace WebUI {
@@ -38,8 +45,6 @@ namespace WebUI {
 }
 
 using namespace asyncsrv;
-
-#include <esp_ota_ops.h>
 
 //embedded response file if no files on LocalFS
 #include "NoFile.h"
@@ -144,7 +149,11 @@ namespace WebUI {
         _socket_server = new AsyncWebSocket("/");
 
         _socket_server->addMiddleware([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
-            current_session = getSessionCookie(request);
+            current_session        = getSessionCookie(request);
+            const char* upgrade    = request->hasHeader("Upgrade") ? request->getHeader("Upgrade")->value().c_str() : "";
+            const char* connection = request->hasHeader("Connection") ? request->getHeader("Connection")->value().c_str() : "";
+            const char* protocol =
+                request->hasHeader("Sec-WebSocket-Protocol") ? request->getHeader("Sec-WebSocket-Protocol")->value().c_str() : "";
             next();  // continue middleware chain
         });
         // Passing the current_session globally, lets hope there is no async switch back of other requests to change this in between
@@ -181,8 +190,10 @@ namespace WebUI {
         //LocalFS
         _webserver->on("/files", HTTP_ANY, handleFileList, LocalFSFileupload);
 
+#ifdef ESP32
         //web update
         _webserver->on("/updatefw", HTTP_ANY, handleUpdate, WebUpdateUpload);
+#endif
 
         //Direct SD management
         _webserver->on("/upload", HTTP_ANY, handle_direct_SDFileList, SDFileUpload);
@@ -340,8 +351,8 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file   = NULL;
         try {
-            file = new FileStream(path, "r", LocalFS);
-        } catch (const Error err) {
+            file = new FileStream(fpath, "r", LocalFS);
+        } catch (const ErrorException& err) {
             if (acceptGz) {
                 try {
                     std::string gzpath(fpath);
@@ -349,7 +360,7 @@ namespace WebUI {
                     gzpath += ".gz";
                     file   = new FileStream(gzpath, "r", LocalFS);
                     isGzip = true;
-                } catch (const Error err) {}
+                } catch (const ErrorException& err) {}
             }
         }
         if (!file) {
@@ -451,6 +462,10 @@ namespace WebUI {
 
     // Handle filenames and other things that are not explicitly registered
     void WebUI_Server::handle_not_found(AsyncWebServerRequest* request) {
+        const char* upgrade    = request->hasHeader("Upgrade") ? request->getHeader("Upgrade")->value().c_str() : "";
+        const char* connection = request->hasHeader("Connection") ? request->getHeader("Connection")->value().c_str() : "";
+        const char* protocol =
+            request->hasHeader("Sec-WebSocket-Protocol") ? request->getHeader("Sec-WebSocket-Protocol")->value().c_str() : "";
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             request->redirect("/");
             //_webserver->client().stop();
@@ -529,7 +544,7 @@ namespace WebUI {
     }
 
     std::string getSession(AsyncClient* client) {
-        return (std::to_string(IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
+        return (std::to_string((uint32_t)IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
     }
     void WebUI_Server::websocketCommand(AsyncWebServerRequest* request, const char* cmd, uint32_t pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
@@ -561,11 +576,15 @@ namespace WebUI {
             // Modified async hack // no longer needed...
             //if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") || cmdUpper.startsWith("$ESP") {
             // Original check (now also work with $ESP400, but is slower than if it was returned as http response)
+#if 1
             if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/")) {
                 synchronousCommand(request, cmd.c_str(), silent, auth_level, isAllowedInMotion(cmdUpper));
             } else {
                 websocketCommand(request, cmd.c_str(), getPageid(request), auth_level);
             }
+#else
+            synchronousCommand(request, cmd.c_str(), silent, auth_level, isAllowedInMotion(cmdUpper));
+#endif
             return;
         }
         if (request->hasParam("plain")) {
@@ -897,6 +916,7 @@ namespace WebUI {
         }
     }
 
+#ifdef ESP32
     //File upload for Web update
     void WebUI_Server::WebUpdateUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
         static size_t   last_upload_update;
@@ -979,6 +999,7 @@ namespace WebUI {
             }
         }
     }
+#endif
 
     void WebUI_Server::handleFileOps(AsyncWebServerRequest* request, const Volume& fs) {
         //this is only for admin and user
@@ -1165,7 +1186,7 @@ namespace WebUI {
             try {
                 _uploadFile    = new FileStream(fpath, "w");
                 _upload_status = UploadStatus::ONGOING;
-            } catch (const Error err) {
+            } catch (const ErrorException& err) {
                 _uploadFile    = nullptr;
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload failed - cannot create file");
@@ -1210,7 +1231,7 @@ namespace WebUI {
                 size_t actual_size;
                 try {
                     actual_size = stdfs::file_size(filepath);
-                } catch (const Error err) { actual_size = 0; }
+                } catch (const ErrorException& err) { actual_size = 0; }
 
                 if (filesize != actual_size) {
                     _upload_status = UploadStatus::FAILED;

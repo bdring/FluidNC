@@ -25,6 +25,8 @@
 
 #    include "ToolChangers/atc.h"
 
+#    include "Arduino.h"
+
 extern void make_user_commands();
 
 void setup() {
@@ -155,7 +157,7 @@ void setup() {
 
     } catch (std::exception& ex) {
         // Log exception:
-        log_config_error("Critical error in main_init: " << ex.what());
+        log_config_error("Critical error in setup(): " << ex.what());
     }
 
     poll_gpios();  // Initial poll to send events for initial pin states
@@ -170,7 +172,7 @@ void loop() {
     static size_t tries = 0;
     try {
         // Start the main loop. Processes program inputs and executes them.
-        // This can exit on a system abort condition, in which case run_once()
+        // This can exit on a system abort condition, in which case loop()
         // is re-executed by an enclosing loop.  It can also exit via a
         // throw that is caught and handled below.
         protocol_main_loop();
@@ -182,11 +184,11 @@ void loop() {
         // that precedes the input loop has few configuration
         // dependencies.  The safest approach would be to set
         // a "reconfiguration" flag and redo the configuration
-        // step, but that would require combining main_init()
-        // and run_once into a single control flow, and it would
+        // step, but that would require combining setup()
+        // and loop() into a single control flow, and it would
         // require careful teardown of the existing configuration
         // to avoid memory leaks. It is probably worth doing eventually.
-        log_config_error("Critical error in run_once: " << ex.what());
+        log_config_error("Critical error in loop(): " << ex.what());
     }
     // sys.abort is a user-initiated exit via ^x so we don't limit the number of occurrences
     if (!sys.abort() && ++tries > 1) {
@@ -194,7 +196,6 @@ void loop() {
         while (1) {}
     }
 }
+#endif
 
 void WEAK_LINK machine_init() {}
-
-#endif

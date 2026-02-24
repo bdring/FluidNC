@@ -55,8 +55,8 @@
 #include <algorithm>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
 
-std::mutex AllChannels::_mutex_general;
-std::mutex AllChannels::_mutex_pollLine;
+SemaphoreHandle_t AllChannels::_mutex_general = xSemaphoreCreateMutex();
+SemaphoreHandle_t AllChannels::_mutex_pollLine = xSemaphoreCreateMutex();
 
 void heapCheckTask(void* pvParameters) {
     static uint32_t heapSize = 0;
@@ -91,96 +91,96 @@ void AllChannels::kill(Channel* channel) {
 }
 
 void AllChannels::registration(Channel* channel) {
-    _mutex_general.lock();
-    _mutex_pollLine.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
+    xSemaphoreTake(_mutex_pollLine, portMAX_DELAY);
     _channelq.push_back(channel);
-    _mutex_pollLine.unlock();
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_pollLine);
+    xSemaphoreGive(_mutex_general);
 }
 void AllChannels::deregistration(Channel* channel) {
-    _mutex_general.lock();
-    _mutex_pollLine.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
+    xSemaphoreTake(_mutex_pollLine, portMAX_DELAY);
     if (channel == _lastChannel) {
         _lastChannel = nullptr;
     }
     _channelq.erase(std::remove(_channelq.begin(), _channelq.end(), channel), _channelq.end());
-    _mutex_pollLine.unlock();
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_pollLine);
+    xSemaphoreGive(_mutex_general);
 }
 
 void AllChannels::listChannels(Channel& out) {
-    _mutex_general.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
     std::string retval;
     for (auto channel : _channelq) {
         log_stream(out, channel->name());
     }
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_general);
 }
 
 void AllChannels::flushRx() {
-    _mutex_general.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
     for (auto channel : _channelq) {
         channel->flushRx();
     }
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_general);
 }
 
 size_t AllChannels::write(uint8_t data) {
-    _mutex_general.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
     for (auto channel : _channelq) {
         channel->write(data);
     }
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_general);
     return 1;
 }
 void AllChannels::notifyOvr(void) {
-    _mutex_general.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
     for (auto channel : _channelq) {
         channel->notifyOvr();
     }
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_general);
 }
 
 void AllChannels::notifyWco(void) {
-    _mutex_general.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
     for (auto channel : _channelq) {
         channel->notifyWco();
     }
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_general);
 }
 void AllChannels::notifyNgc(CoordIndex coord) {
-    _mutex_general.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
     for (auto channel : _channelq) {
         channel->notifyNgc(coord);
     }
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_general);
 }
 
 size_t AllChannels::write(const uint8_t* buffer, size_t length) {
-    _mutex_general.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
     for (auto channel : _channelq) {
         channel->write(buffer, length);
     }
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_general);
     return length;
 }
 void AllChannels::print_msg(MsgLevel level, const char* msg) {
-    _mutex_general.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
     for (auto channel : _channelq) {
         channel->print_msg(level, msg);
     }
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_general);
 }
 
 Channel* AllChannels::find(const std::string_view name) {
-    _mutex_general.lock();
+    xSemaphoreTake(_mutex_general, portMAX_DELAY);
     for (auto channel : _channelq) {
         if (channel->name() == name) {
-            _mutex_general.unlock();
+            xSemaphoreGive(_mutex_general);
             return channel;
         }
     }
-    _mutex_general.unlock();
+    xSemaphoreGive(_mutex_general);
     return nullptr;
 }
 Channel* AllChannels::poll(char* line) {
@@ -193,17 +193,17 @@ Channel* AllChannels::poll(char* line) {
     // To avoid starving other channels when one has a lot
     // of traffic, we poll the other channels before the last
     // one that returned a line.
-    _mutex_pollLine.lock();
+    xSemaphoreTake(_mutex_pollLine, portMAX_DELAY);
 
     for (auto channel : _channelq) {
         // Skip the last channel in the loop
         if (channel != _lastChannel && channel->pollLine(line) == Error::Ok) {
             _lastChannel = channel;
-            _mutex_pollLine.unlock();
+            xSemaphoreGive(_mutex_pollLine);
             return _lastChannel;
         }
     }
-    _mutex_pollLine.unlock();
+    xSemaphoreGive(_mutex_pollLine);
     // If no other channel returned a line, try the last one
     if (_lastChannel && _lastChannel->pollLine(line) == Error::Ok) {
         return _lastChannel;

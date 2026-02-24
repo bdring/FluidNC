@@ -7,10 +7,13 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <semaphore>
+
 struct QueueHandle {
-    std::mutex mutex;
+    std::mutex              mutex;
     std::condition_variable not_empty_cv;
     std::condition_variable not_full_cv;
+    std::binary_semaphore   sem { 0 };
 
     size_t numberItems = 16;
     size_t entrySize   = 1;

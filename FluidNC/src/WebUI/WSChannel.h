@@ -23,8 +23,6 @@ namespace WebUI {
 
         inline size_t write(const char* s) { return write((uint8_t*)s, ::strlen(s)); }
 
-        void flush(void) override {}
-
         objnum_t id() { return _clientNum; }
 
         int      rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
@@ -61,7 +59,7 @@ namespace WebUI {
         static AsyncWebSocket*         _server;
 
         static WSChannel* _lastWSChannel;
-        static WSChannel* getWSChannel(uint32_t pageid, std::string session);
+        static WSChannel* getWSChannel(objnum_t pageid, std::string session);
 
     public:
         static void removeChannel(WSChannel* channel);

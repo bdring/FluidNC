@@ -3,5 +3,11 @@
 
 #pragma once
 
-void main_init();
-void run_once();
+#ifdef ARDUINO_ARCH_RP2040
+extern "C" {
+#endif
+void setup();
+void loop();
+#ifdef ARDUINO_ARCH_RP2040
+}
+#endif
