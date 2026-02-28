@@ -9,6 +9,11 @@ dependencies:
     version: ^3.4.8
   espressif/esp_tinyusb: "^2.0.1"
   espressif/usb_host_uvc: "^2.3.1"
+  espressif/usb_host_vcp: "^1.0.0"
+  espressif/usb_host_cdc_acm: "^2.0.0"
+  espressif/usb_host_ch34x_vcp: "^2.2.0"
+  espressif/usb_host_cp210x_vcp: "^2.0.0"
+  espressif/usb_host_ftdi_vcp: "^2.0.0"
   ## Required IDF version
   idf:
     version: ">=5.0.0,<5.9.9"
