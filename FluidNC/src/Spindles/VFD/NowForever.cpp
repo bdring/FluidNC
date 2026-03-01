@@ -1,11 +1,11 @@
-#include "GenericProtocol.h"
+#include "ModbusVFD.h"
 
 namespace Spindles {
     namespace VFD {
-        class NowForever : public GenericProtocol {
+        class NowForever : public ModbusVFD {
         public:
             NowForever() :
-                GenericProtocol("NowForever",
+                ModbusVFD("NowForever",
                                 0xffffffff,                                  // min_rpm
                                 0xffffffff,                                  // max_rpm
                                 "10 09 00 00 01 02 00 01 > echo",            // cw

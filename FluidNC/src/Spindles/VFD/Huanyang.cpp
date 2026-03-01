@@ -1,11 +1,11 @@
-#include "GenericProtocol.h"
+#include "ModbusVFD.h"
 
 namespace Spindles {
     namespace VFD {
-        class Huanyang : public GenericProtocol {
+        class Huanyang : public ModbusVFD {
         public:
             Huanyang() :
-                GenericProtocol("Huanyang",
+                ModbusVFD("Huanyang",
                                 0xffffffff,                                 // min_rpm
                                 0xffffffff,                                 // max_rpm
                                 "03 01 01 > echo",                          // cw

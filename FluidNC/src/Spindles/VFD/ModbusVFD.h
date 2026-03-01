@@ -9,7 +9,7 @@
 
 namespace Spindles {
     namespace VFD {
-        class GenericProtocol : public VFDProtocol, Configuration::Configurable {
+        class ModbusVFD : public VFDProtocol, Configuration::Configurable {
         private:
             void scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM);
             bool set_data(std::string_view                 token,
@@ -46,24 +46,24 @@ namespace Spindles {
 
             VFDSpindle* spindle;
 
-            bool        parser(const uint8_t* response, VFDSpindle* spindle, GenericProtocol* protocol);
+            bool        parser(const uint8_t* response, VFDSpindle* spindle, ModbusVFD* protocol);
             void        send_vfd_command(const std::string cmd, ModbusCommand& data, uint32_t out);
             std::string _response_format;
             void        setup_speeds(VFDSpindle* vfd);
 
         public:
-            GenericProtocol() {}
-            GenericProtocol(const char* model) : _model(model) {}
-            GenericProtocol(const char* model,
-                            uint32_t    min_rpm,
-                            uint32_t    max_rpm,
-                            const char* cw_cmd,
-                            const char* ccw_cmd,
-                            const char* off_cmd,
-                            const char* set_rpm_cmd,
-                            const char* get_min_rpm_cmd,
-                            const char* get_max_rpm_cmd,
-                            const char* get_rpm_cmd) :
+            ModbusVFD() {}
+            ModbusVFD(const char* model) : _model(model) {}
+            ModbusVFD(const char* model,
+                      uint32_t    min_rpm,
+                      uint32_t    max_rpm,
+                      const char* cw_cmd,
+                      const char* ccw_cmd,
+                      const char* off_cmd,
+                      const char* set_rpm_cmd,
+                      const char* get_min_rpm_cmd,
+                      const char* get_max_rpm_cmd,
+                      const char* get_rpm_cmd) :
                 _model(model), _minRPM(min_rpm), _maxRPM(max_rpm), _cw_cmd(cw_cmd), _ccw_cmd(ccw_cmd), _off_cmd(off_cmd),
                 _set_rpm_cmd(set_rpm_cmd), _get_min_rpm_cmd(get_min_rpm_cmd), _get_max_rpm_cmd(get_max_rpm_cmd), _get_rpm_cmd(get_rpm_cmd) {}
 

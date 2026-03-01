@@ -1,11 +1,11 @@
-#include "GenericProtocol.h"
+#include "ModbusVFD.h"
 
 namespace Spindles {
     namespace VFD {
-        class SiemensV20 : public GenericProtocol {
+        class SiemensV20 : public ModbusVFD {
         public:
             SiemensV20() :
-                GenericProtocol("SiemensV20",
+                ModbusVFD("SiemensV20",
                                 0,                                        // min_rpm
                                 24000,                                    // max_rpm
                                 "06 00 63 0C 7F > echo",                  // cw

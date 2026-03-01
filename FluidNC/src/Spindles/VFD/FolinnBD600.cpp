@@ -1,11 +1,11 @@
-#include "GenericProtocol.h"
+#include "ModbusVFD.h"
 
 namespace Spindles {
     namespace VFD {
-        class FolinnBD600 : public GenericProtocol {
+        class FolinnBD600 : public ModbusVFD {
         public:
             FolinnBD600() :
-                GenericProtocol("FolinnBD600",
+                ModbusVFD("FolinnBD600",
                                 0xffffffff,                         // min_rpm
                                 0xffffffff,                         // max_rpm
                                 "06 10 00 00 02 > echo",            // cw

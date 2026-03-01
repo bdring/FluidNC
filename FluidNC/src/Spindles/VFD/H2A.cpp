@@ -1,11 +1,11 @@
-#include "GenericProtocol.h"
+#include "ModbusVFD.h"
 
 namespace Spindles {
     namespace VFD {
-        class H2A : public GenericProtocol {
+        class H2A : public ModbusVFD {
         public:
             H2A() :
-                GenericProtocol("H2A",
+                ModbusVFD("H2A",
                                 6000,                                // min_rpm
                                 0xffffffff,                          // max_rpm
                                 "06 20 00 00 01 > echo",             // cw

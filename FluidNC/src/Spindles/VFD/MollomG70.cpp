@@ -1,11 +1,11 @@
-#include "GenericProtocol.h"
+#include "ModbusVFD.h"
 
 namespace Spindles {
     namespace VFD {
-        class MollomG70 : public GenericProtocol {
+        class MollomG70 : public ModbusVFD {
         public:
             MollomG70() :
-                GenericProtocol("MollomG70",
+                ModbusVFD("MollomG70",
                 0xffffffff,                              // min_rpm
                 0xffffffff,                              // max_rpm
                 "06 20 00 00 01 > echo",                 // cw

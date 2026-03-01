@@ -1,7 +1,7 @@
 // Copyright (c) 2021 -  Marco Wagner
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "GenericProtocol.h"
+#include "ModbusVFD.h"
 
 #include "Spindles/VFDSpindle.h"
 
@@ -10,7 +10,7 @@
 
 namespace Spindles {
     namespace VFD {
-        void GenericProtocol::scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM) {
+        void ModbusVFD::scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM) {
             int32_t divider = 1;
             if (scale_str.empty()) {
                 return;
@@ -54,7 +54,7 @@ namespace Spindles {
             n /= divider;
         }
 
-        bool GenericProtocol::set_data(
+        bool ModbusVFD::set_data(
             std::string_view token, std::basic_string_view<uint8_t>& response_view, const char* name, uint32_t& data, bool is_big_endian) {
             /**
              *  Match token with name and process data accordingly
@@ -84,7 +84,7 @@ namespace Spindles {
             }
             return false;
         }
-        bool GenericProtocol::parser(const uint8_t* response, VFDSpindle* spindle, GenericProtocol* instance) {
+        bool ModbusVFD::parser(const uint8_t* response, VFDSpindle* spindle, ModbusVFD* instance) {
             /**
              * Process the response from our request using the format specified in the configuration
              * 
@@ -160,7 +160,7 @@ namespace Spindles {
             }
             return true;
         }
-        void GenericProtocol::send_vfd_command(const std::string cmd, ModbusCommand& data, uint32_t out) {
+        void ModbusVFD::send_vfd_command(const std::string cmd, ModbusCommand& data, uint32_t out) {
             /**
              * Build the data frame for the modbus command based on configured format
              * 
@@ -246,7 +246,7 @@ namespace Spindles {
                 }
             }
         }
-        void GenericProtocol::direction_command(SpindleState mode, ModbusCommand& data) {
+        void ModbusVFD::direction_command(SpindleState mode, ModbusCommand& data) {
             switch (mode) {
                 case SpindleState::Cw:
                     send_vfd_command(_cw_cmd, data, 0);
@@ -260,24 +260,24 @@ namespace Spindles {
             }
         }
 
-        void GenericProtocol::set_speed_command(uint32_t speed, ModbusCommand& data) {
+        void ModbusVFD::set_speed_command(uint32_t speed, ModbusCommand& data) {
             send_vfd_command(_set_rpm_cmd, data, speed);
         }
 
-        VFDProtocol::response_parser GenericProtocol::get_current_speed(ModbusCommand& data) {
+        VFDProtocol::response_parser ModbusVFD::get_current_speed(ModbusCommand& data) {
             send_vfd_command(_get_rpm_cmd, data, 0);
             return [](const uint8_t* response, VFDSpindle* spindle, VFDProtocol* protocol) -> bool {
-                auto instance = static_cast<GenericProtocol*>(protocol);
+                auto instance = static_cast<ModbusVFD*>(protocol);
                 return instance->parser(response, spindle, instance);
             };
         }
 
-        void GenericProtocol::setup_speeds(VFDSpindle* vfd) {
+        void ModbusVFD::setup_speeds(VFDSpindle* vfd) {
             vfd->shelfSpeeds(_minRPM, _maxRPM);
             vfd->setupSpeeds(_maxRPM);
             vfd->_slop = 300;
         }
-        VFDProtocol::response_parser GenericProtocol::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
+        VFDProtocol::response_parser ModbusVFD::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
             // BUG:
             //
             // If we do:
@@ -293,14 +293,14 @@ namespace Spindles {
             if (_maxRPM == 0xffffffff && !_get_max_rpm_cmd.empty()) {
                 send_vfd_command(_get_max_rpm_cmd, data, 0);
                 return [](const uint8_t* response, VFDSpindle* spindle, VFDProtocol* protocol) -> bool {
-                    auto instance = static_cast<GenericProtocol*>(protocol);
+                    auto instance = static_cast<ModbusVFD*>(protocol);
                     return instance->parser(response, spindle, instance);
                 };
             }
             if (_minRPM == 0xffffffff && !_get_min_rpm_cmd.empty()) {
                 send_vfd_command(_get_min_rpm_cmd, data, 0);
                 return [](const uint8_t* response, VFDSpindle* spindle, VFDProtocol* protocol) -> bool {
-                    auto instance = static_cast<GenericProtocol*>(protocol);
+                    auto instance = static_cast<ModbusVFD*>(protocol);
                     return instance->parser(response, spindle, instance);
                 };
             }
@@ -312,7 +312,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, GenericProtocol> registration("ModbusVFD");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, ModbusVFD> registration("ModbusVFD");
         }
     }
 }
