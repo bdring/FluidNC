@@ -34,49 +34,48 @@ namespace Machine {
     uint32_t Stepping::_directionDelayUsecs = 0;
     uint32_t Stepping::_disableDelayUsecs   = 0;
 
-    step_engine_t* Stepping::step_engine;
+    step_engine_t* Stepping::_step_engine;
 
     const EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
 #if MAX_N_RMT
                                    { Stepping::RMT_ENGINE, "RMT" },
 #endif
 #if MAX_N_I2SO
-                                   { Stepping::I2S_STATIC, "I2S_STATIC" },
-                                   { Stepping::I2S_STREAM, "I2S_STREAM" },
+                                   { Stepping::I2S_STATIC, "I2S_STATIC" }, { Stepping::I2S_STREAM, "I2S_STREAM" },
 #endif
-    #if defined(MAX_N_PIO) && MAX_N_PIO
-                                       { Stepping::PIO_ENGINE, "PIO" },
-    #endif
+#if defined(MAX_N_PIO) && MAX_N_PIO
+                                   { Stepping::PIO_ENGINE, "PIO" },
+#endif
                                    EnumItem(DEFAULT_STEPPING_ENGINE) };
 
-        static const EnumItem* step_type_item(uint32_t value) {
-            for (const EnumItem* item = stepTypes; item->name; ++item) {
-                if (item->value == value) {
-                    return item;
-                }
+    static const EnumItem* step_type_item(uint32_t value) {
+        for (const EnumItem* item = stepTypes; item->name; ++item) {
+            if (item->value == value) {
+                return item;
             }
-            return nullptr;
         }
+        return nullptr;
+    }
 
     void Stepping::afterParse() {
-            auto        item = step_type_item(_engine);
-            Assert(item, "Invalid stepping engine %d", _engine);
-            const char* name = item->name;
-        step_engine      = find_engine(name);
-        Assert(step_engine, "Cannot find stepping engine for %s", name);
+        auto item = step_type_item(_engine);
+        Assert(item, "Invalid stepping engine %d", _engine);
+        const char* name = item->name;
+        _step_engine     = find_engine(name);
+        Assert(_step_engine, "Cannot find stepping engine for %s", name);
 #if MAX_N_I2SO
         Assert(strcmp("I2S", name) || config->_i2so, "I2SO bus must be configured for this stepping type");
 #endif
     }
 
     void Stepping::init() {
-            auto item = step_type_item(_engine);
-            Assert(item, "Invalid stepping engine %d", _engine);
-            log_info("Stepping:" << item->name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
+        auto item = step_type_item(_engine);
+        Assert(item, "Invalid stepping engine %d", _engine);
+        log_info("Stepping:" << item->name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
                              << "us Dir Delay:" << _directionDelayUsecs << "us Idle Delay:" << _idleMsecs << "ms");
 
-        if (step_engine) {
-            uint32_t actual = step_engine->init(_directionDelayUsecs, _pulseUsecs, fStepperTimer, Stepper::pulse_func);
+        if (_step_engine) {
+            uint32_t actual = _step_engine->init(_directionDelayUsecs, _pulseUsecs, fStepperTimer, Stepper::pulse_func);
             if (actual != _pulseUsecs) {
                 log_warn("stepping/pulse_us adjusted to " << actual);
             }
@@ -88,13 +87,12 @@ namespace Machine {
 
         Stepper::init();
     }
-
 }
 
 Stepping::motor_pins_t* Stepping::axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS] = { nullptr };
 
 void Stepping::assignMotor(axis_t axis, motor_t motor, pinnum_t step_pin, bool step_invert, pinnum_t dir_pin, bool dir_invert) {
-    step_pin = step_engine->init_step_pin(step_pin, step_invert);
+    step_pin = _step_engine->init_step_pin(step_pin, step_invert);
 
     auto m                   = new motor_pins_t;
     axis_motors[axis][motor] = m;
@@ -161,17 +159,17 @@ void IRAM_ATTR Stepping::step(AxisMask step_mask, AxisMask dir_mask) {
                 for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
                     auto m = axis_motors[axis][motor];
                     if (m) {
-                        step_engine->set_dir_pin(m->dir_pin, dir ^ m->dir_invert);
+                        _step_engine->set_dir_pin(m->dir_pin, dir ^ m->dir_invert);
                     }
                 }
             }
             // Some stepper drivers need time between changing direction and doing a pulse.
-            step_engine->finish_dir();
+            _step_engine->finish_dir();
         }
         previous_dir_mask = dir_mask;
     }
 
-    step_engine->start_step();
+    _step_engine->start_step();
 
     // Turn on step pulses for motors that are supposed to step now
     for (axis_t axis = X_AXIS; axis < Axes::_numberAxis; axis++) {
@@ -181,28 +179,28 @@ void IRAM_ATTR Stepping::step(AxisMask step_mask, AxisMask dir_mask) {
             for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
                 auto m = axis_motors[axis][motor];
                 if (m && !m->blocked && !m->limited) {
-                    step_engine->set_step_pin(m->step_pin, !m->step_invert);
+                    _step_engine->set_step_pin(m->step_pin, !m->step_invert);
                 }
             }
         }
     }
-    step_engine->finish_step();
+    _step_engine->finish_step();
 }
 
 // Turn all stepper pins off
 void IRAM_ATTR Stepping::unstep() {
-    if (step_engine->start_unstep()) {
+    if (_step_engine->start_unstep()) {
         return;
     }
     for (axis_t axis = X_AXIS; axis < Axes::_numberAxis; axis++) {
         for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
             auto m = axis_motors[axis][motor];
             if (m) {
-                step_engine->set_step_pin(m->step_pin, m->step_invert);
+                _step_engine->set_step_pin(m->step_pin, m->step_invert);
             }
         }
     }
-    step_engine->finish_unstep();
+    _step_engine->finish_unstep();
 }
 
 void Stepping::reset() {}
@@ -212,17 +210,17 @@ void Stepping::endLowLatency() {}
 // Called only from Stepper::pulse_func when a new segment is loaded
 // The argument is in units of ticks of the timer that generates ISRs
 void IRAM_ATTR Stepping::setTimerPeriod(uint32_t ticks) {
-    step_engine->set_timer_ticks((uint32_t)ticks);
+    _step_engine->set_timer_ticks((uint32_t)ticks);
 }
 
 // Called only from Stepper::wake_up which is not used in ISR context
 void Stepping::startTimer() {
-    step_engine->start_timer();
+    _step_engine->start_timer();
 }
 
 // Called only from Stepper::stop_stepping, used in both ISR and foreground contexts
 void IRAM_ATTR Stepping::stopTimer() {
-    step_engine->stop_timer();
+    _step_engine->stop_timer();
 }
 
 void Stepping::group(Configuration::HandlerBase& handler) {
@@ -235,5 +233,5 @@ void Stepping::group(Configuration::HandlerBase& handler) {
 }
 
 uint32_t Stepping::maxPulsesPerSec() {
-    return step_engine->max_pulses_per_sec();
+    return _step_engine->max_pulses_per_sec();
 }

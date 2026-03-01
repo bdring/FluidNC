@@ -34,7 +34,7 @@ namespace Machine {
         static void    waitDirection();  // Wait for direction delay
         static steps_t axis_steps[MAX_N_AXIS];
 
-        static step_engine_t* step_engine;
+        static step_engine_t* _step_engine;
 
     public:
         enum stepper_id_t {
