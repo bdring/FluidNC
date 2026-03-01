@@ -61,9 +61,9 @@ namespace Spindles {
                       const char* ccw_cmd,
                       const char* off_cmd,
                       const char* set_rpm_cmd,
+                      const char* get_rpm_cmd,
                       const char* get_min_rpm_cmd,
-                      const char* get_max_rpm_cmd,
-                      const char* get_rpm_cmd) :
+                      const char* get_max_rpm_cmd) :
                 _model(model), _minRPM(min_rpm), _maxRPM(max_rpm), _cw_cmd(cw_cmd), _ccw_cmd(ccw_cmd), _off_cmd(off_cmd),
                 _set_rpm_cmd(set_rpm_cmd), _get_min_rpm_cmd(get_min_rpm_cmd), _get_max_rpm_cmd(get_max_rpm_cmd), _get_rpm_cmd(get_rpm_cmd) {}
 
