@@ -99,6 +99,15 @@ Machine configuration is done via YAML files in the `FluidNC/data` directory. Se
 2. Configure `upload_protocol = picoprobe` in platformio.ini
 3. Use PlatformIO upload
 
+### Framework Auto-Patch (RP WiFi + FreeRTOS)
+
+RP2040/RP2350 WiFi builds with FreeRTOS apply an automatic framework patch at build time:
+
+- Script: `FluidNC/rp2040/patch_arduinopico.py`
+- Hooked via `extra_scripts` in `platformio.ini` (`pre:...`)
+
+This patch hardens Arduino-Pico lwIP/CYW43 startup ordering for debug sessions (e.g. Picoprobe attach) by adding readiness checks in the framework queue/IRQ handoff paths. It is idempotent and re-applies automatically after PlatformIO package updates.
+
 ## Development Notes
 
 ### Memory Constraints

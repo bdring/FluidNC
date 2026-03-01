@@ -9,6 +9,7 @@
 #include "hardware/irq.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <Arduino.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,35 +17,39 @@ extern "C" {
 
 // Define ALARM_NUM if not already defined
 #ifndef ALARM_NUM
-#define ALARM_NUM 0
+#    define ALARM_NUM 0
 #endif
 
 // Select timer block and IRQ based on chip
 #ifdef PICO_RP2350
-#define TIMER_IRQ_NUM TIMER0_IRQ_0
+#    define TIMER_IRQ_NUM TIMER0_IRQ_0
 #else  // PICO_RP2040
-#define TIMER_IRQ_NUM TIMER_IRQ_0
+#    define TIMER_IRQ_NUM TIMER_IRQ_0
 #endif
 
 // RP2040/RP2350 timer frequency: 1 MHz (1 microsecond ticks)
 static const uint32_t fTimerRP2040 = 1000000;
 
-static bool (*timer_isr_callback)(void) = nullptr;
+static bool (*timer_isr_callback)(void)  = nullptr;
 static volatile uint64_t last_alarm_time = 0;
+// Next interval in ticks (microseconds)
+static volatile uint32_t next_ticks = 0;
 
 // ISR for the timer alarm
 static void IRAM_ATTR timer_isr_handler() {
     hw_clear_bits(&timer_hw->intr, 1u << ALARM_NUM);
-    
+
     if (timer_isr_callback && timer_isr_callback()) {
-        // Reschedule the next alarm
-        // The callback returns true if it wants to continue running
+        // Reschedule the next alarm using next_ticks
+        uint32_t now               = timer_hw->timerawl;
+        timer_hw->alarm[ALARM_NUM] = (uint32_t)(now + next_ticks);
+        hw_set_bits(&timer_hw->inte, 1u << ALARM_NUM);
     }
 }
 
 void stepTimerAttach(bool (*callback)(void)) {
     timer_isr_callback = callback;
-    
+
     // Set up the alarm interrupt
     irq_set_enabled(TIMER_IRQ_NUM, false);
     irq_set_exclusive_handler(TIMER_IRQ_NUM, timer_isr_handler);
@@ -53,20 +58,14 @@ void stepTimerAttach(bool (*callback)(void)) {
 
 void IRAM_ATTR stepTimerStart() {
     // Set initial alarm to fire very soon
-    uint64_t target = timer_hw->timerawl + 10;
+    uint64_t target            = timer_hw->timerawl + 10;
     timer_hw->alarm[ALARM_NUM] = (uint32_t)target;
     hw_set_bits(&timer_hw->inte, 1u << ALARM_NUM);
 }
 
 void IRAM_ATTR stepTimerSetTicks(uint32_t ticks) {
-    // Set the next alarm time based on current time plus ticks
-    uint64_t current = timer_hw->timerawl;
-    uint32_t lower = (uint32_t)(current & 0xffffffff);
-    uint32_t upper = (uint32_t)(current >> 32);
-    
-    // Add the ticks to the lower 32 bits
-    uint32_t alarm_time = lower + ticks;
-    timer_hw->alarm[ALARM_NUM] = alarm_time;
+    // Set the next interval in ticks (microseconds)
+    next_ticks = ticks;
 }
 
 void IRAM_ATTR stepTimerStop() {

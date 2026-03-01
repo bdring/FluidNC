@@ -1,3 +1,9 @@
+#ifdef PICO_RP2350
+extern "C" {
+#include <pico/cyw43_arch.h>
+extern cyw43_t cyw43_state;
+}
+#endif
 #include "../src/WebUI/WifiImpl.h"
 
 #if defined(PICO_RP2040) || defined(PICO_RP2350)
@@ -92,7 +98,7 @@ namespace WebUI {
         void prepareStartSta(int staMinSecurity, bool fastScan, const char* apCountry) override {
             (void)staMinSecurity;
             (void)fastScan;
-            //            applyCyw43Country(CYW43_ITF_STA, apCountry);
+            applyCyw43Country(CYW43_ITF_STA, apCountry);
         }
 
         bool getStaBssidForSecurity(const char* ssid, int staMinSecurity, uint8_t outBssid[6], bool& useBssid) override {
@@ -105,6 +111,12 @@ namespace WebUI {
 
         bool beginSta(const char* ssid, const char* password, const uint8_t* bssid) override {
             (void)bssid;
+            // Enable CYW43 verbose tracing for debugging
+            // cyw43_state.trace_flags = 0xFFFF; // Enable all trace flags (MAC, ETH, etc)
+            // Ensure STA interface is set up before setting power management
+            // ::printf("set up\n");
+            // cyw43_wifi_set_up(&cyw43_state, CYW43_ITF_STA, true, CYW43_COUNTRY_WORLDWIDE);
+            cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
             return WiFi.begin(ssid, password);
         }
 

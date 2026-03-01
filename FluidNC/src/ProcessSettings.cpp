@@ -34,6 +34,8 @@
 #include <map>
 #include <filesystem>
 
+#include <Arduino.h>  // PIN_LED
+
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin

@@ -203,6 +203,7 @@ namespace Machine {
             auto filesize = file.size();
             if (filesize <= 0) {
                 log_config_error("Configuration file:" << filename << " is empty");
+                load_yaml("");
                 return;
             }
 

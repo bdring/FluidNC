@@ -11,12 +11,22 @@
 #include "hardware/clocks.h"
 #include "StepTimer.h"
 #include "ws2812.h"
+// #include "pico/stdio.h"
+// #include "pico/stdio_uart.h"
+
+#if defined(__FREERTOS) && defined(PICO_CYW43_SUPPORTED)
+extern "C" {
+#    include <lwip/init.h>
+}
+#endif
 
 #define LED_PIN 16  // GPIO 16 for WS2812B NeoPixel
 
 // PIO state machine for WS2812
 static PIO  ws2812_pio = pio0;
 static uint ws2812_sm  = 0;
+
+void install_fault_handlers();
 
 void put_pixel(uint32_t pixel_grb) {
     pio_sm_put_blocking(ws2812_pio, ws2812_sm, pixel_grb << 8u);
@@ -29,6 +39,16 @@ void put_rgb(uint8_t red, uint8_t green, uint8_t blue) {
 
 // Platform pre-initialization - called after FreeRTOS is started but before setup()
 void platform_preinit() {
+    install_fault_handlers();
+
+#if defined(__FREERTOS) && defined(PICO_CYW43_SUPPORTED)
+    static bool lwip_preinit_done = false;
+    if (!lwip_preinit_done) {
+        lwip_preinit_done = true;
+        lwip_init();
+    }
+#endif
+
     // Initialize PIO for WS2812 LED
     // uint offset = pio_add_program(ws2812_pio, &ws2812_program);
     // ws2812_program_init(ws2812_pio, ws2812_sm, offset, LED_PIN, 800000, false);  // 800kHz for WS2812B
@@ -45,11 +65,12 @@ void platform_preinit() {
     //    put_rgb(0, 0, 50);
     //    delay(1000);  // 1000ms
 
-    delay(1000);
+    delay(500);
     // Initialize Serial (USB CDC)
     Serial.begin(115200);
+    Serial.setDebugOutput(true);  // Route printf to SerialUSB
 
-    delay(2000);
+    delay(500);
     Serial.println("Starting");
 
     if (BOOTSEL) {

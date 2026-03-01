@@ -101,6 +101,7 @@ namespace WebUI {
     static EnumSetting*     _sta_min_security;
     static PasswordSetting* _sta_password;
     static EnumSetting*     _wifi_ps_mode;
+    static EnumSetting*     _ntp_enable;
 
     class WiFiConfig : public Module {
     private:
@@ -407,13 +408,12 @@ namespace WebUI {
 
         static bool ConnectSTA2AP() {
             std::string msg, msg_out;
-            uint8_t     dot = 0;
-            bool        use_dhcp = (_sta_mode && (_sta_mode->get() == DHCP_MODE));
+            uint8_t     dot          = 0;
+            bool        use_dhcp     = (_sta_mode && (_sta_mode->get() == DHCP_MODE));
             size_t      max_attempts = use_dhcp ? 20 : 10;
             for (size_t i = 0; i < max_attempts; ++i) {
                 msg.clear();
                 auto ret = WiFi.status();
-                log_info("STA connect attempt " << (i + 1) << "/" << max_attempts << " status=" << static_cast<int>(ret));
                 switch (ret) {
                     case WL_NO_SSID_AVAIL:
                         log_info("No SSID");
@@ -435,7 +435,23 @@ namespace WebUI {
                             break;
                         }
                         log_info("Connected - IP is " << IP_string(WiFi.localIP()));
+                        if (_ntp_enable->get()) {
+                            NTP.begin("pool.ntp.org");
+                            Serial.print("Waiting for NTP time sync: ");
+                            time_t now = time(nullptr);
+                            while (now < 8 * 3600 * 2) {
+                                delay(500);
+                                Serial.print(".");
+                                now = time(nullptr);
+                            }
+                            Serial.println("");
+                            struct tm timeinfo;
+                            gmtime_r(&now, &timeinfo);
+                            Serial.print("Current time: ");
+                            Serial.print(asctime(&timeinfo));
+                        }
                         return true;
+#if 0
                     case WL_DISCONNECTED:
                         if (use_dhcp && i < (max_attempts - 3)) {
                             log_info("Disconnected (transient during DHCP/association), retrying");
@@ -443,6 +459,7 @@ namespace WebUI {
                         }
                         log_info("Disconnected");
                         return false;
+#endif
                     case 0x82:
                         log_info("No Net");
                         return false;
@@ -454,7 +471,6 @@ namespace WebUI {
                         log_info("Bad authentication");
                         return false;
                     default:
-                        log_info("The problem was " << ret);
                         if ((dot > 3) || (dot == 0)) {
                             dot     = 0;
                             msg_out = "Connecting";
@@ -493,11 +509,13 @@ namespace WebUI {
             log_info("Hostname is " << _hostname->get());
             WiFi.setHostname(_hostname->get());
             WiFi.mode(WIFI_STA);
+
+            log_info("Connecting to STA SSID:" << SSID);
+
             wifiImpl().prepareStartSta(_sta_min_security->get(), _fast_scan->get(), _ap_country->getStringValue());
             //Get parameters for STA
             //password
             const char* password = _sta_password->get();
-            log_info("STA password length is " << strlen(password));
             int8_t      IP_mode  = _sta_mode->get();
             int32_t     IP       = _sta_ip->get();
             int32_t     GW       = _sta_gateway->get();
@@ -519,7 +537,6 @@ namespace WebUI {
                 bssid = selected_bssid;
             }
 
-            log_info("Connecting to STA SSID:" << SSID);
             if (wifiImpl().beginSta(SSID, (strlen(password) > 0) ? password : NULL, bssid)) {
                 return ConnectSTA2AP();
             } else {
@@ -665,34 +682,26 @@ namespace WebUI {
             _ap_ip       = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", "192.168.0.1");
             _ap_password = new PasswordSetting("AP Password", "ESP106", "AP/Password", "12345678");
             _ap_ssid     = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", "FluidNC", MIN_SSID_LENGTH, MAX_SSID_LENGTH);
-            _ap_country = new EnumSetting(
-                "AP regulatory domain", WEBSET, WA, NULL, "AP/Country", getWifiCountryDefault(), getWifiCountryOptions());
-            _sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", NULL_IP);
-            _sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", NULL_IP);
-            _sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", NULL_IP);
-            _sta_mode    = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DHCP_MODE, &staModeOptions);
-            _fast_scan   = new EnumSetting("WiFi Fast Scan", WEBSET, WA, NULL, "WiFi/FastScan", 0, &onoffOptions);
-            _sta_min_security = new EnumSetting("Station Security",
-                                                WEBSET,
-                                                WA,
-                                                NULL,
-                                                "Sta/MinSecurity",
-                                                wifiImpl().staSecurityDefault(),
-                                                wifiImpl().staSecurityOptions());
+            _ap_country =
+                new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", getWifiCountryDefault(), getWifiCountryOptions());
+            _sta_netmask      = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", NULL_IP);
+            _sta_gateway      = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", NULL_IP);
+            _sta_ip           = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", NULL_IP);
+            _sta_mode         = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DHCP_MODE, &staModeOptions);
+            _fast_scan        = new EnumSetting("WiFi Fast Scan", WEBSET, WA, NULL, "WiFi/FastScan", 0, &onoffOptions);
+            _sta_min_security = new EnumSetting(
+                "Station Security", WEBSET, WA, NULL, "Sta/MinSecurity", wifiImpl().staSecurityDefault(), wifiImpl().staSecurityOptions());
             _sta_password = new PasswordSetting("Station Password", "ESP101", "Sta/Password", "");
 
             _mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions);
             if (wifiImpl().supportsPsMode()) {
-                _wifi_ps_mode = new EnumSetting("WiFi power saving mode",
-                                                WEBSET,
-                                                WA,
-                                                NULL,
-                                                "WiFi/PsMode",
-                                                wifiImpl().psModeDefault(),
-                                                wifiImpl().psModeOptions());
+                _wifi_ps_mode = new EnumSetting(
+                    "WiFi power saving mode", WEBSET, WA, NULL, "WiFi/PsMode", wifiImpl().psModeDefault(), wifiImpl().psModeOptions());
             } else {
                 _wifi_ps_mode = nullptr;
             }
+
+            _ntp_enable = new EnumSetting("NTP Enable", WEBSET, WA, NULL, "NTP/Enable", false, &onoffOptions);
 
             new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
             new WebCommand(NULL, WEBCMD, WG, NULL, "wifi/status", showWiFiStatus, anyState);
@@ -757,9 +766,7 @@ namespace WebUI {
             }
         }
 
-        void poll() {
-            wifiImpl().poll();
-        }
+        void poll() { wifiImpl().poll(); }
 
         bool is_radio() override { return true; }
 

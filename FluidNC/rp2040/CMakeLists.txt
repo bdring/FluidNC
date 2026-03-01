@@ -2,6 +2,7 @@
 
 add_library(rp2040_drivers
     StepTimer.cpp
+    FaultHandler.cpp
     gpio.cpp
     uart.cpp
     spi.cpp

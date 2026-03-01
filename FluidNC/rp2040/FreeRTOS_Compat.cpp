@@ -6,6 +6,10 @@
 #include <freertos/FreeRTOS.h>
 #include <cstddef>
 #include <cstdint>
+#include "Driver/backtrace.h"
+
+extern "C" bool rp2040_get_last_panic_backtrace(backtrace_t* bt);
+extern "C" void rp2040_clear_last_panic_backtrace();
 
 // Linker-provided symbol marking the end of BSS section (start of heap)
 extern char __bss_end__;
@@ -39,24 +43,15 @@ extern "C" size_t xPortGetFreeHeapSize() {
     return 0;
 }
 
-// RP2040 backtrace stubs - panic backtrace not available on RP2040
-// (unlike ESP32 which has built-in exception handling with backtrace support)
-#include "Driver/backtrace.h"
-
 extern "C" bool backtrace_available(void) {
-    return false;
+    backtrace_t bt;
+    return rp2040_get_last_panic_backtrace(&bt);
 }
 
 extern "C" bool backtrace_get(backtrace_t* bt) {
-    if (bt) {
-        bt->pc = 0;
-        bt->excvaddr = 0;
-        bt->exccause = 0;
-        bt->num_addresses = 0;
-    }
-    return false;
+    return rp2040_get_last_panic_backtrace(bt);
 }
 
 extern "C" void backtrace_clear(void) {
-    // No-op: nothing to clear on RP2040
+    rp2040_clear_last_panic_backtrace();
 }

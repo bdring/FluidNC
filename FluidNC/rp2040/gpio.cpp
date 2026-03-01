@@ -54,9 +54,11 @@ void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown
     if (pin < 0 || pin >= MAX_GPIO_PINS) {
         return;
     }
-    
+
     uint gpio = (uint)pin;
-    
+
+    gpio_init(gpio);
+
     // Configure pull-ups/pull-downs
     if (pullup) {
         gpio_pull_up(gpio);
@@ -65,7 +67,7 @@ void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown
     } else {
         gpio_disable_pulls(gpio);
     }
-    
+
     // Configure direction
     if (input && output) {
         // Bidirectional - configure as output (can also read)
@@ -76,7 +78,7 @@ void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown
     } else if (input) {
         gpio_set_dir(gpio, GPIO_IN);
     }
-    
+
     // Note: RP2040 GPIO doesn't have native open-drain mode in hardware GPIO control
     // Open drain would need to be emulated via driver logic if needed
     // For now, we ignore the opendrain parameter
@@ -190,13 +192,7 @@ void gpio_route(pinnum_t pin, uint32_t signal) {
 
 // Get current GPIO state with inversion applied
 static inline uint32_t get_gpios() {
-    uint32_t state = 0;
-    for (int i = 0; i < MAX_GPIO_PINS; i++) {
-        if (gpio_read(i)) {
-            state |= (1 << i);
-        }
-    }
-    return state ^ gpios_inverted;
+    return gpio_get_all() ^ gpios_inverted;
 }
 
 // Set up event tracking for a GPIO pin
