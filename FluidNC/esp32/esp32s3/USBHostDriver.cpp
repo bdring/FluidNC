@@ -5,8 +5,6 @@
 
 #include "USBHostDriver.h"
 
-#include <usb/usb_host.h>
-#include <usb/cdc_acm_host.h>
 #include <usb/vcp.hpp>
 #include <usb/vcp_ch34x.hpp>
 #include <usb/vcp_cp210x.hpp>
@@ -14,6 +12,7 @@
 
 // FluidNC logging (not ESP_LOG -- follow codebase convention)
 #include "Report.h"
+#include "NutsBolts.h"  // to_hex()
 
 // ---------------------------------------------------------------
 // Callbacks (static -> instance via user_arg)
@@ -40,7 +39,6 @@ void USBHostDriver::deviceEventCallback(const cdc_acm_host_dev_event_data_t* eve
             self->flushTx();
             log_info("USB Host: device disconnected");
             break;
-        case CDC_ACM_HOST_DEVICE_EVENT:
         default:
             log_warn("USB Host: device event " << (int)event->type);
             break;
@@ -52,10 +50,8 @@ void USBHostDriver::newDeviceCallback(usb_device_handle_t usb_dev) {
     const usb_device_desc_t* desc = nullptr;
     usb_host_get_device_descriptor(usb_dev, &desc);
     if (desc) {
-        log_info("USB Host: device attached (VID:0x"
-                 << String(desc->idVendor, HEX)
-                 << " PID:0x"
-                 << String(desc->idProduct, HEX) << ")");
+        log_info("USB Host: device attached (VID:" << to_hex(desc->idVendor)
+                 << " PID:" << to_hex(desc->idProduct) << ")");
     } else {
         log_info("USB Host: unknown device attached");
     }
@@ -111,8 +107,9 @@ void USBHostDriver::classTask(void* arg) {
             .user_arg              = self,
         };
 
-        // VCP::open() blocks until a supported device connects
-        auto dev = VCP::open(&dev_config);
+        // VCP::open() blocks until a supported device connects.
+        // Returns a raw CdcAcmDevice* owned by the caller.
+        CdcAcmDevice* dev = VCP::open(&dev_config);
         if (!dev) {
             log_warn("USB Host: VCP::open() returned null, retrying...");
             vTaskDelay(pdMS_TO_TICKS(1000));
@@ -120,7 +117,7 @@ void USBHostDriver::classTask(void* arg) {
         }
 
         // 4. Configure line coding (baud rate)
-        const cdc_acm_line_coding_t line_coding = {
+        cdc_acm_line_coding_t line_coding = {
             .dwDTERate   = self->_baud,
             .bCharFormat = 0,  // 1 stop bit
             .bParityType = 0,  // No parity
@@ -134,7 +131,7 @@ void USBHostDriver::classTask(void* arg) {
         // Set DTR+RTS (some USB-serial chips need this to enable data flow)
         dev->set_control_line_state(true, true);
 
-        self->_vcp_dev = dev.get();
+        self->_vcp_dev = dev;
         self->_connected.store(true);
         log_info("USB Host: device connected, baud " << self->_baud);
 
@@ -160,7 +157,8 @@ void USBHostDriver::classTask(void* arg) {
             }
         }
 
-        // Device disconnected -- loop back to VCP::open()
+        // Device disconnected -- clean up and loop back to VCP::open()
+        delete dev;
         log_info("USB Host: waiting for reconnect...");
     }
 }

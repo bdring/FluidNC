@@ -10,11 +10,6 @@
 #include <usb/cdc_acm_host.h>
 #include <atomic>
 
-// Forward-declare to avoid pulling USB headers into every translation unit
-namespace esp_usb {
-    class CdcAcmDevice;
-}
-
 class USBHostDriver {
 public:
     void init(uint32_t baud);
@@ -46,7 +41,7 @@ private:
     std::atomic<bool> _connected{false};
     uint32_t          _baud = 1000000;
 
-    esp_usb::CdcAcmDevice* _vcp_dev = nullptr;  // Owned by VCP service, not us
+    CdcAcmDevice* _vcp_dev = nullptr;  // Owned by VCP service, not us
 
     // FreeRTOS task entry points (static -> instance via arg)
     static void daemonTask(void* arg);
