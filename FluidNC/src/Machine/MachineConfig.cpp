@@ -169,6 +169,12 @@ namespace Machine {
         if (_macros == nullptr) {
             _macros = new Macros();
         }
+
+#ifdef USB_HOST_ENABLED
+        if (_usb_host) {
+            log_warn("USB Host enabled — native USB CDC device mode is disabled (build-time exclusion)");
+        }
+#endif
     }
 
     const char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";

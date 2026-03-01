@@ -34,3 +34,16 @@ idf_component_register(SRCS AssertionFailed.cpp
                        REQUIRES esp_driver_uart driver fatfs vfs spiffs esp_driver_sdspi esp_timer arduino-esp32 nvs_flash esp_driver_gpio mbedtls esp_tinyusb
                        PRIV_REQUIRES espcoredump
                        WHOLE_ARCHIVE)
+
+# USB Host mode: add VCP component requirements when building with USB_HOST_ENABLED.
+# For PlatformIO builds this block is not reached (PlatformIO manages its own build).
+# For native ESP-IDF builds, define USB_HOST_ENABLED to link the USB host components.
+if(DEFINED USB_HOST_ENABLED)
+    target_link_libraries(${COMPONENT_LIB} PUBLIC
+        idf::usb_host_vcp
+        idf::usb_host_cdc_acm
+        idf::usb_host_ch34x_vcp
+        idf::usb_host_cp210x_vcp
+        idf::usb_host_ftdi_vcp
+    )
+endif()

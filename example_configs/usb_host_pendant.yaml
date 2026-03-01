@@ -1,0 +1,24 @@
+name: "USB Host Pendant Example"
+board: "ESP32-S3 with USB Host"
+
+# USB pendant via native USB-C port (host mode)
+# Requires wifi_s3_usb_host or bt_s3_usb_host build environment.
+# Supported devices: CH340, CP2102, FTDI (VCP auto-detect).
+usb_host:
+  baud: 1000000
+  report_interval_ms: 75
+
+# Note: When usb_host is configured and built with USB_HOST_ENABLED,
+# the native USB port runs in host mode. CDC device mode (TinyUSB) is
+# unavailable. Use the CP2102 (USB UART) port for console and flashing.
+
+# Optional: UART pendant on a second port (both can coexist)
+# uart2:
+#   txd_pin: gpio.0
+#   rxd_pin: gpio.35
+#   baud: 1000000
+#   mode: 8N1
+#
+# uart_channel2:
+#   report_interval_ms: 75
+#   uart_num: 2
