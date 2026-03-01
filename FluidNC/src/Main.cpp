@@ -75,6 +75,12 @@ void setup() {
             }
         }
 
+#    ifdef USB_HOST_ENABLED
+        if (config->_usb_host) {
+            config->_usb_host->init();
+        }
+#    endif
+
 #    if MAX_N_I2SO
         if (config->_i2so) {
             config->_i2so->init();

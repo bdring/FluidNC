@@ -20,6 +20,9 @@
 #include "Stepping.h"
 #include "Stepper.h"
 #include "UartChannel.h"
+#ifdef USB_HOST_ENABLED
+#    include "USBHostChannel.h"
+#endif
 #include "Driver/Console.h"
 #include "Module.h"
 #include "Listeners/SysListener.h"
@@ -89,6 +92,10 @@ namespace Machine {
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };
+
+#ifdef USB_HOST_ENABLED
+        USBHostChannel* _usb_host = nullptr;
+#endif
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;
