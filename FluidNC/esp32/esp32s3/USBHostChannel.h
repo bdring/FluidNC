@@ -12,7 +12,7 @@
 class USBHostChannel : public Channel, public Configuration::Configurable {
 public:
     USBHostChannel();
-    ~USBHostChannel() = default;
+    ~USBHostChannel();
 
     // Channel interface
     void   init() override;
@@ -25,6 +25,14 @@ public:
     void   flushRx() override;
     bool   realtimeOkay(char c) override;
     bool   lineComplete(char* line, char c) override;
+
+    void   out(const std::string& s, const char* tag) override;
+    void   out_acked(const std::string& s, const char* tag) override;
+
+    size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) override;
+    size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) {
+        return timedReadBytes(reinterpret_cast<char*>(buffer), length, timeout);
+    }
 
     // Configurable interface
     void group(Configuration::HandlerBase& handler) override;

@@ -4,8 +4,9 @@
 #ifdef USB_HOST_ENABLED
 
 #include "USBHostChannel.h"
-#include "Serial.h"   // allChannels
-#include "Report.h"   // log_info
+#include "Serial.h"    // allChannels
+#include "Report.h"    // log_info
+#include "Logging.h"   // log_stream
 
 // ---------------------------------------------------------------
 // Constructor / Init
@@ -13,6 +14,14 @@
 
 USBHostChannel::USBHostChannel() : Channel("usb_host", true) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
+}
+
+USBHostChannel::~USBHostChannel() {
+    delete _lineedit;
+    if (_driver) {
+        _driver->shutdown();
+        delete _driver;
+    }
 }
 
 void USBHostChannel::init() {
@@ -70,6 +79,7 @@ int USBHostChannel::rx_buffer_available() {
 
 void USBHostChannel::flushRx() {
     if (_driver) _driver->flushRx();
+    Channel::flushRx();
 }
 
 size_t USBHostChannel::write(uint8_t c) {
@@ -79,7 +89,72 @@ size_t USBHostChannel::write(uint8_t c) {
 
 size_t USBHostChannel::write(const uint8_t* buf, size_t len) {
     if (!_driver || !_driver->isConnected()) return 0;
+    if (_addCR) {
+        size_t rem      = len;
+        char   lastchar = '\0';
+        size_t j        = 0;
+        while (rem) {
+            const int bufsize = 80;
+            uint8_t   modbuf[bufsize];
+            size_t    k = 0;
+            while (rem && k < (bufsize - 1)) {
+                char c = buf[j++];
+                if (c == '\n' && lastchar != '\r') {
+                    modbuf[k++] = '\r';
+                }
+                lastchar    = c;
+                modbuf[k++] = c;
+                --rem;
+            }
+            _driver->write(modbuf, k);
+        }
+        return len;
+    }
     return _driver->write(buf, len);
+}
+
+// ---------------------------------------------------------------
+// Output formatting (matches UartChannel pattern)
+// ---------------------------------------------------------------
+
+void USBHostChannel::out(const std::string& s, const char* tag) {
+    log_stream(*this, "[" << tag << s);
+}
+
+void USBHostChannel::out_acked(const std::string& s, const char* tag) {
+    log_stream(*this, "[" << tag << s);
+}
+
+// ---------------------------------------------------------------
+// timedReadBytes
+// ---------------------------------------------------------------
+
+size_t USBHostChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
+    size_t remlen = length;
+
+    // Drain _queue first (unlikely to have data, but matches UartChannel pattern)
+    while (_queue.size() && remlen) {
+        *buffer++ = _queue.front();
+        _queue.pop();
+        --remlen;
+    }
+
+    // Poll driver with timeout
+    if (remlen && _driver) {
+        TickType_t deadline = xTaskGetTickCount() + timeout;
+        while (remlen) {
+            int c = _driver->read();
+            if (c >= 0) {
+                *buffer++ = static_cast<char>(c);
+                --remlen;
+            } else {
+                if (xTaskGetTickCount() >= deadline) break;
+                vTaskDelay(1);
+            }
+        }
+    }
+
+    return length - remlen;
 }
 
 // ---------------------------------------------------------------

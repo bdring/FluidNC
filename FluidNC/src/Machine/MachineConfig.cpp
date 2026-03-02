@@ -172,7 +172,7 @@ namespace Machine {
 
 #ifdef USB_HOST_ENABLED
         if (_usb_host) {
-            log_warn("USB Host enabled — native USB CDC device mode is disabled (build-time exclusion)");
+            log_warn("USB Host enabled -- native USB CDC device mode is disabled (build-time exclusion)");
         }
 #endif
     }
@@ -302,5 +302,8 @@ namespace Machine {
 #endif
         delete _control;
         delete _macros;
+#ifdef USB_HOST_ENABLED
+        delete _usb_host;
+#endif
     }
 }

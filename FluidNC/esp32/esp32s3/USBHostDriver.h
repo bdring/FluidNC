@@ -41,7 +41,12 @@ private:
     std::atomic<bool> _connected{false};
     uint32_t          _baud = 1000000;
 
-    CdcAcmDevice* _vcp_dev = nullptr;  // Owned by VCP service, not us
+    CdcAcmDevice* _vcp_dev = nullptr;  // Owned by classTask; deleted on disconnect
+
+    int  _peek_byte = -1;   // Cached byte for peek(); -1 = empty
+    bool _has_peek  = false;
+
+    void clearPeekCache() { _peek_byte = -1; _has_peek = false; }
 
     // FreeRTOS task entry points (static -> instance via arg)
     static void daemonTask(void* arg);

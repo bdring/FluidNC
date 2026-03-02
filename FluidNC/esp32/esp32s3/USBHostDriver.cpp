@@ -29,14 +29,12 @@ bool USBHostDriver::rxCallback(const uint8_t* data, size_t data_len, void* user_
 }
 
 // Called from CDC-ACM driver task on device disconnect or error.
+// Only sets _connected flag -- cleanup happens in classTask() after TX pump exits.
 void USBHostDriver::deviceEventCallback(const cdc_acm_host_dev_event_data_t* event, void* user_arg) {
     auto* self = static_cast<USBHostDriver*>(user_arg);
     switch (event->type) {
         case CDC_ACM_HOST_DEVICE_DISCONNECTED:
             self->_connected.store(false);
-            self->_vcp_dev = nullptr;
-            self->flushRx();
-            self->flushTx();
             log_info("USB Host: device disconnected");
             break;
         default:
@@ -158,6 +156,10 @@ void USBHostDriver::classTask(void* arg) {
         }
 
         // Device disconnected -- clean up and loop back to VCP::open()
+        self->flushRx();
+        self->flushTx();
+        self->clearPeekCache();
+        self->_vcp_dev = nullptr;
         delete dev;
         log_info("USB Host: waiting for reconnect...");
     }
@@ -172,9 +174,15 @@ void USBHostDriver::init(uint32_t baud) {
 
     // Create ring buffers (byte buffers -- no per-item overhead)
     _rx_ring = xRingbufferCreate(RX_BUF_SIZE, RINGBUF_TYPE_BYTEBUF);
+    if (!_rx_ring) {
+        log_error("USB Host: RX ring buffer creation failed");
+        return;
+    }
     _tx_ring = xRingbufferCreate(TX_BUF_SIZE, RINGBUF_TYPE_BYTEBUF);
-    if (!_rx_ring || !_tx_ring) {
-        log_error("USB Host: ring buffer creation failed");
+    if (!_tx_ring) {
+        log_error("USB Host: TX ring buffer creation failed");
+        vRingbufferDelete(_rx_ring);
+        _rx_ring = nullptr;
         return;
     }
 
@@ -186,11 +194,15 @@ void USBHostDriver::init(uint32_t baud) {
     esp_err_t err = usb_host_install(&host_config);
     if (err != ESP_OK) {
         log_error("USB Host: usb_host_install failed: " << esp_err_to_name(err));
+        vRingbufferDelete(_rx_ring);
+        vRingbufferDelete(_tx_ring);
+        _rx_ring = nullptr;
+        _tx_ring = nullptr;
         return;
     }
 
     // Daemon task: pumps USB host library events
-    xTaskCreatePinnedToCore(daemonTask, "usb_daemon", 4096, this, 2, &_daemon_task_handle, 1);
+    xTaskCreatePinnedToCore(daemonTask, "usb_daemon", 4096, nullptr, 2, &_daemon_task_handle, 1);
 
     // Class task: installs VCP drivers, opens device, pumps TX
     xTaskCreatePinnedToCore(classTask, "usb_class", 4096, this, 3, &_class_task_handle, 1);
@@ -198,6 +210,7 @@ void USBHostDriver::init(uint32_t baud) {
     log_info("USB Host: stack initialised");
 }
 
+// Only safe to call at firmware restart (tasks are deleted non-cooperatively).
 void USBHostDriver::shutdown() {
     _connected.store(false);
     if (_daemon_task_handle) {
@@ -219,9 +232,15 @@ void USBHostDriver::shutdown() {
 // ---------------------------------------------------------------
 
 int USBHostDriver::read() {
+    if (_has_peek) {
+        _has_peek = false;
+        int b = _peek_byte;
+        _peek_byte = -1;
+        return b;
+    }
     size_t item_size = 0;
     uint8_t* item = static_cast<uint8_t*>(
-        xRingbufferReceive(_rx_ring, &item_size, 0)
+        xRingbufferReceiveUpTo(_rx_ring, &item_size, 0, 1)
     );
     if (!item || item_size == 0) return -1;
     uint8_t byte = item[0];
@@ -230,22 +249,20 @@ int USBHostDriver::read() {
 }
 
 int USBHostDriver::peek() {
-    // Ring buffers don't support peek natively.
-    // Read one byte, then push it back.
+    if (_has_peek) return _peek_byte;
     size_t item_size = 0;
     uint8_t* item = static_cast<uint8_t*>(
-        xRingbufferReceive(_rx_ring, &item_size, 0)
+        xRingbufferReceiveUpTo(_rx_ring, &item_size, 0, 1)
     );
     if (!item || item_size == 0) return -1;
-    uint8_t byte = item[0];
+    _peek_byte = item[0];
+    _has_peek  = true;
     vRingbufferReturnItem(_rx_ring, item);
-    // Push it back -- safe because we just freed the space
-    xRingbufferSend(_rx_ring, &byte, 1, 0);
-    return byte;
+    return _peek_byte;
 }
 
 int USBHostDriver::available() {
-    return RX_BUF_SIZE - xRingbufferGetCurFreeSize(_rx_ring);
+    return (_has_peek ? 1 : 0) + (RX_BUF_SIZE - xRingbufferGetCurFreeSize(_rx_ring));
 }
 
 int USBHostDriver::rxBufferAvailable() {
@@ -253,6 +270,7 @@ int USBHostDriver::rxBufferAvailable() {
 }
 
 void USBHostDriver::flushRx() {
+    clearPeekCache();
     size_t item_size;
     while (void* item = xRingbufferReceive(_rx_ring, &item_size, 0)) {
         vRingbufferReturnItem(_rx_ring, item);
