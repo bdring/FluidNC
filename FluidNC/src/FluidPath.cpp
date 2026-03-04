@@ -97,12 +97,22 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
             }
             throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
         }
+        bool need_mount = false;
         xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
         if (_refcnt == 0) {
+            need_mount = true;
+        }
+        ++_refcnt;
+        xSemaphoreGive(sd_refcnt_mutex);
+
+        if (need_mount) {
             xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
             auto ec = sd_mount();
+            xSemaphoreGive(sd_mount_lock);
             if (ec) {
-                xSemaphoreGive(sd_mount_lock);
+                // Revert the refcount increment on mount failure
+                xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
+                --_refcnt;
                 xSemaphoreGive(sd_refcnt_mutex);
                 if (ecptr) {
                     *ecptr = ec;
@@ -111,8 +121,6 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
                 throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
             }
         }
-        ++_refcnt;
-        xSemaphoreGive(sd_refcnt_mutex);
     }
 }
 
@@ -151,11 +159,28 @@ FluidPath& FluidPath::operator=(FluidPath&& o) {
 }
 
 FluidPath::~FluidPath() {
-    xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
-    if (_isSD && (_refcnt && --_refcnt == 0)) {
+    bool should_unmount = false;
+
+    if (_isSD) {
+        xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
+        if (_refcnt && --_refcnt == 0) {
+            should_unmount = true;
+        }
+        xSemaphoreGive(sd_refcnt_mutex);
+    }
+
+    if (should_unmount) {
+        // Use 100ms timeout instead of blocking forever to avoid deadlock
+        // If mount_lock is held by active filesystem operations, skip unmount
+#if 0
+        if (xSemaphoreTake(sd_mount_lock, pdMS_TO_TICKS(100)) == pdTRUE) {
+            sd_unmount();
+            xSemaphoreGive(sd_mount_lock);
+        }
+#else
         xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
         sd_unmount();
         xSemaphoreGive(sd_mount_lock);
+#endif
     }
-    xSemaphoreGive(sd_refcnt_mutex);
 }
