@@ -14,6 +14,7 @@
 // There are more GPIOs on some chips, but the Pico board only
 // brings out 0-28, with 23-25 used for on-board purposes
 #define MAX_N_GPIO 29  // RP2350 GPIO 0-28 (23, 24, 25, 29 connect to wireless)
+#define MAX_N_SDCARD 1
 
 // Console UART baud rate
 const int BAUD_RATE = 115200;
