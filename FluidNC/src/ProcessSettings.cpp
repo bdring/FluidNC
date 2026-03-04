@@ -921,13 +921,6 @@ static Error readGPIO(const char* value, AuthenticationLevel auth_level, Channel
 }
 
 static Error writeGPIOOn(const char* value, AuthenticationLevel auth_level, Channel& out) {
-#if defined PIN_LED
-    if (strcmp(value, "led") == 0) {
-        cyw43_digitalWrite(PIN_LED, HIGH);
-        return Error::Ok;
-    }
-#endif
-
     if (pins.find(value) == pins.end()) {
         Pin* thePin = new Pin(Pin::create(value));
         pins[value] = thePin;
@@ -941,13 +934,6 @@ static Error writeGPIOOn(const char* value, AuthenticationLevel auth_level, Chan
 }
 
 static Error writeGPIOOff(const char* value, AuthenticationLevel auth_level, Channel& out) {
-#if defined PIN_LED
-    if (strcmp(value, "led") == 0) {
-        cyw43_digitalWrite(PIN_LED, LOW);
-        return Error::Ok;
-    }
-#endif
-
     if (pins.find(value) == pins.end()) {
         Pin* thePin = new Pin(Pin::create(value));
         pins[value] = thePin;
