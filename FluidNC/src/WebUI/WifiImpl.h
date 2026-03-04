@@ -50,6 +50,8 @@ namespace WebUI {
         virtual bool    isApProtected(int index) const = 0;
         virtual void    finishApListScan() = 0;
 
+        virtual void initNTP() = 0;
+
         virtual void poll() = 0;
     };
 

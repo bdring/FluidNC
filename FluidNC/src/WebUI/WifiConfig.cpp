@@ -22,6 +22,7 @@
 #include <string>
 #include <cstring>
 #include "WifiImpl.h"
+#include <time.h>
 
 namespace WebUI {
     enum WiFiStartupMode {
@@ -436,7 +437,7 @@ namespace WebUI {
                         }
                         log_info("Connected - IP is " << IP_string(WiFi.localIP()));
                         if (_ntp_enable->get()) {
-                            NTP.begin("pool.ntp.org");
+                            wifiImpl().initNTP();
                             Serial.print("Waiting for NTP time sync: ");
                             time_t now = time(nullptr);
                             while (now < 8 * 3600 * 2) {

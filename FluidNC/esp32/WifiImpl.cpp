@@ -361,6 +361,10 @@ namespace WebUI {
             WiFi.scanNetworks(true);
         }
 
+        void initNTP() override {
+            configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+        }
+
         void poll() override {
             if (WiFi.getMode() == WIFI_AP_STA) {
                 if (WiFi.scanComplete() >= 0) {

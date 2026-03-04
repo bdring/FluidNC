@@ -153,6 +153,10 @@ namespace WebUI {
 
         void finishApListScan() override { WiFi.scanDelete(); }
 
+        void initNTP() override {
+            NTP.begin("pool.ntp.org", "time.nist.gov");
+        }
+
         void poll() override {
 #ifdef PICO_RP2350
             delay(1);
