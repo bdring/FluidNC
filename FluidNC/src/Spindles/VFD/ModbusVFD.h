@@ -49,7 +49,6 @@ namespace Spindles {
             bool        parser(const uint8_t* response, VFDSpindle* spindle, ModbusVFD* protocol);
             void        send_vfd_command(const std::string cmd, ModbusCommand& data, uint32_t out);
             std::string _response_format;
-            void        setup_speeds(VFDSpindle* vfd, uint32_t minRPM, uint32_t maxRPM);
 
         public:
             ModbusVFD() {}

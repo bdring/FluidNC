@@ -158,7 +158,6 @@ namespace Spindles {
                 log_error(spindle->name() << ": bad response token " << token);
                 return false;
             }
-            setup_speeds(instance->spindle, instance->_minRPM, instance->_maxRPM);
             return true;
         }
         void ModbusVFD::send_vfd_command(const std::string cmd, ModbusCommand& data, uint32_t out) {
@@ -273,15 +272,6 @@ namespace Spindles {
             };
         }
 
-        void ModbusVFD::setup_speeds(VFDSpindle* vfd, uint32_t minRPM, uint32_t maxRPM) {
-            // Setup a speed map if one does not already exist and we know the min and max.
-            if (vfd->_speeds.size() == 0 && minRPM != 0xffffffff && maxRPM != 0xffffffff) {
-                vfd->shelfSpeeds(minRPM, maxRPM);
-                vfd->setupSpeeds(maxRPM);
-                vfd->_slop = 300;
-            }
-        }
-
         VFDProtocol::response_parser ModbusVFD::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
             // BUG:
             //
@@ -309,7 +299,19 @@ namespace Spindles {
                     return instance->parser(response, spindle, instance);
                 };
             }
-            setup_speeds(vfd, _minRPM, _maxRPM);
+            if (vfd->_speeds.size() == 0) {
+                // If we do not already have a speed map from the config file,
+                // create a default one from the min and max RPM values.
+                // Those values were either configured or fetched from the VFD.
+                vfd->shelfSpeeds(_minRPM, _maxRPM);
+            }
+
+            // Scale the speed map according to maxRPM.  This is necessary
+            // because configured speed maps contain only percentages of the
+            // maximum dev speed so we must tell it what that dev speed is.
+            vfd->setupSpeeds(_maxRPM);
+            vfd->_slop = 300;
+
             return nullptr;
         }
 
