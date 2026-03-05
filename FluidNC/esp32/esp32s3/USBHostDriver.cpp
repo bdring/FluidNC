@@ -186,7 +186,6 @@ void USBHostDriver::init(uint32_t baud) {
         return;
     }
 
-    // Install USB host library
     const usb_host_config_t host_config = {
         .skip_phy_setup = false,
         .intr_flags     = ESP_INTR_FLAG_LEVEL1,
