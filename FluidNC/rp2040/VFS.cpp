@@ -164,14 +164,22 @@ extern "C" int _lseek(int fd, int ptr, int dir) {
     if (f == files.end()) {
         return -1;
     }
+    // Special case for ftell: get current position without seeking
+    if (ptr == 0 && dir == SEEK_CUR) {
+        return f->second.position();
+    }
     SeekMode d = SeekSet;
     if (dir == SEEK_CUR) {
         d = SeekCur;
     } else if (dir == SEEK_END) {
         d = SeekEnd;
     }
-    // return f->second.seek(ptr, d) ? 0 : -1;
-    return f->second.seek(ptr, d) ? 0 : 1;
+    // Perform the seek operation
+    if (!f->second.seek(ptr, d)) {
+        return -1;  // Seek failed
+    }
+    // Return the new absolute position
+    return f->second.position();
 }
 
 extern "C" int _read(int fd, char* buf, int size) {
