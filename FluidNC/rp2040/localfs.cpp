@@ -55,20 +55,20 @@ void localfs_unmount() {
 bool localfs_format(const std::string fsname) {
     // Format LittleFS filesystem
     // This will erase all data!
-    
+
     log_warn("Formatting LittleFS - this will erase all data!");
-    
+
     if (!LittleFS.format()) {
         log_error("LittleFS format failed");
         return false;
     }
-    
+
     // Re-mount after format
     if (!LittleFS.begin()) {
         log_error("Failed to remount LittleFS after format");
         return false;
     }
-    
+
     log_info("LittleFS formatted successfully");
     return true;
 }
