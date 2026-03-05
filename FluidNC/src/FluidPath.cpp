@@ -16,19 +16,38 @@
 Volume SD { "sd" };
 Volume LocalFS { "localfs" };
 
-uint32_t FluidPath::_refcnt = 0;
-static SemaphoreHandle_t sd_refcnt_mutex    = nullptr;
 static SemaphoreHandle_t sd_mount_lock = nullptr;
 
 static void ensure_sd_locks() {
-    if (!sd_refcnt_mutex) {
-        sd_refcnt_mutex = xSemaphoreCreateMutex();
-    }
     if (!sd_mount_lock) {
         sd_mount_lock = xSemaphoreCreateBinary();
         if (sd_mount_lock) {
             xSemaphoreGive(sd_mount_lock);
         }
+    }
+}
+
+// SDMountState manages SD card mount/unmount lifecycle
+// It is instantiated as a shared_ptr that is automatically
+// reference-counted.  The constructor is called on the
+// first instance, thus mounting the SD card.  The destructor
+// is called when the count goes to 0.
+SDMountState::SDMountState() {
+    ensure_sd_locks();
+    xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
+    auto ec = sd_mount();
+    xSemaphoreGive(sd_mount_lock);
+    if (ec) {
+        throw stdfs::filesystem_error { "Failed to mount SD card", ec };
+    }
+}
+
+SDMountState::~SDMountState() {
+    // Use 100ms timeout to avoid deadlock if operations are still in progress
+    //    if (xSemaphoreTake(sd_mount_lock, pdMS_TO_TICKS(100)) == pdTRUE) {
+    if (xSemaphoreTake(sd_mount_lock, portMAX_DELAY)) {
+        sd_unmount();
+        xSemaphoreGive(sd_mount_lock);
     }
 }
 
@@ -83,7 +102,7 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
     return ret;
 }
 
-FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_code* ecptr) : std::filesystem::path(canonPath(name, fs)) {
+FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_code* ecptr) : stdfs::path(canonPath(name, fs)) {
     auto mount = *(++begin());  // Use the path iterator to get the first component
     ensure_sd_locks();
     _isSD = mount == "sd";
@@ -97,90 +116,23 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
             }
             throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
         }
-        bool need_mount = false;
-        xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
-        if (_refcnt == 0) {
-            need_mount = true;
-        }
-        ++_refcnt;
-        xSemaphoreGive(sd_refcnt_mutex);
-
-        if (need_mount) {
-            xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
-            auto ec = sd_mount();
-            xSemaphoreGive(sd_mount_lock);
-            if (ec) {
-                // Revert the refcount increment on mount failure
-                xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
-                --_refcnt;
-                xSemaphoreGive(sd_refcnt_mutex);
-                if (ecptr) {
-                    *ecptr = ec;
-                    return;
-                }
-                throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
+        try {
+            // Try to reuse existing mount state if another FluidPath still owns it
+            static std::weak_ptr<SDMountState> cached_mount;
+            if (auto mount = cached_mount.lock()) {
+                log_info("was lock");
+                _sd_mount_state = mount;
+            } else {
+                log_info("make shared");
+                _sd_mount_state = std::make_shared<SDMountState>();
+                cached_mount    = _sd_mount_state;
             }
+        } catch (const stdfs::filesystem_error& ex) {
+            if (ecptr) {
+                *ecptr = ex.code();
+                return;
+            }
+            throw stdfs::filesystem_error { "SD card is inaccessible", name, ex.code() };
         }
-    }
-}
-
-FluidPath::FluidPath(const FluidPath& o) : path(o), _isSD(o._isSD) {
-    if (this != &o && _isSD) {
-        xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
-        ++_refcnt;
-        xSemaphoreGive(sd_refcnt_mutex);
-    }
-}
-
-FluidPath::FluidPath(FluidPath&& o) : path(std::move(o)), _isSD(o._isSD) {
-    if (this != &o) {
-        // After a move, the other object is dead so we do not want
-        // to decrement the refcount on destruction
-        o._isSD = false;
-    }
-}
-
-FluidPath& FluidPath::operator=(const FluidPath& o) {
-    stdfs::path::operator=(o);
-
-    _isSD = o._isSD;
-    if (this != &o && _isSD) {
-        xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
-        ++_refcnt;
-        xSemaphoreGive(sd_refcnt_mutex);
-    }
-    return *this;
-}
-
-FluidPath& FluidPath::operator=(FluidPath&& o) {
-    std::swap(_isSD, o._isSD);
-    stdfs::path::operator=(std::move(o));
-    return *this;
-}
-
-FluidPath::~FluidPath() {
-    bool should_unmount = false;
-
-    if (_isSD) {
-        xSemaphoreTake(sd_refcnt_mutex, portMAX_DELAY);
-        if (_refcnt && --_refcnt == 0) {
-            should_unmount = true;
-        }
-        xSemaphoreGive(sd_refcnt_mutex);
-    }
-
-    if (should_unmount) {
-        // Use 100ms timeout instead of blocking forever to avoid deadlock
-        // If mount_lock is held by active filesystem operations, skip unmount
-#if 0
-        if (xSemaphoreTake(sd_mount_lock, pdMS_TO_TICKS(100)) == pdTRUE) {
-            sd_unmount();
-            xSemaphoreGive(sd_mount_lock);
-        }
-#else
-        xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
-        sd_unmount();
-        xSemaphoreGive(sd_mount_lock);
-#endif
     }
 }

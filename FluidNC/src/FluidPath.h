@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <string_view>
+#include <memory>
 #include "Driver/localfs.h"
 
 namespace stdfs = std::filesystem;
@@ -13,25 +14,32 @@ struct Volume {
 extern Volume SD;
 extern Volume LocalFS;
 
+// Helper class to manage SD card mount/unmount lifecycle
+class SDMountState {
+public:
+    SDMountState();
+    ~SDMountState();
+};
+
 class FluidPath : public stdfs::path {
 private:
     FluidPath(const std::string_view name, const Volume& fs, std::error_code*);
 
-    static uint32_t _refcnt;
-    bool            _isSD = false;
+    std::shared_ptr<SDMountState> _sd_mount_state;
+    bool                          _isSD = false;
 
 public:
     FluidPath(const std::string_view name, const Volume& fs, std::error_code& ec) noexcept : FluidPath(name, fs, &ec) {}
     FluidPath(const std::string_view name, const Volume& fs) : FluidPath(name, fs, nullptr) {}
 
-    ~FluidPath();
+    ~FluidPath() = default;
 
     FluidPath() = default;
 
-    FluidPath(const FluidPath& o);             // copy
-    FluidPath(FluidPath&& o);                  // move
-    FluidPath& operator=(const FluidPath& o);  // copy assignment
-    FluidPath& operator=(FluidPath&& o);       // move assignment
+    FluidPath(const FluidPath& o) = default;             // copy
+    FluidPath(FluidPath&& o) = default;                  // move
+    FluidPath& operator=(const FluidPath& o) = default;  // copy assignment
+    FluidPath& operator=(FluidPath&& o) = default;       // move assignment
 
     // true if there is something after the mount name.
     // /localfs/foo -> true,  /localfs -> false
