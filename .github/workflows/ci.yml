@@ -64,7 +64,7 @@ jobs:
           - os: macos-latest
             pio_env: tests
           - os: windows-latest
-            pio_env: tests_nosan
+            pio_env: tests
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3

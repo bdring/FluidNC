@@ -339,6 +339,7 @@
     <ClCompile Include="FluidNC\src\Custom\oled_tiny.cpp" />
     <ClCompile Include="FluidNC\src\Custom\oled_io.cpp" />
     <ClCompile Include="FluidNC\src\Configuration\AfterParse.cpp" />
+    <ClCompile Include="FluidNC\tests\CommandCompletionTest.cpp" />
     <ClCompile Include="FluidNC\src\Configuration\Completer.cpp" />
     <ClCompile Include="FluidNC\src\Motors\MotorDriver.cpp" />
     <ClCompile Include="FluidNC\src\Pins\DebugPinDetail.cpp" />

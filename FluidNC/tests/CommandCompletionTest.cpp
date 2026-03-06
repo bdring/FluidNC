@@ -1,0 +1,184 @@
+#include <gtest/gtest.h>
+
+#include <cctype>
+#include <cstring>
+#include <string_view>
+
+#include "Settings.h"
+#include "Configuration/Configurable.h"
+
+uint32_t num_initial_matches(std::string_view key, uint32_t matchnum, std::string& matchname);
+
+// Stub config tree root used by production num_initial_matches() when key starts with '/'.
+Configuration::Configurable* config = nullptr;
+
+// PlatformIO native test build intentionally compiles a reduced subset of FluidNC.
+// Provide minimal stubs needed for linking Settings.h types used by production completion.
+std::vector<Setting*> Setting::List = {};
+std::vector<Command*> Command::List = {};
+
+Word::Word(type_t type, permissions_t permissions, const char* description, const char* grblName, const char* fullName) :
+    _description(description),
+    _grblName(grblName),
+    _fullName(fullName),
+    _type(type),
+    _permissions(permissions) {}
+
+Command::Command(const char*   description,
+                 type_t        type,
+                 permissions_t permissions,
+                 const char*   grblName,
+                 const char*   fullName,
+                 bool (*cmdChecker)(),
+                 bool synchronous) :
+    Word(type, permissions, description, grblName, fullName),
+    _cmdChecker(cmdChecker),
+    _synchronous(synchronous) {
+    List.insert(List.begin(), this);
+}
+
+Setting::Setting(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName) :
+    Word(type, permissions, description, grblName, fullName),
+    _keyName(fullName) {
+    List.insert(List.begin(), this);
+}
+
+namespace {
+struct MinimalSetting final : public Setting {
+    explicit MinimalSetting(const char* name) : Setting(nullptr, GRBL, WG, nullptr, name) {}
+
+    void load() override {}
+    void setDefault() override {}
+
+    Error setStringValue(std::string_view) override { return Error::ReadOnlySetting; }
+    const char* getStringValue() override { return ""; }
+    const char* getDefaultString() override { return ""; }
+};
+
+static bool starts_with_ci(const char* s, const char* prefix) {
+    if (!s || !prefix) {
+        return false;
+    }
+    for (size_t i = 0; prefix[i] != '\0'; ++i) {
+        if (s[i] == '\0') {
+            return false;
+        }
+        unsigned char a = static_cast<unsigned char>(s[i]);
+        unsigned char b = static_cast<unsigned char>(prefix[i]);
+        if (std::tolower(a) != std::tolower(b)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool equals_ci(const char* a, const char* b) {
+    if (!a || !b) {
+        return false;
+    }
+    for (;;) {
+        unsigned char ca = static_cast<unsigned char>(*a++);
+        unsigned char cb = static_cast<unsigned char>(*b++);
+        if (std::tolower(ca) != std::tolower(cb)) {
+            return false;
+        }
+        if (ca == '\0' && cb == '\0') {
+            return true;
+        }
+    }
+}
+}  // namespace
+
+TEST(CommandCompletion, SdSlashReturnsAtLeastOneMatch) {
+    static MinimalSetting s("sd/list");
+
+    std::string out;
+    uint32_t nfound = num_initial_matches("sd/", 0, out);
+    EXPECT_GE(nfound, 1u);
+}
+
+TEST(CommandCompletion, SdLReturnsPrefixMatch) {
+    static MinimalSetting s("sd/list");
+
+    std::string out;
+    uint32_t nfound = num_initial_matches("sd/l", 0, out);
+
+    EXPECT_GE(nfound, 1u);
+    EXPECT_TRUE(starts_with_ci(out.c_str(), "sd/l"));
+}
+
+TEST(CommandCompletion, CaseInsensitiveMatches) {
+    static MinimalSetting s("sd/list");
+
+    std::string out1;
+    std::string out2;
+
+    uint32_t n1 = num_initial_matches("sd/l", 0, out1);
+    uint32_t n2 = num_initial_matches("SD/L", 0, out2);
+
+    EXPECT_EQ(n1, n2);
+    EXPECT_TRUE(starts_with_ci(out1.c_str(), "sd/l"));
+    EXPECT_TRUE(starts_with_ci(out2.c_str(), "sd/l"));
+}
+
+TEST(CommandCompletion, ExactMatchIsIncluded) {
+    static MinimalSetting s("sd/list");
+
+    std::string_view key = "sd/list";
+    std::string dummy;
+    uint32_t nfound = num_initial_matches(key, 0, dummy);
+    EXPECT_GE(nfound, 1u);
+
+    bool foundExact = false;
+    for (uint32_t i = 0; i < nfound; ++i) {
+        std::string out;
+        (void)num_initial_matches(key, i, out);
+        if (equals_ci(out.c_str(), "sd/list")) {
+            foundExact = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(foundExact);
+}
+
+namespace {
+struct FakeConfigurable final : public Configuration::Configurable {
+    explicit FakeConfigurable(std::initializer_list<std::pair<const char*, FakeConfigurable*>> sections = {}) :
+        _sections(sections.begin(), sections.end()) {}
+
+    void group(Configuration::HandlerBase& handler) override {
+        for (auto const& s : _sections) {
+            handler.enterFactory(s.first, *s.second);
+        }
+    }
+
+private:
+    std::vector<std::pair<const char*, FakeConfigurable*>> _sections;
+};
+}  // namespace
+
+TEST(CommandCompletion, AxesPathCompletionMatchesConfiguredAxes) {
+    // Set up a tiny config tree directly for completion testing:
+    // /axes/{x,y,z}/
+    FakeConfigurable leaf;
+    FakeConfigurable axesSection({ { "x", &leaf }, { "y", &leaf }, { "z", &leaf } });
+    FakeConfigurable root({ { "axes", &axesSection } });
+
+    auto* previous = config;
+    config         = &root;
+
+    // Count matches for "/axes/" and verify the returned candidates.
+    std::string dummy;
+    uint32_t nfound = num_initial_matches("/axes/", 0, dummy);
+    EXPECT_EQ(nfound, 3u);
+
+    // Verify each match starts with the expected prefix
+    std::string out;
+    for (uint32_t i = 0; i < nfound; ++i) {
+        out.clear();
+        (void)num_initial_matches("/axes/", i, out);
+        EXPECT_TRUE(starts_with_ci(out.c_str(), "/axes/")) << "Match " << i << " was '" << out << "'";
+    }
+
+    config = previous;
+}
