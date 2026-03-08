@@ -1,0 +1,45 @@
+{
+  "tokens": {
+    "ha_token": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhdWQiOiJodHRwczovL2lhbS5nb29nbGVhcGlzLmNvbSIsInN1YiI6IjExNzU3MjU4NDQwODg4MzAwMzQxMCJ9.FAKE_TOKEN_EXAMPLE",
+    "prometheus_api_key": "sk-abc123def456xyz789",
+    "sensor_username": "user",
+    "sensor_password": "pass",
+    "webhook_api_key": "whk_live_abc123def456789xyz",
+    "influx_token": "influx_token_abc123def456789",
+    "server_timestamp_base": "http://timestamp.example.com/current"
+  },
+
+  "commands": {
+    "fetch_temperature": "http://sensor.local:8000/api/temperature",
+    
+    "fetch_humidity": "http://sensor.local:8000/api/humidity",
+    
+    "fetch_all_sensors": "http://sensor.local:8000/api/read{\"extract\":{\"_temperature\":\"temp\",\"_humidity\":\"humidity\",\"_pressure\":\"pressure\"}}",
+    
+    "post_job_metrics": "http://prometheus-gateway.local:9091/metrics/job/cnc_machine/instance/spindle1{\"method\":\"POST\",\"body\":\"machine_job_duration_seconds 3600\\nmachine_parts_produced 15\"}",
+    
+    "ha_get_room_temp": "http://homeassistant.local:8123/api/states/sensor.workshop_temperature{\"headers\":{\"Authorization\":\"${ha_token}\"},\"extract\":{\"_room_temp\":\"state\"}}",
+    
+    "ha_call_automation": "http://homeassistant.local:8123/api/webhook/cnc_job_complete{\"method\":\"POST\",\"headers\":{\"Authorization\":\"${ha_token}\",\"Content-Type\":\"application/json\"},\"body\":\"{\\\"status\\\":\\\"finished\\\",\\\"parts\\\":15}\"}",
+    
+    "basic_auth_example": "http://api.internal.local/secure{\"headers\":{\"Authorization\":\"Basic dXNlcjpwYXNz\"},\"timeout\":3000}",
+    
+    "webhook_log_start": "http://webhook.site/abc123xyz{\"method\":\"POST\",\"headers\":{\"Content-Type\":\"application/json\"},\"body\":\"{\\\"event\\\":\\\"job_started\\\",\\\"timestamp\\\":\\\"2025-03-07T10:00:00Z\\\"}\\n\"}",
+    
+    "webhook_log_complete": "http://webhook.site/abc123xyz{\"method\":\"POST\",\"headers\":{\"Content-Type\":\"application/json\"},\"body\":\"{\\\"event\\\":\\\"job_complete\\\",\\\"status\\\":\\\"success\\\",\\\"parts\\\":10}\"}",
+    
+    "post_to_influxdb": "http://influxdb.local:8086/api/v2/write?org=cnc&bucket=machines{\"method\":\"POST\",\"headers\":{\"Authorization\":\"Token ${influx_token}\",\"Content-Type\":\"text/plain\"},\"body\":\"machine_rpm value=1500 machine_feed_rate value=1200\"}",
+    
+    "check_system_health": "http://monitoring.local/api/health{\"timeout\":2000,\"extract\":{\"_cpu_usage\":\"cpu_percent\",\"_memory_available\":\"memory_mb\"}}",
+    
+    "get_next_job": "http://localhost:3000/api/jobs/next{\"headers\":{\"X-API-Key\":\"${prometheus_api_key}\"},\"extract\":{\"_job_id\":\"id\",\"_part_count\":\"quantity\"}}",
+    
+    "query_prometheus": "http://prometheus.local:9090/api/v1/query?query=machine_uptime_seconds{\"timeout\":5000,\"extract\":{\"_uptime_seconds\":\"data.result.0.value.1\"}}",
+    
+    "put_job_status": "http://api.cnc.local/jobs/123{\"method\":\"PUT\",\"headers\":{\"Content-Type\":\"application/json\"},\"body\":\"{\\\"state\\\":\\\"running\\\",\\\"progress\\\":45}}\"}",
+    
+    "delete_old_logs": "http://api.logging.local/v1/cleanup{\"method\":\"DELETE\",\"headers\":{\"Authorization\":\"${webhook_api_key}\"}}",
+    
+    "fetch_tool_offsets": "http://tool-mgmt.local/api/offsets/current{\"timeout\":3000,\"extract\":{\"_tool_z_offset\":\"z_offset\",\"_tool_diameter\":\"diameter\"}}"
+  }
+}

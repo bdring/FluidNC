@@ -26,14 +26,6 @@ namespace WebUI {
         HttpRequest() : method("GET"), timeout_ms(5000), fail_on_error(true) {}
     };
 
-    // HTTP response data
-    struct HttpResponse {
-        int         status_code;
-        std::string body;
-
-        HttpResponse() : status_code(0) {}
-    };
-
     // JSON listener for parsing HTTP command options
     // Handles: {"method":"POST","timeout":5000,"headers":{...},"body":"...","extract":{...}}
     class HttpOptionsListener : public JsonListener {
@@ -61,10 +53,11 @@ namespace WebUI {
 
     // JSON listener for extracting float values from response
     // Used to extract specific keys from JSON response body
+    // Calls set_named_param directly and removes found keys from extractMap
     class ValueExtractorListener : public JsonListener {
     public:
-        explicit ValueExtractorListener(const std::map<std::string, std::string>& extractMap, std::map<std::string, float>& results) :
-            _extractMap(extractMap), _results(results) {}
+        explicit ValueExtractorListener(std::map<std::string, std::string>& extractMap, Channel& out) :
+            _extractMap(extractMap), _out(out) {}
 
         void whitespace(char c) override {}
         void startDocument() override {}
@@ -77,17 +70,18 @@ namespace WebUI {
         void endDocument() override {}
 
     private:
-        const std::map<std::string, std::string>& _extractMap;
-        std::map<std::string, float>&             _results;
-        String                                    _currentKey;
-        int                                       _depth = 0;
+        std::map<std::string, std::string>& _extractMap;
+        Channel&                            _out;
+        String                              _currentKey;
+        int                                 _depth = 0;
     };
 
     // JSON listener for parsing http_settings.json file
-    // Format: {"tokens":{"token_name":"token_value",...}}
+    // Format: {"tokens":{"token_name":"token_value",...},"commands":{"command_name":"command_value",...}}
     class TokenFileListener : public JsonListener {
     public:
-        explicit TokenFileListener(std::map<std::string, std::string>& tokens) : _tokens(tokens) {}
+        explicit TokenFileListener(std::map<std::string, std::string>& tokens, std::map<std::string, std::string>& commands) :
+            _tokens(tokens), _commands(commands) {}
 
         void whitespace(char c) override {}
         void startDocument() override;
@@ -101,16 +95,15 @@ namespace WebUI {
 
     private:
         std::map<std::string, std::string>& _tokens;
+        std::map<std::string, std::string>& _commands;
         String                              _currentKey;
         int                                 _depth    = 0;
         bool                                _inTokens = false;
+        bool                                _inCommands = false;
     };
 
     class HttpCommand {
     public:
-        // Maximum response body size to store
-        static const size_t MAX_RESPONSE_SIZE = 256;
-
         // Maximum request timeout in milliseconds
         static const uint32_t MAX_TIMEOUT_MS = 10000;
 
@@ -130,15 +123,6 @@ namespace WebUI {
         // Substitute ${token_name} patterns in a string
         static std::string substitute_tokens(const std::string& input);
 
-        // Check if current state allows HTTP requests
-        static bool state_check();
-
-        // Get last HTTP status code (for parameter access)
-        static int last_status_code();
-
-        // Get last HTTP response body (for parameter access)
-        static const std::string& last_response_body();
-
     private:
         // Parse the command string into URL and JSON options
         static bool parse_command(const char* value, std::string& url, std::string& json_options);
@@ -150,19 +134,18 @@ namespace WebUI {
         static bool parse_url(const std::string& url, std::string& protocol, std::string& host, uint16_t& port, std::string& path);
 
         // Execute the HTTP request
-        static Error execute_request(const HttpRequest& request, HttpResponse& response, Channel& out);
+        // Returns: Error code
+        // Output parameters: status_code (HTTP response code), bytes_received (response body size)
+        static Error execute_request(HttpRequest& request, int& status_code, uint32_t& bytes_received, Channel& out);
 
         // Store response in GCode parameters
-        static void store_response_params(const HttpResponse& response);
-
-        // Extract values from response and store in GCode parameters
-        static void extract_response_values(const HttpRequest& request, const HttpResponse& response, Channel& out);
-
-        // Last response data (for parameter access)
-        static HttpResponse _last_response;
+        static void store_response_params(int status_code, uint32_t bytes_received);
 
         // Token storage (loaded from TOKEN_FILE_PATH)
         static std::map<std::string, std::string> _tokens;
+
+        // Command storage (loaded from TOKEN_FILE_PATH)
+        static std::map<std::string, std::string> _commands;
     };
 
     // Command handler for UserCommand registration
