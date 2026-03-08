@@ -3,9 +3,9 @@
 
 #include "Job.h"
 #include <map>
-#include <stack>
+#include <vector>
 
-std::stack<JobSource*> job;
+std::vector<JobSource*> job;
 
 Channel* Job::leader = nullptr;
 
@@ -14,7 +14,7 @@ bool Job::active() {
 }
 
 JobSource* Job::source() {
-    return job.empty() ? nullptr : job.top();
+    return job.empty() ? nullptr : job.back();
 }
 
 // save() and restore() are use to close/reopen an SD file atop the job stack
@@ -22,12 +22,12 @@ JobSource* Job::source() {
 // the number of simultaneously-open SD files is limited to conserve RAM.
 void Job::save() {
     if (active()) {
-        job.top()->save();
+        job.back()->save();
     }
 }
 void Job::restore() {
     if (active()) {
-        job.top()->restore();
+        job.back()->restore();
     }
 }
 void Job::nest(Channel* in_channel, Channel* out_channel) {
@@ -35,11 +35,11 @@ void Job::nest(Channel* in_channel, Channel* out_channel) {
     if (out_channel && job.empty()) {
         leader = out_channel;
     }
-    job.push(source);
+    job.push_back(source);
 }
 void Job::pop() {
-    auto source = job.top();
-    job.pop();
+    auto source = job.back();
+    job.pop_back();
     delete source;
     if (!active()) {
         leader = nullptr;
@@ -60,14 +60,18 @@ void Job::abort() {
 }
 
 bool Job::get_param(const std::string& name, float& value) {
-    return job.top()->get_param(name, value);
+    return job.back()->get_param(name, value);
 }
 bool Job::set_param(const std::string& name, float value) {
-    return job.top()->set_param(name, value);
+    return job.back()->set_param(name, value);
 }
 bool Job::param_exists(const std::string& name) {
-    return job.top()->param_exists(name);
+    return job.back()->param_exists(name);
 }
 Channel* Job::channel() {
-    return job.top()->channel();
+    return job.back()->channel();
+}
+
+const std::vector<JobSource*>& Job::jobs_stack() {
+    return job;
 }
