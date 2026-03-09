@@ -1,7 +1,7 @@
 // Copyright (c) 2021 -  Marco Wagner
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "GenericProtocol.h"
+#include "ModbusVFD.h"
 
 #include "Spindles/VFDSpindle.h"
 
@@ -10,7 +10,7 @@
 
 namespace Spindles {
     namespace VFD {
-        void GenericProtocol::scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM) {
+        void ModbusVFD::scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM) {
             int32_t divider = 1;
             if (scale_str.empty()) {
                 return;
@@ -54,7 +54,7 @@ namespace Spindles {
             n /= divider;
         }
 
-        bool GenericProtocol::set_data(
+        bool ModbusVFD::set_data(
             std::string_view token, std::basic_string_view<uint8_t>& response_view, const char* name, uint32_t& data, bool is_big_endian) {
             /**
              *  Match token with name and process data accordingly
@@ -84,7 +84,7 @@ namespace Spindles {
             }
             return false;
         }
-        bool GenericProtocol::parser(const uint8_t* response, VFDSpindle* spindle, GenericProtocol* instance) {
+        bool ModbusVFD::parser(const uint8_t* response, VFDSpindle* spindle, ModbusVFD* instance) {
             /**
              * Process the response from our request using the format specified in the configuration
              * 
@@ -160,7 +160,7 @@ namespace Spindles {
             }
             return true;
         }
-        void GenericProtocol::send_vfd_command(const std::string cmd, ModbusCommand& data, uint32_t out) {
+        void ModbusVFD::send_vfd_command(const std::string cmd, ModbusCommand& data, uint32_t out) {
             /**
              * Build the data frame for the modbus command based on configured format
              * 
@@ -246,7 +246,7 @@ namespace Spindles {
                 }
             }
         }
-        void GenericProtocol::direction_command(SpindleState mode, ModbusCommand& data) {
+        void ModbusVFD::direction_command(SpindleState mode, ModbusCommand& data) {
             switch (mode) {
                 case SpindleState::Cw:
                     send_vfd_command(_cw_cmd, data, 0);
@@ -260,24 +260,19 @@ namespace Spindles {
             }
         }
 
-        void GenericProtocol::set_speed_command(uint32_t speed, ModbusCommand& data) {
+        void ModbusVFD::set_speed_command(uint32_t speed, ModbusCommand& data) {
             send_vfd_command(_set_rpm_cmd, data, speed);
         }
 
-        VFDProtocol::response_parser GenericProtocol::get_current_speed(ModbusCommand& data) {
+        VFDProtocol::response_parser ModbusVFD::get_current_speed(ModbusCommand& data) {
             send_vfd_command(_get_rpm_cmd, data, 0);
             return [](const uint8_t* response, VFDSpindle* spindle, VFDProtocol* protocol) -> bool {
-                auto instance = static_cast<GenericProtocol*>(protocol);
+                auto instance = static_cast<ModbusVFD*>(protocol);
                 return instance->parser(response, spindle, instance);
             };
         }
 
-        void GenericProtocol::setup_speeds(VFDSpindle* vfd) {
-            vfd->shelfSpeeds(_minRPM, _maxRPM);
-            vfd->setupSpeeds(_maxRPM);
-            vfd->_slop = 300;
-        }
-        VFDProtocol::response_parser GenericProtocol::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
+        VFDProtocol::response_parser ModbusVFD::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
             // BUG:
             //
             // If we do:
@@ -293,179 +288,36 @@ namespace Spindles {
             if (_maxRPM == 0xffffffff && !_get_max_rpm_cmd.empty()) {
                 send_vfd_command(_get_max_rpm_cmd, data, 0);
                 return [](const uint8_t* response, VFDSpindle* spindle, VFDProtocol* protocol) -> bool {
-                    auto instance = static_cast<GenericProtocol*>(protocol);
+                    auto instance = static_cast<ModbusVFD*>(protocol);
                     return instance->parser(response, spindle, instance);
                 };
             }
             if (_minRPM == 0xffffffff && !_get_min_rpm_cmd.empty()) {
                 send_vfd_command(_get_min_rpm_cmd, data, 0);
                 return [](const uint8_t* response, VFDSpindle* spindle, VFDProtocol* protocol) -> bool {
-                    auto instance = static_cast<GenericProtocol*>(protocol);
+                    auto instance = static_cast<ModbusVFD*>(protocol);
                     return instance->parser(response, spindle, instance);
                 };
             }
             if (vfd->_speeds.size() == 0) {
-                setup_speeds(vfd);
+                // If we do not already have a speed map from the config file,
+                // create a default one from the min and max RPM values.
+                // Those values were either configured or fetched from the VFD.
+                vfd->shelfSpeeds(_minRPM, _maxRPM);
             }
+
+            // Scale the speed map according to maxRPM.  This is necessary
+            // because configured speed maps contain only percentages of the
+            // maximum dev speed so we must tell it what that dev speed is.
+            vfd->setupSpeeds(_maxRPM);
+            vfd->_slop = 300;
+
             return nullptr;
-        }
-
-        struct VFDtype {
-            const char* name;
-            int8_t      disable_with_s0;
-            int8_t      s0_with_disable;
-            uint32_t    min_rpm;
-            uint32_t    max_rpm;
-            const char* cw_cmd;
-            const char* ccw_cmd;
-            const char* off_cmd;
-            const char* set_rpm_cmd;
-            const char* get_rpm_cmd;
-            const char* get_min_rpm_cmd;
-            const char* get_max_rpm_cmd;
-        } VFDtypes[] = {
-            {
-                "YL620",
-                -1,
-                -1,
-                0xffffffff,
-                0xffffffff,
-                "06 20 00 00 12 > echo",
-                "06 20 00 00 22 > echo",
-                "06 20 00 00 01 > echo",
-                "06 20 01 rpm*10/60 > echo",
-                "03 20 0b 00 01 > 03 02 rpm*6",
-                "",
-                "03 03 08 00 02 > 03 04 minrpm*60/10 maxrpm*6",
-            },
-            {
-                "Huanyang",
-                -1,
-                -1,
-                0xffffffff,
-                0xffffffff,
-                "03 01 01 > echo",
-                "03 01 11 > echo",
-                "03 01 08 > echo",
-                "05 02 rpm*100/60 > echo",
-                "04 03 01 00 00 > 04 03 01 rpm*60/100",
-                "01 03 0b 00 00 > 01 03 0B minRPM*60/100",
-                "01 03 05 00 00 > 01 03 05 maxRPM*60/100",
-            },
-            {
-                "H2A",
-                -1,
-                -1,
-                6000,
-                0xffffffff,
-                "06 20 00 00 01 > echo",
-                "06 20 00 00 02 > echo",
-                "06 20 00 00 06 > echo",
-                "06 10 00 rpm%*100 > echo",
-                "03 70 0C 00 01 > 03 00 02 rpm",  // or "03 70 0C 00 02 > 03 00 04 rpm 00 00",
-                "",
-                "03 B0 05 00 01 >  03 00 02 maxrpm",  // or "03 B0 05 00 02 >  03 00 04 maxrpm 03 F6",
-
-            },
-            {
-                "H100",
-                -1,
-                -1,
-                0xffffffff,
-                0xffffffff,
-                "05 00 49 ff 00 > echo",
-                "05 00 4A ff 00 > echo",
-                "05 00 4B ff 00 > echo",
-                "06 02 01 rpm%*4 > echo",
-                "04 00 00 00 02 > 04 04 rpm%*4 ignore",
-                "03 00 0B 00 01 > 03 02 minrpm*60",
-                "03 00 05 00 01 > 03 02 maxrpm*60",
-            },
-            {
-                "NowForever",
-                -1,
-                -1,
-                0xffffffff,
-                0xffffffff,
-                "10 09 00 00 01 02 00 01 > echo",
-                "10 09 00 00 01 02 00 03 > echo",
-                "10 09 00 00 01 02 00 00 > echo",
-                "10 09 01 00 01 02 rpm/6 > echo",
-                "03 05 02 00 01 > 03 02 rpm%*4",
-                "",
-                "03 00 07 00 02 >  03 04 maxrpm*6 minrpm*6",
-            },
-            {
-                "SiemensV20",
-                -1,
-                -1,
-                0,
-                24000,
-                "06 00 63 0C 7F > echo",
-                "06 00 63 04 7F > echo",
-                "06 00 63 0C 7E > echo",
-                "06 00 64 rpm%*16384/100 > echo",
-                "03 00 6E 00 01 > 03 02 rpm%*16384/100",
-                "",
-                "",
-            },
-            {
-                "MollomG70",
-                1,                                       // disable_with_s0
-                1,                                       // s0_with_disable
-                0xffffffff,                              // min_rpm
-                0xffffffff,                              // max_rpm
-                "06 20 00 00 01 > echo",                 // cw
-                "06 20 00 00 02 > echo",                 // ccw
-                "06 20 00 00 06 > echo",                 // off
-                "06 10 00 rpm%*100 > echo",              // set_rpm
-                "03 70 00 00 01 > 03 02 rpm*60/100",     // get_rpm
-                "03 f0 0e 00 01 > 03 02 minrpm*60/100",  // get_min_rpm
-                "03 f0 0c 00 01 > 03 02 maxrpm*60/100",  // get_max_rpm
-            },
-        };
-        void GenericProtocol::afterParse() {
-            _model = string_util::trim(_model);
-            for (auto const& vfd : VFDtypes) {
-                if (string_util::equal_ignore_case(_model, vfd.name)) {
-                    log_debug("Using predefined ModbusVFD " << vfd.name);
-                    if (_cw_cmd.empty()) {
-                        _cw_cmd = vfd.cw_cmd;
-                    }
-                    if (_ccw_cmd.empty()) {
-                        _ccw_cmd = vfd.ccw_cmd;
-                    }
-#if 0
-                    if (vfd.disable_with_s0 != -1) {
-                        _disable_with_s0 = vfd.disable_with_s0;
-                    }
-                    if (vfd.s0_with_disable != -1) {
-                        s0_with_disable = vfd.s0_with_disable;
-                    }
-#endif
-                    if (_off_cmd.empty()) {
-                        _off_cmd = vfd.off_cmd;
-                    }
-                    if (_set_rpm_cmd.empty()) {
-                        _set_rpm_cmd = vfd.set_rpm_cmd;
-                    }
-                    if (_get_rpm_cmd.empty()) {
-                        _get_rpm_cmd = vfd.get_rpm_cmd;
-                    }
-                    if (_get_max_rpm_cmd.empty()) {
-                        _get_max_rpm_cmd = vfd.get_max_rpm_cmd;
-                    }
-                    if (_get_min_rpm_cmd.empty()) {
-                        _get_min_rpm_cmd = vfd.get_min_rpm_cmd;
-                    }
-                    return;
-                }
-            }
         }
 
         // Configuration registration
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, GenericProtocol> registration("ModbusVFD");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, ModbusVFD> registration("ModbusVFD");
         }
     }
 }

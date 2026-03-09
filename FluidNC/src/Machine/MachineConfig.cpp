@@ -146,21 +146,28 @@ namespace Machine {
             _parking = new Parking();
         }
 
-        auto spindles = Spindles::SpindleFactory::objects();
+        auto& spindles = Spindles::SpindleFactory::objects();
         if (spindles.size() == 0) {
             spindles.push_back(new Spindles::Null("NoSpindle"));
             //            Spindles::SpindleFactory::add(new Spindles::Null());
         }
 
+        std::sort(spindles.begin(), spindles.end(), [](Spindles::Spindle* s1, Spindles::Spindle* s2) { return s1->_tool < s2->_tool; });
+
         // Precaution in case the full spindle initialization does not happen
         // due to a configuration error
         spindle = spindles[0];
 
-        uint32_t next_tool = 100;
+        int32_t last_tool = -1;
         for (auto s : Spindles::SpindleFactory::objects()) {
-            if (s->_tool == -1) {
-                s->_tool = next_tool++;
+            if (last_tool == -1 && s->_tool != 0) {  // first must be 0
+                log_warn(s->name() << " spindle set to tool 0");
+                s->_tool = 0;
+            } else if (s->_tool <= last_tool) {
+                s->_tool = last_tool + 100;
+                log_warn(s->name() << " spindle tool set to:" << s->_tool);
             }
+            last_tool = s->_tool;
         }
 
         if (_macros == nullptr) {
