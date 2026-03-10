@@ -1,0 +1,161 @@
+#pragma once
+
+// Minimal mock implementations for testing kinematics with real source code
+
+#include <cstdint>
+#include <cstddef>
+#include <cmath>
+
+// Include mock Channel first - Logging.h will use it
+#include "Channel.h"
+
+// ============================================================================
+// Axis and Motor Stubs
+// ============================================================================
+
+namespace Machine {
+    class Motor;  // Forward declaration
+    
+    struct Axis {
+        static const int MAX_MOTORS_PER_AXIS = 2;
+        
+        bool _softLimits = false;
+        float _min = -1000.0f;
+        float _max = 1000.0f;
+        Motor* _motors[MAX_MOTORS_PER_AXIS] = {nullptr, nullptr};
+
+        // Methods called by kinematics code
+        bool can_home();
+        void extraPulloff();
+        void commonPulloff();
+    };
+
+    class Axes {
+    public:
+        static axis_t      _numberAxis;
+        static Axis*       _axis[MAX_N_AXIS];  // MAX_N_AXIS from Types.h
+        static const char* _axisNames[];
+        static uint8_t     homingMask;
+        static uint8_t     negLimitMask;
+        static uint8_t     posLimitMask;
+
+        static void init_stubs(axis_t num_axes);  // Defined in test_mocks.cpp
+
+        static void cleanup_stubs();  // Defined in test_mocks.cpp
+
+        static const char* axisName(axis_t axis) {
+            if (axis < MAX_N_AXIS) {
+                return _axisNames[axis];
+            }
+            return "?";
+        }
+
+        static void set_disable(bool disable);  // Stub for ParallelDelta kinematics
+    };
+
+    class Motor {
+    public:
+        void limitOtherAxis(axis_t axis);  // Stub for kinematics code
+    };
+
+    class MachineConfig {
+    public:
+        static MachineConfig* instance() {
+            static MachineConfig _instance;
+            return &_instance;
+        }
+
+        Machine::Axes* _axes = nullptr;
+
+        MachineConfig() : _axes(nullptr) {}
+    };
+}
+
+// Global config instance
+extern Machine::MachineConfig* config;
+
+// ============================================================================
+// Motor Position Arrays for Soft Limits
+// ============================================================================
+
+extern float _min_motor_pos[MAX_N_AXIS];
+extern float _max_motor_pos[MAX_N_AXIS];
+
+// ============================================================================
+// Stub Functions for Soft Limits
+// ============================================================================
+
+float limitsMinPosition(uint8_t axis);
+float limitsMaxPosition(uint8_t axis);
+void set_steps(uint8_t axis, int32_t steps);
+void limit_error();  // No-argument version
+void limit_error(uint8_t axis, float position);  // Two-argument version
+
+// ============================================================================
+// ParallelDelta Dependencies
+// ============================================================================
+
+float* get_motor_pos();
+void set_motor_pos(float* pos, size_t n_axis);
+void set_motor_pos(size_t axis, float pos);
+float vector_length(float* v, size_t n);
+float vector_distance(float* v1, float* v2, size_t n);
+void protocol_disable_steppers();
+
+// Forward declaration for plan_line_data_t
+struct plan_line_data_t;
+
+// Motion planner stub
+bool mc_move_motors(float* motors, plan_line_data_t* pl_data);
+
+// ============================================================================
+// Test Helpers for cartesian_to_motors Testing
+// ============================================================================
+
+#include <vector>
+
+struct MotorSegment {
+    float motors[MAX_N_AXIS];
+};
+
+// Reset captured segments
+void reset_motor_segments();
+
+// Get captured motor segments from mc_move_motors calls
+std::vector<MotorSegment>& get_motor_segments();
+
+template <typename D, typename S>
+void copyAxes(D* dest, S* src, axis_t n_axis) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        dest[axis] = src[axis];
+    }
+}
+
+template <typename D, typename S>
+void copyAxes(D* dest, S* src) {
+    copyAxes(dest, src, Machine::Axes::_numberAxis);
+}
+
+template <typename D, typename S>
+void addAxes(D* dest, S* src, axis_t n_axis) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        dest[axis] += src[axis];
+    }
+}
+
+template <typename D, typename S>
+void addAxes(D* dest, S* src) {
+    addAxes(dest, src, Machine::Axes::_numberAxis);
+}
+
+template <typename D, typename S>
+void subtractAxes(D* dest, S* src, axis_t n_axis) {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        dest[axis] -= src[axis];
+    }
+}
+
+template <typename D, typename S>
+void subtractAxes(D* dest, S* src) {
+    subtractAxes(dest, src, Machine::Axes::_numberAxis);
+}

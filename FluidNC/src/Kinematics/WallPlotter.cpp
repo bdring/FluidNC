@@ -4,6 +4,7 @@
 #include "Limit.h"
 
 #include <cmath>
+#include <iostream>
 
 namespace Kinematics {
     void WallPlotter::group(Configuration::HandlerBase& handler) {
@@ -25,11 +26,11 @@ namespace Kinematics {
         // The motors assume they start from (0, 0, 0).
         // So we need to derive the zero lengths to satisfy the kinematic equations.
         xy_to_lengths(0, 0, zero_left, zero_right);
-        last_motor_segment_end[0] = zero_left;
-        last_motor_segment_end[1] = zero_right;
-        auto n_axis               = Axes::_numberAxis;
+        last_motors[0] = 0;
+        last_motors[1] = 0;
+        auto n_axis    = Axes::_numberAxis;
         for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
-            last_motor_segment_end[axis] = 0.0;
+            last_motors[axis] = 0.0;
         }
 
         init_position();
@@ -38,17 +39,24 @@ namespace Kinematics {
     // Initialize the machine position
     void WallPlotter::init_position() {
         // Same as cartesian
-        auto  n_axis = Axes::_numberAxis;
-        float min_mpos[MAX_N_AXIS];
-        float max_mpos[MAX_N_AXIS];
+        auto n_axis = Axes::_numberAxis;
 
-        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-            set_steps(axis, 0);  // Set to zeros
-            min_mpos[axis] = limitsMinPosition(axis);
-            max_mpos[axis] = limitsMaxPosition(axis);
+        // The cord lengths range from 0 to the hypotenuse of
+        // a square whose side is the inter-anchor distance
+        float distance = _right_anchor_x - _left_anchor_x;
+        float hypot    = distance * 1.414;
+
+        for (axis_t axis = X_AXIS; axis < Z_AXIS; axis++) {
+            set_steps(axis, 0);
+            _min_motor_pos[axis] = 0;
+            _max_motor_pos[axis] = hypot;
         }
-        transform_cartesian_to_motors(_min_motor_pos, min_mpos);
-        transform_cartesian_to_motors(_max_motor_pos, max_mpos);
+
+        for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
+            set_steps(axis, 0);  // Set to zeros
+            _min_motor_pos[axis] = limitsMinPosition(axis);
+            _max_motor_pos[axis] = limitsMaxPosition(axis);
+        }
     }
 
     bool WallPlotter::canHome(AxisMask axisMask) {
@@ -56,8 +64,18 @@ namespace Kinematics {
         return false;
     }
 
-    bool WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
-        log_error("WallPlotter::transform_cartesian_to_motors is broken");
+    bool WallPlotter::transform_cartesian_to_motors(float* motors, float* cartesian) {
+        // Convert cartesian (x, y, z...) to motor cord lengths
+        xy_to_lengths(cartesian[X_AXIS], cartesian[Y_AXIS], motors[_left_axis], motors[_right_axis]);
+        motors[_left_axis]  = (-motors[_left_axis]) + zero_left;
+        motors[_right_axis] = motors[_right_axis] - zero_right;
+
+        // Pass through Z and higher axes unchanged
+        auto n_axis = Axes::_numberAxis;
+        for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
+            motors[axis] = cartesian[axis];
+        }
+
         return true;
     }
 
@@ -76,7 +94,6 @@ namespace Kinematics {
 
         float total_cartesian_distance = vector_distance(position, target, n_axis);
         if (total_cartesian_distance == 0) {
-            mc_move_motors(target, pl_data);
             return true;
         }
 
@@ -114,48 +131,30 @@ namespace Kinematics {
             }
 
             // Convert cartesian space coords to motor space
-            float motor_segment_end[MAX_N_AXIS];
-            xy_to_lengths(cartesian_segment_end[X_AXIS], cartesian_segment_end[Y_AXIS], motor_segment_end[0], motor_segment_end[1]);
-            for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
-                motor_segment_end[axis] = cartesian_segment_end[axis];
-            }
+            float motors[MAX_N_AXIS];
+            transform_cartesian_to_motors(motors, cartesian_segment_end);
 
-#ifdef USE_CHECKED_KINEMATICS
-            // Check the inverse computation.
-            float cx, cy;
-            lengths_to_xy(motor_segment_end[0], motor_segment_end[1], cx, cy);
-
-            if (abs(cartesian_segment_end[X_AXIS] - cx) > 0.1 || abs(cartesian_segment_end[Y_AXIS] - cy) > 0.1) {
-                // FIX: Produce an alarm state?
-            }
-#endif
             // Adjust feedrate by the ratio of the segment lengths in motor and cartesian spaces,
             // accounting for all axes
             if (!pl_data->motion.rapidMotion) {  // Rapid motions ignore feedrate. Don't convert.
                                                  // T=D/V, Tcart=Tmotor, Dcart/Vcart=Dmotor/Vmotor
                                                  // Vmotor = Dmotor*(Vcart/Dcart)
-                float motor_segment_length = vector_distance(last_motor_segment_end, motor_segment_end, n_axis);
+                float motor_segment_length = vector_distance(last_motors, motors, n_axis);
                 pl_data->feed_rate         = cartesian_feed_rate * motor_segment_length / cartesian_segment_length;
             }
 
             // TODO: G93 pl_data->motion.inverseTime logic?? Does this even make sense for wallplotter?
 
             // Remember the last motor position so the length can be computed the next time
-            copyAxes(last_motor_segment_end, motor_segment_end);
+            copyAxes(last_motors, motors);
 
             // Initiate motor movement with converted feedrate and converted position
-            // mc_move_motors() returns false if a jog is cancelled.
-            // In that case we stop sending segments to the planner.
             // Note that the left motor runs backward.
             // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
-            float cables[MAX_N_AXIS];
-            cables[0] = 0 - (motor_segment_end[0] - zero_left);
-            cables[1] = 0 + (motor_segment_end[1] - zero_right);
-            for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
-                cables[axis] = cartesian_segment_end[axis];
-            }
-            if (!mc_move_motors(cables, pl_data)) {
+            if (!mc_move_motors(motors, pl_data)) {
+                // A jog was canceled
                 // TODO fixup last_left last_right?? What is position state when jog is cancelled?
+
                 return false;
             }
         }

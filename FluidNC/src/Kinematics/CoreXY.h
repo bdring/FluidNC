@@ -42,6 +42,11 @@ namespace Kinematics {
 
         bool transform_cartesian_to_motors(float* motors, float* cartesian) override;
 
+#if defined(KINEMATICS_TEST_BUILD)
+    public:
+#else
+    private:
+#endif
         ~CoreXY() {}
 
     private:

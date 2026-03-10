@@ -38,7 +38,7 @@ namespace Kinematics {
         virtual void init() override;
         virtual void init_position() override;
         void         motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) override;
-        bool         transform_cartesian_to_motors(float* cartesian, float* motors) override;
+        bool         transform_cartesian_to_motors(float* motors, float* cartesian) override;
 
         bool         canHome(AxisMask axisMask) override;
         void         releaseMotors(AxisMask axisMask, MotorMask motors) override;
@@ -55,7 +55,11 @@ namespace Kinematics {
         void group(Configuration::HandlerBase& handler) override {}
         void validate() override {}
 
+#if defined(KINEMATICS_TEST_BUILD)
+    public:
+#else
     protected:
+#endif
         ~Cartesian() {}
     };
 }  //  namespace Kinematics

@@ -1,0 +1,170 @@
+#include <gtest/gtest.h>
+#include <cstdio>
+#include <cstring>
+#include <LittleFS.h>
+
+// This test demonstrates the lseek bug in the VFS layer.
+// The bug: _lseek() doesn't return the correct file position,
+// which breaks ftell() and other FILE* operations that depend on it.
+
+class VFSLseekTest : public ::testing::Test {
+protected:
+    static constexpr const char* TEST_FILE = "/littlefs/test_lseek.txt";
+    static constexpr const char* TEST_DATA = "Hello, World! This is test data.";
+
+    void SetUp() override {
+        // Mount LittleFS
+        ASSERT_TRUE(LittleFS.begin()) << "Failed to mount LittleFS";
+    }
+
+    void TearDown() override {
+        // Clean up test file
+        if (LittleFS.exists(TEST_FILE)) {
+            LittleFS.remove(TEST_FILE);
+        }
+        LittleFS.end();
+    }
+};
+
+// Test that ftell() works correctly after writing
+TEST_F(VFSLseekTest, FtellAfterWrite) {
+    FILE* f = fopen(TEST_FILE, "w");
+    ASSERT_NE(nullptr, f) << "Failed to open file for writing";
+
+    // Write test data
+    size_t written = fwrite(TEST_DATA, 1, strlen(TEST_DATA), f);
+    EXPECT_EQ(strlen(TEST_DATA), written) << "Failed to write all data";
+
+    // ftell() should return the current position
+    long pos = ftell(f);
+    EXPECT_EQ(strlen(TEST_DATA), pos) << "ftell() returned wrong position after write";
+
+    EXPECT_EQ(0, fclose(f)) << "Failed to close file";
+}
+
+// Test that ftell() and fseek() work together
+TEST_F(VFSLseekTest, FseekAndFtell) {
+    FILE* f = fopen(TEST_FILE, "w+");
+    ASSERT_NE(nullptr, f) << "Failed to open file for read/write";
+
+    // Write test data
+    fwrite(TEST_DATA, 1, strlen(TEST_DATA), f);
+
+    // Seek to middle of file
+    int seek_pos = 7;  // After "Hello, "
+    EXPECT_EQ(0, fseek(f, seek_pos, SEEK_SET)) << "fseek() failed";
+
+    // ftell() should return the new position
+    long pos = ftell(f);
+    EXPECT_EQ(seek_pos, pos) << "ftell() returned wrong position after fseek()";
+
+    // Verify we can read from the seeked position
+    char buf[10] = {};
+    int read = fread(buf, 1, sizeof(buf) - 1, f);
+    EXPECT_GT(read, 0) << "fread() failed";
+    EXPECT_STREQ("World! This", buf) << "Reading from wrong position";
+
+    EXPECT_EQ(0, fclose(f)) << "Failed to close file";
+}
+
+// Test that fseek with SEEK_CUR (relative seek) works
+TEST_F(VFSLseekTest, SeekCurrent) {
+    FILE* f = fopen(TEST_FILE, "w+");
+    ASSERT_NE(nullptr, f) << "Failed to open file for read/write";
+
+    // Write test data
+    fwrite(TEST_DATA, 1, strlen(TEST_DATA), f);
+
+    // Seek to start
+    fseek(f, 0, SEEK_SET);
+
+    // Move forward 5 bytes using SEEK_CUR
+    fseek(f, 5, SEEK_CUR);
+    long pos = ftell(f);
+    EXPECT_EQ(5, pos) << "ftell() wrong after SEEK_CUR forward";
+
+    // Move back 2 bytes using negative SEEK_CUR
+    fseek(f, -2, SEEK_CUR);
+    pos = ftell(f);
+    EXPECT_EQ(3, pos) << "ftell() wrong after negative SEEK_CUR";
+
+    EXPECT_EQ(0, fclose(f)) << "Failed to close file";
+}
+
+// Test that SEEK_END works
+TEST_F(VFSLseekTest, SeekEnd) {
+    FILE* f = fopen(TEST_FILE, "w+");
+    ASSERT_NE(nullptr, f) << "Failed to open file for read/write";
+
+    // Write test data
+    fwrite(TEST_DATA, 1, strlen(TEST_DATA), f);
+    size_t file_size = strlen(TEST_DATA);
+
+    // Seek to end
+    fseek(f, 0, SEEK_END);
+    long pos = ftell(f);
+    EXPECT_EQ(file_size, (size_t)pos) << "ftell() wrong after SEEK_END";
+
+    // Seek to 5 bytes before end
+    fseek(f, -5, SEEK_END);
+    pos = ftell(f);
+    EXPECT_EQ(file_size - 5, (size_t)pos) << "ftell() wrong after SEEK_END with offset";
+
+    EXPECT_EQ(0, fclose(f)) << "Failed to close file";
+}
+
+// Test multiple open/close cycles maintain correct positions
+TEST_F(VFSLseekTest, MultipleOpenClose) {
+    // First: write data
+    FILE* f = fopen(TEST_FILE, "w");
+    ASSERT_NE(nullptr, f);
+    fwrite(TEST_DATA, 1, strlen(TEST_DATA), f);
+    fclose(f);
+
+    // Second: open for append and verify position
+    f = fopen(TEST_FILE, "a");
+    ASSERT_NE(nullptr, f);
+    long pos = ftell(f);
+    EXPECT_EQ(strlen(TEST_DATA), (size_t)pos) << "Append mode should start at EOF";
+    fclose(f);
+
+    // Third: open for read and seek around
+    f = fopen(TEST_FILE, "r");
+    ASSERT_NE(nullptr, f);
+    
+    fseek(f, 5, SEEK_SET);
+    pos = ftell(f);
+    EXPECT_EQ(5, pos) << "Read mode fseek() failed";
+    
+    fclose(f);
+}
+
+// Diagnostic test to verify VFS integration
+TEST_F(VFSLseekTest, VFSIntegration) {
+    // This test verifies that LittleFS works through the VFS layer
+    FILE* f = fopen(TEST_FILE, "w");
+    ASSERT_NE(nullptr, f) << "VFS fopen() failed";
+    
+    // Write known data
+    const char* data = "VFS Test";
+    fwrite(data, 1, strlen(data), f);
+    
+    // Verify position tracking
+    long pos = ftell(f);
+    EXPECT_EQ(strlen(data), (size_t)pos) << "ftell() integration failed";
+    
+    fclose(f);
+    
+    // Verify file was actually written
+    EXPECT_TRUE(LittleFS.exists(TEST_FILE)) << "File not created in LittleFS";
+    
+    // Read it back and verify
+    File lfs_file = LittleFS.open(TEST_FILE, "r");
+    ASSERT_TRUE(lfs_file) << "Failed to open with LittleFS API";
+    
+    char buf[32] = {};
+    lfs_file.readBytes(buf, sizeof(buf) - 1);
+    lfs_file.close();
+    
+    EXPECT_STREQ("VFS Test", buf) << "Data mismatch in LittleFS";
+}
