@@ -68,6 +68,11 @@ Reference tokens in URLs/headers/body using `${token_name}`:
 $HTTP/Command=http://api.example.com/data{"headers":{"Authorization":"${ha_token}"}}
 ```
 
+A token can be used for the IP address:
+```gcode
+$HTTP/Command=http://${ip}/data{"headers":{"Authorization":"${ha_token}"}}
+```
+
 ### Commands
 
 Commands are useful for:

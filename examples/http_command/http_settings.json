@@ -6,15 +6,16 @@
     "sensor_password": "pass",
     "webhook_api_key": "whk_live_abc123def456789xyz",
     "influx_token": "influx_token_abc123def456789",
-    "server_timestamp_base": "http://timestamp.example.com/current"
+    "server_timestamp_base": "http://timestamp.example.com/current",
+    "ip": "sensor.local:8000"
   },
 
   "commands": {
-    "fetch_temperature": "http://sensor.local:8000/api/temperature",
+    "fetch_temperature": "http://${ip}/api/temperature",
     
-    "fetch_humidity": "http://sensor.local:8000/api/humidity",
+    "fetch_humidity": "http://${ip}/api/humidity",
     
-    "fetch_all_sensors": "http://sensor.local:8000/api/read{\"extract\":{\"_temperature\":\"temp\",\"_humidity\":\"humidity\",\"_pressure\":\"pressure\"}}",
+    "fetch_all_sensors": "http://${ip}/api/read{\"extract\":{\"_temperature\":\"temp\",\"_humidity\":\"humidity\",\"_pressure\":\"pressure\"}}",
     
     "post_job_metrics": "http://prometheus-gateway.local:9091/metrics/job/cnc_machine/instance/spindle1{\"method\":\"POST\",\"body\":\"machine_job_duration_seconds 3600\\nmachine_parts_produced 15\"}",
     
