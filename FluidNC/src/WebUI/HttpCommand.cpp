@@ -70,13 +70,13 @@
 
 #include "HttpCommand.h"
 
-#include "../System.h"
-#include "../Protocol.h"
-#include "../Parameters.h"
-#include "../Report.h"
-#include "../Module.h"
-#include "../FluidPath.h"
-#include "Driver/localfs.h"
+#include "System.h"
+#include "Protocol.h"
+#include "Parameters.h"
+#include "Report.h"
+#include "Module.h"
+#include "FluidPath.h"
+#include "FileStream.h"
 
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -96,41 +96,29 @@ namespace WebUI {
         _tokens.clear();
         _commands.clear();
 
-        // Build full path using FluidNC's localfs prefix
-        std::string fullPath = "/";
-        fullPath += localfsName;
-        fullPath += SETTINGS_FILE_PATH;
+        try {
+            // Build full path using FluidNC's localfs prefix
+            FileStream file { SETTINGS_FILE_PATH, "r" };
 
-        FILE* file = fopen(fullPath.c_str(), "r");
-        if (!file) {
-            log_debug("HTTP: No settings file at " << fullPath);
-            return;
-        }
+            // Parse JSON using streaming parser
+            JsonStreamingParser parser;
+            TokenFileListener   listener(_tokens, _commands);
+            parser.setListener(&listener);
 
-        // Read entire file content
-        std::string content;
-        int         c;
-        while ((c = fgetc(file)) != EOF) {
-            content += static_cast<char>(c);
-        }
-        fclose(file);
+            char c;
+            while (file.read(&c, 1) == 1) {
+                parser.parse(c);
+            }
 
-        // Parse JSON using streaming parser
-        JsonStreamingParser parser;
-        TokenFileListener   listener(_tokens, _commands);
-        parser.setListener(&listener);
+            log_info("HTTP: Loaded " << _tokens.size() << " tokens and " << _commands.size() << " commands from " << SETTINGS_FILE_PATH);
+            for (const auto& token : _tokens) {
+                log_debug("HTTP: Token '" << token.first << "' (" << token.second.length() << " chars)");
+            }
+            for (const auto& cmd : _commands) {
+                log_debug("HTTP: Command '" << cmd.first << "' = " << cmd.second);
+            }
 
-        for (char c : content) {
-            parser.parse(c);
-        }
-
-        log_info("HTTP: Loaded " << _tokens.size() << " tokens and " << _commands.size() << " commands from " << SETTINGS_FILE_PATH);
-        for (const auto& token : _tokens) {
-            log_debug("HTTP: Token '" << token.first << "' (" << token.second.length() << " chars)");
-        }
-        for (const auto& cmd : _commands) {
-            log_debug("HTTP: Command '" << cmd.first << "' = " << cmd.second);
-        }
+        } catch (const Error err) { log_debug("HTTP: No settings file at " << SETTINGS_FILE_PATH); }
     }
 
     std::string HttpCommand::substitute_tokens(const std::string& input) {
