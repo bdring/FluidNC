@@ -27,7 +27,7 @@ A comprehensive settings file showing all HttpCommand features:
   - Tool management: `fetch_tool_offsets`
   - Different HTTP methods: PUT (`put_job_status`), DELETE (`delete_old_logs`)
 
-### `http_example.ngc`
+### `http_example.gc`
 A G-code example program demonstrating how to use the commands and tokens from `http_settings.json`:
 
 - **Simple command usage** - Basic command substitution with `@command_name`
@@ -45,7 +45,7 @@ A G-code example program demonstrating how to use the commands and tokens from `
 
 1. Copy `http_settings.json` to `/localfs/http_settings.json` on your FluidNC device/SD card
 2. Update the URLs and tokens with your actual API endpoints and credentials
-3. Use `http_example.ngc` as a reference for your own G-code programs
+3. Use `http_example.gc` as a reference for your own G-code programs
 
 ### Editing http_settings.json
 
@@ -249,7 +249,7 @@ cp http_settings.json /mnt/sd_card/localfs/
 
 #### 3. Run test G-code
 
-Using `http_example.ngc` or your own test program:
+Using `http_example.gc` or your own test program:
 
 ```gcode
 ; Simple extraction test
