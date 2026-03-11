@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Settings.h"
+#include "Parameters.h"  // global_named_params
 
 #define CRASH_TEST
 
@@ -984,6 +985,12 @@ static Error showHeap(const char* value, AuthenticationLevel auth_level, Channel
     return Error::Ok;
 }
 
+static Error list_parameters(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    list_global_params(out);
+    list_local_params(out);
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -1020,6 +1027,7 @@ void make_user_commands() {
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
     new UserCommand("RM", "Macros/Run", macros_run, nullptr);
+    new UserCommand("PL", "Parameters/List", list_parameters, nullptr);
 
     new UserCommand("H", "Home", home_all, allowConfigStates);
     new UserCommand("HX", "Home/X", home_x, allowConfigStates);
