@@ -130,7 +130,7 @@ float hypot_f(float x, float y) {
     return sqrtf(x * x + y * y);
 }
 
-float vector_distance(float* v1, float* v2, size_t n) {
+float vector_distance(const float* v1, const float* v2, size_t n) {
     float sum = 0.0;
     for (size_t i = 0; i < n; i++) {
         float d = v2[i] - v1[i];
@@ -139,7 +139,7 @@ float vector_distance(float* v1, float* v2, size_t n) {
     return sqrtf(sum);
 }
 
-float vector_length(float* v, size_t n) {
+float vector_length(const float* v, size_t n) {
     float sum = 0.0;
     for (size_t i = 0; i < n; i++) {
         float d = v[i];

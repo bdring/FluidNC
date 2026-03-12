@@ -150,7 +150,7 @@ namespace Kinematics {
         float feed_rate = pl_data->feed_rate;  // save original feed rate
 
         // Check the destination to see if it is in work area
-        float motors[MAX_N_AXIS];
+        float motors[MAX_N_AXIS] = { 0.0f };
         if (!transform_cartesian_to_motors(motors, target)) {
             log_warn("Kinematics error. Target unreachable (" << target[0] << "," << target[1] << "," << target[2] << ")");
             return false;

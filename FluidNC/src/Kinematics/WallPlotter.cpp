@@ -26,8 +26,8 @@ namespace Kinematics {
         // The motors assume they start from (0, 0, 0).
         // So we need to derive the zero lengths to satisfy the kinematic equations.
         xy_to_lengths(0, 0, zero_left, zero_right);
-        last_motors[0] = 0;
-        last_motors[1] = 0;
+        last_motors[0] = 0.0;
+        last_motors[1] = 0.0;
         auto n_axis    = Axes::_numberAxis;
         for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
             last_motors[axis] = 0.0;

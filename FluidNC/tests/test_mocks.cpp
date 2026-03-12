@@ -30,6 +30,21 @@ uint8_t Machine::Axes::posLimitMask = 0;
 // Stub motor objects for axis access
 static Machine::Motor _stub_motors[MAX_N_AXIS][Machine::Axis::MAX_MOTORS_PER_AXIS];
 
+// Simple test-only proxy struct for MachineConfig
+// Provides the same interface as the real MachineConfig without including dependencies
+struct TestMachineConfig {
+    Machine::Axes* _axes = nullptr;
+};
+
+// Wrapper class to provide an Axes instance interface for the mock static Axes
+class TestAxes : public Machine::Axes {
+public:
+    // This instance serves as the config->_axes pointer
+    // It inherits the static members from Machine::Axes
+};
+
+static TestAxes _test_axes_instance;
+
 void Machine::Axes::init_stubs(axis_t num_axes) {
     _numberAxis = num_axes;
     for (size_t i = 0; i < num_axes; i++) {
@@ -41,6 +56,17 @@ void Machine::Axes::init_stubs(axis_t num_axes) {
             _axis[i]->_motors[j] = &_stub_motors[i][j];
         }
     }
+
+    // Initialize configuration infrastructure
+    // The global 'config' pointer must point to a valid MachineConfig instance
+    // Use a static instance that persists as long as the program runs
+    static TestMachineConfig _static_test_config;
+    _static_test_config._axes = &_test_axes_instance;
+
+    // Point the extern config pointer to this instance
+    // This works because TestMachineConfig has compatible layout with MachineConfig
+    // and we're only using the _axes member which is guaranteed to be first
+    config = (Machine::MachineConfig*)(&_static_test_config);
 }
 
 void Machine::Axes::cleanup_stubs() {
@@ -48,6 +74,8 @@ void Machine::Axes::cleanup_stubs() {
         delete _axis[i];
         _axis[i] = nullptr;
     }
+    // Clean up the test config reference
+    config = nullptr;
 }
 
 // ============================================================================
@@ -102,37 +130,6 @@ void limit_error() {
 
 void limit_error(axis_t axis, float position) {
     // No-op for testing - could log but we're keeping it minimal
-}
-
-// ============================================================================
-// ParallelDelta Dependencies
-// ============================================================================
-
-// Motor position tracking for ParallelDelta kinematics
-static float _motor_positions[MAX_N_AXIS] = {0};
-
-float* get_motor_pos() {
-    return _motor_positions;
-}
-
-void set_motor_pos(float* pos, size_t n_axis) {
-    for (size_t i = 0; i < n_axis && i < MAX_N_AXIS; i++) {
-        _motor_positions[i] = pos[i];
-    }
-}
-
-void set_motor_pos(size_t axis, float pos) {
-    if (axis < MAX_N_AXIS) {
-        _motor_positions[axis] = pos;
-    }
-}
-
-float vector_length(float* v, size_t n) {
-    float sum = 0.0f;
-    for (size_t i = 0; i < n; i++) {
-        sum += v[i] * v[i];
-    }
-    return sqrtf(sum);
 }
 
 void protocol_disable_steppers() {

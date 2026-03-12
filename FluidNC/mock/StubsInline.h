@@ -33,7 +33,6 @@ bool ambiguousLimit();
 // Math & Position Stubs
 // ============================================================================
 
-float vector_distance(float* a, float* b, size_t size);
 int32_t motor_pos_to_steps(float position, uint32_t stepCount);
 void get_mpos();
 

@@ -70,10 +70,10 @@ void delay_ms(uint32_t ms);
 float hypot_f(float x, float y);
 
 // Distance between endpoints of n-vectors
-float vector_distance(float* v1, float* v2, size_t n);
+float vector_distance(const float* v1, const float* v2, size_t n);
 
 // Length of an n-vector
-float vector_length(float* v, size_t n);
+float vector_length(const float* v, size_t n);
 
 // Multiply a vector by a scale factor
 void scale_vector(float* v, float scale, size_t n);

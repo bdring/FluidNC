@@ -15,7 +15,8 @@
 #include <iostream>
 
 // Test tolerance for floating-point comparisons
-constexpr float TOLERANCE = 1e-5f;
+constexpr float TOLERANCE         = 1e-5f;
+constexpr float SEGMENT_TOLERANCE = 1e-3f;
 
 // ============================================================================
 // TEST CLASS
@@ -23,6 +24,13 @@ constexpr float TOLERANCE = 1e-5f;
 
 class KinematicsTest : public ::testing::Test {
 protected:
+    // NOTE: All kinematics tests use MAX_N_AXIS sized arrays for motor/cartesian coordinates
+    // This is REQUIRED because the motion capture infrastructure (mc_move_motors) uses
+    // vector_distance() with MAX_N_AXIS when computing segment lengths. Uninitialized array
+    // elements beyond n_axis lead to inf/nan values in distance calculations.
+    // Even tests of 2-axis (WallPlotter) or 3-axis (ParallelDelta) kinematics must use
+    // MAX_N_AXIS sized arrays initialized with zeros for all elements.
+
     static void SetUpTestSuite() {
         // Initialize Machine::Axes with MAX_N_AXIS axes
         Machine::Axes::init_stubs(MAX_N_AXIS);
@@ -40,43 +48,94 @@ protected:
     }
 
     // Helper: Verify that a point lies on the line from position to target
-    // Uses parametric line equation: point = position + t * (target - position)
-    // where t should be between 0 and 1 for points on the segment
+    // Uses perpendicular distance approach which is scale-invariant and avoids tolerance problems
     bool isOnSegment(const float* position, const float* target, const float* point, axis_t n_axis) {
-        // Handle collinearity by checking cross product in 2D/3D
-        // For generality, we compute the vector from position to point and position to target
-        // If parallel (cross product ~= 0), they're collinear
-
-        float pos_to_point[3]  = { 0, 0, 0 };
-        float pos_to_target[3] = { 0, 0, 0 };
+        // Calculate vectors with first three components
+        float direction[3] = { 0, 0, 0 };
+        float offset[3]    = { 0, 0, 0 };
 
         for (int i = 0; i < std::min((int)3, (int)n_axis); i++) {
-            pos_to_point[i]  = point[i] - position[i];
-            pos_to_target[i] = target[i] - position[i];
+            direction[i] = target[i] - position[i];
+            offset[i]    = point[i] - position[i];
         }
 
-        // For 2D: cross product is scalar (z component) = x1*y2 - y1*x2
-        float cross = pos_to_point[0] * pos_to_target[1] - pos_to_point[1] * pos_to_target[0];
+        // Calculate dot products
+        float dir_dot_dir    = direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2];
+        float offset_dot_dir = offset[0] * direction[0] + offset[1] * direction[1] + offset[2] * direction[2];
 
-        // Check if collinear (cross product near zero)
-        return std::abs(cross) < TOLERANCE;
+        // Avoid division by zero (position == target)
+        if (dir_dot_dir < TOLERANCE) {
+            // Line segment is degenerate; check if point is at position
+            float dist_sq = offset[0] * offset[0] + offset[1] * offset[1] + offset[2] * offset[2];
+            return dist_sq < SEGMENT_TOLERANCE * SEGMENT_TOLERANCE;
+        }
+
+        // Calculate parameter t: where 0 <= t <= 1 means point projects onto segment
+        float t = offset_dot_dir / dir_dot_dir;
+
+        // Calculate the closest point on the line: closest = position + t * direction
+        float closest[3];
+        for (int i = 0; i < 3; i++) {
+            closest[i] = position[i] + t * direction[i];
+        }
+
+        // Calculate perpendicular distance from point to closest point on line
+        float perp_dist_sq = 0.0f;
+        for (int i = 0; i < std::min((int)3, (int)n_axis); i++) {
+            float diff = point[i] - closest[i];
+            perp_dist_sq += diff * diff;
+        }
+
+        // Check if point is on the segment (within tolerance and between endpoints)
+        return perp_dist_sq < SEGMENT_TOLERANCE * SEGMENT_TOLERANCE && t >= -TOLERANCE && t <= 1.0f + TOLERANCE;
     }
 
     void expectLinearSegments(const float* position, const float* target, axis_t n_axis, Kinematics::KinematicSystem& kinematics) {
-        EXPECT_GT(get_motor_segments().size(), 0);
+        float cartesian_distance = vector_distance(target, position, n_axis);
+        auto  segments           = get_motor_segments();
+        if (cartesian_distance <= TOLERANCE) {
+            EXPECT_EQ(segments.size(), 0);
+        } else {
+            EXPECT_GT(segments.size(), 0);
+            float cartesian[MAX_N_AXIS] = { 0.0f };  // Must initialize all elements to avoid garbage in distance calculations
+            float total_segment_time    = 0.0f;
 
-        float cartesian[MAX_N_AXIS];
-        for (auto& segment : get_motor_segments()) {
-            kinematics.motors_to_cartesian(cartesian, segment.motors, n_axis);
-            EXPECT_TRUE(isOnSegment(position, target, cartesian, n_axis));
+            for (auto& segment : segments) {
+                kinematics.motors_to_cartesian(cartesian, segment.motors, n_axis);
+                bool collinear = isOnSegment(position, target, cartesian, n_axis);
+                EXPECT_TRUE(collinear);
+
+                total_segment_time += segment.segment_time;
+            }
+
+            AssertArrayNear(target, cartesian, (int)n_axis, 0.001);
+
+            // Only validate timing if we have segments with non-zero length
+            if (segments.size() > 0) {
+                // Compute expected time from cartesian distance and feedrate
+                cartesian_distance = vector_distance(const_cast<float*>(target), const_cast<float*>(position), n_axis);
+
+                // Only check time if we actually moved (cartesian_distance > tolerance)
+                if (cartesian_distance > TOLERANCE) {
+                    // Time = distance (mm) * 60 (sec/min) / feedrate (mm/min)
+                    float expected_time = (cartesian_distance * 60.0f) / 1000.0f;  // 1000 mm/min feedrate
+
+                    EXPECT_NEAR(expected_time, total_segment_time, TOLERANCE * 100);  // Relax tolerance for accumulated time
+                }
+            }
         }
-
-        AssertArrayNear(target, cartesian, (int)n_axis, 0.001);
     }
 
-    void testSegmentation(float* position, float* target, axis_t n_axis, Kinematics::KinematicSystem& kinematics) {
+    void testSegmentation(float* target, float* position, axis_t n_axis, Kinematics::KinematicSystem& kinematics) {
+        // IMPORTANT: This test MUST use arrays sized with MAX_N_AXIS and fully initialized with zeros.
+        // The motion capture infrastructure (mc_move_motors) uses vector_distance() with MAX_N_AXIS
+        // to compute segment lengths. If array elements beyond n_axis contain uninitialized values,
+        // vector_distance() will compute with garbage data leading to inf/nan segment lengths and times.
+        // Therefore, even if kinematics only uses 2-3 axes, all MAX_N_AXIS elements must be properly
+        // initialized to zero to ensure correct distance calculations.
         reset_motor_segments();
         plan_line_data_t plan_data {};
+        plan_data.feed_rate = 1000.0f;  // Set feedrate to 1000 mm/min
 
         EXPECT_TRUE(kinematics.cartesian_to_motors(target, &plan_data, position));
         expectLinearSegments(position, target, n_axis, kinematics);
@@ -89,7 +148,7 @@ protected:
 
 TEST_F(KinematicsTest, SimpleFloatTest) {
     float cartesian[3] = {10.0f, 20.0f, 30.0f};
-    
+
     // Simple test to verify float array initialization works
     EXPECT_NEAR(10.0f, cartesian[0], TOLERANCE);
     EXPECT_NEAR(20.0f, cartesian[1], TOLERANCE);
@@ -188,7 +247,6 @@ TEST_F(KinematicsTest, CartesianFourAxis) {
     AssertArrayNear(cartesian, recovered, 4, TOLERANCE);
 }
 
-#ifdef DISABLED_CARTESIAN_CARTESIAN_TO_MOTORS
 TEST_F(KinematicsTest, CartesianCartesianToMotors) {
     auto kinematics = std::make_unique<Kinematics::Cartesian>("Cartesian");
     kinematics->init();
@@ -221,7 +279,6 @@ TEST_F(KinematicsTest, CartesianCartesianToMotors) {
     EXPECT_NEAR(cartesian_target[1], cartesian_roundtrip[1], TOLERANCE);
     EXPECT_NEAR(cartesian_target[2], cartesian_roundtrip[2], TOLERANCE);
 }
-#endif
 
 // ============================================================================
 // CoreXY KINEMATICS TESTS
@@ -394,7 +451,6 @@ TEST_F(KinematicsTest, LargeValues) {
     AssertArrayNear(cartesian, recovered, 3, TOLERANCE);
 }
 
-#ifdef DISABLED_COREXY_CARTESIAN_TO_MOTORS
 TEST_F(KinematicsTest, CoreXYCartesianToMotors) {
     auto kinematics = std::make_unique<Kinematics::CoreXY>("CoreXY");
     kinematics->init();
@@ -411,7 +467,7 @@ TEST_F(KinematicsTest, CoreXYCartesianToMotors) {
     // CoreXY motion should generate at least one segment
     EXPECT_GT(get_motor_segments().size(), 0);
 }
-#endif
+
 // ============================================================================
 // MIDTBOT KINEMATICS TESTS
 // ============================================================================
@@ -555,196 +611,92 @@ TEST_F(KinematicsTest, MidtbotFourAxis) {
     AssertArrayNear(cartesian, recovered, 4, TOLERANCE);
 }
 
-// ============================================================================
-// PARALLEL DELTA KINEMATICS TESTS
-// ============================================================================
-
-TEST_F(KinematicsTest, ParallelDeltaInverseTransform) {
+TEST_F(KinematicsTest, ParallelDeltaCartesianToMotorsSegments) {
+    // ParallelDelta segmentation test using testSegmentation()
+    // Validates linearity of segmented motion and feedrate accuracy
     auto kinematics = std::make_unique<Kinematics::ParallelDelta>("ParallelDelta");
-    // Note: init() not called - we test pure math transforms without full machine configuration
+    kinematics->init();
+    float zeros[MAX_N_AXIS]           = { 0.0f };
+    float up_arms[MAX_N_AXIS]         = { -30.0f, -30.0f, -30.0f, 0.0f };
+    float horizontal_arms[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float down_arms[MAX_N_AXIS]       = { 90.0f, 90.0f, 90.0f, 0.0f };
+    set_motor_pos(up_arms, MAX_N_AXIS);
 
-    // Test centered position
-    float cartesian[MAX_N_AXIS] = { 0.0f, 0.0f, -80.0f, 0.0f, 0.0f, 0.0f };
-    float motors[MAX_N_AXIS]    = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    auto n_axis = static_cast<axis_t>(MAX_N_AXIS);
 
-    // ParallelDelta calculates angle positions for 3 motors
-    bool result = kinematics->transform_cartesian_to_motors(motors, cartesian);
+    float cartesian[MAX_N_AXIS];
+    kinematics->motors_to_cartesian(cartesian, up_arms, n_axis);
 
-    // Should be able to solve kinematics for this position
-    EXPECT_TRUE(result);
-    // All three motors should have valid angles
-    EXPECT_TRUE(std::isfinite(motors[0]));
-    EXPECT_TRUE(std::isfinite(motors[1]));
-    EXPECT_TRUE(std::isfinite(motors[2]));
-}
+    kinematics->motors_to_cartesian(cartesian, horizontal_arms, n_axis);
 
-TEST_F(KinematicsTest, ParallelDeltaForwardTransform) {
-    auto kinematics = std::make_unique<Kinematics::ParallelDelta>("ParallelDelta");
-    // Note: init() not called - we test pure math transforms without full machine configuration
+    float position[MAX_N_AXIS];
+    copyAxes(position, cartesian);
 
-    // Test with motor angles at 0 degrees (neutral position)
-    float motors[MAX_N_AXIS]    = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-    float cartesian[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    kinematics->motors_to_cartesian(cartesian, down_arms, n_axis);
 
-    kinematics->motors_to_cartesian(cartesian, motors, static_cast<axis_t>(3));
+    // With arms
+    float target[MAX_N_AXIS];
+    copyAxes(target, position);
 
-    // Should recover a valid position
-    EXPECT_TRUE(std::isfinite(cartesian[0]));
-    EXPECT_TRUE(std::isfinite(cartesian[1]));
-    EXPECT_TRUE(std::isfinite(cartesian[2]));
-    // Z should be negative (end effector is below motor plane)
-    EXPECT_LT(cartesian[2], 0.0f);
-}
+    reset_motor_pos();
 
-TEST_F(KinematicsTest, ParallelDeltaRoundTrip) {
-    auto kinematics = std::make_unique<Kinematics::ParallelDelta>("ParallelDelta");
-    // Note: init() not called - we test pure math transforms without full machine configuration
+    // Test 1: Z-only movement (up)
+    target[2] += 20.0f;
+    testSegmentation(target, position, n_axis, *kinematics);
+    copyAxes(position, target);
 
-    float original[MAX_N_AXIS]  = { 0.0f, 0.0f, -80.0f, 0.0f, 0.0f, 0.0f };
-    float motors[MAX_N_AXIS]    = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-    float recovered[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    // Test 2: Z-only movement (down)
+    target[2] -= 70.0f;
+    testSegmentation(target, position, n_axis, *kinematics);
+    copyAxes(position, target);
 
-    bool forward_ok = kinematics->transform_cartesian_to_motors(motors, original);
-    EXPECT_TRUE(forward_ok);
+    // Test 3: Small XY movement (within workspace)
+    target[0] += 25.0f;
+    target[1] += 25.0f;
+    testSegmentation(target, position, n_axis, *kinematics);
+    copyAxes(position, target);
 
-    kinematics->motors_to_cartesian(recovered, motors, static_cast<axis_t>(3));
-
-    // Allow larger tolerance for ParallelDelta due to trigonometric round-trip
-    AssertArrayNear(original, recovered, 3, 0.1f);
-}
-
-TEST_F(KinematicsTest, ParallelDeltaOrigin) {
-    auto kinematics = std::make_unique<Kinematics::ParallelDelta>("ParallelDelta");
-    // Note: init() not called - we test pure math transforms without full machine configuration
-
-    float cartesian[MAX_N_AXIS] = { 0.0f, 0.0f, -80.0f, 0.0f, 0.0f, 0.0f };
-    float motors[MAX_N_AXIS]    = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-
-    bool result = kinematics->transform_cartesian_to_motors(motors, cartesian);
-
-    // Verify we got valid motor values (should not be NaN or infinite)
-    EXPECT_TRUE(result);
-    EXPECT_TRUE(std::isfinite(motors[0]));
-    EXPECT_TRUE(std::isfinite(motors[1]));
-    EXPECT_TRUE(std::isfinite(motors[2]));
-}
-
-TEST_F(KinematicsTest, ParallelDeltaZMove) {
-    auto kinematics = std::make_unique<Kinematics::ParallelDelta>("ParallelDelta");
-    // Note: init() not called - we test pure math transforms without full machine configuration
-
-    // Test Z-only moves (vertical movement)
-    float pos1[MAX_N_AXIS]    = { 0.0f, 0.0f, -80.0f, 0.0f, 0.0f, 0.0f };
-    float pos2[MAX_N_AXIS]    = { 0.0f, 0.0f, -100.0f, 0.0f, 0.0f, 0.0f };
-    float motors1[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-    float motors2[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-
-    bool ok1 = kinematics->transform_cartesian_to_motors(motors1, pos1);
-    bool ok2 = kinematics->transform_cartesian_to_motors(motors2, pos2);
-    EXPECT_TRUE(ok1);
-    EXPECT_TRUE(ok2);
-
-    // Motors should change as Z position changes
-    bool motors_changed = (motors1[0] != motors2[0]) || (motors1[1] != motors2[1]) || (motors1[2] != motors2[2]);
-    EXPECT_TRUE(motors_changed);
-}
-
-TEST_F(KinematicsTest, ParallelDeltaXYMove) {
-    auto kinematics = std::make_unique<Kinematics::ParallelDelta>("ParallelDelta");
-    // Note: init() not called - we test pure math transforms without full machine configuration
-
-    // Test XY movement at fixed Z
-    float pos1[MAX_N_AXIS]    = { 0.0f, 0.0f, -80.0f, 0.0f, 0.0f, 0.0f };
-    float pos2[MAX_N_AXIS]    = { 10.0f, 0.0f, -80.0f, 0.0f, 0.0f, 0.0f };
-    float motors1[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-    float motors2[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-
-    bool ok1 = kinematics->transform_cartesian_to_motors(motors1, pos1);
-    bool ok2 = kinematics->transform_cartesian_to_motors(motors2, pos2);
-    EXPECT_TRUE(ok1);
-    EXPECT_TRUE(ok2);
-
-    // Motors should change due to different X position
-    bool motors_changed = (motors1[0] != motors2[0]) || (motors1[1] != motors2[1]) || (motors1[2] != motors2[2]);
-    EXPECT_TRUE(motors_changed);
-}
-
-TEST_F(KinematicsTest, ParallelDeltaNegativeZ) {
-    auto kinematics = std::make_unique<Kinematics::ParallelDelta>("ParallelDelta");
-    // Don't call init() - we're testing pure math transforms without machine configuration
-
-    // Test lower Z position (closer to base)
-    float cartesian[MAX_N_AXIS] = { 0.0f, 0.0f, -120.0f, 0.0f, 0.0f, 0.0f };
-    float motors[MAX_N_AXIS]    = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-    float recovered[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-
-    bool forward_ok = kinematics->transform_cartesian_to_motors(motors, cartesian);
-    EXPECT_TRUE(forward_ok);
-
-    kinematics->motors_to_cartesian(recovered, motors, static_cast<axis_t>(3));
-
-    // Verify round trip with larger tolerance for ParallelDelta
-    AssertArrayNear(cartesian, recovered, 3, 0.1f);
-}
-
-TEST_F(KinematicsTest, ParallelDeltaThreeAxis) {
-    auto kinematics = std::make_unique<Kinematics::ParallelDelta>("ParallelDelta");
-    // Don't call init() - we're testing pure math transforms without machine configuration
-
-    float cartesian[MAX_N_AXIS] = { 5.0f, -5.0f, -90.0f, 0.0f, 0.0f, 0.0f };
-    float motors[MAX_N_AXIS]    = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-    float recovered[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-
-    bool forward_ok = kinematics->transform_cartesian_to_motors(motors, cartesian);
-    EXPECT_TRUE(forward_ok);
-
-    kinematics->motors_to_cartesian(recovered, motors, static_cast<axis_t>(3));
-
-    // Verify all three motors are involved in the transformation
-    EXPECT_TRUE(std::isfinite(motors[0]));
-    EXPECT_TRUE(std::isfinite(motors[1]));
-    EXPECT_TRUE(std::isfinite(motors[2]));
-
-    // Verify round trip
-    AssertArrayNear(cartesian, recovered, 3, 0.1f);
+    // Test 4: Return to XY center with Z movement
+    target[0] = 0.0f;
+    target[1] = 0.0f;
+    target[2] += 50.0f;
+    testSegmentation(target, position, n_axis, *kinematics);
+    copyAxes(position, target);
 }
 
 // ============================================================================
 // WALLPLOTTER KINEMATICS TESTS
 // ============================================================================
 
-#if 0
 TEST_F(KinematicsTest, WallPlotterOrigin) {
     auto kinematics = std::make_unique<Kinematics::WallPlotter>("WallPlotter");
     // Note: init() not called - motor values are relative to zero offset (direct cord lengths)
-    
+
     // Use physically valid motor values representing cord lengths to reach (0, 50)
     // With anchors at (-100,100) and (100,100), cords to (0,50) are both ~111.8
-    float motors[MAX_N_AXIS] = {111.8f, 111.8f, 0.0f, 0.0f, 0.0f, 0.0f};
-    float cartesian[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    
+    float motors[MAX_N_AXIS]    = { 111.8f, 111.8f, 0.0f, 0.0f, 0.0f, 0.0f };
+    float cartesian[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+
     kinematics->motors_to_cartesian(cartesian, motors, static_cast<axis_t>(2));
-    
+
     // Should produce valid cartesian coordinates
     EXPECT_TRUE(std::isfinite(cartesian[0]));
     EXPECT_TRUE(std::isfinite(cartesian[1]));
 }
-#endif
-#if 0
 TEST_F(KinematicsTest, WallPlotterLeftMotorMovement) {
     auto kinematics = std::make_unique<Kinematics::WallPlotter>("WallPlotter");
     kinematics->init();  // Initialize with mocked Axes::_numberAxis
-    
+
     // Test left motor movement with valid cord lengths
     // Cord 1=111.8, Cord 2=111.8 reaches approximately (0, 50)
-    float motors1[MAX_N_AXIS] = {111.8f, 111.8f, 0.0f, 0.0f, 0.0f, 0.0f};
-    float motors2[MAX_N_AXIS] = {121.8f, 111.8f, 0.0f, 0.0f, 0.0f, 0.0f};  // Left cord 10mm longer
-    float cart1[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    float cart2[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    
+    float motors1[MAX_N_AXIS] = { 111.8f, 111.8f, 0.0f, 0.0f, 0.0f, 0.0f };
+    float motors2[MAX_N_AXIS] = { 121.8f, 111.8f, 0.0f, 0.0f, 0.0f, 0.0f };  // Left cord 10mm longer
+    float cart1[MAX_N_AXIS]   = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    float cart2[MAX_N_AXIS]   = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+
     kinematics->motors_to_cartesian(cart1, motors1, static_cast<axis_t>(2));
     kinematics->motors_to_cartesian(cart2, motors2, static_cast<axis_t>(2));
-    
+
     // Moving left motor should change cartesian position
     bool position_changed = (cart1[0] != cart2[0]) || (cart1[1] != cart2[1]);
     EXPECT_TRUE(position_changed);
@@ -753,16 +705,16 @@ TEST_F(KinematicsTest, WallPlotterLeftMotorMovement) {
 TEST_F(KinematicsTest, WallPlotterRightMotorMovement) {
     auto kinematics = std::make_unique<Kinematics::WallPlotter>("WallPlotter");
     kinematics->init();  // Initialize with mocked Axes::_numberAxis
-    
+
     // Test right motor movement with valid cord lengths
     float motors1[MAX_N_AXIS] = {111.8f, 111.8f, 0.0f, 0.0f, 0.0f, 0.0f};
     float motors2[MAX_N_AXIS] = {111.8f, 121.8f, 0.0f, 0.0f, 0.0f, 0.0f};  // Right cord 10mm longer
     float cart1[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     float cart2[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    
+
     kinematics->motors_to_cartesian(cart1, motors1, static_cast<axis_t>(2));
     kinematics->motors_to_cartesian(cart2, motors2, static_cast<axis_t>(2));
-    
+
     // Moving right motor should change cartesian position
     bool position_changed = (cart1[0] != cart2[0]) || (cart1[1] != cart2[1]);
     EXPECT_TRUE(position_changed);
@@ -771,16 +723,16 @@ TEST_F(KinematicsTest, WallPlotterRightMotorMovement) {
 TEST_F(KinematicsTest, WallPlotterBothMotorsMovement) {
     auto kinematics = std::make_unique<Kinematics::WallPlotter>("WallPlotter");
     // Note: init() not called - motor values are relative to zero offset (direct cord lengths)
-    
+
     // Test both motors moving together with valid cord lengths
     float motors1[MAX_N_AXIS] = {111.8f, 111.8f, 0.0f, 0.0f, 0.0f, 0.0f};
     float motors2[MAX_N_AXIS] = {121.8f, 121.8f, 0.0f, 0.0f, 0.0f, 0.0f};  // Both cords 10mm longer
     float cart1[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     float cart2[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    
+
     kinematics->motors_to_cartesian(cart1, motors1, static_cast<axis_t>(2));
     kinematics->motors_to_cartesian(cart2, motors2, static_cast<axis_t>(2));
-    
+
     // Verify both positions are valid
     EXPECT_TRUE(std::isfinite(cart1[0]));
     EXPECT_TRUE(std::isfinite(cart1[1]));
@@ -791,13 +743,13 @@ TEST_F(KinematicsTest, WallPlotterBothMotorsMovement) {
 TEST_F(KinematicsTest, WallPlotterZAxisPassthrough) {
     auto kinematics = std::make_unique<Kinematics::WallPlotter>("WallPlotter");
     kinematics->init();  // Initialize with mocked Axes::_numberAxis
-    
+
     // Test that Z axis passes through unchanged
     float motors[MAX_N_AXIS] = {0.0f, 0.0f, 50.0f, 0.0f, 0.0f, 0.0f};
     float cartesian[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    
+
     kinematics->motors_to_cartesian(cartesian, motors, static_cast<axis_t>(3));
-    
+
     // Z axis should pass through unchanged
     EXPECT_NEAR(50.0f, cartesian[2], TOLERANCE);
 }
@@ -805,14 +757,14 @@ TEST_F(KinematicsTest, WallPlotterZAxisPassthrough) {
 TEST_F(KinematicsTest, WallPlotterNegativeMotorValues) {
     auto kinematics = std::make_unique<Kinematics::WallPlotter>("WallPlotter");
     kinematics->init();  // Initialize with mocked Axes::_numberAxis
-    
+
     // Test with different cord lengths (note: WallPlotter handles motor direction inversion)
     // Shorter cords pull the puck up toward the anchors
     float motors[MAX_N_AXIS] = {100.0f, 100.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     float cartesian[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    
+
     kinematics->motors_to_cartesian(cartesian, motors, static_cast<axis_t>(2));
-    
+
     // Should produce valid cartesian position
     EXPECT_TRUE(std::isfinite(cartesian[0]));
     EXPECT_TRUE(std::isfinite(cartesian[1]));
@@ -821,18 +773,17 @@ TEST_F(KinematicsTest, WallPlotterNegativeMotorValues) {
 TEST_F(KinematicsTest, WallPlotterLargeMotorValues) {
     auto kinematics = std::make_unique<Kinematics::WallPlotter>("WallPlotter");
     kinematics->init();  // Initialize with mocked Axes::_numberAxis
-    
+
     // Test with large motor values
-    float motors[MAX_N_AXIS] = {100.0f, 100.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    float cartesian[MAX_N_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    
+    float motors[MAX_N_AXIS]    = { 100.0f, 100.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    float cartesian[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+
     kinematics->motors_to_cartesian(cartesian, motors, static_cast<axis_t>(2));
-    
+
     // Should produce valid cartesian position
     EXPECT_TRUE(std::isfinite(cartesian[0]));
     EXPECT_TRUE(std::isfinite(cartesian[1]));
 }
-#endif
 
 TEST_F(KinematicsTest, WallPlotterCartesianToMotors) {
     auto wallPlotter = std::make_unique<Kinematics::WallPlotter>("WallPlotter");
@@ -840,8 +791,8 @@ TEST_F(KinematicsTest, WallPlotterCartesianToMotors) {
     std::unique_ptr<Kinematics::KinematicSystem> kinematics = std::move(wallPlotter);
 
     kinematics->init();
+    reset_motor_pos();
 
-    auto n_axis = static_cast<axis_t>(3);
     // For WallPlotter: motor positions are rope lengths = distance from fixed pulleys
     // Pulley 0 at (-100, 100), Pulley 1 at (100, 100)
     // For horizontal move along Y=0, motor lengths change inversely
@@ -855,52 +806,88 @@ TEST_F(KinematicsTest, WallPlotterCartesianToMotors) {
     float motors[MAX_N_AXIS];
     float cartesian[MAX_N_AXIS];
 
+    float target[MAX_N_AXIS];
+    float position[MAX_N_AXIS];
+
+    copyAxes(position, zeros);
+
     // Verify the motor coordinates after init()
-    kinematics->transform_cartesian_to_motors(motors, zeros);
-    AssertArrayNear(motors, zeros, 3, 0.001);
+    kinematics->transform_cartesian_to_motors(motors, position);
+    AssertArrayNear(motors, zeros, MAX_N_AXIS, 0.001);
 
     // Verify the cartesian coordinates after init()
-    kinematics->motors_to_cartesian(cartesian, motors, n_axis);
-    AssertArrayNear(cartesian, zeros, 3, 0.001);
+    kinematics->motors_to_cartesian(cartesian, motors, MAX_N_AXIS);
+    AssertArrayNear(cartesian, position, MAX_N_AXIS, 0.001);
 
-    float motors_end[MAX_N_AXIS]       = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-    float cartesian_target[MAX_N_AXIS] = { 50.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    copyAxes(target, position, MAX_N_AXIS);
+    target[0] = 50.0;
 
     // Forward transform for target position
-    kinematics->transform_cartesian_to_motors(motors_end, cartesian_target);
+    kinematics->transform_cartesian_to_motors(motors, target);
 
     // Motors should have different values for different cartesian X positions
-    EXPECT_NE(motors[0], motors_end[0]) << "Motor 0 should change for horizontal movement";
-    EXPECT_NE(motors[1], motors_end[1]) << "Motor 1 should change for horizontal movement";
+    EXPECT_NE(motors[0], 0.0) << "Motor 0 should change for horizontal movement";
+    EXPECT_NE(motors[1], 0.0) << "Motor 1 should change for horizontal movement";
 
     // Verify round-trip: motors -> cartesian -> motors
-    float cartesian_roundtrip[MAX_N_AXIS] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-    kinematics->motors_to_cartesian(cartesian_roundtrip, motors_end, n_axis);
+    kinematics->motors_to_cartesian(cartesian, motors, MAX_N_AXIS);
 
     // Should get back approximately the same cartesian position
-    EXPECT_NEAR(cartesian_target[0], cartesian_roundtrip[0], TOLERANCE)
-        << "X coordinate mismatch: expected " << cartesian_target[0] << " but got " << cartesian_roundtrip[0];
-    EXPECT_NEAR(cartesian_target[1], cartesian_roundtrip[1], TOLERANCE)
-        << "Y coordinate mismatch: expected " << cartesian_target[1] << " but got " << cartesian_roundtrip[1];
-    EXPECT_NEAR(cartesian_target[2], cartesian_roundtrip[2], TOLERANCE) << "Z coordinate round-trip failed";
+    AssertArrayNear(cartesian, target, MAX_N_AXIS, 0.001);
 
     // Test Z-only motion
-    float target[MAX_N_AXIS];
-    copyAxes(target, cartesian_roundtrip);
+    copyAxes(target, position);
     target[2] += 10.0;
     plan_line_data_t plan_data {};
 
+    float initial_pos[MAX_N_AXIS];
+    copyAxes(initial_pos, position);
+
     reset_motor_segments();
-    EXPECT_TRUE(kinematics->cartesian_to_motors(target, &plan_data, cartesian_roundtrip));
+    EXPECT_TRUE(kinematics->cartesian_to_motors(target, &plan_data, position));
+    copyAxes(position, target);
 
     // Z-only motion should generate exactly one bsegment
     EXPECT_EQ(get_motor_segments().size(), 1);
 
-    float retarget[MAX_N_AXIS];
+    kinematics->motors_to_cartesian(cartesian, get_motor_segments()[0].motors, MAX_N_AXIS);
+    AssertArrayNear(cartesian, target, MAX_N_AXIS, 0.001);
+    EXPECT_TRUE(isOnSegment(initial_pos, target, cartesian, MAX_N_AXIS));
 
-    kinematics->motors_to_cartesian(retarget, get_motor_segments()[0].motors, n_axis);
-    AssertArrayNear(target, retarget, 3, 0.001);
-    EXPECT_TRUE(isOnSegment(cartesian_roundtrip, target, retarget, n_axis));
+    copyAxes(position, target);
 
-    testSegmentation(target, cartesian_roundtrip, n_axis, *kinematics);
+    copyAxes(target, zeros);
+
+    testSegmentation(target, position, MAX_N_AXIS, *kinematics);
+    copyAxes(position, target);
+
+    target[0] = -80.0;
+    target[1] = -80.0;
+    testSegmentation(target, position, MAX_N_AXIS, *kinematics);
+    copyAxes(position, target);
+
+    target[0] = -80.0;
+    target[1] = 80.0;
+    testSegmentation(target, position, MAX_N_AXIS, *kinematics);
+    copyAxes(position, target);
+
+    target[0] = 80.0;
+    target[1] = 80.0;
+    testSegmentation(target, position, MAX_N_AXIS, *kinematics);
+    copyAxes(position, target);
+
+    target[0] = 80.0;
+    target[1] = -80.0;
+    testSegmentation(target, position, MAX_N_AXIS, *kinematics);
+    copyAxes(position, target);
+
+    target[0] = 80.0;
+    target[1] = -80.0;
+    testSegmentation(target, position, MAX_N_AXIS, *kinematics);
+    copyAxes(position, target);
+
+    target[0] = 0.0;
+    target[1] = 0.0;
+    testSegmentation(target, position, MAX_N_AXIS, *kinematics);
+    copyAxes(position, target);
 }
