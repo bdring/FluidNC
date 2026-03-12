@@ -464,8 +464,10 @@ namespace WebUI {
             return;
         }
 
-        // Download a file.  The true forces a download instead of displaying the file
-        if (myStreamFile(request, path.c_str(), true)) {
+        // Serve HTML files inline so the browser renders them; download everything else
+        auto dot = path.rfind('.');
+        bool download = (dot == std::string::npos || path.substr(dot) != ".html");
+        if (myStreamFile(request, path.c_str(), download)) {
             return;
         }
 
