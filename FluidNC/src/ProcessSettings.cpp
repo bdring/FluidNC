@@ -762,7 +762,7 @@ static Error showBacktrace(const char* value, AuthenticationLevel auth_level, Ch
 #ifdef CRASH_TEST
 static Error forceCrash(const char* value, AuthenticationLevel auth_level, Channel& out) {
     log_stream(out, "Forcing crash by writing to address 0");
-    delay(100);  // Let the message flush
+    delay_ms(100);  // Let the message flush
     *(volatile int*)0 = 0;
     return Error::Ok;  // Never reached
 }
