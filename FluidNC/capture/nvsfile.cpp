@@ -19,7 +19,9 @@ NVS::NVS(const char* name) {
 bool NVS::get_blob(const char* name, void* value, size_t* len) {
     std::ifstream file(munge(name));
     if (file.is_open()) {
-        file.read((char*)value, *len);
+        if (value) {
+            file.read((char*)value, *len);
+        }
         *len = file.gcount();
         return false;
     }
@@ -30,7 +32,9 @@ bool NVS::get_blob(const char* name, void* value, size_t* len) {
 bool NVS::get_str(const char* name, char* value, size_t* len) {
     std::ifstream file(munge(name));
     if (file.is_open()) {
-        file.read(value, *len);
+        if (value) {
+            file.read(value, *len);
+        }
         *len        = file.gcount();
         value[*len] = '\0';
         return false;
