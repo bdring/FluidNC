@@ -21,8 +21,11 @@ bool NVS::get_blob(const char* name, void* value, size_t* len) {
     if (file.is_open()) {
         if (value) {
             file.read((char*)value, *len);
+            *len = file.gcount();
+        } else {
+            file.seekg(0, std::ios_base::end);
+            *len = (size_t)file.tellg();
         }
-        *len = file.gcount();
         return false;
     }
     *len = 0;
@@ -34,9 +37,12 @@ bool NVS::get_str(const char* name, char* value, size_t* len) {
     if (file.is_open()) {
         if (value) {
             file.read(value, *len);
+            *len        = file.gcount() + 1;
+            value[*len] = '\0';
+        } else {
+            file.seekg(0, std::ios_base::end);
+            *len = (size_t)file.tellg() + 1;
         }
-        *len        = file.gcount();
-        value[*len] = '\0';
         return false;
     }
     *len = 0;
