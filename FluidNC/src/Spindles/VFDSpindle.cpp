@@ -52,6 +52,11 @@ namespace Spindles {
             }
         }
 
+        if (!_uart->configured()) {
+            log_error("VFDSpindle: uart" << _uart_num << " failed configuration");
+            return;
+        }
+
         if (_uart->setHalfDuplex()) {
             log_info("VFD: RS485 UART set half duplex failed");
             return;

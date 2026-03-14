@@ -42,6 +42,16 @@ namespace MotorDrivers {
 
         if (!_uart_started) {
             _uart = config->_uarts[_uart_num];
+            if (!_uart) {
+                log_error("Dynamixel: Missing uart" << _uart_num << " section.");
+                _has_errors = true;
+                return;
+            }
+            if (!_uart->configured()) {
+                log_error("Dynamixel: uart" << _uart_num << " failed configuration.");
+                _has_errors = true;
+                return;
+            }
             if (_uart->_rts_pin.undefined()) {
                 log_error("Dynamixel: UART RTS pin must be configured.");
                 _has_errors = true;

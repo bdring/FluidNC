@@ -21,7 +21,8 @@ private:
 
     bool setPins(pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts_pin = -1, pinnum_t cts_pin = -1);
 
-    uint32_t _uart_num = 0;  // Hardware UART engine number
+    uint32_t _uart_num   = 0;  // Hardware UART engine number
+    bool     _configured = false;
 
     bool     _sw_flowcontrol_enabled = false;
     uint32_t _xon_threshold          = 0;
@@ -57,6 +58,7 @@ public:
     Uart(uint32_t uart_num = -1);
     void begin();
     void begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity parity);
+    bool configured() const { return _configured; }
 
     // Stream methods - Uart must inherit from Stream because the TMCStepper library
     // needs a Stream instance.
@@ -94,10 +96,8 @@ public:
     void registerInputPin(pinnum_t pinnum, InputPin* pin);
 
     // Configuration handlers:
-    void validate() override {
-        Assert(!_txd_pin.undefined(), "UART: TXD is undefined");
-        Assert(!_rxd_pin.undefined(), "UART: RXD is undefined");
-        // RTS and CTS are optional.
+    void validate() override {        
+        Assert(!_configured, "UART%d is not configured", _uart_num);
     }
 
     void afterParse() override {}

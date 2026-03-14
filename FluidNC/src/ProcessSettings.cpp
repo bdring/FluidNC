@@ -297,8 +297,10 @@ static Error msg_to_uart0(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 static Error msg_to_uart1(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value && config->_uart_channels[1]) {
+    if (value && config->_uart_channels[1] && config->_uart_channels[1]->uart() && config->_uart_channels[1]->uart()->configured()) {
         log_msg_to(*(config->_uart_channels[1]), value);
+    } else if (value) {
+        log_error_to(out, "uart_channel1 is not configured");
     }
     return Error::Ok;
 }
@@ -833,6 +835,11 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
             log_error_to(out, uart_name << " does not exist");
             return Error::InvalidValue;
         }
+    }
+
+    if (!downstream_uart || !downstream_uart->configured()) {
+        log_error_to(out, "Selected UART is not configured");
+        return Error::InvalidValue;
     }
 
     out.pause();  // Stop input polling on the upstream channel
