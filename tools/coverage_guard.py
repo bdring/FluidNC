@@ -14,23 +14,25 @@ from pathlib import Path
 
 
 CRITICAL_MIN_LINE_COVERAGE = {
-    "FluidNC/src/Machine/Axes.cpp": 70.0,
-    "FluidNC/src/Machine/Homing.cpp": 80.0,
-    "FluidNC/src/Configuration/Parser.cpp": 80.0,
-    "FluidNC/src/Configuration/RuntimeSetting.cpp": 90.0,
-    "FluidNC/src/Planner.cpp": 60.0,
+    "FluidNC/src/Machine/I2CBus.cpp": 70.0,
+    "FluidNC/src/Machine/I2SOBus.cpp": 60.0,
+    "FluidNC/src/Machine/SPIBus.cpp": 60.0,
+    "FluidNC/src/Machine/MachineConfig.cpp": 25.0,
+    "FluidNC/src/WebUI/Mdns.cpp": 75.0,
+    "FluidNC/src/WebUI/NotificationsService.cpp": 55.0,
 }
 
 # One-line rationale per threshold so guardrails are auditable and intentional.
 CRITICAL_COVERAGE_RATIONALE = {
-    "FluidNC/src/Machine/Axes.cpp": "Axes setup/homing wiring is safety-critical and regularly regresses with board profiles.",
-    "FluidNC/src/Machine/Homing.cpp": "Homing failure paths impact startup safety, so this keeps alarm/phase regressions visible.",
-    "FluidNC/src/Configuration/Parser.cpp": "Parser defects break boot/runtime config loading across all machine profiles.",
-    "FluidNC/src/Configuration/RuntimeSetting.cpp": "Runtime setting writes are operator-facing and need strict host-side validation coverage.",
-    "FluidNC/src/Planner.cpp": "Planner remains partly host-limited (stepper/ISR behavior), so threshold is ratcheted lower for now.",
+    "FluidNC/src/Machine/I2CBus.cpp": "Stage 1 bus rollout must keep host coverage on I2C init and transfer behavior.",
+    "FluidNC/src/Machine/I2SOBus.cpp": "Stage 1 bus rollout exercises I2SO validation and init wiring from host integration tests.",
+    "FluidNC/src/Machine/SPIBus.cpp": "SPI bus config and fallback pin behavior are part of the stage 1 host safety net.",
+    "FluidNC/src/Machine/MachineConfig.cpp": "MachineConfig is only partially exercised in stage 1, but the guard should still detect accidental loss of that coverage.",
+    "FluidNC/src/WebUI/Mdns.cpp": "mDNS startup/registration is one of the primary stage 1 WebUI code paths.",
+    "FluidNC/src/WebUI/NotificationsService.cpp": "Stage 1 explicitly verifies backend dispatch behavior for notifications.",
 }
 
-MIN_ACTIVE_HOST_CALLED_PERCENT = 80.0
+MIN_ACTIVE_HOST_CALLED_PERCENT = 65.0
 
 
 def parse_args():

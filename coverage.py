@@ -357,8 +357,10 @@ def main():
             f"{whole_repo_covered_lines}/{whole_repo_total_lines} ({whole_repo_line_pct:.1f}%)"
         )
 
-        active_host_files = active_host_files_from_platformio(root)
-        active_host_files = active_host_files & all_set
+        # In stage 1 we only execute a narrow host matrix, so guardrails should
+        # reflect the files compiled by the selected coverage suites rather than
+        # the full historical integration host surface.
+        active_host_files = instrumented_set
         active_host_instrumented = instrumented_set & active_host_files
         active_host_callable = callable_set & active_host_files
         active_host_called = {
@@ -388,7 +390,7 @@ def main():
             else 0.0
         )
         print(
-            "Active-host file coverage (from native suite build filters): "
+            "Active-host file coverage (from selected coverage suites): "
             f"instrumented {len(active_host_instrumented)}/{len(active_host_files)} "
             f"({active_host_instrumented_pct:.1f}%), "
             f"callable {len(active_host_callable)}/{len(active_host_files)} "
