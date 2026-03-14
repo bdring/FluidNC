@@ -14,6 +14,7 @@
 #include "WebUI/Mdns.h"
 #include "WebUI/Mime.h"
 #include "WebUI/NotificationsService.h"
+#include "WebUI/OTA.h"
 #undef protected
 #undef private
 
@@ -150,32 +151,7 @@ TEST_F(WebUiFixture, MdnsModuleSkipsInitializationWhenWifiIsOff) {
 }
 
 TEST_F(WebUiFixture, OtaModuleConfiguresCallbacksAndPolls) {
-    class HostOtaModule : public Module {
-    public:
-        HostOtaModule() : Module("ota") {}
-
-        void init() override {
-            if (WiFi.getMode() == WIFI_OFF) {
-                return;
-            }
-
-            ArduinoOTA.setMdnsEnabled(false)
-                .setHostname(WiFi.getHostname())
-                .onStart([]() {})
-                .onEnd([]() {})
-                .onProgress([](unsigned int, unsigned int) {})
-                .onError([](ota_error_t) {})
-                .begin();
-        }
-
-        void deinit() override {
-            ArduinoOTA.end();
-        }
-
-        void poll() override {
-            ArduinoOTA.handle();
-        }
-    } module;
+    WebUI::OTA module("ota");
 
     WiFi.setMode(WIFI_STA);
     WiFi.setHostname("ota-host");

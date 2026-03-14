@@ -2,17 +2,17 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Module.h"
+#include "OTA.h"
 
 #include "Logging.h"
 #include <WiFi.h>
 #include "Driver/localfs.h"
 #include <ArduinoOTA.h>
 
-class OTA : public Module {
-public:
-    OTA(const char* name) : Module(name) {}
+namespace WebUI {
+    OTA::OTA(const char* name) : Module(name) {}
 
-    void init() override {
+    void OTA::init() {
         if (WiFi.getMode() == WIFI_OFF) {
             return;
         }
@@ -63,13 +63,9 @@ public:
             .begin();
     }
 
-    void deinit() override { ArduinoOTA.end(); }
+    void OTA::deinit() { ArduinoOTA.end(); }
 
-    void poll() override { ArduinoOTA.handle(); }
+    void OTA::poll() { ArduinoOTA.handle(); }
 
-    ~OTA() {}
-};
-
-#ifndef PIO_UNIT_TESTING
-ModuleFactory::InstanceBuilder<OTA> __attribute__((init_priority(106))) ota_module("ota", true);
-#endif
+    OTA::~OTA() {}
+}
