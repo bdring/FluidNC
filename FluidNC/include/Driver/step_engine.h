@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <vector>
 #include "Driver/fluidnc_gpio.h"
 
 typedef struct step_engine {
@@ -68,11 +69,10 @@ typedef struct step_engine {
 } step_engine_t;
 
 // Linked list of registered step engines
-extern step_engine_t* step_engines;
+extern std::vector<step_engine_t*> step_engines;
 
 // clang-format off
 #define REGISTER_STEP_ENGINE(name, engine)                       \
     __attribute__((constructor)) void __register_##name(void) {  \
-        (engine)->link = step_engines;                           \
-        step_engines = engine;                                   \
+        step_engines.push_back(engine);                          \
     }

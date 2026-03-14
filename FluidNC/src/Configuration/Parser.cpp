@@ -175,6 +175,16 @@ namespace Configuration {
         return ip;
     }
 
+    step_engine* Parser::stepEngineValue() const {
+        auto token = string_util::trim(_token._value);
+        for (auto const engine : step_engines) {
+            if (string_util::equal_ignore_case(token, engine->name)) {
+                return engine;
+            }
+        }
+        return step_engines[0];  // First value is default
+    }
+
     // cppcheck-suppress unusedFunction
     uint32_t Parser::enumValue(const EnumItem* e) const {
         auto token = string_util::trim(_token._value);

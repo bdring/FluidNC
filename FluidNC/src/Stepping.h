@@ -34,11 +34,16 @@ namespace Machine {
         static void    waitDirection();  // Wait for direction delay
         static steps_t axis_steps[MAX_N_AXIS];
 
-        static step_engine_t* step_engine;
-
     public:
+        static step_engine_t* _engine;
+
         enum stepper_id_t {
+#if MAX_N_SIMULATOR
+            SIMULATOR = 0,
+            TIMED,
+#else
             TIMED = 0,
+#endif
             RMT_ENGINE,
             I2S_STATIC,
             I2S_STREAM,
@@ -59,8 +64,6 @@ namespace Machine {
         static uint32_t _pulseUsecs;
         static uint32_t _directionDelayUsecs;
         static uint32_t _disableDelayUsecs;
-
-        static uint32_t _engine;
 
         // Interfaces to stepping engine
         static void init();

@@ -29,6 +29,7 @@ namespace Configuration {
         std::vector<float>      floatArray() const;
         float                   floatValue() const;
         Pin                     pinValue() const;
+        step_engine*            stepEngineValue() const;
         uint32_t                enumValue(const EnumItem* e) const;
         IPAddress               ipValue() const;
         void                    uartMode(UartData& wordLength, UartParity& parity, UartStop& stopBits) const;

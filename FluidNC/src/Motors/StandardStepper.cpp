@@ -11,6 +11,7 @@
 #include "Stepper.h"      // ST_I2S_*
 #include "Stepping.h"     // Stepping::_engine
 #include "string_util.h"  // starts_with_ignore_case()
+#include <cstring>
 
 using namespace Machine;
 
@@ -52,8 +53,7 @@ namespace MotorDrivers {
 
     void StandardStepper::validate() {
         Assert(_step_pin.defined(), "Step pin must be configured");
-        bool        isI2SO = Stepping::_engine == Stepping::I2S_STREAM || Stepping::_engine == Stepping::I2S_STATIC;
-        const char* type   = isI2SO ? "i2so" : "gpio";
+        const char* type = strncmp(Stepping::_engine->name, "I2S", 3) == 0 ? "i2so" : "gpio";
         Assert(string_util::starts_with_ignore_case(_step_pin.name(), type), "Step pin %s type must be %s", _step_pin.name(), type);
         if (_dir_pin.defined()) {
             Assert(string_util::starts_with_ignore_case(_dir_pin.name(), type), "Direction pin %s type must be %s", _dir_pin.name(), type);

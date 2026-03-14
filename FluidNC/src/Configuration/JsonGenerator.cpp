@@ -156,6 +156,20 @@ namespace Configuration {
         _encoder.end_object();
         leave();
     }
+    void JsonGenerator::item(const char* name, step_engine*& value) {
+        enter(name);
+        _encoder.begin_webui(_currentPath, "B", value->name);
+        _encoder.begin_array("O");
+
+        for (size_t index = 0; index < step_engines.size(); ++index) {
+            _encoder.begin_object();
+            _encoder.member(step_engines[index]->name, index);
+            _encoder.end_object();
+        }
+
+        _encoder.end_object();
+        leave();
+    }
 
     void JsonGenerator::item(const char* name, uint32_t& value, const EnumItem* e) {
         enter(name);

@@ -67,6 +67,8 @@ namespace Configuration {
             send_item(name, s);
         }
 
+        void send_item(const char* name, const char* value) { send_item(name, std::string(value)); }
+
         void item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) override {
             send_item(name, std::to_string(value));
         }
@@ -124,6 +126,7 @@ namespace Configuration {
         void item(const char* name, Macro& value) override { send_item(name, value.get()); }
 
         void item(const char* name, IPAddress& value) override { send_item(name, IP_string(value)); }
+        void item(const char* name, step_engine*& value) override { send_item(name, value->name); }
         void item(const char* name, uint32_t& value, const EnumItem* e) override {
             const char* str = "unknown";
             for (; e->name; ++e) {

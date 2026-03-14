@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -9,6 +10,7 @@
 
 #include "Channel.h"
 #include "lineedit.h"
+#include "SimulatorWebSocketServer.h"
 
 static struct termios _orig_termios;
 
@@ -67,6 +69,11 @@ public:
         editModeOff();
         _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
         allChannels.registration(this);
+        
+        // Start WebSocket server
+        fprintf(stderr, "[Console::init] Starting WebSocket server...\n");
+        SimulatorWS::SimulatorWebSocketServer::instance().init(9000);
+        fprintf(stderr, "[Console::init] WebSocket server init returned\n");
     };
 
     // Print methods (Stream inherits from Print)

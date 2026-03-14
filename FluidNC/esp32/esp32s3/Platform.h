@@ -14,6 +14,7 @@
 #define MAX_N_I2SO 1
 #define MAX_N_SPI 1
 #define MAX_N_SDCARD 1
+#define MAX_N_SIMULATOR 0
 
 #define MAX_N_GPIO SOC_GPIO_PIN_COUNT /* 49 */
 #define DEFAULT_STEPPING_ENGINE Stepping::TIMED
