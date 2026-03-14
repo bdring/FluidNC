@@ -14,6 +14,7 @@
 
 #include <string>
 #include <map>
+#include <algorithm>
 
 #include "Expression.h"
 
@@ -394,15 +395,27 @@ bool named_param_exists(std::string& name) {
         if (got) {
             return true;
         }
-        return global_named_params.count(search) != 0;
+        // Convert to uppercase for global named param lookup
+        std::string canonical_name(search);
+        std::transform(canonical_name.begin(), canonical_name.end(), canonical_name.begin(), ::toupper);
+        return global_named_params.count(canonical_name) != 0;
     }
     // If the name does not start with _ it is local so we look for a job-local parameter
     // If no job is active, we treat the interpretive context like a local context
-    return Job::active() ? Job::param_exists(search) : global_named_params.count(search) != 0;
+    if (Job::active()) {
+        return Job::param_exists(search);
+    }
+    // Convert to uppercase for global named param lookup
+    std::string canonical_name(search);
+    std::transform(canonical_name.begin(), canonical_name.end(), canonical_name.begin(), ::toupper);
+    return global_named_params.count(canonical_name) != 0;
 }
 
 bool get_global_named_param(const std::string& name, float& value) {
-    auto it = global_named_params.find(name);
+    // Convert parameter name to uppercase for canonical form lookup
+    std::string canonical_name(name);
+    std::transform(canonical_name.begin(), canonical_name.end(), canonical_name.begin(), ::toupper);
+    auto it = global_named_params.find(canonical_name);
     if (it == global_named_params.end()) {
         return false;
     }
@@ -482,8 +495,11 @@ bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
     }
 }
 
-bool set_named_param(const std::string& name, float value) {
-    global_named_params[name] = value;
+bool set_named_param(const char* name, float value) {
+    // Convert parameter name to uppercase for canonical form
+    std::string canonical_name(name);
+    std::transform(canonical_name.begin(), canonical_name.end(), canonical_name.begin(), ::toupper);
+    global_named_params[canonical_name] = value;
     return true;
 }
 
@@ -533,7 +549,7 @@ bool set_param(const param_ref_t& param_ref, float value) {
             log_debug("Attempt to set read-only parameter " << name);
             return false;
         }
-        return set_named_param(name, value);
+        return set_named_param(name.c_str(), value);
     }
 
     if (ngc_param_is_rw(param_ref.id)) {  // Numbered parameter
@@ -626,4 +642,39 @@ bool perform_assignments() {
     }
     assignments.clear();
     return result;
+}
+
+void list_global_params(Channel& out) {
+    if (global_named_params.empty()) {
+        log_info_to(out, "No named parameters defined");
+        return;
+    }
+    log_string(out, "Named Parameters");
+    for (const auto& param : global_named_params) {
+        // Format: parameter_name = value
+        log_info_to(out, param.first << " = " << param.second);
+    }
+}
+
+void list_local_params(Channel& out) {
+    const auto& job_stack = Job::jobs_stack();
+    if (job_stack.empty()) {
+        log_info_to(out, "No active jobs - no local parameters");
+        return;
+    }
+
+    int depth = 0;
+    for (auto source : job_stack) {
+        const auto& local_params = source->local_params();
+        if (local_params.empty()) {
+            log_info_to(out, "Job depth " << depth << " - No local parameters");
+        } else {
+            log_info_to(out, "Job depth " << depth << " - Local Parameters");
+            for (const auto& param : local_params) {
+                // Format: parameter_name = value
+                log_info_to(out, param.first << " = " << param.second);
+            }
+        }
+        depth++;
+    }
 }

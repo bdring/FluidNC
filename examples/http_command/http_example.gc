@@ -1,0 +1,197 @@
+(
+  Example G-Code demonstrating HttpCommand usage with http_settings.json
+  
+  This file shows how to use predefined tokens and commands stored in
+  /localfs/http_settings.json to make HTTP requests during CNC operations.
+  
+  Place this example alongside http_settings.json in the example_configs/ directory.
+)
+
+(========================)
+( SIMPLE COMMAND USAGE   )
+(========================)
+
+(Fetch temperature from a sensor server using a predefined command)
+$HTTP/Command=@fetch_temperature
+o100 if [#<_HTTP_STATUS> NE 200]
+  (PRINT, Error fetching temperature: #<_HTTP_STATUS>)
+  M0 (Sensor unreachable)
+o100 endif
+
+(Fetch humidity using another predefined command)
+$HTTP/Command=@fetch_humidity
+(PRINT, Humidity: #<_HTTP_RESPONSE_LEN> bytes received)
+
+(========================)
+(  TOKEN SUBSTITUTION    )
+(========================)
+
+(Use a token in headers for Home Assistant API call)
+(Token: ${ha_token} is a Bearer token stored in http_settings.json)
+$HTTP/Command=@ha_get_room_temp
+#<room_temperature> = #<_room_temp>
+(PRINT, Room temperature from Home Assistant: #<room_temperature>°C)
+
+(Trigger a Home Assistant automation when job completes)
+(Uses multiple tokens and custom headers)
+$HTTP/Command=@ha_call_automation
+o200 if [#<_HTTP_STATUS> GE 200] AND [#<_HTTP_STATUS> LT 300]
+  (PRINT, Successfully logged to Home Assistant)
+o200 else
+  (PRINT, Home Assistant API error: #<_HTTP_STATUS>)
+o200 endif
+
+(========================)
+( MULTIPLE EXTRACTIONS  )
+(========================)
+
+(Fetch multiple sensor readings in a single request)
+(Extracts temperature, humidity, and pressure into separate parameters)
+$HTTP/Command=@fetch_all_sensors
+(PRINT, Temperature: #<_temperature>°C)
+(PRINT, Humidity: #<_humidity>%)
+(PRINT, Pressure: #<_pressure> hPa)
+
+(Check if conditions are safe to proceed)
+o300 if [#<_temperature> GT 35]
+  (PRINT, WARNING: Temperature too high!)
+  M0 (Cool down before continuing)
+o300 endif
+
+(========================)
+( WEBHOOK LOGGING       )
+(========================)
+
+(Log job start to a webhook service)
+(Sends JSON with event name and timestamp)
+(Note: Timestamp is hardcoded in this example; could be parameterized)
+$HTTP/Command=@webhook_log_start
+o400 if [#<_HTTP_STATUS> EQ 200]
+  (PRINT, Job start logged)
+o400 endif
+
+(... perform CNC operations here ...)
+G0 X0 Y0 Z0
+G1 X10 Y10 F100
+
+(Log job completion)
+$HTTP/Command=@webhook_log_complete
+o500 if [#<_HTTP_STATUS> EQ 200]
+  (PRINT, Job completion logged)
+o500 endif
+
+(========================)
+( ERROR HANDLING        )
+(========================)
+
+(Example: Check if a backend service is healthy before starting)
+$HTTP/Command=@check_system_health
+#<cpu_load> = #<_cpu_usage>
+#<memory_free> = #<_memory_available>
+
+o600 if [#<cpu_load> GT 80]
+  (PRINT, System CPU too high: #<_cpu_usage>%)
+  M0 (Wait for system to cool down)
+o600 endif
+
+o700 if [#<memory_free> LT 100]
+  (PRINT, Low memory available: #<_memory_available> MB)
+  M0 (Close other applications)
+o700 endif
+
+(========================)
+( GET NEXT JOB          )
+(========================)
+
+(Retrieve job details from a queuing system)
+(Extracts job ID and part count)
+$HTTP/Command=@get_next_job
+#<job_id> = #<_job_id>
+#<parts_to_produce> = #<_part_count>
+
+(PRINT, Starting job #<job_id>)
+(PRINT, Parts to produce: #<parts_to_produce>)
+
+(Use extracted values in operations)
+G91 (Relative positioning)
+o800 repeat [#<_part_count>]
+  (... produce one part ...)
+  G1 X1 Y1 Z1 F50
+o800 endrepeat
+
+(========================)
+( METRICS SUBMISSION    )
+(========================)
+
+(Submit job metrics to Prometheus/metrics system)
+(Includes job duration and parts produced data)
+$HTTP/Command=@post_job_metrics
+o900 if [#<_HTTP_STATUS> EQ 200]
+  (PRINT, Metrics submitted successfully)
+o900 else
+  (PRINT, Failed to submit metrics)
+o900 endif
+
+(========================)
+( DATABASE SUBMISSION   )
+(========================)
+
+(Submit machine data to InfluxDB using token substitution)
+(Token ${influx_token} is used in the Authorization header)
+$HTTP/Command=@post_to_influxdb
+(PRINT, Machine metrics recorded)
+
+(========================)
+( TIMEOUT HANDLING      )
+(========================)
+
+(Query Prometheus with a 5-second timeout)
+(Extracts uptime data from a complex JSON response)
+$HTTP/Command=@query_prometheus
+o1000 if [#<_HTTP_STATUS> EQ 200]
+  (PRINT, System uptime: #<_uptime_seconds> seconds)
+o1000 else
+  (PRINT, Prometheus query timed out or failed)
+o1000 endif
+
+(========================)
+( DIFFERENT HTTP METHODS)
+(========================)
+
+(PUT request - Update job status)
+$HTTP/Command=@put_job_status
+(PRINT, Job status updated to running (45% progress))
+
+(DELETE request - Clean up old logs)
+$HTTP/Command=@delete_old_logs
+o1100 if [#<_HTTP_STATUS> EQ 204]
+  (PRINT, Old logs deleted)
+o1100 endif
+
+(========================)
+( FETCH TOOL OFFSETS    )
+(========================)
+
+(Get current tool offsets from tool management system)
+(Useful for tool changer systems or multi-tool operations)
+$HTTP/Command=@fetch_tool_offsets
+#<z_offset> = #<_tool_z_offset>
+#<tool_diam> = #<_tool_diameter>
+
+M118 Tool Z Offset: #<z_offset>
+M118 Tool Diameter: #<tool_diam>
+
+(Apply tool offset)
+G43 H1 (Apply compensation using fetched data)
+
+(========================)
+( END OF EXAMPLE        )
+(========================)
+
+M118 All HTTP examples completed!
+M5 (Stop spindle)
+G0 Z10 (Move to safe height)
+
+(End of job)
+G0 X0 Y0 (Return to origin)
+M30 (Program end)
