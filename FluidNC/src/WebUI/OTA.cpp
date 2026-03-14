@@ -70,4 +70,6 @@ public:
     ~OTA() {}
 };
 
+#ifndef PIO_UNIT_TESTING
 ModuleFactory::InstanceBuilder<OTA> __attribute__((init_priority(106))) ota_module("ota", true);
+#endif

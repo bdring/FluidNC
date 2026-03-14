@@ -50,3 +50,7 @@ coverage.css
 coverage.js
 coverage.functions.html
 coverage.*.html
+coverage.txt
+coverage-branches.txt
+coverage-summary.json
+coverage-gaps.json

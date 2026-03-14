@@ -19,6 +19,7 @@
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <Arduino.h>
 #include <base64.h>
 
 namespace WebUI {
@@ -47,15 +48,7 @@ namespace WebUI {
     static const int   TELEGRAMPORT    = 443;
 
     static const int EMAILTIMEOUT = 5000;
-
-    bool        NotificationsService::_started = false;
-    uint8_t     NotificationsService::_notificationType;
-    std::string NotificationsService::_token1;
-    std::string NotificationsService::_token2;
-    std::string NotificationsService::_settings;
-    std::string NotificationsService::_serveraddress;
-    uint16_t    NotificationsService::_port;
-
+#ifndef PIO_UNIT_TESTING
     const enum_opt_t notificationOptions = {
         { "NONE", 0 }, { "LINE", 3 }, { "PUSHOVER", 1 }, { "EMAIL", 2 }, { "TG", 4 },
     };
@@ -105,8 +98,22 @@ namespace WebUI {
         }
         return Error::Ok;
     }
+#endif
+    bool        NotificationsService::_started = false;
+    uint8_t     NotificationsService::_notificationType;
+    std::string NotificationsService::_token1;
+    std::string NotificationsService::_token2;
+    std::string NotificationsService::_settings;
+    std::string NotificationsService::_serveraddress;
+    uint16_t    NotificationsService::_port;
 
     Error NotificationsService::sendMessage(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
+#ifdef PIO_UNIT_TESTING
+        (void)parameter;
+        (void)auth_level;
+        (void)out;
+        return Error::InvalidValue;
+#else
         if (*parameter == '\0') {
             log_string(out, "Invalid message!");
             return Error::InvalidValue;
@@ -116,6 +123,7 @@ namespace WebUI {
             return Error::MessageFailed;
         }
         return Error::Ok;
+#endif
     }
 
     bool Wait4Answer(WiFiClientSecure& client, const char* linetrigger, const char* expected_answer, uint32_t timeout) {
@@ -174,16 +182,12 @@ namespace WebUI {
             switch (_notificationType) {
                 case PUSHOVER_NOTIFICATION:
                     return sendPushoverMSG(title, message);
-                    break;
                 case EMAIL_NOTIFICATION:
                     return sendEmailMSG(title, message);
-                    break;
                 case LINE_NOTIFICATION:
                     return sendLineMSG(title, message);
-                    break;
                 case TELEGRAM_NOTIFICATION:
                     return sendTelegramMSG(title, message);
-                    break;
                 default:
                     break;
             }
@@ -388,6 +392,9 @@ namespace WebUI {
     }
     //Email#serveraddress:port
     bool NotificationsService::getPortFromSettings() {
+#ifdef PIO_UNIT_TESTING
+        return false;
+#else
         std::string tmp(notification_ts->get());
         size_t      pos = tmp.rfind(':');
         if (pos == std::string::npos) {
@@ -398,9 +405,13 @@ namespace WebUI {
             _port = stoi(tmp.substr(pos + 1));
         } catch (...) { return false; }
         return true;
+#endif
     }
     //Email#serveraddress:port
     bool NotificationsService::getServerAddressFromSettings() {
+#ifdef PIO_UNIT_TESTING
+        return false;
+#else
         std::string tmp(notification_ts->get());
         size_t      pos1 = tmp.find('#');
         size_t      pos2 = tmp.rfind(':');
@@ -411,9 +422,13 @@ namespace WebUI {
         //TODO add a check for valid email ?
         _serveraddress = tmp.substr(pos1 + 1, pos2 - pos1 - 1);
         return true;
+#endif
     }
     //Email#serveraddress:port
     bool NotificationsService::getEmailFromSettings() {
+#ifdef PIO_UNIT_TESTING
+        return false;
+#else
         std::string tmp(notification_ts->get());
         size_t      pos = tmp.find('#');
         if (pos == std::string::npos) {
@@ -422,9 +437,14 @@ namespace WebUI {
         _settings = tmp.substr(0, pos);
         //TODO add a check for valid email ?
         return true;
+#endif
     }
 
     void NotificationsService::init() {
+#ifdef PIO_UNIT_TESTING
+        deinit();
+        return;
+#else
         deinit();
 
         new WebCommand(
@@ -491,6 +511,7 @@ namespace WebUI {
             deinit();
         }
         _started = res;
+#endif
     }
 
     void NotificationsService::deinit() {
@@ -511,7 +532,9 @@ namespace WebUI {
         deinit();
     }
 
+#ifndef PIO_UNIT_TESTING
     ModuleFactory::InstanceBuilder<NotificationsService> __attribute__((init_priority(110))) notification_module("notifications", true);
+#endif
 }
 
 // Override weak link
