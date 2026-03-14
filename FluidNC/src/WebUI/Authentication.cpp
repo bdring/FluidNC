@@ -1,16 +1,10 @@
 #include "Authentication.h"
+#include "Config.h"
 
 #include <cstring>
 
 #ifdef ENABLE_AUTHENTICATION
 #    include "Settings.h"
-
-#    ifndef DEFAULT_USER_PWD
-#        define DEFAULT_USER_PWD ""
-#    endif
-#    ifndef DEFAULT_ADMIN_PWD
-#        define DEFAULT_ADMIN_PWD ""
-#    endif
 
 Error setUserPassword(const char* parameter, AuthenticationLevel auth_level, Channel& out);
 
