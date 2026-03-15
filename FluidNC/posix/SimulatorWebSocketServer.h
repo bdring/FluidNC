@@ -29,6 +29,9 @@ using std::min;
 #include <cstring>
 #include <mutex>
 
+// Maximum number of axes (matches FluidNC config)
+#define SIMULATOR_MAX_AXES 6
+
 namespace SimulatorWS {
 
 /**
@@ -93,6 +96,18 @@ private:
     WSServer* _server = nullptr;
     WSConnection* _current_connection = nullptr;  // Single active connection (set in callbacks)
     mutable std::mutex _connection_mutex;  // Protect _current_connection access
+    
+    // Track absolute position in steps (accumulated from differential updates)
+    // Array indices: 0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C (up to SIMULATOR_MAX_AXES)
+    // Conversion factor: 100 steps/mm
+    static constexpr int STEPS_PER_MM = 100;
+    int64_t _position_steps[SIMULATOR_MAX_AXES];
+    
+    // ACK tracking for position message flow control
+    // Allows up to 2 messages in flight: one sent waiting for ACK, one send-ahead
+    std::mutex _ack_mutex;
+    std::condition_variable _ack_received;
+    int _pending_acks = 0;  // Number of messages sent but not yet acked (0, 1, or 2)
 };
 
 } // namespace SimulatorWS

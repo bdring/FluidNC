@@ -17,6 +17,8 @@
 #include <string_view>
 #include <charconv>
 #include "Pins/ExtPinDetail.h"
+#include "Pins/SimPinDetail.h"
+#include "Platform.h"
 
 static constexpr bool verbose_debugging = false;
 
@@ -65,6 +67,12 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
 #if MAX_N_I2SO
     if (string_util::equal_ignore_case(pin_type, "i2so")) {
         pinImplementation = new Pins::I2SOPinDetail(static_cast<pinnum_t>(pin_number), parser);
+        return nullptr;
+    }
+#endif
+#if MAX_N_SIMULATOR
+    if (string_util::equal_ignore_case(pin_type, "sim")) {
+        pinImplementation = new Pins::SimPinDetail(static_cast<pinnum_t>(pin_number), parser);
         return nullptr;
     }
 #endif

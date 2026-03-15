@@ -2,142 +2,111 @@
 
 #include "Driver/step_engine.h"
 #include "Driver/fluidnc_gpio.h"
+#include "simulator_engine.h"
 #include <string.h>
 #include <stdio.h>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 // Forward declaration from SimulatorWebSocketServer
 extern "C" {
-    bool simulator_ws_has_client(void);
+bool simulator_ws_has_client(void);
 }
 
-#define MAX_AXES 6  // X, Y, Z, A, B, C
 #define STEPS_PER_MM 100
 
-// Position update message to be sent via WebSocket
-typedef struct {
-    double x;
-    double y;
-    double z;
-    double a;
-    double b;
-    double c;
-} position_update_t;
-
-// Queue message structure
-typedef struct {
-    position_update_t position;
-    bool is_final;  // true if this is the final position for a job
-} queue_message_t;
-
 // Simple queue implementation
-#define QUEUE_SIZE 64
-static queue_message_t message_queue[QUEUE_SIZE];
-static volatile int queue_head = 0;
-static volatile int queue_tail = 0;
-static volatile int queue_count = 0;
+#define QUEUE_SIZE 4
+static queue_message_t         message_queue[QUEUE_SIZE];
+static volatile int            queue_head  = 0;
+static volatile int            queue_tail  = 0;
+static volatile int            queue_count = 0;
+static std::mutex              queue_mutex;
+static std::condition_variable queue_not_full;
 
 // Track pin state and step accumulation during segment
 static struct {
-    uint32_t step_count[MAX_AXES];
-    int      direction[MAX_AXES];  // -1, 0, or 1
-    bool     pin_used[MAX_AXES];
-} _segment_state = {0};
+    uint32_t step_count[SIMULATOR_MAX_AXES];
+    int      direction[SIMULATOR_MAX_AXES];  // -1, 0, or 1
+} _segment_state = { 0 };
 
-// Map pin numbers to axes (will be initialized based on machine config)
-// For now, use a simple mapping that can be updated later
-static pinnum_t axis_step_pins[MAX_AXES] = {0};
-static pinnum_t axis_dir_pins[MAX_AXES] = {0};
-static int      num_axes = 3;  // Default to X, Y, Z
-
-// Current position
-static double _current_pos[MAX_AXES] = {0};
-
-// ============================================================================
 // Queue Operations (thread-safe for ISR)
-// ============================================================================
 
 extern "C" {
 
 void simulator_queue_position(const position_update_t* pos, bool is_final) {
     static bool last_client_state = false;
-    
+
     // Don't queue if there's no client connected
     bool has_client = simulator_ws_has_client();
-    
+
     if (has_client != last_client_state) {
         last_client_state = has_client;
         // State change already logged by simulator_ws_has_client()
     }
-    
+
     if (!has_client) {
         return;
     }
 
-    if (queue_count >= QUEUE_SIZE) {
-        // Queue full, drop oldest message
-        fprintf(stderr, "[simulator_engine] Queue full! Dropping oldest message. count=%u\n", queue_count);
-        queue_head = (queue_head + 1) % QUEUE_SIZE;
-        queue_count--;
-    }
+    std::unique_lock<std::mutex> lock(queue_mutex);
+
+    // Wait until there's room in the queue
+    // This provides end-to-end flow control: stepping slows down when WebSocket can't keep up
+    queue_not_full.wait(lock, []() { return queue_count < QUEUE_SIZE; });
 
     message_queue[queue_tail].position = *pos;
     message_queue[queue_tail].is_final = is_final;
-    queue_tail = (queue_tail + 1) % QUEUE_SIZE;
+    queue_tail                         = (queue_tail + 1) % QUEUE_SIZE;
     queue_count++;
+
+    // Yield to allow other threads to process the message
+    std::this_thread::yield();
 }
 
 bool simulator_queue_dequeue(queue_message_t* msg) {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+
     if (queue_count == 0) {
         return false;
     }
 
-    *msg = message_queue[queue_head];
+    *msg       = message_queue[queue_head];
     queue_head = (queue_head + 1) % QUEUE_SIZE;
     queue_count--;
+
+    // Notify waiting threads that space is now available
+    queue_not_full.notify_one();
 
     return true;
 }
 
-}  // extern "C"
-
-// ============================================================================
-// Configure axis pin mapping
-// ============================================================================
-
-extern "C" {
-
-void simulator_set_axis_pins(int axis_num, pinnum_t step_pin, pinnum_t dir_pin) {
-    if (axis_num < MAX_AXES) {
-        axis_step_pins[axis_num] = step_pin;
-        axis_dir_pins[axis_num] = dir_pin;
-        if (axis_num >= num_axes) {
-            num_axes = axis_num + 1;
-        }
-    }
+int simulator_queue_depth(void) {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+    return queue_count;
 }
 
 }  // extern "C"
 
-// ============================================================================
-// Step Engine Interface Implementation
-// ============================================================================
+// Stepping interface to send messages to a visualizer
+// At this level we accumulate pulses and queue a message
+// containing step counts.  The message will be handled
+// by a task that sends the information to the visualizer,
+// perhaps over a websocket.
 
+bool (*_pulse_func)(void);
 static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*callback)(void)) {
+    _pulse_func = callback;
+
     // Initialize simulator engine
     memset(_segment_state.step_count, 0, sizeof(_segment_state.step_count));
     memset(_segment_state.direction, 0, sizeof(_segment_state.direction));
-    memset(_segment_state.pin_used, 0, sizeof(_segment_state.pin_used));
     return pulse_delay_us;
 }
 
 static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
-    // Register this as a step pin if it's one we recognize
-    for (int i = 0; i < num_axes; i++) {
-        if (axis_step_pins[i] == step_pin) {
-            _segment_state.pin_used[i] = true;
-            return step_pin;
-        }
-    }
+    // No initialization needed; step_count will be zero until steps arrive
     return step_pin;
 }
 
@@ -156,25 +125,18 @@ static void start_step() {
 
 // Called with set_step_pin - track which axes are being stepped
 static void set_step_pin(pinnum_t pin, bool level) {
-    // Count step edges (on rising edge, false->true)
     // level=true means step pulse starting
-    if (level) {
-        for (int i = 0; i < num_axes; i++) {
-            if (axis_step_pins[i] == pin && _segment_state.pin_used[i]) {
-                _segment_state.step_count[i]++;
-                break;
-            }
-        }
+    // pin is the axis number (0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C)
+    if (level && pin < SIMULATOR_MAX_AXES) {
+        _segment_state.step_count[pin]++;
     }
 }
 
 // Called for direction pins - record the direction for each axis
 static void set_dir_pin(pinnum_t pin, bool level) {
-    for (int i = 0; i < num_axes; i++) {
-        if (axis_dir_pins[i] == pin) {
-            _segment_state.direction[i] = level ? 1 : -1;
-            break;
-        }
+    // pin is the axis number (0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C)
+    if (pin < SIMULATOR_MAX_AXES) {
+        _segment_state.direction[pin] = level ? 1 : -1;
     }
 }
 
@@ -195,31 +157,21 @@ static uint32_t max_pulses_per_sec() {
     return 100000;
 }
 
-// Helper function to process accumulated steps and send position update
+// Helper function to process accumulated steps and send differential step counts
 static void flush_segment_position(bool is_final) {
-    position_update_t pos = {0};
-    
-    // Process accumulated steps for all axes
-    for (int i = 0; i < num_axes; i++) {
-        if (_segment_state.step_count[i] > 0) {
-            double distance = (double)_segment_state.step_count[i] / STEPS_PER_MM;
-            if (_segment_state.direction[i] == -1) {
-                distance = -distance;
-            }
-            _current_pos[i] += distance;
-            _segment_state.step_count[i] = 0;
+    position_update_t delta = { 0 };
+
+    // Build step count message with signs applied from direction
+    for (int i = 0; i < SIMULATOR_MAX_AXES; i++) {
+        int32_t steps = (int32_t)_segment_state.step_count[i];
+        if (_segment_state.direction[i] == -1) {
+            steps = -steps;
         }
+        _segment_state.step_count[i] = 0;  // Reset for next segment
+        delta.steps[i]               = steps;
     }
 
-    // Build position update message
-    pos.x = _current_pos[0];
-    pos.y = _current_pos[1];
-    pos.z = _current_pos[2];
-    if (num_axes > 3) pos.a = _current_pos[3];
-    if (num_axes > 4) pos.b = _current_pos[4];
-    if (num_axes > 5) pos.c = _current_pos[5];
-
-    simulator_queue_position(&pos, is_final);
+    simulator_queue_position(&delta, is_final);
 }
 
 // Called at segment boundaries to mark timer period
@@ -229,7 +181,8 @@ static void set_timer_ticks(uint32_t ticks) {
 }
 
 static void start_timer() {
-    // Timer started - prepare for stepping
+    // Call the pulse function until it returns false
+    while (_pulse_func()) {}
 }
 
 static void stop_timer() {

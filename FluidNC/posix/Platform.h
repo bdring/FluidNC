@@ -1,14 +1,11 @@
 #pragma once
 
-#include "../src/Stepping.h"
+// Include base capture platform configuration
+#include "../capture/Platform.h"
 
-// Use the Simulator stepping engine for POSIX builds
-#define DEFAULT_STEPPING_ENGINE Stepping::SIMULATOR
+// Override for POSIX simulator: enable simulator and use Simulator stepping engine
+#undef MAX_N_SIMULATOR
 #define MAX_N_SIMULATOR 1
 
-// Maximum number of axes
-#define MAX_N_AXIS 6
-
-// Disable hardware-specific features
-#define MAX_N_RMT 0
-#define MAX_N_I2SO 0
+#undef DEFAULT_STEPPING_ENGINE
+#define DEFAULT_STEPPING_ENGINE Stepping::SIMULATOR

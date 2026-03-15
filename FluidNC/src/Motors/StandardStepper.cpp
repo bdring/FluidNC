@@ -34,6 +34,7 @@ namespace MotorDrivers {
         }
 
         if (_step_pin.canStep()) {
+            ::printf("Assigning %d %d\n", axisIndex, _dir_pin.inverted());
             Stepping::assignMotor(axisIndex, dualAxisIndex, _step_pin.index(), _step_pin.inverted(), _dir_pin.index(), _dir_pin.inverted());
         }
     }
@@ -53,10 +54,19 @@ namespace MotorDrivers {
 
     void StandardStepper::validate() {
         Assert(_step_pin.defined(), "Step pin must be configured");
-        const char* type = strncmp(Stepping::_engine->name, "I2S", 3) == 0 ? "i2so" : "gpio";
-        Assert(string_util::starts_with_ignore_case(_step_pin.name(), type), "Step pin %s type must be %s", _step_pin.name(), type);
+
+        // Allow "sim" pins for simulation, otherwise enforce stepping engine type
+        if (!string_util::starts_with_ignore_case(_step_pin.name(), "sim")) {
+            const char* type = strncmp(Stepping::_engine->name, "I2S", 3) == 0 ? "i2so" : "gpio";
+            Assert(string_util::starts_with_ignore_case(_step_pin.name(), type), "Step pin %s type must be %s", _step_pin.name(), type);
+        }
+
         if (_dir_pin.defined()) {
-            Assert(string_util::starts_with_ignore_case(_dir_pin.name(), type), "Direction pin %s type must be %s", _dir_pin.name(), type);
+            // Allow "sim" pins for simulation, otherwise enforce stepping engine type
+            if (!string_util::starts_with_ignore_case(_dir_pin.name(), "sim")) {
+                const char* type = strncmp(Stepping::_engine->name, "I2S", 3) == 0 ? "i2so" : "gpio";
+                Assert(string_util::starts_with_ignore_case(_dir_pin.name(), type), "Direction pin %s type must be %s", _dir_pin.name(), type);
+            }
         }
     }
 }

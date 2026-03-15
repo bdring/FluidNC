@@ -7,14 +7,14 @@
 extern "C" {
 #endif
 
-// Position update type
+// Maximum number of axes (matches FluidNC config)
+#define SIMULATOR_MAX_AXES 6
+
+// Differential step update type (not absolute position)
+// Each field is the signed step count change for this segment
+// Index: 0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C (up to SIMULATOR_MAX_AXES)
 typedef struct {
-    double x;
-    double y;
-    double z;
-    double a;
-    double b;
-    double c;
+    int32_t steps[SIMULATOR_MAX_AXES];
 } position_update_t;
 
 // Queue message type
@@ -23,15 +23,12 @@ typedef struct {
     bool is_final;
 } queue_message_t;
 
-// Configure which pins correspond to which axes
-// axis_num: 0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C
-// step_pin: GPIO pin number that generates step pulses
-// dir_pin: GPIO pin number that sets direction
-void simulator_set_axis_pins(int axis_num, uint32_t step_pin, uint32_t dir_pin);
-
 // Queue operations - safe to call from ISR
 void simulator_queue_position(const position_update_t* pos, bool is_final);
 bool simulator_queue_dequeue(queue_message_t* msg);
+
+// Get current queue depth for flow control
+int simulator_queue_depth(void);
 
 #ifdef __cplusplus
 }
