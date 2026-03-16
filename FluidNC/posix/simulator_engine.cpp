@@ -5,9 +5,9 @@
 #include "simulator_engine.h"
 #include <string.h>
 #include <stdio.h>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
 
 // Forward declaration from SimulatorWebSocketServer
 extern "C" {
@@ -20,12 +20,12 @@ bool simulator_ws_has_client(void);
 
 // Simple queue implementation
 #define QUEUE_SIZE 4
-static queue_message_t         message_queue[QUEUE_SIZE];
-static volatile int            queue_head  = 0;
-static volatile int            queue_tail  = 0;
-static volatile int            queue_count = 0;
-static std::mutex              queue_mutex;
-static std::condition_variable queue_not_full;
+static queue_message_t message_queue[QUEUE_SIZE];
+static volatile int    queue_head  = 0;
+static volatile int    queue_tail  = 0;
+static volatile int    queue_count = 0;
+static SemaphoreHandle_t queue_mutex = NULL;     // Mutex for queue access
+static SemaphoreHandle_t queue_not_full = NULL;  // Semaphore: signals when queue has space
 
 // Track pin state and step accumulation during segment
 static struct {
@@ -42,6 +42,12 @@ extern "C" {
 void simulator_queue_position(const position_update_t* pos, bool is_final) {
     static bool last_client_state = false;
 
+    // Initialize semaphores on first use
+    if (queue_mutex == NULL) {
+        queue_mutex = xSemaphoreCreateMutex();
+        queue_not_full = xSemaphoreCreateCounting(QUEUE_SIZE, QUEUE_SIZE);
+    }
+
     // Don't queue if there's no client connected
     bool has_client = simulator_ws_has_client();
 
@@ -54,25 +60,39 @@ void simulator_queue_position(const position_update_t* pos, bool is_final) {
         return;
     }
 
-    std::unique_lock<std::mutex> lock(queue_mutex);
-
-    // Wait until there's room in the queue
+    // Wait until there's room in the queue (blocking with timeout)
     // This provides end-to-end flow control: stepping slows down when WebSocket can't keep up
-    queue_not_full.wait(lock, []() { return queue_count < QUEUE_SIZE; });
+    if (xSemaphoreTake(queue_not_full, pdMS_TO_TICKS(100)) != pdTRUE) {
+        fprintf(stderr, "[simulator_engine] Queue full, dropping position update\n");
+        return;
+    }
+
+    // Take mutex to protect queue access
+    if (xSemaphoreTake(queue_mutex, pdMS_TO_TICKS(10)) != pdTRUE) {
+        fprintf(stderr, "[simulator_engine] Failed to acquire queue mutex\n");
+        xSemaphoreGive(queue_not_full);  // Release the semaphore we just took
+        return;
+    }
 
     message_queue[queue_tail].position = *pos;
     message_queue[queue_tail].is_final = is_final;
     queue_tail                         = (queue_tail + 1) % QUEUE_SIZE;
     queue_count++;
 
-    // Yield to allow other threads to process the message
-    std::this_thread::yield();
+    xSemaphoreGive(queue_mutex);
 }
 
 bool simulator_queue_dequeue(queue_message_t* msg) {
-    std::unique_lock<std::mutex> lock(queue_mutex);
+    if (queue_mutex == NULL) {
+        return false;  // Not initialized yet
+    }
+
+    if (xSemaphoreTake(queue_mutex, pdMS_TO_TICKS(10)) != pdTRUE) {
+        return false;  // Failed to acquire mutex
+    }
 
     if (queue_count == 0) {
+        xSemaphoreGive(queue_mutex);
         return false;
     }
 
@@ -80,15 +100,26 @@ bool simulator_queue_dequeue(queue_message_t* msg) {
     queue_head = (queue_head + 1) % QUEUE_SIZE;
     queue_count--;
 
-    // Notify waiting threads that space is now available
-    queue_not_full.notify_one();
+    xSemaphoreGive(queue_mutex);
+
+    // Signal that space is now available for queueing
+    xSemaphoreGive(queue_not_full);
 
     return true;
 }
 
 int simulator_queue_depth(void) {
-    std::unique_lock<std::mutex> lock(queue_mutex);
-    return queue_count;
+    if (queue_mutex == NULL) {
+        return 0;
+    }
+
+    if (xSemaphoreTake(queue_mutex, pdMS_TO_TICKS(10)) != pdTRUE) {
+        return 0;  // Failed to acquire mutex
+    }
+
+    int depth = queue_count;
+    xSemaphoreGive(queue_mutex);
+    return depth;
 }
 
 }  // extern "C"

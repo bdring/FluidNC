@@ -27,7 +27,8 @@ using std::min;
 #include <string>
 #include <cstdint>
 #include <cstring>
-#include <mutex>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 // Maximum number of axes (matches FluidNC config)
 #define SIMULATOR_MAX_AXES 6
@@ -63,8 +64,13 @@ public:
     uint16_t getPort() const { return _port; }
     bool isRunning() const { return _running; }
     bool hasActiveConnection() const { 
-        std::lock_guard<std::mutex> lock(_connection_mutex);
-        return _current_connection != nullptr; 
+        if (_connection_semaphore != nullptr) {
+            xSemaphoreTake(_connection_semaphore, pdMS_TO_TICKS(10));
+            bool has_conn = _current_connection != nullptr;
+            xSemaphoreGive(_connection_semaphore);
+            return has_conn;
+        }
+        return false;
     }
 
     // WebSocket server callbacks (must be public for library to call them)
@@ -95,7 +101,7 @@ private:
     bool _running = false;
     WSServer* _server = nullptr;
     WSConnection* _current_connection = nullptr;  // Single active connection (set in callbacks)
-    mutable std::mutex _connection_mutex;  // Protect _current_connection access
+    SemaphoreHandle_t _connection_semaphore = nullptr;  // Protect _current_connection access
     
     // Track absolute position in steps (accumulated from differential updates)
     // Array indices: 0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C (up to SIMULATOR_MAX_AXES)
@@ -105,8 +111,7 @@ private:
     
     // ACK tracking for position message flow control
     // Allows up to 2 messages in flight: one sent waiting for ACK, one send-ahead
-    std::mutex _ack_mutex;
-    std::condition_variable _ack_received;
+    SemaphoreHandle_t _ack_semaphore = nullptr;  // Protect _pending_acks access
     int _pending_acks = 0;  // Number of messages sent but not yet acked (0, 1, or 2)
 };
 

@@ -6,6 +6,9 @@
 #include <string>
 #include <arpa/inet.h>
 #include "simulator_engine.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
 
 namespace SimulatorWS {
 
@@ -24,6 +27,14 @@ namespace SimulatorWS {
         }
 
         _port = port;
+
+        // Initialize FreeRTOS synchronization primitives (only once)
+        if (_connection_semaphore == nullptr) {
+            _connection_semaphore = xSemaphoreCreateMutex();
+        }
+        if (_ack_semaphore == nullptr) {
+            _ack_semaphore = xSemaphoreCreateMutex();
+        }
 
         // Create the WebSocket server
         _server = new WSServer();
@@ -75,9 +86,9 @@ namespace SimulatorWS {
 
         // Only process if we have an active connection
         bool has_connection = false;
-        {
-            std::lock_guard<std::mutex> lock(_connection_mutex);
+        if (xSemaphoreTake(_connection_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
             has_connection = (_current_connection != nullptr && _current_connection->isConnected());
+            xSemaphoreGive(_connection_semaphore);
         }
 
         // Log only on state change
@@ -91,12 +102,13 @@ namespace SimulatorWS {
         }
 
         // Check if we can send another message (allow up to 2 pending: one ack'd, one send-ahead)
-        {
-            std::lock_guard<std::mutex> ack_lock(_ack_mutex);
-            if (_pending_acks >= 4) {
+        if (xSemaphoreTake(_ack_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
+            if (_pending_acks >= 2) {
                 // Already have 2 messages in flight, don't send yet
+                xSemaphoreGive(_ack_semaphore);
                 return;
             }
+            xSemaphoreGive(_ack_semaphore);
         }
 
         // Try to dequeue and send one position update
@@ -114,7 +126,7 @@ namespace SimulatorWS {
             fprintf(stderr, "[WS] Sending: X_steps=%d us=%u rate=%d\n", steps, us, rate);
 #endif
 
-            // Format as JSON: {"action":"steps","x":..,"y":..,"z":..,"a":..,"b":..,"c":..,"final":.."elapsed_us":...}
+            // Format as JSON: {"action":"steps","steps":[...],"final":.."elapsed_us":...}
             char buffer[256];
             int  len = snprintf(buffer,
                                sizeof(buffer),
@@ -130,21 +142,21 @@ namespace SimulatorWS {
 
             if (len > 0 && len < (int)sizeof(buffer)) {
                 // Send position update to the connected client
-                std::lock_guard<std::mutex> lock(_connection_mutex);
-                if (_current_connection && _current_connection->isConnected()) {
-                    _current_connection->send(websocket::OPCODE_TEXT, (const uint8_t*)buffer, len);
+                if (xSemaphoreTake(_connection_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
+                    if (_current_connection && _current_connection->isConnected()) {
+                        _current_connection->send(websocket::OPCODE_TEXT, (const uint8_t*)buffer, len);
 
-                    // Track that this message is pending ACK
-                    int acks;
-                    {
-                        std::lock_guard<std::mutex> ack_lock(_ack_mutex);
-                        _pending_acks++;
-                        acks = _pending_acks;
+                        // Track that this message is pending ACK
+                        if (xSemaphoreTake(_ack_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
+                            _pending_acks++;
+                            int acks = _pending_acks;
+                            xSemaphoreGive(_ack_semaphore);
+                            // fprintf(stderr, "[SimulatorWS-Broadcaster] Sent position update (pending_acks=%d)\n", acks);
+                        }
+                    } else {
+                        fprintf(stderr, "[SimulatorWS-Broadcaster] Connection lost while sending\n");
                     }
-
-                    // fprintf(stderr, "[SimulatorWS-Broadcaster] Sent position update (pending_acks=%d), waiting for move_ack\n", acks);
-                } else {
-                    fprintf(stderr, "[SimulatorWS-Broadcaster] Connection lost while sending\n");
+                    xSemaphoreGive(_connection_semaphore);
                 }
             }
         }
@@ -177,9 +189,9 @@ namespace SimulatorWS {
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
         // Store this as the current active connection (single connection assumed)
-        {
-            std::lock_guard<std::mutex> lock(_connection_mutex);
+        if (xSemaphoreTake(_connection_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
             _current_connection = &conn;
+            xSemaphoreGive(_connection_semaphore);
         }
         //        fprintf(stderr, "[SimulatorWS] Connection stored for position updates\n");
 
@@ -191,12 +203,12 @@ namespace SimulatorWS {
         fprintf(stderr, "[SimulatorWS] Connection closed. Status: %d, Reason: %s\n", status_code, reason ? reason : "");
 
         // Clear the connection pointer if this is the current one
-        {
-            std::lock_guard<std::mutex> lock(_connection_mutex);
+        if (xSemaphoreTake(_connection_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
             if (_current_connection == &conn) {
                 _current_connection = nullptr;
                 fprintf(stderr, "[SimulatorWS] Cleared active connection\n");
             }
+            xSemaphoreGive(_connection_semaphore);
         }
     }
 
@@ -217,10 +229,12 @@ namespace SimulatorWS {
                 msg.find("error") != std::string::npos) {
                 // Any of these responses clears the pending ack
                 // fprintf(stderr, "[SimulatorWS] Received response: %s\n", msg.c_str());
-                std::lock_guard<std::mutex> ack_lock(_ack_mutex);
-                if (_pending_acks > 0) {
-                    _pending_acks--;
-                    // fprintf(stderr, "[SimulatorWS] ACK processed (pending_acks=%d)\n", _pending_acks);
+                if (xSemaphoreTake(_ack_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
+                    if (_pending_acks > 0) {
+                        _pending_acks--;
+                        // fprintf(stderr, "[SimulatorWS] ACK processed (pending_acks=%d)\n", _pending_acks);
+                    }
+                    xSemaphoreGive(_ack_semaphore);
                 }
             }
 
