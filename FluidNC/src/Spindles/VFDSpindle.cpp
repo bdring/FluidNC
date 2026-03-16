@@ -53,7 +53,7 @@ namespace Spindles {
         }
 
         if (!_uart->configured()) {
-            log_error("VFDSpindle: uart" << _uart_num << " failed configuration");
+            log_error("VFDSpindle: uart:" << _uart_num << " failed configuration");
             return;
         }
 

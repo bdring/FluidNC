@@ -117,9 +117,15 @@ void Uart::begin() {
     auto rts = _rts_pin.undefined() ? -1 : _rts_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Output);
     auto cts = _cts_pin.undefined() ? -1 : _cts_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Input);
 
-    if ((_txd_pin.undefined() && _rxd_pin.undefined()) || setPins(txd, rxd, rts, cts)) {
-        _configured = false;    
-        return;        
+    if (_txd_pin.undefined() && _rxd_pin.undefined()) {
+        _configured = false;
+        log_config_error("UART:" << _uart_num << " both TXD and RXD pins are undefined");
+        return;
+    }
+    if (setPins(txd, rxd, rts, cts)) {
+        _configured = false;
+        log_config_error("UART:" << _uart_num << " failed to configure pins");
+        return;
     }
 
     begin(_baud, _dataBits, _stopBits, _parity);
