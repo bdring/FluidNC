@@ -93,7 +93,7 @@ namespace SimulatorWS {
         // Check if we can send another message (allow up to 2 pending: one ack'd, one send-ahead)
         {
             std::lock_guard<std::mutex> ack_lock(_ack_mutex);
-            if (_pending_acks >= 2) {
+            if (_pending_acks >= 4) {
                 // Already have 2 messages in flight, don't send yet
                 return;
             }
@@ -116,18 +116,17 @@ namespace SimulatorWS {
 
             // Format as JSON: {"action":"steps","x":..,"y":..,"z":..,"a":..,"b":..,"c":..,"final":.."elapsed_us":...}
             char buffer[256];
-            int  len =
-                snprintf(buffer,
-                         sizeof(buffer),
-                         "{\"action\":\"steps\",\"x\":%d,\"y\":%d,\"z\":%d,\"a\":%d,\"b\":%d,\"c\":%d,\"final\":%s,\"elapsed_us\":%u}",
-                         msg.position.steps[0],
-                         msg.position.steps[1],
-                         msg.position.steps[2],
-                         msg.position.steps[3],
-                         msg.position.steps[4],
-                         msg.position.steps[5],
-                         msg.is_final ? "true" : "false",
-                         msg.position.elapsed_us);
+            int  len = snprintf(buffer,
+                               sizeof(buffer),
+                               "{\"steps\":[%d,%d,%d,%d,%d,%d],\"final\":%s,\"elapsed_us\":%u}",
+                               msg.position.steps[0],
+                               msg.position.steps[1],
+                               msg.position.steps[2],
+                               msg.position.steps[3],
+                               msg.position.steps[4],
+                               msg.position.steps[5],
+                               msg.is_final ? "true" : "false",
+                               msg.position.elapsed_us);
 
             if (len > 0 && len < (int)sizeof(buffer)) {
                 // Send position update to the connected client
