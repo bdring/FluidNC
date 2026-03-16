@@ -16,6 +16,8 @@ bool simulator_ws_has_client(void);
 
 #define STEPS_PER_MM 100
 
+#define UPDATE_US 200000  // 5 updates per second
+
 // Simple queue implementation
 #define QUEUE_SIZE 4
 static queue_message_t         message_queue[QUEUE_SIZE];
@@ -29,6 +31,8 @@ static std::condition_variable queue_not_full;
 static struct {
     uint32_t step_count[SIMULATOR_MAX_AXES];
     int      direction[SIMULATOR_MAX_AXES];  // -1, 0, or 1
+    uint32_t ticks;
+    uint32_t duration;
 } _segment_state = { 0 };
 
 // Queue Operations (thread-safe for ISR)
@@ -89,6 +93,37 @@ int simulator_queue_depth(void) {
 
 }  // extern "C"
 
+// Helper function to process accumulated steps and send differential step counts
+static void flush_segment_position(bool is_final) {
+    position_update_t delta     = { 0 };
+    bool              has_steps = false;
+
+    // Build step count message with signs applied from direction
+    for (int i = 0; i < SIMULATOR_MAX_AXES; i++) {
+        int32_t steps = (int32_t)_segment_state.step_count[i];
+        if (_segment_state.direction[i] == -1) {
+            steps = -steps;
+        }
+        _segment_state.step_count[i] = 0;  // Reset for next segment
+        delta.steps[i]               = steps;
+        if (steps != 0) {
+            has_steps = true;
+        }
+    }
+    delta.elapsed_us = _segment_state.duration;
+
+    // Only send if there are actual steps or if this is the final flush
+    if (has_steps || is_final) {
+        if (has_steps) {
+            //            fprintf(stderr, "[simulator_engine] FLUSH: X=%d is_final=%d elapsed_us=%u\n",
+            //                    delta.steps[0], is_final ? 1 : 0, delta.elapsed_us);
+        }
+        simulator_queue_position(&delta, is_final);
+    }
+
+    _segment_state.duration = 0;
+}
+
 // Stepping interface to send messages to a visualizer
 // At this level we accumulate pulses and queue a message
 // containing step counts.  The message will be handled
@@ -129,6 +164,9 @@ static void set_step_pin(pinnum_t pin, bool level) {
     // pin is the axis number (0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C)
     if (level && pin < SIMULATOR_MAX_AXES) {
         _segment_state.step_count[pin]++;
+        if (_segment_state.duration > UPDATE_US) {
+            flush_segment_position(false);
+        }
     }
 }
 
@@ -136,6 +174,7 @@ static void set_step_pin(pinnum_t pin, bool level) {
 static void set_dir_pin(pinnum_t pin, bool level) {
     // pin is the axis number (0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C)
     if (pin < SIMULATOR_MAX_AXES) {
+        flush_segment_position(false);
         _segment_state.direction[pin] = level ? 1 : -1;
     }
 }
@@ -157,32 +196,24 @@ static uint32_t max_pulses_per_sec() {
     return 100000;
 }
 
-// Helper function to process accumulated steps and send differential step counts
-static void flush_segment_position(bool is_final) {
-    position_update_t delta = { 0 };
-
-    // Build step count message with signs applied from direction
-    for (int i = 0; i < SIMULATOR_MAX_AXES; i++) {
-        int32_t steps = (int32_t)_segment_state.step_count[i];
-        if (_segment_state.direction[i] == -1) {
-            steps = -steps;
-        }
-        _segment_state.step_count[i] = 0;  // Reset for next segment
-        delta.steps[i]               = steps;
-    }
-
-    simulator_queue_position(&delta, is_final);
-}
-
 // Called at segment boundaries to mark timer period
 static void set_timer_ticks(uint32_t ticks) {
     // This marks a segment boundary - process accumulated steps and send update
-    flush_segment_position(false);
+    if (_segment_state.duration > UPDATE_US) {
+        flush_segment_position(false);
+    }
+
+    _segment_state.ticks = ticks;
 }
 
 static void start_timer() {
+    _segment_state.ticks    = 0;
+    _segment_state.duration = 0;
+
     // Call the pulse function until it returns false
-    while (_pulse_func()) {}
+    while (_pulse_func()) {
+        _segment_state.duration += _segment_state.ticks;
+    }
 }
 
 static void stop_timer() {

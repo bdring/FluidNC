@@ -107,19 +107,27 @@ namespace SimulatorWS {
                 _position_steps[i] += msg.position.steps[i];
             }
 
-            // Format as JSON: {"action":"steps","x":..,"y":..,"z":..,"a":..,"b":..,"c":..,"final":.."feedrate":6000}
+#if 0
+            int  steps = msg.position.steps[0];
+            auto us    = msg.position.elapsed_us;
+            int  rate  = (60000000 / 100) * steps / us;
+            fprintf(stderr, "[WS] Sending: X_steps=%d us=%u rate=%d\n", steps, us, rate);
+#endif
+
+            // Format as JSON: {"action":"steps","x":..,"y":..,"z":..,"a":..,"b":..,"c":..,"final":.."elapsed_us":...}
             char buffer[256];
             int  len =
                 snprintf(buffer,
                          sizeof(buffer),
-                         "{\"action\":\"steps\",\"x\":%d,\"y\":%d,\"z\":%d,\"a\":%d,\"b\":%d,\"c\":%d,\"final\":%s,\"feedrate\":6000}",
+                         "{\"action\":\"steps\",\"x\":%d,\"y\":%d,\"z\":%d,\"a\":%d,\"b\":%d,\"c\":%d,\"final\":%s,\"elapsed_us\":%u}",
                          msg.position.steps[0],
                          msg.position.steps[1],
                          msg.position.steps[2],
                          msg.position.steps[3],
                          msg.position.steps[4],
                          msg.position.steps[5],
-                         msg.is_final ? "true" : "false");
+                         msg.is_final ? "true" : "false",
+                         msg.position.elapsed_us);
 
             if (len > 0 && len < (int)sizeof(buffer)) {
                 // Send position update to the connected client
@@ -157,11 +165,13 @@ namespace SimulatorWS {
         conn.getPeername(addr);
 
         fprintf(stderr, "[SimulatorWS] New WebSocket connection from %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+#if 0
         fprintf(stderr, "[SimulatorWS] Request URI: %s\n", request_uri);
         if (host)
             fprintf(stderr, "[SimulatorWS] Host: %s\n", host);
         if (origin)
             fprintf(stderr, "[SimulatorWS] Origin: %s\n", origin);
+#endif
 
         // Store connection time
         conn.user_data.connected_time =
@@ -172,7 +182,7 @@ namespace SimulatorWS {
             std::lock_guard<std::mutex> lock(_connection_mutex);
             _current_connection = &conn;
         }
-        fprintf(stderr, "[SimulatorWS] Connection stored for position updates\n");
+        //        fprintf(stderr, "[SimulatorWS] Connection stored for position updates\n");
 
         // Accept the connection
         return true;

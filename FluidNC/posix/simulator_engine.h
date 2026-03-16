@@ -14,7 +14,8 @@ extern "C" {
 // Each field is the signed step count change for this segment
 // Index: 0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C (up to SIMULATOR_MAX_AXES)
 typedef struct {
-    int32_t steps[SIMULATOR_MAX_AXES];
+    int32_t  steps[SIMULATOR_MAX_AXES];
+    uint32_t elapsed_us;
 } position_update_t;
 
 // Queue message type
