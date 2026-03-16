@@ -100,3 +100,31 @@ SemaphoreHandle_t xSemaphoreCreateMutex() {
 SemaphoreHandle_t xSemaphoreCreateCounting(UBaseType_t uxMaxCount, UBaseType_t uxInitialCount) {
     return new Semaphore { nullptr, nullptr, new int(uxInitialCount), new std::mutex() };
 }
+
+void vSemaphoreDelete(SemaphoreHandle_t xSemaphore) {
+    if (xSemaphore == nullptr) {
+        return;
+    }
+    
+    if (xSemaphore->mutex != nullptr) {
+        delete xSemaphore->mutex;
+        xSemaphore->mutex = nullptr;
+    }
+    
+    if (xSemaphore->semaphore != nullptr) {
+        delete xSemaphore->semaphore;
+        xSemaphore->semaphore = nullptr;
+    }
+    
+    if (xSemaphore->count != nullptr) {
+        delete xSemaphore->count;
+        xSemaphore->count = nullptr;
+    }
+    
+    if (xSemaphore->count_lock != nullptr) {
+        delete xSemaphore->count_lock;
+        xSemaphore->count_lock = nullptr;
+    }
+    
+    delete xSemaphore;
+}

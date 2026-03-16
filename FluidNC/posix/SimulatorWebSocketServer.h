@@ -27,6 +27,7 @@ using std::min;
 #include <string>
 #include <cstdint>
 #include <cstring>
+#include <queue>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
@@ -59,6 +60,10 @@ public:
     
     // Process position updates from simulator engine queue
     void processAndBroadcastPositionUpdates();
+
+    // Get G-code command from WebSocket (for integration with WSChannel)
+    // Returns true if a command is available
+    bool getGCodeCommand(std::string& cmd);
 
     // Configuration
     uint16_t getPort() const { return _port; }
@@ -103,6 +108,9 @@ private:
     WSConnection* _current_connection = nullptr;  // Single active connection (set in callbacks)
     SemaphoreHandle_t _connection_semaphore = nullptr;  // Protect _current_connection access
     
+    // Command queue for G-code from WebSocket (non-JSON messages)
+    std::queue<std::string> _gcode_queue;
+    SemaphoreHandle_t _gcode_queue_mutex = nullptr;
     // Track absolute position in steps (accumulated from differential updates)
     // Array indices: 0=X, 1=Y, 2=Z, 3=A, 4=B, 5=C (up to SIMULATOR_MAX_AXES)
     // Conversion factor: 100 steps/mm

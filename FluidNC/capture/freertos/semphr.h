@@ -17,3 +17,4 @@ bool xSemaphoreGive(SemaphoreHandle_t semv);
 SemaphoreHandle_t xSemaphoreCreateBinary();
 SemaphoreHandle_t xSemaphoreCreateMutex();
 SemaphoreHandle_t xSemaphoreCreateCounting(UBaseType_t uxMaxCount, UBaseType_t uxInitialCount);
+void vSemaphoreDelete(SemaphoreHandle_t xSemaphore);

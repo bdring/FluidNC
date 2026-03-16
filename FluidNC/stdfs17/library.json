@@ -1,0 +1,21 @@
+{
+  "name": "stdfs17",
+  "version": "1.0.0",
+  "description": "C++17 std::filesystem implementation with working directory operations",
+  "keywords": ["filesystem", "stdfs", "c++17"],
+  "authors": [
+    {
+      "name": "POSIX"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-repo/FluidNC.git"
+  },
+  "frameworks": ["arduino"],
+  "platforms": ["native", "raspberrypi"],
+  "build": {
+    "srcDir": "src",
+    "includeDir": "include"
+  }
+}

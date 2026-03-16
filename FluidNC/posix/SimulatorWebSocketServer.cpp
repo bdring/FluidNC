@@ -35,6 +35,9 @@ namespace SimulatorWS {
         if (_ack_semaphore == nullptr) {
             _ack_semaphore = xSemaphoreCreateMutex();
         }
+        if (_gcode_queue_mutex == nullptr) {
+            _gcode_queue_mutex = xSemaphoreCreateMutex();
+        }
 
         // Create the WebSocket server
         _server = new WSServer();
@@ -77,6 +80,10 @@ namespace SimulatorWS {
         if (_server) {
             delete _server;
             _server = nullptr;
+        }
+        if (_gcode_queue_mutex) {
+            vSemaphoreDelete(_gcode_queue_mutex);
+            _gcode_queue_mutex = nullptr;
         }
         fprintf(stderr, "[SimulatorWS] Server stopped\n");
     }
@@ -223,18 +230,29 @@ namespace SimulatorWS {
         if (opcode == websocket::OPCODE_TEXT) {
             // fprintf(stderr, "[SimulatorWS] Text message received: %d bytes\n", pl_len);
 
-            // Check if this is a response message (ack or error)
             std::string msg((const char*)payload, pl_len);
-            if (msg.find("steps_ack") != std::string::npos || msg.find("move_ack") != std::string::npos ||
-                msg.find("error") != std::string::npos) {
-                // Any of these responses clears the pending ack
-                // fprintf(stderr, "[SimulatorWS] Received response: %s\n", msg.c_str());
-                if (xSemaphoreTake(_ack_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
-                    if (_pending_acks > 0) {
-                        _pending_acks--;
-                        // fprintf(stderr, "[SimulatorWS] ACK processed (pending_acks=%d)\n", _pending_acks);
+
+            // Check if this is JSON (position protocol) or G-code
+            if (!msg.empty() && msg[0] == '{') {
+                // JSON message - handle as position protocol response
+                if (msg.find("steps_ack") != std::string::npos || msg.find("move_ack") != std::string::npos ||
+                    msg.find("error") != std::string::npos) {
+                    // Any of these responses clears the pending ack
+                    // fprintf(stderr, "[SimulatorWS] Received response: %s\n", msg.c_str());
+                    if (xSemaphoreTake(_ack_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
+                        if (_pending_acks > 0) {
+                            _pending_acks--;
+                            // fprintf(stderr, "[SimulatorWS] ACK processed (pending_acks=%d)\n", _pending_acks);
+                        }
+                        xSemaphoreGive(_ack_semaphore);
                     }
-                    xSemaphoreGive(_ack_semaphore);
+                }
+            } else {
+                // Non-JSON message - queue as G-code command
+                if (xSemaphoreTake(_gcode_queue_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                    _gcode_queue.push(msg);
+                    xSemaphoreGive(_gcode_queue_mutex);
+                    fprintf(stderr, "[SimulatorWS] G-code command queued: %s\n", msg.c_str());
                 }
             }
 
@@ -247,6 +265,22 @@ namespace SimulatorWS {
         }
 
         fprintf(stderr, "[SimulatorWS] Unhandled opcode: %d\n", opcode);
+    }
+
+    bool SimulatorWebSocketServer::getGCodeCommand(std::string& cmd) {
+        if (xSemaphoreTake(_gcode_queue_mutex, pdMS_TO_TICKS(10)) != pdTRUE) {
+            return false;
+        }
+        
+        if (_gcode_queue.empty()) {
+            xSemaphoreGive(_gcode_queue_mutex);
+            return false;
+        }
+        
+        cmd = _gcode_queue.front();
+        _gcode_queue.pop();
+        xSemaphoreGive(_gcode_queue_mutex);
+        return true;
     }
 
 }  // namespace SimulatorWS
