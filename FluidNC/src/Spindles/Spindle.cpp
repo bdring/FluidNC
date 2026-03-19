@@ -139,7 +139,7 @@ namespace Spindles {
             }
             _m6_macro.run(nullptr);
             // What happens if the macro failed...set alarm in macro & test here?
-            gc_state.current_tool = gc_state.selected_tool;
+            //gc_state.current_tool = gc_state.selected_tool;
             return true;
             //}
         }

@@ -1672,7 +1672,7 @@ Error gc_execute_line(const char* input_line) {
             if (new_spindle) {
                 gc_state.spindle_speed = 0.0;
             }
-            log_info("Sel:" << gc_state.selected_tool << " Cur:" << gc_state.current_tool);
+            log_info("Selected T:" << gc_state.selected_tool << " Current T:" << gc_state.current_tool);
             spindle->tool_change(gc_state.selected_tool, false, false);
             if (spindle->_atc_name == "" && spindle->_m6_macro.get().empty()) {  // if neither of these exist we need to set the value here
                 gc_state.current_tool = gc_state.selected_tool;
