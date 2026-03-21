@@ -29,6 +29,15 @@ void vTaskDelay(const TickType_t xTicksToDelay) {
     Capture::instance().wait(xTicksToDelay);
 }
 
+void cleanup_threads() {
+    for (auto& thread : threads) {
+        if (thread && thread->joinable()) {
+            thread->detach();  // Detach all threads - process is exiting anyway
+        }
+    }
+    threads.clear();
+}
+
 void vTaskDelayUntil(TickType_t* const pxPreviousWakeTime, const TickType_t xTimeIncrement) {
     Capture::instance().waitUntil((*pxPreviousWakeTime + xTimeIncrement));
 }
@@ -39,6 +48,7 @@ TickType_t xTaskGetTickCount(void) {
     return inst.current();
 }
 
+#ifdef TASK_TIMING
 unsigned long millis() {
     return xTaskGetTickCount() / portTICK_PERIOD_MS;
 }
@@ -47,12 +57,13 @@ unsigned long micros() {
     return 1000 * millis();
 }
 
-void delay(uint32_t value) {
-    vTaskDelay(value * portTICK_PERIOD_MS);  // delay a while
-}
-
 void delayMicroseconds(uint32_t us) {
     vTaskDelay(us * (portTICK_PERIOD_MS / 1000));  // delay a while
+}
+#endif
+
+void delay(uint32_t value) {
+    vTaskDelay(value * portTICK_PERIOD_MS);  // delay a while
 }
 
 void cleanupThreads() {

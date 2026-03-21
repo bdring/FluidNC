@@ -29,7 +29,7 @@ namespace WebUI {
 
         size_t write(uint8_t data) override;
         size_t write(const uint8_t* buffer, size_t length) override;
-        void   flush();
+        void   flush() override;
 
         void sendLine(MsgLevel level, const char* line) override;
         void sendLine(MsgLevel level, const std::string* line) override;

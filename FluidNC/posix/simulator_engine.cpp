@@ -9,9 +9,13 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
-// Forward declaration from SimulatorWebSocketServer
-extern "C" {
-bool simulator_ws_has_client(void);
+bool simulator_ws_has_client = false;
+
+void simulator_attach_client() {
+    simulator_ws_has_client = true;
+}
+void simulator_detach_client() {
+    simulator_ws_has_client = false;
 }
 
 #define STEPS_PER_MM 100
@@ -20,11 +24,11 @@ bool simulator_ws_has_client(void);
 
 // Simple queue implementation
 #define QUEUE_SIZE 4
-static queue_message_t message_queue[QUEUE_SIZE];
-static volatile int    queue_head  = 0;
-static volatile int    queue_tail  = 0;
-static volatile int    queue_count = 0;
-static SemaphoreHandle_t queue_mutex = NULL;     // Mutex for queue access
+static queue_message_t   message_queue[QUEUE_SIZE];
+static volatile int      queue_head     = 0;
+static volatile int      queue_tail     = 0;
+static volatile int      queue_count    = 0;
+static SemaphoreHandle_t queue_mutex    = NULL;  // Mutex for queue access
 static SemaphoreHandle_t queue_not_full = NULL;  // Semaphore: signals when queue has space
 
 // Track pin state and step accumulation during segment
@@ -37,26 +41,14 @@ static struct {
 
 // Queue Operations (thread-safe for ISR)
 
-extern "C" {
-
 void simulator_queue_position(const position_update_t* pos, bool is_final) {
-    static bool last_client_state = false;
-
     // Initialize semaphores on first use
     if (queue_mutex == NULL) {
-        queue_mutex = xSemaphoreCreateMutex();
+        queue_mutex    = xSemaphoreCreateMutex();
         queue_not_full = xSemaphoreCreateCounting(QUEUE_SIZE, QUEUE_SIZE);
     }
 
-    // Don't queue if there's no client connected
-    bool has_client = simulator_ws_has_client();
-
-    if (has_client != last_client_state) {
-        last_client_state = has_client;
-        // State change already logged by simulator_ws_has_client()
-    }
-
-    if (!has_client) {
+    if (!simulator_ws_has_client) {
         return;
     }
 
@@ -121,8 +113,6 @@ int simulator_queue_depth(void) {
     xSemaphoreGive(queue_mutex);
     return depth;
 }
-
-}  // extern "C"
 
 // Helper function to process accumulated steps and send differential step counts
 static void flush_segment_position(bool is_final) {

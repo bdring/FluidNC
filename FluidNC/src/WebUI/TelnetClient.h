@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Channel.h"
+using namespace arduino;
 
 #include <WiFi.h>
 

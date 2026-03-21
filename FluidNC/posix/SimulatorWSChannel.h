@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Mitch Bradley
+// Copyright (c) 2026 Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
@@ -7,17 +7,18 @@
 #include <cstring>
 #include <list>
 #include <map>
-#include <ESPAsyncWebServer.h>
 
 #include "Channel.h"
+
+class SimulatorWebSocketServer;
 
 namespace WebUI {
     class WSChannel : public Channel {
     public:
-        WSChannel(AsyncWebSocket* server, objnum_t clientNum, std::string session);
+        WSChannel(SimulatorWebSocketServer* server, objnum_t clientNum, std::string session);
 
-        size_t write(uint8_t c) override;
-        size_t write(const uint8_t* buffer, size_t size) override;
+        size_t write(uint8_t c);
+        size_t write(const uint8_t* buffer, size_t size);
 
         bool sendTXT(std::string& s);
 
@@ -61,7 +62,7 @@ namespace WebUI {
         static AsyncWebSocket*         _server;
 
         static WSChannel* _lastWSChannel;
-        static WSChannel* getWSChannel(objnum_t pageid, std::string session);
+        static WSChannel* getWSChannel(uint32_t pageid, std::string session);
 
     public:
         static void removeChannel(WSChannel* channel);

@@ -3,10 +3,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Maximum number of axes (matches FluidNC config)
 #define SIMULATOR_MAX_AXES 6
 
@@ -24,13 +20,12 @@ typedef struct {
     bool is_final;
 } queue_message_t;
 
+void simulator_attach_client();
+void simulator_detach_client();
+
 // Queue operations - safe to call from ISR
 void simulator_queue_position(const position_update_t* pos, bool is_final);
 bool simulator_queue_dequeue(queue_message_t* msg);
 
 // Get current queue depth for flow control
 int simulator_queue_depth(void);
-
-#ifdef __cplusplus
-}
-#endif

@@ -1086,7 +1086,7 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
                 protocol_buffer_synchronize();
             }
             if (value.empty()) {
-                return cp->action(nullptr, auth_level, out);
+                return cp->action("", auth_level, out);
             }
             std::string s(value);
             return cp->action(s.c_str(), auth_level, out);

@@ -7,13 +7,18 @@
 
 #include "WebUIServer.h"
 
-#include "Mdns.h"
+// WMB #include "Mdns.h"
 
 #include <WiFi.h>
 #include <StreamString.h>
-#include <Update.h>
-#include <esp_wifi_types.h>
-#include <DNSServer.h>
+#ifdef HAVE_UPDATE
+#    include <Update.h>
+#    include <esp_wifi_types.h>
+#    include <esp_ota_ops.h>
+#endif
+#ifdef HAVE_DNS
+#    include <DNSServer.h>
+#endif
 
 #include "WSChannel.h"
 
@@ -33,13 +38,13 @@
 #include "WebDAV.h"
 
 namespace WebUI {
+#ifdef HAVE_DNS
     const byte DNS_PORT = 53;
     DNSServer  dnsServer;
+#endif
 }
 
 using namespace asyncsrv;
-
-#include <esp_ota_ops.h>
 
 //embedded response file if no files on LocalFS
 #include "NoFile.h"
@@ -112,10 +117,6 @@ namespace WebUI {
         _headerFilter->keep("If-None-Match");
         _headerFilter->keep("User-Agent");
 
-        // WebDAV needs these
-        _headerFilter->keep("Depth");
-        _headerFilter->keep("Destination");
-
         //For websockets we need to keep these headers, otherwise this wouldn't work!
         _headerFilter->keep("Upgrade");
         _headerFilter->keep("Connection");
@@ -124,14 +125,20 @@ namespace WebUI {
         _headerFilter->keep("Sec-WebSocket-Protocol");
         _headerFilter->keep("Sec-WebSocket-Extensions");
 
+        // WebDAV needs these
+        _headerFilter->keep("Depth");
+        _headerFilter->keep("Destination");
+
         _webserver->addMiddlewares({ _headerFilter });
 
+#ifdef HAVE_WEBDAV
         // No metadata on the FLASH filesystem; it consumes too much space
         auto flash_dav = new WebDAV("/flash", LocalFS, true);
         auto sd_dav    = new WebDAV("/sd", SD, true);
 
         _webserver->addHandler(flash_dav);
         _webserver->addHandler(sd_dav);
+#endif
 
         // The only major difference with websockets for v2 webui vs v3 seems to be the currentID vs CURRENT_ID and activeID vs ACTIVE_ID
         // In order to only have one websocket server (for simplicity and maintability reasons) we could:
@@ -181,13 +188,16 @@ namespace WebUI {
         //LocalFS
         _webserver->on("/files", HTTP_ANY, handleFileList, LocalFSFileupload);
 
+#ifdef HAVE_UPDATE
         //web update
         _webserver->on("/updatefw", HTTP_ANY, handleUpdate, WebUpdateUpload);
+#endif
 
         //Direct SD management
         _webserver->on("/upload", HTTP_ANY, handle_direct_SDFileList, SDFileUpload);
         //_webserver->on("/SD", HTTP_ANY, handle_SDCARD);
 
+#ifdef HAVE_DNS
         if (WiFi.getMode() == WIFI_AP) {
             // if DNSServer is started with "*" for domain name, it will reply with
             // provided IP to all DNS request
@@ -198,12 +208,13 @@ namespace WebUI {
             //do not forget the / at the end
             _webserver->on("/fwlink/", HTTP_ANY, handle_root);
         }
+#endif
 
         log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
 
-        Mdns::add("_http", "_tcp", _port);
+        // WMB Mdns::add("_http", "_tcp", _port);
 
         HashFS::hash_all();
 
@@ -215,7 +226,7 @@ namespace WebUI {
 
         //        SSDP.end();
 
-        Mdns::remove("_http", "_tcp");
+        // WMB Mdns::remove("_http", "_tcp");
 
         if (_socket_server) {
             delete _socket_server;
@@ -398,7 +409,9 @@ namespace WebUI {
         return true;
     }
     void WebUI_Server::sendWithOurAddress(AsyncWebServerRequest* request, const char* content, uint16_t code) {
-        auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
+        // WMB        auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
+        auto ip = WiFi.localIP();
+
         std::string ipstr = IP_string(ip);
         if (_port != 80) {
             ipstr += ":";
@@ -877,6 +890,7 @@ namespace WebUI {
         fileUpload(request, SD, filename, index, data, len, final);
     }
 
+#ifdef HAVE_UPDATE
     //Web Update handler
     void WebUI_Server::handleUpdate(AsyncWebServerRequest* request) {
         AuthenticationLevel auth_level = is_authenticated();
@@ -979,6 +993,7 @@ namespace WebUI {
             }
         }
     }
+#endif
 
     void WebUI_Server::handleFileOps(AsyncWebServerRequest* request, const Volume& fs) {
         //this is only for admin and user
@@ -1257,9 +1272,11 @@ namespace WebUI {
 
     void WebUI_Server::poll() {
         static uint32_t start_time = millis();
+#ifdef HAVE_DNS
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();
         }
+#endif
         if (_schedule_reboot and _schedule_reboot_time == millis()) {
             _schedule_reboot = false;
             protocol_send_event(&fullResetEvent);

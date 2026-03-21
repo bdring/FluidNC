@@ -207,13 +207,16 @@ void Channel::push(uint8_t byte) {
         _queue.push(byte);
     }
 }
-
-Error Channel::pollLine(char* line) {
+static int  _cnt = 10;
+Error       Channel::pollLine(char* line) {
     if (_paused) {
         return Error::Ok;
     }
     handle();
     while (1) {
+        if (_cnt) {
+            --_cnt;
+        }
         int32_t ch = -1;
         if (line && _queue.size()) {
             ch = _queue.front();
@@ -234,6 +237,10 @@ Error Channel::pollLine(char* line) {
             continue;
         }
         // Fall through if line is non-null and it is not a realtime character
+
+        if (_cnt) {
+            --_cnt;
+        }
 
         if (lineComplete(line, ch)) {
             return Error::Ok;

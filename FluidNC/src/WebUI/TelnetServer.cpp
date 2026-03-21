@@ -5,7 +5,7 @@
 #include "TelnetClient.h"
 #include "TelnetServer.h"
 
-#include "Mdns.h"
+// WMB #include "Mdns.h"
 #include "Report.h"  // report_init_message()
 
 #include <WiFi.h>
@@ -37,14 +37,15 @@ namespace WebUI {
         _port = WebUI::telnet_port->get();
 
         //create instance
-        _wifiServer = new WiFiServer(_port, MAX_TLNT_CLIENTS);
+        // _wifiServer = new WiFiServer(_port, MAX_TLNT_CLIENTS);
+        _wifiServer = new WiFiServer(_port);
         _wifiServer->setNoDelay(true);
         log_info("Telnet started on port " << _port);
         //start telnet server
         _wifiServer->begin();
         _setupdone = true;
 
-        Mdns::add("_telnet", "_tcp", _port);
+        // WMB Mdns::add("_telnet", "_tcp", _port);
     }
 
     void TelnetServer::deinit() {
@@ -55,7 +56,7 @@ namespace WebUI {
         }
 
         //remove mDNS
-        Mdns::remove("_telnet", "_tcp");
+        // WMB Mdns::remove("_telnet", "_tcp");
     }
 
     void TelnetServer::poll() {

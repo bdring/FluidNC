@@ -34,7 +34,6 @@ namespace MotorDrivers {
         }
 
         if (_step_pin.canStep()) {
-            ::printf("Assigning %d %d\n", axisIndex, _dir_pin.inverted());
             Stepping::assignMotor(axisIndex, dualAxisIndex, _step_pin.index(), _step_pin.inverted(), _dir_pin.index(), _dir_pin.inverted());
         }
     }

@@ -12,6 +12,8 @@
 
 class TelnetClient;
 
+using namespace arduino;
+
 namespace WebUI {
     class TelnetServer : public Module {
         static const int DEFAULT_TELNET_STATE      = 1;

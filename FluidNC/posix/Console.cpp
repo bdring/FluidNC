@@ -10,13 +10,23 @@
 
 #include "Channel.h"
 #include "lineedit.h"
-#include "SimulatorWebSocketServer.h"
+#include "StringChannel.h"
+#include "../capture/freertos/task.h"
+//#include "SimulatorWebSocketServer.h"
+
+// Global StringChannel pointer - set by main() if command-line string injection is requested
+// extern Channel* g_stringChannel;
+extern std::string command_line_cmds;
+extern "C" {
+extern bool continue_after_cmds;
+};
 
 static struct termios _orig_termios;
 
 class PosixConsole : public Channel {
 private:
     Lineedit* _lineedit;
+    bool      _exit_after_cmds = false;
 
 public:
     PosixConsole(bool addCR = false) : Channel("PosixConsole", addCR) {}
@@ -66,15 +76,30 @@ public:
     }
 
     void init() override {
+        if (command_line_cmds.size()) {
+            push(command_line_cmds);
+            _exit_after_cmds = !continue_after_cmds;
+        }
+
         editModeOff();
         _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
         allChannels.registration(this);
-        
+
+#if 0
+        // Register StringChannel subordinate object if provided (following esp32s3 Console pattern)
+        if (g_stringChannel) {
+            g_stringChannel->init();
+        }
+#endif
+
         // Start WebSocket server
-        fprintf(stderr, "[Console::init] Starting WebSocket server...\n");
-        SimulatorWS::SimulatorWebSocketServer::instance().init(9000);
-        fprintf(stderr, "[Console::init] WebSocket server init returned\n");
+        //fprintf(stderr, "[Console::init] Starting WebSocket server...\n");
+        //SimulatorWS::SimulatorWebSocketServer::instance().init(9000);
+        //fprintf(stderr, "[Console::init] WebSocket server init returned\n");
     };
+
+    // This is a no-op so the initial call to it does not clear the queue
+    void flushRx() override {}
 
     // Print methods (Stream inherits from Print)
     size_t write(uint8_t c) override {
@@ -114,6 +139,13 @@ public:
             return true;
         }
         return false;
+    }
+    Error pollLine(char* line) override {
+        if (line && _queue.empty() && _exit_after_cmds) {
+            cleanup_threads();
+            exit(0);
+        }
+        return Channel::pollLine(line);
     }
 };
 

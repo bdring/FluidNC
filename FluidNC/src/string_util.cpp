@@ -4,6 +4,8 @@
 #include <cctype>
 #include <charconv>
 
+const char* nullstr = "";
+
 namespace string_util {
     struct EqIgnoreCase {
         bool operator()(char lhs, char rhs) const {
@@ -35,7 +37,7 @@ namespace string_util {
     const std::string_view trim(std::string_view s) {
         auto start = s.find_first_not_of(" \t\n\r\f\v");
         if (start == std::string_view::npos) {
-            return "";
+            return s.substr(0, 0);
         }
         auto end = s.find_last_not_of(" \t\n\r\f\v");
         if (end == std::string_view::npos) {
@@ -117,7 +119,7 @@ namespace string_util {
             input = input.substr(0, pos);
             return true;
         }
-        next = "";
+        next = input.substr(0, 0);
         return false;
     }
     bool split_prefix(std::string_view& rest, std::string_view& prefix, char delim) {
@@ -130,7 +132,7 @@ namespace string_util {
             rest   = rest.substr(pos + 1);
         } else {
             prefix = rest;
-            rest   = "";
+            rest   = rest.substr(0, 0);
         }
         return true;
     }
