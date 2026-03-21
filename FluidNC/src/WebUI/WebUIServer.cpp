@@ -100,9 +100,12 @@ namespace WebUI {
 
         _setupdone = false;
 
+#if 0  // WMB
         if (WiFi.getMode() == WIFI_OFF || !http_enable->get()) {
             return;
         }
+#endif
+        PosixAsyncTCPManager::getInstance().begin();
 
         _port = http_port->get();
 

@@ -677,47 +677,46 @@ uint8_t AsyncServer::status() const
   return LISTEN;
 }
 
-void AsyncServer::_handle_accept()
-{
-  if (_listen_socket < 0 || !_connect_cb) {
-    return;
-  }
-
-  struct sockaddr_in client_addr;
-  socklen_t client_addr_len = sizeof(client_addr);
-
-  int client_socket = accept(_listen_socket, (struct sockaddr*)&client_addr, &client_addr_len);
-
-  if (client_socket < 0) {
-    if (errno != EAGAIN && errno != EWOULDBLOCK) {
-      // Real error
+void AsyncServer::_handle_accept() {
+    if (_listen_socket < 0 || !_connect_cb) {
+        return;
     }
-    return;
-  }
 
-  // Create AsyncClient for accepted connection
-  auto client = std::make_shared<AsyncClient>();
-  client->_socket = client_socket;
-  client->_tcp_state = ESTABLISHED;
-  client->_remote_addr = client_addr.sin_addr.s_addr;
-  client->_remote_port = ntohs(client_addr.sin_port);
+    struct sockaddr_in client_addr;
+    socklen_t          client_addr_len = sizeof(client_addr);
 
-  // Set non-blocking
-  int flags = fcntl(client_socket, F_GETFL, 0);
-  fcntl(client_socket, F_SETFL, flags | O_NONBLOCK);
+    int client_socket = accept(_listen_socket, (struct sockaddr*)&client_addr, &client_addr_len);
 
-  // Set TCP_NODELAY if configured
-  int yes = _noDelay ? 1 : 0;
-  setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
+    if (client_socket < 0) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            // Real error
+        }
+        return;
+    }
 
-  client->_update_socket_addresses();
-  client->_rx_last_packet = millis();
+    // Create AsyncClient for accepted connection
+    auto client          = std::make_shared<AsyncClient>();
+    client->_socket      = client_socket;
+    client->_tcp_state   = ESTABLISHED;
+    client->_remote_addr = client_addr.sin_addr.s_addr;
+    client->_remote_port = ntohs(client_addr.sin_port);
 
-  // Register with manager
-  PosixAsyncTCPManager::getInstance().registerClient(client);
+    // Set non-blocking
+    int flags = fcntl(client_socket, F_GETFL, 0);
+    fcntl(client_socket, F_SETFL, flags | O_NONBLOCK);
 
-  // Call the accept callback
-  _connect_cb(_connect_cb_arg, client.get());
+    // Set TCP_NODELAY if configured
+    int yes = _noDelay ? 1 : 0;
+    setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
+
+    client->_update_socket_addresses();
+    client->_rx_last_packet = millis();
+
+    // Register with manager
+    PosixAsyncTCPManager::getInstance().registerClient(client);
+
+    // Call the accept callback
+    _connect_cb(_connect_cb_arg, client.get());
 }
 
 /////////////////////////////////////////////////
