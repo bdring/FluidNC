@@ -12,14 +12,23 @@ UartChannel::UartChannel(objnum_t num, bool addCR) : Channel("uart_channel", num
 
 void UartChannel::init() {
     auto uart = config->_uarts[_uart_num];
-    if (uart) {
-        init(uart);
-    } else {
+    if (!uart) {
         log_error(name() << ": missing uart" << _uart_num);
+    } else if (!uart->configured()) {
+        log_error(name() << ": uart" << _uart_num << " failed configuration");
+    } else {
+        init(uart);
+    }
+    if (uart->_rxd_pin.undefined()) {
+        _active = true; // there will be no rx activity to set this true
     }
     setReportInterval(_report_interval_ms);
 }
 void UartChannel::init(Uart* uart) {
+    if (!uart || !uart->configured()) {
+        log_error(name() << ": cannot initialize with unconfigured UART");
+        return;
+    }
     _uart = uart;
     allChannels.registration(this);
     if (_report_interval_ms) {
