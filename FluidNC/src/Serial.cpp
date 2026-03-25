@@ -133,6 +133,14 @@ size_t AllChannels::write(uint8_t data) {
     _mutex_general.unlock();
     return 1;
 }
+void AllChannels::notifyState(void) {
+    _mutex_general.lock();
+    for (auto channel : _channelq) {
+        channel->notifyState();
+    }
+    _mutex_general.unlock();
+}
+
 void AllChannels::notifyOvr(void) {
     _mutex_general.lock();
     for (auto channel : _channelq) {

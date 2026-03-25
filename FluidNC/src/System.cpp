@@ -11,6 +11,7 @@
 #include "Config.h"                 // MAX_N_AXIS
 #include "Machine/MachineConfig.h"  // config
 #include "Stepping.h"               // config
+#include "Serial.h"                 // AllChannels
 
 #include <cstring>  // memset
 #include <cmath>    // roundf
@@ -149,7 +150,10 @@ const std::map<State, const char*> StateName = {
 };
 
 void set_state(State s) {
-    sys.set_state(s);
+    if (!state_is(s)) {
+        sys.set_state(s);
+        allChannels.notifyState();
+    }
 }
 bool state_is(State s) {
     return sys.state() == s;

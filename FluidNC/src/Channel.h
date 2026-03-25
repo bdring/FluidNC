@@ -65,11 +65,11 @@ protected:
     uint8_t     _lastTool         = 0;
     float       _lastSpindleSpeed = 0;
     float       _lastFeedRate     = 0;
-    const char* _lastStateName    = "";
     MotorMask   _lastLimits       = 0;
     bool        _lastJobActive    = false;
     std::string _lastPinString    = "";
 
+    bool       _reportState = true;
     bool       _reportOvr = true;
     bool       _reportWco = true;
     CoordIndex _reportNgc = CoordIndex::End;
@@ -153,6 +153,7 @@ public:
         return retval;
     }
 
+    void notifyState() { _reportState = true; }
     void notifyOvr() { _reportOvr = true; }
     void notifyWco() { _reportWco = true; }
     void notifyNgc(CoordIndex coord) { _reportNgc = coord; }
