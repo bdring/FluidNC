@@ -117,6 +117,7 @@ class AsyncClient
     uint32_t _tx_unacked_len = 0;
     uint32_t _tx_acked_len = 0;
     uint32_t _tx_unsent_len = 0;
+    size_t   _pending_ack_len = 0;  // bytes sent synchronously in send(), awaiting _handle_writable() ack
     std::queue<std::string> _send_buffer;
     std::mutex _send_buffer_lock;
 

@@ -183,6 +183,9 @@ public:
     }
     void push(const std::string& s) { push(reinterpret_cast<const uint8_t*>(s.c_str()), s.length()); }
 
+    // Expose the input queue for subclasses that need raw queue access
+    std::queue<uint8_t>& queue() { return _queue; }
+
     void end() { _ended = true; }
     void percent() { _percent = true; }
 

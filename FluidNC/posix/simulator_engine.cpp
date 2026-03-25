@@ -1,5 +1,6 @@
 // Simulator stepping engine - tracks motion and sends position updates via WebSocket
 
+#include "Platform.h"
 #include "Driver/step_engine.h"
 #include "Driver/fluidnc_gpio.h"
 #include "simulator_engine.h"
@@ -8,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 
 bool simulator_ws_has_client = false;
 
@@ -22,14 +24,9 @@ void simulator_detach_client() {
 
 #define UPDATE_US 200000  // 5 updates per second
 
-// Simple queue implementation
-#define QUEUE_SIZE 4
-static queue_message_t   message_queue[QUEUE_SIZE];
-static volatile int      queue_head     = 0;
-static volatile int      queue_tail     = 0;
-static volatile int      queue_count    = 0;
-static SemaphoreHandle_t queue_mutex    = NULL;  // Mutex for queue access
-static SemaphoreHandle_t queue_not_full = NULL;  // Semaphore: signals when queue has space
+// FreeRTOS queue for position updates
+#define QUEUE_SIZE 100
+static QueueHandle_t position_queue = NULL;
 
 // Track pin state and step accumulation during segment
 static struct {
@@ -39,79 +36,50 @@ static struct {
     uint32_t duration;
 } _segment_state = { 0 };
 
-// Queue Operations (thread-safe for ISR)
+// Queue Operations (thread-safe, using FreeRTOS queue)
 
 void simulator_queue_position(const position_update_t* pos, bool is_final) {
-    // Initialize semaphores on first use
-    if (queue_mutex == NULL) {
-        queue_mutex    = xSemaphoreCreateMutex();
-        queue_not_full = xSemaphoreCreateCounting(QUEUE_SIZE, QUEUE_SIZE);
+    // Initialize queue on first use
+    if (position_queue == NULL) {
+        position_queue = xQueueCreate(QUEUE_SIZE, sizeof(queue_message_t));
+        if (position_queue == NULL) {
+            fprintf(stderr, "[simulator_engine] Failed to create position queue\n");
+            return;
+        }
     }
 
     if (!simulator_ws_has_client) {
         return;
     }
 
-    // Wait until there's room in the queue (blocking with timeout)
-    // This provides end-to-end flow control: stepping slows down when WebSocket can't keep up
-    if (xSemaphoreTake(queue_not_full, pdMS_TO_TICKS(100)) != pdTRUE) {
+    queue_message_t msg;
+    msg.position = *pos;
+    msg.is_final = is_final;
+
+    // Send to queue with timeout
+    // Provides end-to-end flow control: stepping slows down when WebSocket can't keep up
+    BaseType_t result = xQueueSend(position_queue, &msg, pdMS_TO_TICKS(100));
+    if (result != pdTRUE) {
         fprintf(stderr, "[simulator_engine] Queue full, dropping position update\n");
-        return;
     }
-
-    // Take mutex to protect queue access
-    if (xSemaphoreTake(queue_mutex, pdMS_TO_TICKS(10)) != pdTRUE) {
-        fprintf(stderr, "[simulator_engine] Failed to acquire queue mutex\n");
-        xSemaphoreGive(queue_not_full);  // Release the semaphore we just took
-        return;
-    }
-
-    message_queue[queue_tail].position = *pos;
-    message_queue[queue_tail].is_final = is_final;
-    queue_tail                         = (queue_tail + 1) % QUEUE_SIZE;
-    queue_count++;
-
-    xSemaphoreGive(queue_mutex);
 }
 
 bool simulator_queue_dequeue(queue_message_t* msg) {
-    if (queue_mutex == NULL) {
+    if (position_queue == NULL) {
         return false;  // Not initialized yet
     }
 
-    if (xSemaphoreTake(queue_mutex, pdMS_TO_TICKS(10)) != pdTRUE) {
-        return false;  // Failed to acquire mutex
-    }
-
-    if (queue_count == 0) {
-        xSemaphoreGive(queue_mutex);
-        return false;
-    }
-
-    *msg       = message_queue[queue_head];
-    queue_head = (queue_head + 1) % QUEUE_SIZE;
-    queue_count--;
-
-    xSemaphoreGive(queue_mutex);
-
-    // Signal that space is now available for queueing
-    xSemaphoreGive(queue_not_full);
-
-    return true;
+    // Receive from queue without blocking (called from protocol loop)
+    BaseType_t result = xQueueReceive(position_queue, msg, 0);
+    return (result == pdTRUE);
 }
 
 int simulator_queue_depth(void) {
-    if (queue_mutex == NULL) {
+    if (position_queue == NULL) {
         return 0;
     }
 
-    if (xSemaphoreTake(queue_mutex, pdMS_TO_TICKS(10)) != pdTRUE) {
-        return 0;  // Failed to acquire mutex
-    }
-
-    int depth = queue_count;
-    xSemaphoreGive(queue_mutex);
-    return depth;
+    return uxQueueMessagesWaiting(position_queue);
 }
 
 // Helper function to process accumulated steps and send differential step counts
@@ -152,7 +120,8 @@ static void flush_segment_position(bool is_final) {
 // perhaps over a websocket.
 
 bool (*_pulse_func)(void);
-static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*callback)(void)) {
+static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t& frequency, bool (*callback)(void)) {
+    frequency   = STEPPING_FREQUENCY;
     _pulse_func = callback;
 
     // Initialize simulator engine

@@ -2,7 +2,6 @@
 #include <ESPAsyncWebServer.h>
 
 #include <AsyncTCP.h>
-#include "ESP32SHA1.h"
 
 #include <chrono>
 #include <ctime>
@@ -514,7 +513,7 @@ stdfs::path WebDAV::replace_fs_name(const stdfs::path& p) {
 }
 
 void WebDAV::sendXMLResponse(
-    AsyncResponseStream* response, bool is_dir, const std::string& name, const std::string& tag, const std::string& time, size_t size) {
+    AsyncResponseStream* response, bool is_dir, const std::string& name, const std::string& tag, const std::string& time, uint32_t size) {
     response->printf("<d:response>");
     response->printf("<d:href>%s</d:href>", name.c_str());
     response->printf("<d:propstat>");

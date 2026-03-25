@@ -11,8 +11,7 @@
 namespace Machine {
     class Stepping : public Configuration::Configurable {
     public:
-        // fStepperTimer should be an integer divisor of the bus speed, i.e. of fTimers
-        static const uint32_t fStepperTimer = 20000000;  // frequency of step pulse timer
+        static uint32_t fStepperTimer;  // frequency of step pulse timer
     private:
         static bool    _switchedStepper;
         static int32_t _stepPulseEndTime;

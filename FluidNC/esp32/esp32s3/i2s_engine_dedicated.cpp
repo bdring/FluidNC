@@ -186,8 +186,8 @@ void i2s_out_init(i2s_out_init_t* init_param) {
     i2s_output_ = init_param->init_val;
 }
 
-static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*callback)(void)) {
-    stepTimerInit(frequency, callback);
+static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t& frequency, bool (*callback)(void)) {
+    frequency       = stepTimerInit(callback);
     _dir_delay_us   = dir_delay_us;
     _pulse_delay_us = pulse_delay_us;
     return _pulse_delay_us;

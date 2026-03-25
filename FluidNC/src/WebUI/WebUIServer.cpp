@@ -100,12 +100,9 @@ namespace WebUI {
 
         _setupdone = false;
 
-#if 0  // WMB
         if (WiFi.getMode() == WIFI_OFF || !http_enable->get()) {
             return;
         }
-#endif
-        PosixAsyncTCPManager::getInstance().begin();
 
         _port = http_port->get();
 
@@ -134,14 +131,12 @@ namespace WebUI {
 
         _webserver->addMiddlewares({ _headerFilter });
 
-#ifdef HAVE_WEBDAV
         // No metadata on the FLASH filesystem; it consumes too much space
         auto flash_dav = new WebDAV("/flash", LocalFS, true);
         auto sd_dav    = new WebDAV("/sd", SD, true);
 
         _webserver->addHandler(flash_dav);
         _webserver->addHandler(sd_dav);
-#endif
 
         // The only major difference with websockets for v2 webui vs v3 seems to be the currentID vs CURRENT_ID and activeID vs ACTIVE_ID
         // In order to only have one websocket server (for simplicity and maintability reasons) we could:
@@ -354,14 +349,12 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file   = NULL;
         try {
-            file = new FileStream(path, "r", LocalFS);
+            file = new FileStream(fpath, "r");
         } catch (const Error err) {
             if (acceptGz) {
                 try {
-                    std::string gzpath(fpath);
-                    //                    std::filesystem::path gzpath(fpath);
-                    gzpath += ".gz";
-                    file   = new FileStream(gzpath, "r", LocalFS);
+                    fpath += ".gz";
+                    file   = new FileStream(fpath, "r");
                     isGzip = true;
                 } catch (const Error err) {}
             }
@@ -1165,8 +1158,8 @@ namespace WebUI {
             _uploadPath = "";  // Root directory
         }
 
-        auto space = stdfs::space(fpath);
-        if (filesize && filesize > space.available) {
+        auto space = stdfs::space(fpath, ec);
+        if (!ec && filesize && filesize > space.available) {
             // If the file already exists, maybe there will be enough space
             // when we replace it.
             auto existing_size = stdfs::file_size(fpath, ec);

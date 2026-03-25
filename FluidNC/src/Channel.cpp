@@ -132,7 +132,6 @@ void Channel::autoReport() {
                 report_wco_counter = 0;
                 _reportWco         = false;
             }
-            _lastStateName = stateName;
             _lastPinString = report_pin_string;
             _lastJobActive = Job::active();
 

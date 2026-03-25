@@ -396,7 +396,8 @@ static void i2s_fifo_intr_setup() {
                               NULL);
 }
 
-static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us, uint32_t frequency, bool (*callback)(void)) {
+static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us, uint32_t& frequency, bool (*callback)(void)) {
+    frequency   = 20000000;
     _pulse_func = callback;
     i2s_fifo_intr_setup();
 

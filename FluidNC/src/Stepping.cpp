@@ -21,9 +21,6 @@ step_engine_t* find_engine(const char* name) {
 
 namespace Machine {
 
-    // fStepperTimer should be an integer divisor of the bus speed, i.e. of fTimers
-    const int ticksPerMicrosecond = Stepping::fStepperTimer / 1000000;
-
     step_engine_t* Stepping::_engine = nullptr;
 
     AxisMask Stepping::direction_mask = 0;
@@ -31,6 +28,7 @@ namespace Machine {
     bool    Stepping::_switchedStepper = false;
     int32_t Stepping::_segments        = 12;
 
+    uint32_t Stepping::fStepperTimer        = 0;
     uint32_t Stepping::_idleMsecs           = 255;
     uint32_t Stepping::_pulseUsecs          = 4;
     uint32_t Stepping::_directionDelayUsecs = 0;
@@ -65,10 +63,6 @@ namespace Machine {
         if (actual != _pulseUsecs) {
             log_warn("stepping/pulse_us adjusted to " << actual);
         }
-
-        // Register pulse_func with the I2S subsystem
-        // This could be done via the linker.
-        //        i2s_out_set_pulse_callback(Stepper::pulse_func);
 
         Stepper::init();
     }

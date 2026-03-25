@@ -717,7 +717,7 @@ void Stepper::prep_buffer() {
 
         // Compute step timing and multi-axis smoothing level.
         for (level = 0; level < maxAmassLevel; level++) {
-            if (timerTicks < amassThreshold) {
+            if (timerTicks * amassFactor < Machine::Stepping::fStepperTimer) {
                 break;
             }
             timerTicks >>= 1;

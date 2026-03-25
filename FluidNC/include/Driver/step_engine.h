@@ -19,7 +19,7 @@ typedef struct step_engine {
     // Prepare the engine for use
     // The return value is the actual pulse delay according to the
     // characteristics of the engine.
-    uint32_t (*init)(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*fn)(void));
+    uint32_t (*init)(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t& frequency, bool (*fn)(void));
 
     // Setup the step pin, returning a number to identify it.
     // In many cases, the return value is the same as pin, but some step

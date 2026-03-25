@@ -3,6 +3,7 @@
 
 #include "WSChannel.h"
 
+#include "SimulatorChannel.h"
 #include "Driver/Console.h"
 #include "WebUIServer.h"
 #include <ESPAsyncWebServer.h>
@@ -206,7 +207,7 @@ namespace WebUI {
         switch (type) {
             case WS_EVT_ERROR:
                 WSChannels::removeChannel(num);
-                log_debug_to(Console, "WebSocket error cid#" << num);
+                log_debug_to(Console, "WebSocket error cid#" << num << " " << std::string_view((char*)data, len));
                 break;
             case WS_EVT_DISCONNECT:
                 WSChannels::removeChannel(num);
@@ -267,7 +268,17 @@ namespace WebUI {
                             //data[len]=0; // !!! this should not be safe? but was there before,
                             // will copy to a std::string of specified length to be on the safe side
                             std::string msg((const char*)data, len);
-                            if (msg.rfind("PING:", 0) == 0) {
+                            // Check if this is a simulator channel initialization message
+                            if (msg.find("\"simulator_channel\"") != std::string::npos && msg.find("true") != std::string::npos) {
+                                // Create a SimulatorChannel for this WebSocket connection
+                                SimulatorChannel* simChannel = new SimulatorChannel(wsChannel);
+                                allChannels.registration(simChannel);
+                                // Deregister the WSChannel since the SimulatorChannel replaces it
+                                // in the input multiplexor
+                                allChannels.deregistration(wsChannel);
+                                log_info_to(Console, "Simulator channel initialized for WebSocket client #" << num);
+                                // Don't push the initialization message to the queue
+                            } else if (msg.rfind("PING:", 0) == 0) {
                                 std::string response("PING:60000:60000");
                                 wsChannel->sendTXT(response);
                             } else {

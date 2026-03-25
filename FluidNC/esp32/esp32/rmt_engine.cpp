@@ -14,8 +14,8 @@
 static uint32_t _pulse_delay_us;
 static uint32_t _dir_delay_us;
 
-static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*callback)(void)) {
-    stepTimerInit(frequency, callback);
+static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t& frequency, bool (*callback)(void)) {
+    frequency       = stepTimerInit(callback);
     _dir_delay_us   = dir_delay_us;
     _pulse_delay_us = pulse_delay_us;
     return _pulse_delay_us;

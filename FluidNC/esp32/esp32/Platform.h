@@ -26,6 +26,8 @@
 #define MAX_N_GPIO SOC_GPIO_PIN_COUNT /* 40 */
 #define DEFAULT_STEPPING_ENGINE Stepping::RMT_ENGINE
 
+#define STEPPING_FREQUENCY 20000000
+
 // Serial baud rate
 // The ESP32 boot text is 115200, so you will not see early startup
 // messages from the ESP32 bootloader if you use a different baud rate,

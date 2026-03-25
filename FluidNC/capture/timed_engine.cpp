@@ -9,18 +9,11 @@
 #include "Driver/StepTimer.h"
 // #include <esp32-hal-gpio.h>
 
-#define IRAM_ATTR
-
-void stepTimerInit(uint32_t frequency, bool (*fn)(void)) {}
-void stepTimerStop() {}
-void stepTimerSetTicks(uint32_t ticks) {}
-void stepTimerStart() {}
-
 static uint32_t _pulse_delay_us;
 static uint32_t _dir_delay_us;
 
-static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*callback)(void)) {
-    stepTimerInit(frequency, callback);
+static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t& frequency, bool (*callback)(void)) {
+    frequency       = stepTimerInit(callback);
     _dir_delay_us   = dir_delay_us;
     _pulse_delay_us = pulse_delay_us;
     return _pulse_delay_us;
@@ -31,46 +24,46 @@ static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
 }
 
 static int32_t        _stepPulseEndTime;
-static void IRAM_ATTR set_pin(pinnum_t pin, bool level) {
+static void           set_pin(pinnum_t pin, bool level) {
     gpio_write(pin, level);
 }
 
-static void IRAM_ATTR finish_dir() {
+static void finish_dir() {
     delay_us(_dir_delay_us);
 }
 
-static void IRAM_ATTR start_step() {}
+static void start_step() {}
 
 // Instead of waiting here for the step end time, we mark when the
 // step pulse should end, then return.  The stepper code can then do
 // some work that is overlapped with the pulse time.  The spin loop
 // will happen in start_unstep()
-static void IRAM_ATTR finish_step() {
+static void finish_step() {
     _stepPulseEndTime = usToEndTicks(_pulse_delay_us);
 }
 
-static bool IRAM_ATTR start_unstep() {
+static bool start_unstep() {
     spinUntil(_stepPulseEndTime);
     return false;
 }
 
 // This is a noop because each gpio_write() takes effect immediately,
 // so there is no need to commit multiple GPIO changes.
-static void IRAM_ATTR finish_unstep() {}
+static void finish_unstep() {}
 
 static uint32_t max_pulses_per_sec() {
     return 1000000 / (2 * _pulse_delay_us);
 }
 
-static void IRAM_ATTR set_timer_ticks(uint32_t ticks) {
+static void set_timer_ticks(uint32_t ticks) {
     stepTimerSetTicks(ticks);
 }
 
-static void IRAM_ATTR start_timer() {
+static void start_timer() {
     stepTimerStart();
 }
 
-static void IRAM_ATTR stop_timer() {
+static void stop_timer() {
     stepTimerStop();
 }
 
