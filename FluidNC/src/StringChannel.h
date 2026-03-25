@@ -8,7 +8,7 @@
 /*
  * StringChannel: A Channel implementation that feeds G-code commands from a string.
  * Used to inject test commands into the POSIX build for automated testing.
- * 
+ *
  * The string is consumed character-by-character via read().
  * If the string doesn't end with a newline, one is automatically appended.
  */
