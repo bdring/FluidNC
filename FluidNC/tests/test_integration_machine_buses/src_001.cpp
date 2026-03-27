@@ -1,0 +1,1 @@
+#include "../../capture/AssertionFailed.cpp"

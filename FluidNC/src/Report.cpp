@@ -41,6 +41,22 @@ std::string report_pin_string;
 
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
+#ifdef FLUIDNC_BUILD_MCU
+static constexpr const char* kBuildMcu = FLUIDNC_BUILD_MCU;
+#elif defined(MCU)
+static constexpr const char* kBuildMcu = MCU;
+#else
+static constexpr const char* kBuildMcu = "unknown";
+#endif
+
+#ifdef FLUIDNC_BUILD_VARIANT
+static constexpr const char* kBuildVariant = FLUIDNC_BUILD_VARIANT;
+#elif defined(VARIANT)
+static constexpr const char* kBuildVariant = VARIANT;
+#else
+static constexpr const char* kBuildVariant = "unknown";
+#endif
+
 void notifyf(const char* title, const char* format, ...) {
     char    loc_buf[64];
     char*   temp = loc_buf;
@@ -159,7 +175,7 @@ void report_init_message(Channel& channel) {
                     msg << grbl_version;
                     break;
                 case 'X':
-                    msg << MCU << "-" << VARIANT;
+                    msg << kBuildMcu << "-" << kBuildVariant;
                     break;
                 case 'R': {
                     const char* delim     = "";
@@ -360,7 +376,7 @@ void report_gcode_modes(Channel& channel) {
 
 // Prints build info line
 void report_build_info(const char* line, Channel& channel) {
-    log_stream(channel, "[VER:" << grbl_version << " FluidNC " << git_info << " (" << MCU << "-" << VARIANT << ") :" << line);
+    log_stream(channel, "[VER:" << grbl_version << " FluidNC " << git_info << " (" << kBuildMcu << "-" << kBuildVariant << ") :" << line);
 
     // The option message is included for backwards compatibility but
     // is not particularly useful for FluidNC, which has runtime
