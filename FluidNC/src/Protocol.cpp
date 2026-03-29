@@ -1,3 +1,5 @@
+#include <atomic>
+extern volatile bool g_should_exit;
 // Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
 // Copyright (c) 2009-2011 Simen Svale Skogsrud
 // Copyright (c) 2018 -	Bart Dring
@@ -100,9 +102,12 @@ void drain_messages() {
 
 void output_loop(void* unused) {
     while (true) {
+        if (g_should_exit) {
+            break;
+        }
         // Block until a message is received
         LogMessage message;
-        if (xQueueReceive(message_queue, &message, portMAX_DELAY)) {
+        if (xQueueReceive(message_queue, &message, 100)) { // Use timeout to check exit flag
             if (message.isString) {
                 std::string* s = static_cast<std::string*>(message.line);
                 message.channel->print_msg(message.level, s->c_str());
@@ -124,9 +129,13 @@ char activeLine[Channel::maxLine];
 bool pollingPaused = false;
 void polling_loop(void* unused) {
     add_watchdog_to_task();
+    for (;;) {
+        if (g_should_exit) {
+            break;
+        }
 
-    // Poll the input sources waiting for a complete line to arrive
-    for (; true; /*feedLoopWDT(), */ vTaskDelay(1)) {
+        // Poll the input sources waiting for a complete line to arrive
+        /*feedLoopWDT(), */ vTaskDelay(1);
         // Polling is paused when xmodem is using a channel for binary upload
         if (pollingPaused) {
             vTaskDelay(100);
@@ -246,6 +255,9 @@ void protocol_main_loop() {
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
     for (;; vTaskDelay(1)) {
+        if (g_should_exit) {
+            break;
+        }
         if (activeChannel) {
             // The input polling task has collected a line of input
             if (gcode_echo->get()) {

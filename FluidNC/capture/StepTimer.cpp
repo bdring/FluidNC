@@ -7,6 +7,8 @@
 #include "Driver/step_engine.h"
 #include <thread>
 #include <chrono>
+#include <mutex>
+#include <condition_variable>
 
 static std::atomic<bool>                                  _running(true);
 static std::atomic<bool>                                  _pulsing(false);
@@ -35,6 +37,11 @@ static void timing_loop() {
             cv.wait(lock);
         }
     }
+}
+// Call this on shutdown to cleanly stop the timing thread
+void stepTimerShutdown() {
+    _running = false;
+    cv.notify_one();
 }
 
 uint32_t stepTimerInit(bool (*callback)(void)) {

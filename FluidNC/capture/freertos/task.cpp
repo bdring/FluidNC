@@ -32,7 +32,7 @@ void vTaskDelay(const TickType_t xTicksToDelay) {
 void cleanup_threads() {
     for (auto& thread : threads) {
         if (thread && thread->joinable()) {
-            thread->detach();  // Detach all threads - process is exiting anyway
+            thread->join();  // Wait for all threads to finish before exit
         }
     }
     threads.clear();

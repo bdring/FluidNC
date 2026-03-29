@@ -9,7 +9,9 @@
 #include <stdexcept>
 
 namespace Pins {
-    std::vector<bool> GPIOPinDetail::_claimed(MAX_N_GPIO, false);
+
+
+    bool GPIOPinDetail::_claimed[MAX_N_GPIO] = {false};
 
     void GPIOPinDetail::setDriveStrength(uint8_t n, PinAttributes attr) {
         Assert(_capabilities.has(PinCapabilities::Output), "Drive strength only applies to output pins");

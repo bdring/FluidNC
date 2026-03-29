@@ -13,7 +13,7 @@ namespace Pins {
 
         static PinCapabilities GetDefaultCapabilities(pinnum_t index);
 
-        static std::vector<bool> _claimed;
+        static bool _claimed[MAX_N_GPIO];
 
         bool _lastWrittenValue = false;
 

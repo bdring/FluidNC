@@ -2,15 +2,19 @@ extern void setup();
 extern void loop();
 
 // #include "StringChannel.h"
+
 #include <string>
+// Signal handling for SIGINT
+#include <csignal>
+// Forward declaration for restart
+void restart();
+#include <atomic>
 
 // Global StringChannel pointer - used by posix/Console.cpp
 // StringChannel* g_stringChannel = nullptr;
 
 std::string command_line_cmds;
-extern "C" {
-bool continue_after_cmds = false;
-};
+bool        continue_after_cmds = false;
 
 int main(int argc, char** argv) {
     // Parse command line arguments looking for -c flags
@@ -26,15 +30,16 @@ int main(int argc, char** argv) {
         }
     }
 
-#if 0
-    if (!combined_command.empty()) {
-        g_stringChannel = new StringChannel(combined_command);
-    }
-#endif
+    // Install SIGINT handler to set a flag (async-signal-safe)
+    static volatile std::sig_atomic_t g_sigint_received = 0;
+    std::signal(SIGINT, [](int) { g_sigint_received = 1; });
 
-    ::printf("command_line_cmds %s\n", command_line_cmds.c_str());
     setup();
-    while (1) {
+    extern volatile bool g_should_exit;
+    while (!g_should_exit) {
+        if (g_sigint_received) {
+            restart();
+        }
         loop();
     }
     return 0;
