@@ -1,5 +1,5 @@
 ## IDF Component Manager Manifest File
-## USB host deps are downloaded for all IDF builds but only linked when USB_HOST_ENABLED is defined.
+## USB host components are linked for all ESP32-S3 builds (runtime YAML config selects mode).
 dependencies:
   esp32async/espasyncwebserver:
     version: ^3.8.1

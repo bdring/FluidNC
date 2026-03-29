@@ -2,7 +2,9 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
-#ifdef USB_HOST_ENABLED
+
+#include <soc/soc_caps.h>
+#ifdef SOC_USB_OTG_SUPPORTED
 
 #include "Channel.h"
 #include "Configuration/Configurable.h"
@@ -10,11 +12,17 @@
 #include "USBHostDriver.h"
 
 class USBHostChannel : public Channel, public Configuration::Configurable {
+private:
+    Lineedit*      _lineedit = nullptr;
+    USBHostDriver* _driver   = nullptr;
+
+    uint32_t _baud               = 1000000;
+    int32_t  _report_interval_ms = 0;
+
 public:
     USBHostChannel();
     ~USBHostChannel();
 
-    // Channel interface
     void   init() override;
     size_t write(uint8_t c) override;
     size_t write(const uint8_t* buf, size_t len) override;
@@ -34,16 +42,7 @@ public:
         return timedReadBytes(reinterpret_cast<char*>(buffer), length, timeout);
     }
 
-    // Configurable interface
     void group(Configuration::HandlerBase& handler) override;
-
-private:
-    Lineedit*      _lineedit = nullptr;
-    USBHostDriver* _driver   = nullptr;
-
-    // Config from YAML
-    uint32_t _baud               = 1000000;
-    int32_t  _report_interval_ms = 0;
 };
 
-#endif // USB_HOST_ENABLED
+#endif // SOC_USB_OTG_SUPPORTED

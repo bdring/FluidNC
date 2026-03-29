@@ -5,6 +5,7 @@
 
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
+#include "Logging.h"                // messageLevels2
 #include "esp32-hal-tinyusb.h"      // usb_persist_restart
 
 // There are two compiler flags that control how the Arduino framework predefines USB CDC serial class instances.
@@ -116,7 +117,13 @@ void USBCDCChannel::init() {
     _cdc.onEvent(usbEventCallback);
     USB.onEvent(usbEventCallback);
     delay_ms(300);  // Time for the host USB to reconnect
+    setReportInterval(_report_interval_ms);
     allChannels.registration(this);
+}
+
+void USBCDCChannel::group(Configuration::HandlerBase& handler) {
+    handler.item("report_interval_ms", _report_interval_ms);
+    handler.item("message_level", _message_level, messageLevels2);
 }
 
 size_t USBCDCChannel::write(uint8_t c) {

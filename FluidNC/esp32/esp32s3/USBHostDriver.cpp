@@ -1,7 +1,8 @@
 // Copyright (c) 2026 - Algy Tynan
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#ifdef USB_HOST_ENABLED
+#include <soc/soc_caps.h>
+#ifdef SOC_USB_OTG_SUPPORTED
 
 #include "USBHostDriver.h"
 
@@ -10,26 +11,17 @@
 #include <usb/vcp_cp210x.hpp>
 #include <usb/vcp_ftdi.hpp>
 
-// FluidNC logging (not ESP_LOG -- follow codebase convention)
 #include "Report.h"
-#include "NutsBolts.h"  // to_hex()
+#include "NutsBolts.h"
 
-// ---------------------------------------------------------------
-// Callbacks (static -> instance via user_arg)
-// ---------------------------------------------------------------
-
-// Called from CDC-ACM driver task when data arrives from USB device.
 bool USBHostDriver::rxCallback(const uint8_t* data, size_t data_len, void* user_arg) {
     auto* self = static_cast<USBHostDriver*>(user_arg);
     if (self->_rx_ring && data_len > 0) {
-        // Non-blocking send -- drops data if ring is full
         xRingbufferSend(self->_rx_ring, data, data_len, 0);
     }
-    return true;  // true = flush USB buffer (ready for next transfer)
+    return true;
 }
 
-// Called from CDC-ACM driver task on device disconnect or error.
-// Only sets _connected flag -- cleanup happens in classTask() after TX pump exits.
 void USBHostDriver::deviceEventCallback(const cdc_acm_host_dev_event_data_t* event, void* user_arg) {
     auto* self = static_cast<USBHostDriver*>(user_arg);
     switch (event->type) {
@@ -43,7 +35,6 @@ void USBHostDriver::deviceEventCallback(const cdc_acm_host_dev_event_data_t* eve
     }
 }
 
-// Called for any new USB device attachment (before VCP matching).
 void USBHostDriver::newDeviceCallback(usb_device_handle_t usb_dev) {
     const usb_device_desc_t* desc = nullptr;
     usb_host_get_device_descriptor(usb_dev, &desc);
@@ -55,24 +46,18 @@ void USBHostDriver::newDeviceCallback(usb_device_handle_t usb_dev) {
     }
 }
 
-// ---------------------------------------------------------------
-// FreeRTOS Tasks
-// ---------------------------------------------------------------
-
-// Daemon task: pumps the USB host library event loop.
-// Must run continuously or USB stack stops processing.
 void USBHostDriver::daemonTask(void* arg) {
-    while (true) {
+    auto* self = static_cast<USBHostDriver*>(arg);
+    while (!self->_shutdown_requested.load()) {
         uint32_t event_flags;
-        usb_host_lib_handle_events(portMAX_DELAY, &event_flags);
+        usb_host_lib_handle_events(pdMS_TO_TICKS(500), &event_flags);
     }
+    vTaskDelete(nullptr);
 }
 
-// Class task: installs VCP drivers, opens device, pumps TX data.
 void USBHostDriver::classTask(void* arg) {
     auto* self = static_cast<USBHostDriver*>(arg);
 
-    // 1. Install CDC-ACM host driver
     const cdc_acm_host_driver_config_t driver_config = {
         .driver_task_stack_size = 4096,
         .driver_task_priority   = 5,
@@ -86,7 +71,6 @@ void USBHostDriver::classTask(void* arg) {
         return;
     }
 
-    // 2. Register VCP drivers for auto-detection
     using namespace esp_usb;
     VCP::register_driver<CH34x>();
     VCP::register_driver<CP210x>();
@@ -94,10 +78,9 @@ void USBHostDriver::classTask(void* arg) {
 
     log_info("USB Host: waiting for device...");
 
-    // 3. Device open/reopen loop (handles hot-plug reconnect)
-    while (true) {
+    while (!self->_shutdown_requested.load()) {
         const cdc_acm_host_device_config_t dev_config = {
-            .connection_timeout_ms = 0,     // Wait forever for device
+            .connection_timeout_ms = 500,
             .out_buffer_size       = 512,
             .in_buffer_size        = 512,
             .event_cb              = USBHostDriver::deviceEventCallback,
@@ -105,20 +88,23 @@ void USBHostDriver::classTask(void* arg) {
             .user_arg              = self,
         };
 
-        // VCP::open() blocks until a supported device connects.
-        // Returns a raw CdcAcmDevice* owned by the caller.
-        CdcAcmDevice* dev = VCP::open(&dev_config);
-        if (!dev) {
-            log_warn("USB Host: VCP::open() returned null, retrying...");
+        CdcAcmDevice* dev = nullptr;
+        try {
+            dev = VCP::open(&dev_config);
+        } catch (const std::exception& e) {
+            log_error("USB Host: device open failed: " << e.what());
+            if (self->_shutdown_requested.load()) break;
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
+        if (!dev) {
+            continue;
+        }
 
-        // 4. Configure line coding (baud rate)
         cdc_acm_line_coding_t line_coding = {
             .dwDTERate   = self->_baud,
-            .bCharFormat = 0,  // 1 stop bit
-            .bParityType = 0,  // No parity
+            .bCharFormat = 0,
+            .bParityType = 0,
             .bDataBits   = 8,
         };
         err = dev->line_coding_set(&line_coding);
@@ -126,15 +112,13 @@ void USBHostDriver::classTask(void* arg) {
             log_warn("USB Host: line_coding_set failed: " << esp_err_to_name(err));
         }
 
-        // Set DTR+RTS (some USB-serial chips need this to enable data flow)
         dev->set_control_line_state(true, true);
 
         self->_vcp_dev = dev;
         self->_connected.store(true);
         log_info("USB Host: device connected, baud " << self->_baud);
 
-        // 5. TX pump loop: runs while device is connected
-        while (self->_connected.load()) {
+        while (self->_connected.load() && !self->_shutdown_requested.load()) {
             size_t item_size = 0;
             uint8_t* tx_data = static_cast<uint8_t*>(
                 xRingbufferReceive(self->_tx_ring, &item_size, pdMS_TO_TICKS(10))
@@ -144,9 +128,8 @@ void USBHostDriver::classTask(void* arg) {
                 vRingbufferReturnItem(self->_tx_ring, tx_data);
 
                 if (err == ESP_ERR_TIMEOUT) {
-                    // USB device busy -- not an error
+                    // device busy
                 } else if (err == ESP_ERR_INVALID_STATE) {
-                    // Device disconnected mid-transfer
                     log_info("USB Host: device gone during TX");
                     break;
                 } else if (err != ESP_OK) {
@@ -155,24 +138,21 @@ void USBHostDriver::classTask(void* arg) {
             }
         }
 
-        // Device disconnected -- clean up and loop back to VCP::open()
         self->flushRx();
         self->flushTx();
         self->clearPeekCache();
         self->_vcp_dev = nullptr;
         delete dev;
-        log_info("USB Host: waiting for reconnect...");
+        if (!self->_shutdown_requested.load()) {
+            log_info("USB Host: waiting for reconnect...");
+        }
     }
+    vTaskDelete(nullptr);
 }
-
-// ---------------------------------------------------------------
-// Init / Shutdown
-// ---------------------------------------------------------------
 
 void USBHostDriver::init(uint32_t baud) {
     _baud = baud;
 
-    // Create ring buffers (byte buffers -- no per-item overhead)
     _rx_ring = xRingbufferCreate(RX_BUF_SIZE, RINGBUF_TYPE_BYTEBUF);
     if (!_rx_ring) {
         log_error("USB Host: RX ring buffer creation failed");
@@ -200,35 +180,40 @@ void USBHostDriver::init(uint32_t baud) {
         return;
     }
 
-    // Daemon task: pumps USB host library events
-    xTaskCreatePinnedToCore(daemonTask, "usb_daemon", 4096, nullptr, 2, &_daemon_task_handle, 1);
-
-    // Class task: installs VCP drivers, opens device, pumps TX
+    xTaskCreatePinnedToCore(daemonTask, "usb_daemon", 4096, this, 2, &_daemon_task_handle, 1);
     xTaskCreatePinnedToCore(classTask, "usb_class", 4096, this, 3, &_class_task_handle, 1);
 
     log_info("USB Host: stack initialised");
 }
 
-// Only safe to call at firmware restart (tasks are deleted non-cooperatively).
 void USBHostDriver::shutdown() {
     _connected.store(false);
-    if (_daemon_task_handle) {
-        vTaskDelete(_daemon_task_handle);
-        _daemon_task_handle = nullptr;
+    _shutdown_requested.store(true);
+
+    for (int i = 0; i < 20; i++) {
+        bool daemon_done = !_daemon_task_handle || eTaskGetState(_daemon_task_handle) == eDeleted;
+        bool class_done  = !_class_task_handle  || eTaskGetState(_class_task_handle)  == eDeleted;
+        if (daemon_done && class_done) {
+            break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
-    if (_class_task_handle) {
-        vTaskDelete(_class_task_handle);
-        _class_task_handle = nullptr;
-    }
+
+    // Tasks self-delete via vTaskDelete(nullptr) on exit.
+    // Just null the handles here.
+    _daemon_task_handle = nullptr;
+    _class_task_handle = nullptr;
     cdc_acm_host_uninstall();
     usb_host_uninstall();
-    if (_rx_ring) { vRingbufferDelete(_rx_ring); _rx_ring = nullptr; }
-    if (_tx_ring) { vRingbufferDelete(_tx_ring); _tx_ring = nullptr; }
+    if (_rx_ring) {
+        vRingbufferDelete(_rx_ring);
+        _rx_ring = nullptr;
+    }
+    if (_tx_ring) {
+        vRingbufferDelete(_tx_ring);
+        _tx_ring = nullptr;
+    }
 }
-
-// ---------------------------------------------------------------
-// Ring Buffer Access (called from Channel on main task)
-// ---------------------------------------------------------------
 
 int USBHostDriver::read() {
     if (_has_peek) {
@@ -237,23 +222,35 @@ int USBHostDriver::read() {
         _peek_byte = -1;
         return b;
     }
+    if (!_rx_ring) {
+        return -1;
+    }
     size_t item_size = 0;
     uint8_t* item = static_cast<uint8_t*>(
         xRingbufferReceiveUpTo(_rx_ring, &item_size, 0, 1)
     );
-    if (!item || item_size == 0) return -1;
+    if (!item || item_size == 0) {
+        return -1;
+    }
     uint8_t byte = item[0];
     vRingbufferReturnItem(_rx_ring, item);
     return byte;
 }
 
 int USBHostDriver::peek() {
-    if (_has_peek) return _peek_byte;
+    if (_has_peek) {
+        return _peek_byte;
+    }
+    if (!_rx_ring) {
+        return -1;
+    }
     size_t item_size = 0;
     uint8_t* item = static_cast<uint8_t*>(
         xRingbufferReceiveUpTo(_rx_ring, &item_size, 0, 1)
     );
-    if (!item || item_size == 0) return -1;
+    if (!item || item_size == 0) {
+        return -1;
+    }
     _peek_byte = item[0];
     _has_peek  = true;
     vRingbufferReturnItem(_rx_ring, item);
@@ -261,15 +258,24 @@ int USBHostDriver::peek() {
 }
 
 int USBHostDriver::available() {
+    if (!_rx_ring) {
+        return 0;
+    }
     return (_has_peek ? 1 : 0) + (RX_BUF_SIZE - xRingbufferGetCurFreeSize(_rx_ring));
 }
 
-int USBHostDriver::rxBufferAvailable() {
+int USBHostDriver::rx_buffer_available() {
+    if (!_rx_ring) {
+        return 0;
+    }
     return xRingbufferGetCurFreeSize(_rx_ring);
 }
 
 void USBHostDriver::flushRx() {
     clearPeekCache();
+    if (!_rx_ring) {
+        return;
+    }
     size_t item_size;
     while (void* item = xRingbufferReceive(_rx_ring, &item_size, 0)) {
         vRingbufferReturnItem(_rx_ring, item);
@@ -277,6 +283,9 @@ void USBHostDriver::flushRx() {
 }
 
 void USBHostDriver::flushTx() {
+    if (!_tx_ring) {
+        return;
+    }
     size_t item_size;
     while (void* item = xRingbufferReceive(_tx_ring, &item_size, 0)) {
         vRingbufferReturnItem(_tx_ring, item);
@@ -288,11 +297,13 @@ size_t USBHostDriver::write(uint8_t c) {
 }
 
 size_t USBHostDriver::write(const uint8_t* buf, size_t len) {
-    if (!_connected.load() || !_tx_ring) return 0;
+    if (!_connected.load() || !_tx_ring) {
+        return 0;
+    }
     if (xRingbufferSend(_tx_ring, buf, len, 0) == pdTRUE) {
         return len;
     }
-    return 0;  // TX ring full -- data dropped
+    return 0;
 }
 
-#endif // USB_HOST_ENABLED
+#endif // SOC_USB_OTG_SUPPORTED

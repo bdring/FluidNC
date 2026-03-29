@@ -21,13 +21,8 @@ public:
         auto uart0 = new Uart(0);
         uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
         UartChannel::init(uart0);
-
-#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
-        auto cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
-        if (cdc_enable->get()) {
-            CDCChannel.init();
-        }
-#endif
+        // USB CDC/Host initialization is handled post-config in Main.cpp
+        // (YAML config must be loaded first to determine USB mode)
     }
 };
 UartConsole Uart0;

@@ -29,16 +29,17 @@ idf_component_register(SRCS AssertionFailed.cpp
                             esp32s3/Console.cpp
                             esp32s3/GPIOCapabilities.cpp
                             esp32s3/USBCDCChannel_IDF.cpp
+                            esp32s3/USBHostChannel.cpp
+                            esp32s3/USBHostDriver.cpp
                             esp32s3/i2s_engine_dedicated.c
                        INCLUDE_DIRS "." ".." "../include" "../lib/TMCStepper/src" "esp32s3" "../src"
                        REQUIRES esp_driver_uart driver fatfs vfs spiffs esp_driver_sdspi esp_timer arduino-esp32 nvs_flash esp_driver_gpio mbedtls esp_tinyusb
                        PRIV_REQUIRES espcoredump
                        WHOLE_ARCHIVE)
 
-# USB Host mode: add VCP component requirements when building with USB_HOST_ENABLED.
+# USB Host mode: VCP components for ESP32-S3 (YAML config selects mode at runtime).
 # For PlatformIO builds this block is not reached (PlatformIO manages its own build).
-# For native ESP-IDF builds, define USB_HOST_ENABLED to link the USB host components.
-if(DEFINED USB_HOST_ENABLED)
+if(CONFIG_SOC_USB_OTG_SUPPORTED)
     target_link_libraries(${COMPONENT_LIB} PUBLIC
         idf::usb_host_vcp
         idf::usb_host_cdc_acm
