@@ -20,6 +20,11 @@
 #include "Stepping.h"
 #include "Stepper.h"
 #include "UartChannel.h"
+#include <soc/soc_caps.h>
+#ifdef SOC_USB_OTG_SUPPORTED
+class USBHostChannel;
+class USBCDCChannel;
+#endif
 #include "Driver/Console.h"
 #include "Module.h"
 #include "Listeners/SysListener.h"
@@ -89,6 +94,11 @@ namespace Machine {
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };
+
+#ifdef SOC_USB_OTG_SUPPORTED
+        USBHostChannel* _usb_host = nullptr;
+        USBCDCChannel*  _usb_cdc  = nullptr;
+#endif
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;

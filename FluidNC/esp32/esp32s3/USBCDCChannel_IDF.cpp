@@ -10,6 +10,7 @@
 
 #    include "Machine/MachineConfig.h"  // config
 #    include "Serial.h"                 // allChannels
+#    include "Logging.h"                // messageLevels2
 #    include "esp_system.h"             // esp_restart
 #    include "esp_rom_sys.h"            // esp_rom_software_reset_system
 #    include "freertos/FreeRTOS.h"
@@ -141,7 +142,13 @@ void USBCDCChannel::init() {
     // Give time for USB to enumerate
     vTaskDelay(pdMS_TO_TICKS(300));
 
+    setReportInterval(_report_interval_ms);
     allChannels.registration(this);
+}
+
+void USBCDCChannel::group(Configuration::HandlerBase& handler) {
+    handler.item("report_interval_ms", _report_interval_ms);
+    handler.item("message_level", _message_level, messageLevels2);
 }
 
 size_t USBCDCChannel::rx_available() const {

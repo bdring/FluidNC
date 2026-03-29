@@ -1,0 +1,13 @@
+{
+    "name": "usb_host_vcp",
+    "version": "1.0.0",
+    "description": "ESP-IDF USB Host VCP service with CH34x, CP210x, and FTDI drivers. Source from espressif/esp-usb commit 5459ee9.",
+    "keywords": "usb,usb_host,vcp,ch34x,cp210x,ftdi,espressif,esp32-s3",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/espressif/esp-usb/tree/master/host/class/cdc/usb_host_vcp",
+    "frameworks": "*",
+    "platforms": "*",
+    "dependencies": {
+        "usb_host_cdc_acm": "https://github.com/X-Stuff/usb_host_cdc_acm.git"
+    }
+}

@@ -4,6 +4,17 @@
 
 #include "MachineConfig.h"
 
+#include <sdkconfig.h>
+#include <esp_idf_version.h>
+#ifdef SOC_USB_OTG_SUPPORTED
+#    include "USBHostChannel.h"
+#    if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
+#        include "USBCDCChannel_IDF.h"
+#    else
+#        include "USBCDCChannel.h"
+#    endif
+#endif
+
 #include "Kinematics/Kinematics.h"
 
 #include "Motors/MotorDriver.h"
@@ -44,6 +55,10 @@ namespace Machine {
 
         handler.sections("uart", 1, MAX_N_UARTS, true, _uarts);
         handler.sections("uart_channel", 1, MAX_N_UARTS, true, _uart_channels);
+#ifdef SOC_USB_OTG_SUPPORTED
+        handler.section("usb_host", _usb_host);
+        handler.section("usb_cdc", _usb_cdc);
+#endif
 #if MAX_N_I2SO
         // We currently support only one I2S bus
         handler.section("i2so", _i2so);
@@ -173,6 +188,17 @@ namespace Machine {
         if (_macros == nullptr) {
             _macros = new Macros();
         }
+
+#ifdef SOC_USB_OTG_SUPPORTED
+        if (_usb_host && _usb_cdc) {
+            log_config_error("Cannot configure both usb_host: and usb_cdc: -- "
+                             "only one USB mode is supported at a time");
+            delete _usb_host;
+            _usb_host = nullptr;
+            delete _usb_cdc;
+            _usb_cdc = nullptr;
+        }
+#endif
     }
 
     const char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
@@ -300,5 +326,9 @@ namespace Machine {
 #endif
         delete _control;
         delete _macros;
+#ifdef SOC_USB_OTG_SUPPORTED
+        delete _usb_host;
+        delete _usb_cdc;
+#endif
     }
 }

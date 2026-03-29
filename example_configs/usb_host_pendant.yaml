@@ -1,0 +1,33 @@
+name: "USB Host Pendant Example"
+board: "ESP32-S3 with USB Host"
+
+# ESP32-S3 USB mode is selected by which section is present:
+#   usb_host: - native USB acts as host (pendant plugs into controller)
+#   usb_cdc:  - native USB acts as serial device (controller plugs into PC)
+#   neither   - defaults to CDC via USBCDC/Enable web setting
+# Only one can be active. Both present = config error.
+# Requires 8MB flash (all ESP32-S3 builds include both USB stacks).
+
+# USB host mode: pendant connects via USB-serial adapter
+# Supported chips: CH340, CP2102, FTDI (auto-detected)
+usb_host:
+  baud: 1000000
+  report_interval_ms: 75
+
+# When usb_host is active, CDC is unavailable. Use the CP2102 (USB UART)
+# port for console and flashing.
+
+# Alternative: explicit CDC device mode with custom report interval
+# usb_cdc:
+#   report_interval_ms: 75
+
+# Optional: UART pendant on a second port (can coexist with USB)
+# uart2:
+#   txd_pin: gpio.0
+#   rxd_pin: gpio.35
+#   baud: 1000000
+#   mode: 8N1
+#
+# uart_channel2:
+#   report_interval_ms: 75
+#   uart_num: 2
