@@ -2,7 +2,9 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
-#ifdef USB_HOST_ENABLED
+
+#include <soc/soc_caps.h>
+#ifdef SOC_USB_OTG_SUPPORTED
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -15,51 +17,46 @@ public:
     void init(uint32_t baud);
     void shutdown();
 
-    // Thread-safe access (called from Channel on main task)
-    int    read();               // Returns byte or -1 if empty
-    int    peek();               // Returns byte without consuming, or -1
-    int    available();          // Bytes available in RX ring
-    int    rxBufferAvailable();  // Free space in RX ring
-    void   flushRx();            // Discard all RX data
-    void   flushTx();            // Discard all pending TX data
+    int    read();
+    int    peek();
+    int    available();
+    int    rx_buffer_available();
+    void   flushRx();
+    void   flushTx();
 
     size_t write(uint8_t c);
     size_t write(const uint8_t* buf, size_t len);
 
     bool isConnected() const { return _connected.load(); }
+    bool isInitialized() const { return _rx_ring != nullptr && _tx_ring != nullptr; }
 
 private:
     static constexpr size_t RX_BUF_SIZE = 4096;
     static constexpr size_t TX_BUF_SIZE = 4096;
 
-    RingbufHandle_t _rx_ring = nullptr;  // device -> host (pendant -> FluidNC)
-    RingbufHandle_t _tx_ring = nullptr;  // host -> device (FluidNC -> pendant)
+    RingbufHandle_t _rx_ring = nullptr;
+    RingbufHandle_t _tx_ring = nullptr;
 
     TaskHandle_t _daemon_task_handle = nullptr;
     TaskHandle_t _class_task_handle  = nullptr;
 
     std::atomic<bool> _connected{false};
+    std::atomic<bool> _shutdown_requested{false};
     uint32_t          _baud = 1000000;
 
-    CdcAcmDevice* _vcp_dev = nullptr;  // Owned by classTask; deleted on disconnect
+    CdcAcmDevice* _vcp_dev = nullptr;
 
-    int  _peek_byte = -1;   // Cached byte for peek(); -1 = empty
+    int  _peek_byte = -1;
     bool _has_peek  = false;
 
     void clearPeekCache() { _peek_byte = -1; _has_peek = false; }
 
-    // FreeRTOS task entry points (static -> instance via arg)
     static void daemonTask(void* arg);
     static void classTask(void* arg);
 
-    // RX data callback -- called from CDC-ACM driver task
     static bool rxCallback(const uint8_t* data, size_t data_len, void* user_arg);
-
-    // Device event callback -- called for disconnect/error
     static void deviceEventCallback(const cdc_acm_host_dev_event_data_t* event, void* user_arg);
-
-    // New device callback -- logs VID:PID for any attached device
     static void newDeviceCallback(usb_device_handle_t usb_dev);
 };
 
-#endif // USB_HOST_ENABLED
+#endif // SOC_USB_OTG_SUPPORTED
