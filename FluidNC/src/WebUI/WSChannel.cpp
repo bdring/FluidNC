@@ -128,6 +128,7 @@ namespace WebUI {
     std::vector<WSChannel*> WSChannels::_wsChannels;
     AsyncWebSocket*         WSChannels::_server = nullptr;
 
+    std::vector<std::pair<pinnum_t, InputPin*>> WSChannels::_pins;
     WSChannel* WSChannels::_lastWSChannel = nullptr;
 
     WSChannel* WSChannels::getWSChannel(objnum_t pageid, std::string session) {
@@ -258,6 +259,9 @@ namespace WebUI {
                     _wsChannels.push_back(newChannel);
 
                     log_debug_to(Console, "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session);
+                    for (auto const pin : _pins) {
+                        newChannel->registerEvent(pin.first, pin.second);
+                    }
                 }
             } break;
             case WS_EVT_DATA: {
@@ -294,5 +298,9 @@ namespace WebUI {
                 log_debug_to(Console, "WebSocket unexpected event! " << type);
                 break;
         }
+    }
+    void WSChannels::registerEvent(pinnum_t index, InputPin* obj) {
+        auto pinspec = std::pair<pinnum_t, InputPin*> { index, obj };
+        _pins.push_back(pinspec);
     }
 }

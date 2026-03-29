@@ -63,6 +63,8 @@ namespace WebUI {
         static WSChannel* _lastWSChannel;
         static WSChannel* getWSChannel(objnum_t pageid, std::string session);
 
+        static std::vector<std::pair<pinnum_t, InputPin*>> _pins;
+
     public:
         static void removeChannel(WSChannel* channel);
         static void removeChannel(objnum_t num);
@@ -74,5 +76,7 @@ namespace WebUI {
             AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len, std::string session);
 
         static void showChannels();
+
+        static void registerEvent(pinnum_t index, InputPin* obj);
     };
 }

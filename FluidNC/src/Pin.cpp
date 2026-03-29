@@ -11,6 +11,7 @@
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
 #include "Pins/ChannelPinDetail.h"
+#include "Pins/WSChannelPinDetail.h"
 #include "Pins/ErrorPinDetail.h"
 #include "string_util.h"
 #include "Machine/MachineConfig.h"  // config
@@ -88,6 +89,12 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         }
 
         pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[channel_num], pin_number, parser);
+        return nullptr;
+    }
+
+    if (string_util::starts_with_ignore_case(pin_type, "ws")) {
+        auto num_str      = pin_type.substr(strlen("ws"));
+        pinImplementation = new Pins::WSChannelPinDetail(pin_number, parser);
         return nullptr;
     }
 
