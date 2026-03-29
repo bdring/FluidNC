@@ -1,6 +1,8 @@
 #include "Driver/NVS.h"
 #include <filesystem>
 #include <fstream>
+#include <cstring>
+#include <algorithm>
 
 namespace stdfs = std::filesystem;
 
