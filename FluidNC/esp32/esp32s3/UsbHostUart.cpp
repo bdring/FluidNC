@@ -32,9 +32,8 @@ UsbHostUart::~UsbHostUart() {
 
 void UsbHostUart::begin() {
     // USB host and CDC share the same physical port.
-    // Deregister CDC before starting the host driver.
-    log_info("USB Host taking over USB port, CDC disabled");
-    allChannels.deregistration(&CDCChannel);
+    // CDC init is skipped when USB host is configured (checked in Console.cpp).
+    log_info("USB Host UART: initializing");
 
     _driver = new USBHostDriver();
     _driver->init(_baud);
