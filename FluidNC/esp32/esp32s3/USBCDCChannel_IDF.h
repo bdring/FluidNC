@@ -4,12 +4,11 @@
 #pragma once
 
 #include "Channel.h"
-#include "Configuration/Configurable.h"
 #include "lineedit.h"
 #include "tinyusb.h"
 #include "tinyusb_cdc_acm.h"
 
-class USBCDCChannel : public Channel, public Configuration::Configurable {
+class USBCDCChannel : public Channel {
 private:
     Lineedit* _lineedit;
 
@@ -25,9 +24,6 @@ private:
 
     // CDC interface number
     tinyusb_cdcacm_itf_t _cdc_itf;
-
-    // Config from YAML
-    int32_t _report_interval_ms = 0;
 
     // Callbacks
     static void rx_callback(int itf, cdcacm_event_t* event);
@@ -45,9 +41,6 @@ public:
     ~USBCDCChannel();
 
     void init() override;
-
-    // Configurable interface
-    void group(Configuration::HandlerBase& handler) override;
 
     // Print methods (Stream inherits from Print)
     size_t write(uint8_t c) override;

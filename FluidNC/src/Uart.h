@@ -11,6 +11,10 @@
 #include <freertos/FreeRTOS.h>  // TickType_T
 
 class Uart : public Stream, public Configuration::Configurable {
+protected:
+    // Constructor for factory-created subclasses (e.g. UsbHostUart)
+    explicit Uart(const char* name);
+
 private:
     // One character of pushback for implementing peek().
     // We cannot use the queue for this because the queue
@@ -51,12 +55,19 @@ public:
     Pin _rts_pin;
     Pin _cts_pin;
 
+    // Factory-created backend (e.g. UsbHostUart).  When set, all
+    // Stream/Uart methods delegate to _factory_inst, mirroring how
+    // Motor delegates to MotorDriver via MotorFactory.
+    Uart* _factory_inst = nullptr;
+
     // Name is required for the configuration factory to work.
     const char* name() { return _name.c_str(); }
 
     Uart(uint32_t uart_num = -1);
-    void begin();
-    void begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity parity);
+    virtual ~Uart();
+
+    virtual void begin();
+    virtual void begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity parity);
 
     // Stream methods - Uart must inherit from Stream because the TMCStepper library
     // needs a Stream instance.
@@ -68,10 +79,9 @@ public:
     size_t write(uint8_t data) override;
     size_t write(const uint8_t* buffer, size_t length) override;
 
-    // Support methods for UartChannel
-    void   flushRx();
-    int    rx_buffer_available(void);
-    size_t timedReadBytes(char* buffer, size_t len, TickType_t timeout);
+    virtual void   flushRx();
+    virtual int    rx_buffer_available(void);
+    virtual size_t timedReadBytes(char* buffer, size_t len, TickType_t timeout);
     size_t timedReadBytes(uint8_t* buffer, size_t len, TickType_t timeout) { return timedReadBytes((char*)buffer, len, timeout); }
 
     // Used by VFDSpindle
@@ -83,7 +93,7 @@ public:
     void forceXon();
     void forceXoff();
 
-    void setSwFlowControl(bool on, uint32_t rx_threshold, uint32_t tx_threshold);
+    virtual void setSwFlowControl(bool on, uint32_t rx_threshold, uint32_t tx_threshold);
     void getSwFlowControl(bool& enabled, uint32_t& rx_threshold, uint32_t& tx_threshold);
     void changeMode(uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits);
     void restoreMode();
@@ -91,28 +101,12 @@ public:
     void enterPassthrough();
     void exitPassthrough();
 
-    void registerInputPin(pinnum_t pinnum, InputPin* pin);
+    virtual void registerInputPin(pinnum_t pinnum, InputPin* pin);
 
     // Configuration handlers:
-    void validate() override {
-        Assert(!_txd_pin.undefined(), "UART: TXD is undefined");
-        Assert(!_rxd_pin.undefined(), "UART: RXD is undefined");
-        // RTS and CTS are optional.
-    }
-
+    void validate() override;
     void afterParse() override {}
-
-    void group(Configuration::HandlerBase& handler) override {
-        handler.item("txd_pin", _txd_pin);
-        handler.item("rxd_pin", _rxd_pin);
-        handler.item("rts_pin", _rts_pin);
-        handler.item("cts_pin", _cts_pin);
-
-        handler.item("baud", _baud, 2400, 10000000);
-        handler.item("mode", _dataBits, _parity, _stopBits);
-        handler.item("passthrough_baud", _passthrough_baud, 0, 10000000);  // 0 means not configured
-        handler.item("passthrough_mode", _passthrough_databits, _passthrough_parity, _passthrough_stopbits);
-    }
+    void group(Configuration::HandlerBase& handler) override;
 
     void config_message(const char* prefix, const char* usage);
 };

@@ -10,16 +10,12 @@
 #endif
 
 #include "Channel.h"
-#include "Configuration/Configurable.h"
 #include "lineedit.h"
 
-class USBCDCChannel : public Channel, public Configuration::Configurable {
+class USBCDCChannel : public Channel {
 private:
     Lineedit* _lineedit;
     USBCDC&   _cdc;
-
-    // Config from YAML
-    int32_t _report_interval_ms = 0;
 
 public:
     USBCDCChannel(bool addCR = false);
@@ -43,8 +39,5 @@ public:
     bool   realtimeOkay(char c) override;
     bool   lineComplete(char* line, char c) override;
     Error  pollLine(char* line) override;
-
-    // Configurable interface
-    void group(Configuration::HandlerBase& handler) override;
 };
 extern USBCDCChannel CDCChannel;

@@ -7,10 +7,10 @@
 #    include "Main.h"
 #    include "Machine/MachineConfig.h"
 
-#    include <sdkconfig.h>
-#    include <esp_idf_version.h>
+#    include <soc/soc_caps.h>
 #    ifdef SOC_USB_OTG_SUPPORTED
-#        include "USBHostChannel.h"
+#        include <sdkconfig.h>
+#        include <esp_idf_version.h>
 #        if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
 #            include "USBCDCChannel_IDF.h"
 #        else
@@ -87,17 +87,21 @@ void setup() {
         }
 
 #    ifdef SOC_USB_OTG_SUPPORTED
-        // USB mode selection: YAML takes precedence over web setting
-        if (config->_usb_host) {
-            config->_usb_host->init();
-        } else if (config->_usb_cdc) {
-            config->_usb_cdc->init();
-        } else {
-            // No YAML USB section -- fall back to existing web setting (backward compat)
-            static auto* cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
-            if (cdc_enable->get()) {
-                log_info("USB: no YAML config, using USBCDC/Enable web setting");
-                CDCChannel.init();
+        // CDC via NVS web setting, unless USB host uart is configured
+        // (USB host and CDC share the same physical port)
+        {
+            bool usb_host_configured = false;
+            for (size_t i = 1; i < MAX_N_UARTS; i++) {
+                if (config->_uarts[i] && config->_uarts[i]->_factory_inst) {
+                    usb_host_configured = true;
+                    break;
+                }
+            }
+            if (!usb_host_configured) {
+                static auto* cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
+                if (cdc_enable->get()) {
+                    CDCChannel.init();
+                }
             }
         }
 #    endif
