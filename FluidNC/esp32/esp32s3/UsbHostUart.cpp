@@ -7,15 +7,8 @@
 #include "UsbHostUart.h"
 #include "USBHostDriver.h"
 #include "Report.h"
-#include "Serial.h"
 
-#include <sdkconfig.h>
-#include <esp_idf_version.h>
-#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
-#    include "USBCDCChannel_IDF.h"
-#else
-#    include "USBCDCChannel.h"
-#endif
+extern "C" bool tusb_inited(void);
 
 namespace {
     UartFactory::InstanceBuilder<UsbHostUart> registration("usb_host");
@@ -32,8 +25,14 @@ UsbHostUart::~UsbHostUart() {
 
 void UsbHostUart::begin() {
     // USB host and CDC share the same physical port.
-    // CDC init is skipped when USB host is configured (checked in Console.cpp).
-    log_info("USB Host UART: initializing");
+    // CDC is NVS-controlled and must be explicitly disabled before USB host
+    // can take over — this prevents the config file from killing the only
+    // serial console on boards without a USB-serial chip.
+    if (tusb_inited()) {
+        log_error("USB Host: set USBCDC/Enable to OFF to use USB host (they share the USB port). "
+                  "WARNING: this will disable the native USB serial console.");
+        return;
+    }
 
     _driver = new USBHostDriver();
     _driver->init(_baud);

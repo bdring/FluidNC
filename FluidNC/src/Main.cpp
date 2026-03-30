@@ -6,11 +6,6 @@
 
 #    include "Main.h"
 #    include "Machine/MachineConfig.h"
-#    include "Uart.h"
-
-#    if MAX_N_USB_HOST
-#        include "USBCDCChannel.h"
-#    endif
 
 #    include "Config.h"
 #    include "Report.h"
@@ -79,27 +74,6 @@ void setup() {
                 config->_uart_channels[i]->init();
             }
         }
-
-#    if MAX_N_USB_HOST
-        // CDC via NVS web setting, unless USB host uart is configured.
-        // USB host and CDC share the same physical port — if USB host
-        // is active, TinyUSB must never be initialized.
-        {
-            bool usb_host_configured = false;
-            for (size_t i = 1; i < MAX_N_UARTS; i++) {
-                if (config->_uarts[i] && config->_uarts[i]->_factory_inst) {
-                    usb_host_configured = true;
-                    break;
-                }
-            }
-            if (!usb_host_configured) {
-                static auto* cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
-                if (cdc_enable->get()) {
-                    CDCChannel.init();
-                }
-            }
-        }
-#    endif
 
 #    if MAX_N_I2SO
         if (config->_i2so) {

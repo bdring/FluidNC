@@ -21,9 +21,15 @@ public:
         auto uart0 = new Uart(uint32_t(0));
         uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
         UartChannel::init(uart0);
-        // CDC init is deferred to Main.cpp (after config load) because
-        // USB host and CDC share the same physical port. If USB host is
-        // configured in YAML, CDC must not be initialized.
+
+        // Init CDC from NVS web setting (before config load so boot
+        // diagnostics are visible on boards without a USB-serial chip).
+        // If USB host is later configured, UsbHostUart::begin() tears
+        // down TinyUSB and takes over the USB port.
+        static auto* cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
+        if (cdc_enable->get()) {
+            CDCChannel.init();
+        }
     }
 };
 UartConsole Uart0;
