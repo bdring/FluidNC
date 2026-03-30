@@ -7,17 +7,6 @@
 #    include "Main.h"
 #    include "Machine/MachineConfig.h"
 
-#    include <soc/soc_caps.h>
-#    ifdef SOC_USB_OTG_SUPPORTED
-#        include <sdkconfig.h>
-#        include <esp_idf_version.h>
-#        if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
-#            include "USBCDCChannel_IDF.h"
-#        else
-#            include "USBCDCChannel.h"
-#        endif
-#    endif
-
 #    include "Config.h"
 #    include "Report.h"
 #    include "Settings.h"
@@ -85,26 +74,6 @@ void setup() {
                 config->_uart_channels[i]->init();
             }
         }
-
-#    ifdef SOC_USB_OTG_SUPPORTED
-        // CDC via NVS web setting, unless USB host uart is configured
-        // (USB host and CDC share the same physical port)
-        {
-            bool usb_host_configured = false;
-            for (size_t i = 1; i < MAX_N_UARTS; i++) {
-                if (config->_uarts[i] && config->_uarts[i]->_factory_inst) {
-                    usb_host_configured = true;
-                    break;
-                }
-            }
-            if (!usb_host_configured) {
-                static auto* cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
-                if (cdc_enable->get()) {
-                    CDCChannel.init();
-                }
-            }
-        }
-#    endif
 
 #    if MAX_N_I2SO
         if (config->_i2so) {

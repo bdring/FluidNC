@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <soc/soc_caps.h>
-#ifdef SOC_USB_OTG_SUPPORTED
+#include "Platform.h"
+#if MAX_N_USB_HOST
 
 #include "Uart.h"
 
@@ -38,4 +38,4 @@ public:
     void group(Configuration::HandlerBase& handler) override;
 };
 
-#endif // SOC_USB_OTG_SUPPORTED
+#endif // MAX_N_USB_HOST

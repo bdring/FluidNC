@@ -21,8 +21,13 @@ public:
         auto uart0 = new Uart(uint32_t(0));
         uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
         UartChannel::init(uart0);
-        // USB CDC/Host initialization is handled post-config in Main.cpp
-        // (YAML config must be loaded first to determine USB mode)
+
+        // Init CDC from NVS web setting (runs before config load so
+        // diagnostic messages are visible even with a corrupt config).
+        static auto* cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
+        if (cdc_enable->get()) {
+            CDCChannel.init();
+        }
     }
 };
 UartConsole Uart0;

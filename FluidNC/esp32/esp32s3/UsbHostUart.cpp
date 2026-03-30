@@ -1,12 +1,21 @@
 // Copyright (c) 2026 - Algy Tynan
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include <soc/soc_caps.h>
-#ifdef SOC_USB_OTG_SUPPORTED
+#include "Platform.h"
+#if MAX_N_USB_HOST
 
 #include "UsbHostUart.h"
 #include "USBHostDriver.h"
 #include "Report.h"
+#include "Serial.h"
+
+#include <sdkconfig.h>
+#include <esp_idf_version.h>
+#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
+#    include "USBCDCChannel_IDF.h"
+#else
+#    include "USBCDCChannel.h"
+#endif
 
 namespace {
     UartFactory::InstanceBuilder<UsbHostUart> registration("usb_host");
@@ -22,6 +31,11 @@ UsbHostUart::~UsbHostUart() {
 }
 
 void UsbHostUart::begin() {
+    // USB host and CDC share the same physical port.
+    // Deregister CDC before starting the host driver.
+    log_info("USB Host taking over USB port, CDC disabled");
+    allChannels.deregistration(&CDCChannel);
+
     _driver = new USBHostDriver();
     _driver->init(_baud);
 
@@ -123,4 +137,4 @@ void UsbHostUart::group(Configuration::HandlerBase& handler) {
     handler.item("baud", _baud, 2400, 3000000);
 }
 
-#endif // SOC_USB_OTG_SUPPORTED
+#endif // MAX_N_USB_HOST

@@ -1,8 +1,8 @@
 // Copyright (c) 2026 - Algy Tynan
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include <soc/soc_caps.h>
-#ifdef SOC_USB_OTG_SUPPORTED
+#include "Platform.h"
+#if MAX_N_USB_HOST
 
 #include "USBHostDriver.h"
 
@@ -306,4 +306,4 @@ size_t USBHostDriver::write(const uint8_t* buf, size_t len) {
     return 0;
 }
 
-#endif // SOC_USB_OTG_SUPPORTED
+#endif // MAX_N_USB_HOST

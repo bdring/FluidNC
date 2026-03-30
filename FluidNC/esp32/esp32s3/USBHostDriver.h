@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <soc/soc_caps.h>
-#ifdef SOC_USB_OTG_SUPPORTED
+#include "Platform.h"
+#if MAX_N_USB_HOST
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -59,4 +59,4 @@ private:
     static void newDeviceCallback(usb_device_handle_t usb_dev);
 };
 
-#endif // SOC_USB_OTG_SUPPORTED
+#endif // MAX_N_USB_HOST
