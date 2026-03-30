@@ -125,6 +125,7 @@ void Uart::begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity
 void Uart::begin() {
     if (_factory_inst) {
         _factory_inst->begin();
+        _configured = true;
         return;
     }
     auto txd = _txd_pin.undefined() ? -1 : _txd_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Output);
