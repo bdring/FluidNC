@@ -105,6 +105,10 @@ static bool decode_format_string(const char* comment, size_t& index, size_t len,
 }
 
 static void gcode_comment_msg(const char* comment) {
+    if (gc_state.skip_blocks) {
+        return;
+    }
+
     const size_t msglen = 128;
     char         msg[msglen];
     size_t       offset = strlen("MSG_");
@@ -173,23 +177,12 @@ void collapseGCode(char* line) {
                 // Strip out ) that does not follow a (
                 break;
             case '(':
-                if (gc_state.skip_blocks) {
-                    *line = '\0';
-                    return;
-                }
-
                 hasComment = true;
-
                 // Start the comment at the character after (
                 parenPtr = inPtr + 1;
                 break;
             case ';':
-                if (gc_state.skip_blocks) {
-                    *line = '\0';
-                    return;
-                }
                 // NOTE: ';' comment to EOL is a LinuxCNC definition. Not NIST.
-                // gcode_comment_msg(inPtr + 1);
                 *outPtr = '\0';
                 return;
             case '\r':
@@ -1672,7 +1665,7 @@ Error gc_execute_line(const char* input_line) {
             if (new_spindle) {
                 gc_state.spindle_speed = 0.0;
             }
-            log_info("Sel:" << gc_state.selected_tool << " Cur:" << gc_state.current_tool);
+            log_info("Current T:" << gc_state.current_tool  << "Selected T:" << gc_state.selected_tool);
             spindle->tool_change(gc_state.selected_tool, false, false);
             if (spindle->_atc_name == "" && spindle->_m6_macro.get().empty()) {  // if neither of these exist we need to set the value here
                 gc_state.current_tool = gc_state.selected_tool;

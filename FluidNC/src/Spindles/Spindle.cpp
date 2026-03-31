@@ -98,12 +98,6 @@ namespace Spindles {
         _speeds[i].scale  = scaler;
     }
 
-    void Spindle::validate() {
-        for (auto s : Spindles::SpindleFactory::objects()) {
-            Assert(s == this || s->_tool != _tool, "Duplicate tool_number %d with /%s", _tool, s->name());
-        }
-    }
-
     void Spindle::afterParse() {
         if (_speeds.size() && !maxSpeed()) {
             log_error("Speed map max speed is 0. Using default");
@@ -144,7 +138,8 @@ namespace Spindles {
                 return true;
             }
             _m6_macro.run(nullptr);
-            _last_tool = tool_number;
+            // What happens if the macro failed...set alarm in macro & test here?
+            //gc_state.current_tool = gc_state.selected_tool;
             return true;
             //}
         }

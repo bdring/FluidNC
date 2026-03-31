@@ -114,9 +114,11 @@ void Uart::begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity
         return;
     }
     //    uart_driver_delete(_uart_num);
+    _configured = false;
     changeMode(baud, dataBits, parity, stopBits);
 
     uart_init(_uart_num);
+    _configured = true;
 }
 
 // This version is used when we have a config section with all the parameters
@@ -125,17 +127,24 @@ void Uart::begin() {
         _factory_inst->begin();
         return;
     }
-    auto txd = _txd_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Output);
-    auto rxd = _rxd_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Input);
+    auto txd = _txd_pin.undefined() ? -1 : _txd_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Output);
+    auto rxd = _rxd_pin.undefined() ? -1 : _rxd_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Input);
     auto rts = _rts_pin.undefined() ? -1 : _rts_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Output);
     auto cts = _cts_pin.undefined() ? -1 : _cts_pin.getNative(Pin::Capabilities::UART | Pin::Capabilities::Input);
 
+    if (_txd_pin.undefined() && _rxd_pin.undefined()) {
+        _configured = false;
+        log_config_error("UART:" << _uart_num << " both TXD and RXD pins are undefined");
+        return;
+    }
     if (setPins(txd, rxd, rts, cts)) {
-        Assert(false, "Uart pin config failed");
+        _configured = false;
+        log_config_error("UART:" << _uart_num << " failed to configure pins");
         return;
     }
 
     begin(_baud, _dataBits, _stopBits, _parity);
+    _configured = true;
     config_message("UART", std::to_string(_uart_num).c_str());
 }
 
@@ -215,7 +224,10 @@ bool Uart::flushTxTimed(TickType_t ticks) {
 }
 
 void Uart::config_message(const char* prefix, const char* usage) {
-    log_info(prefix << usage << " Tx:" << _txd_pin.name() << " Rx:" << _rxd_pin.name() << " RTS:" << _rts_pin.name() << " Baud:" << _baud);
+    if (_configured) {
+        log_info(prefix << usage << " Tx:" << _txd_pin.name() << " Rx:" << _rxd_pin.name() << " RTS:" << _rts_pin.name()
+                        << " Baud:" << _baud);
+    }
 }
 
 int Uart::rx_buffer_available(void) {
@@ -269,8 +281,6 @@ void Uart::validate() {
         _factory_inst->validate();
         return;
     }
-    Assert(!_txd_pin.undefined(), "UART: TXD is undefined");
-    Assert(!_rxd_pin.undefined(), "UART: RXD is undefined");
 }
 
 void Uart::group(Configuration::HandlerBase& handler) {
