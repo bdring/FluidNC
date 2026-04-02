@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Module.h"  // Module
+#include "Settings.h"
 #include "WebUI/Authentication.h"
 
 #include <cstdint>
@@ -22,6 +23,11 @@ namespace WebUI {
         static bool        sendMSG(const char* title, const char* message);
         static const char* getTypeString();
         static bool        started();
+        static void        configureSettings(EnumSetting* notificationType,
+                                             StringSetting* notificationToken1,
+                                             StringSetting* notificationToken2,
+                                             StringSetting* notificationSettings);
+        static Error       sendMessage(const char* parameter, AuthenticationLevel auth_level, Channel& out);
 
         void init() override;
         void deinit() override;
@@ -37,7 +43,6 @@ namespace WebUI {
         static std::string _serveraddress;
         static uint16_t    _port;
 
-        static Error sendMessage(const char* parameter, AuthenticationLevel auth_level, Channel& out);
         static bool  sendPushoverMSG(const char* title, const char* message);
         static bool  sendEmailMSG(const char* title, const char* message);
         static bool  sendLineMSG(const char* title, const char* message);

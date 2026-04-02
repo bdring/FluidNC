@@ -7,12 +7,38 @@
 #include "Protocol.h"
 #include "Driver/fluidnc_gpio.h"
 
-void gpio_write(pinnum_t pin, bool value) {}
-bool gpio_read(pinnum_t pin) {
-    return 0;
+bool        g_gpioLevels[MAX_N_GPIO] {};
+int         g_gpioWriteCalls[MAX_N_GPIO] {};
+int         g_gpioModeCalls[MAX_N_GPIO] {};
+int         g_gpioDriveStrengthCalls[MAX_N_GPIO] {};
+bool        g_gpioLastModeInput[MAX_N_GPIO] {};
+bool        g_gpioLastModeOutput[MAX_N_GPIO] {};
+bool        g_gpioLastModePullup[MAX_N_GPIO] {};
+bool        g_gpioLastModePulldown[MAX_N_GPIO] {};
+bool        g_gpioLastModeOpendrain[MAX_N_GPIO] {};
+uint8_t     g_gpioLastDriveStrength[MAX_N_GPIO] {};
+void*       g_gpioLastEventArg[MAX_N_GPIO] {};
+bool        g_gpioLastEventInvert[MAX_N_GPIO] {};
+
+void gpio_write(pinnum_t pin, bool value) {
+    g_gpioLevels[pin] = value;
+    ++g_gpioWriteCalls[pin];
 }
-void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown, bool opendrain) {}
-void gpio_drive_strength(pinnum_t pin, uint8_t strength) {}
+bool gpio_read(pinnum_t pin) {
+    return g_gpioLevels[pin];
+}
+void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown, bool opendrain) {
+    ++g_gpioModeCalls[pin];
+    g_gpioLastModeInput[pin] = input;
+    g_gpioLastModeOutput[pin] = output;
+    g_gpioLastModePullup[pin] = pullup;
+    g_gpioLastModePulldown[pin] = pulldown;
+    g_gpioLastModeOpendrain[pin] = opendrain;
+}
+void gpio_drive_strength(pinnum_t pin, uint8_t strength) {
+    ++g_gpioDriveStrengthCalls[pin];
+    g_gpioLastDriveStrength[pin] = strength;
+}
 void gpio_route(pinnum_t pin, uint32_t signal) {}
 
 typedef uint64_t gpio_mask_t;
@@ -54,6 +80,8 @@ static void gpios_update(gpio_mask_t& gpios, int32_t gpio_num, bool active) {
 static void* gpioArgs[MAX_N_GPIO + 1];
 
 void gpio_set_event(int32_t gpio_num, void* arg, bool invert) {
+    g_gpioLastEventArg[gpio_num] = arg;
+    g_gpioLastEventInvert[gpio_num] = invert;
     gpioArgs[gpio_num] = arg;
     gpio_mask_t mask   = gpio_mask(gpio_num);
     gpios_update(gpios_interest, gpio_num, true);
@@ -65,6 +93,7 @@ void gpio_set_event(int32_t gpio_num, void* arg, bool invert) {
     gpios_update(gpios_current, gpio_num, !active);
 }
 void gpio_clear_event(int32_t gpio_num) {
+    g_gpioLastEventArg[gpio_num] = nullptr;
     gpioArgs[gpio_num] = nullptr;
     gpios_update(gpios_interest, gpio_num, false);
 }
