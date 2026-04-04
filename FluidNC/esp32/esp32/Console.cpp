@@ -5,7 +5,7 @@ class UartConsole : public UartChannel {
 public:
     UartConsole() : UartChannel(0, true) {}
     void init() override {
-        auto uart0 = new Uart(0);
+        auto uart0 = new Uart(uint32_t(0));
         uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
         UartChannel::init(uart0);
     }

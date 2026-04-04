@@ -18,16 +18,18 @@ class UartConsole : public UartChannel {
 public:
     UartConsole() : UartChannel(0, true) {}
     void init() override {
-        auto uart0 = new Uart(0);
+        auto uart0 = new Uart(uint32_t(0));
         uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
         UartChannel::init(uart0);
 
-#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
-        auto cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
+        // Init CDC from NVS web setting (before config load so boot
+        // diagnostics are visible on boards without a USB-serial chip).
+        // If USB host is later configured, UsbHostUart::begin() tears
+        // down TinyUSB and takes over the USB port.
+        static auto* cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
         if (cdc_enable->get()) {
             CDCChannel.init();
         }
-#endif
     }
 };
 UartConsole Uart0;
