@@ -19,6 +19,7 @@
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <Arduino.h>
 #include <base64.h>
 
 namespace WebUI {
@@ -47,7 +48,10 @@ namespace WebUI {
     static const int   TELEGRAMPORT    = 443;
 
     static const int EMAILTIMEOUT = 5000;
-
+    EnumSetting*   notification_type = nullptr;
+    StringSetting* notification_t1   = nullptr;
+    StringSetting* notification_t2   = nullptr;
+    StringSetting* notification_ts   = nullptr;
     bool        NotificationsService::_started = false;
     uint8_t     NotificationsService::_notificationType;
     std::string NotificationsService::_token1;
@@ -56,57 +60,8 @@ namespace WebUI {
     std::string NotificationsService::_serveraddress;
     uint16_t    NotificationsService::_port;
 
-    const enum_opt_t notificationOptions = {
-        { "NONE", 0 }, { "LINE", 3 }, { "PUSHOVER", 1 }, { "EMAIL", 2 }, { "TG", 4 },
-    };
-    EnumSetting*   notification_type;
-    StringSetting* notification_t1;
-    StringSetting* notification_t2;
-    StringSetting* notification_ts;
-
-    static Error showSetNotification(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP610
-        if (*parameter == '\0') {
-            log_stream(out, notification_type->getStringValue() << " " << notification_ts->getStringValue());
-            return Error::Ok;
-        }
-        std::string s;
-
-        if (!get_param(parameter, "type=", s)) {
-            return Error::InvalidValue;
-        }
-        Error err;
-        err = notification_type->setStringValue(s);
-        if (err != Error::Ok) {
-            return err;
-        }
-
-        if (!get_param(parameter, "T1=", s)) {
-            return Error::InvalidValue;
-        }
-        err = notification_t1->setStringValue(s);
-        if (err != Error::Ok) {
-            return err;
-        }
-
-        if (!get_param(parameter, "T2=", s)) {
-            return Error::InvalidValue;
-        }
-        err = notification_t2->setStringValue(s);
-        if (err != Error::Ok) {
-            return err;
-        }
-
-        if (!get_param(parameter, "TS=", s)) {
-            return Error::InvalidValue;
-        }
-        err = notification_ts->setStringValue(s);
-        if (err != Error::Ok) {
-            return err;
-        }
-        return Error::Ok;
-    }
-
     Error NotificationsService::sendMessage(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
+        (void)auth_level;
         if (*parameter == '\0') {
             log_string(out, "Invalid message!");
             return Error::InvalidValue;
@@ -116,6 +71,16 @@ namespace WebUI {
             return Error::MessageFailed;
         }
         return Error::Ok;
+    }
+
+    void NotificationsService::configureSettings(EnumSetting* notificationType,
+                                                 StringSetting* notificationToken1,
+                                                 StringSetting* notificationToken2,
+                                                 StringSetting* notificationSettings) {
+        notification_type = notificationType;
+        notification_t1   = notificationToken1;
+        notification_t2   = notificationToken2;
+        notification_ts   = notificationSettings;
     }
 
     bool Wait4Answer(WiFiClientSecure& client, const char* linetrigger, const char* expected_answer, uint32_t timeout) {
@@ -174,16 +139,12 @@ namespace WebUI {
             switch (_notificationType) {
                 case PUSHOVER_NOTIFICATION:
                     return sendPushoverMSG(title, message);
-                    break;
                 case EMAIL_NOTIFICATION:
                     return sendEmailMSG(title, message);
-                    break;
                 case LINE_NOTIFICATION:
                     return sendLineMSG(title, message);
-                    break;
                 case TELEGRAM_NOTIFICATION:
                     return sendTelegramMSG(title, message);
-                    break;
                 default:
                     break;
             }
@@ -388,6 +349,9 @@ namespace WebUI {
     }
     //Email#serveraddress:port
     bool NotificationsService::getPortFromSettings() {
+        if (notification_ts == nullptr) {
+            return false;
+        }
         std::string tmp(notification_ts->get());
         size_t      pos = tmp.rfind(':');
         if (pos == std::string::npos) {
@@ -401,6 +365,9 @@ namespace WebUI {
     }
     //Email#serveraddress:port
     bool NotificationsService::getServerAddressFromSettings() {
+        if (notification_ts == nullptr) {
+            return false;
+        }
         std::string tmp(notification_ts->get());
         size_t      pos1 = tmp.find('#');
         size_t      pos2 = tmp.rfind(':');
@@ -414,6 +381,9 @@ namespace WebUI {
     }
     //Email#serveraddress:port
     bool NotificationsService::getEmailFromSettings() {
+        if (notification_ts == nullptr) {
+            return false;
+        }
         std::string tmp(notification_ts->get());
         size_t      pos = tmp.find('#');
         if (pos == std::string::npos) {
@@ -426,30 +396,9 @@ namespace WebUI {
 
     void NotificationsService::init() {
         deinit();
-
-        new WebCommand(
-            "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
-        notification_ts = new StringSetting(
-            "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH);
-        notification_t2 = new StringSetting("Notification Token 2",
-                                            WEBSET,
-                                            WA,
-                                            NULL,
-                                            "Notification/T2",
-                                            DEFAULT_TOKEN,
-                                            MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH);
-        notification_t1 = new StringSetting("Notification Token 1",
-                                            WEBSET,
-                                            WA,
-                                            NULL,
-                                            "Notification/T1",
-                                            DEFAULT_TOKEN,
-                                            MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH);
-        notification_type =
-            new EnumSetting("Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions);
-        new WebCommand("message", WEBCMD, WU, "ESP600", "Notification/Send", sendMessage);
+        if (notification_type == nullptr || notification_t1 == nullptr || notification_t2 == nullptr || notification_ts == nullptr) {
+            return;
+        }
 
         _notificationType = notification_type->get();
         switch (_notificationType) {
@@ -510,8 +459,6 @@ namespace WebUI {
     NotificationsService::~NotificationsService() {
         deinit();
     }
-
-    ModuleFactory::InstanceBuilder<NotificationsService> __attribute__((init_priority(110))) notification_module("notifications", true);
 }
 
 // Override weak link
