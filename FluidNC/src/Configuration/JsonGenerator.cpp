@@ -167,6 +167,7 @@ namespace Configuration {
             _encoder.end_object();
         }
 
+        _encoder.end_array();
         _encoder.end_object();
         leave();
     }

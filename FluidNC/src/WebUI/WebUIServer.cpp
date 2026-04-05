@@ -10,7 +10,6 @@
 // WMB #include "Mdns.h"
 
 #include <WiFi.h>
-#include <StreamString.h>
 #ifdef HAVE_UPDATE
 #    include <Update.h>
 #    include <esp_wifi_types.h>

@@ -371,9 +371,11 @@ void WebDAV::handleLock(const stdfs::path& path, AsyncWebServerRequest* request)
     response->print("<D:locktype><write/></D:locktype>");
     response->print("<D:lockscope><exclusive/></D:lockscope>");
     response->print("<D:locktoken><D:href>urn:uuid:26e57cb3-834d-191a-00de-000042bdecf9</D:href></D:locktoken>");
-    response->printf("<D:lockroot><D:href>%s</D:href></D:lockroot>", lockroot.c_str());
+    response->print("<D:lockroot><D:href>");
+    response->print(lockroot.c_str());
+    response->print("</D:href></D:lockroot>");
     response->print("<D:depth>infinity</D:depth>");
-    response->printf("<D:owner><a:href xmlns:a=\"DAV:\">%s</a:href></D:owner>", "todo");
+    response->print("<D:owner><a:href xmlns:a=\"DAV:\">todo</a:href></D:owner>");
     response->print("<D:timeout>Second-3600</D:timeout>");
     response->print("</D:activelock>");
     response->print("</D:lockdiscovery>");
@@ -514,23 +516,33 @@ stdfs::path WebDAV::replace_fs_name(const stdfs::path& p) {
 
 void WebDAV::sendXMLResponse(
     AsyncResponseStream* response, bool is_dir, const std::string& name, const std::string& tag, const std::string& time, uint32_t size) {
-    response->printf("<d:response>");
-    response->printf("<d:href>%s</d:href>", name.c_str());
-    response->printf("<d:propstat>");
-    response->printf("<d:prop>");
+    response->print("<d:response>");
+    response->print("<d:href>");
+    response->print(name.c_str());
+    response->print("</d:href>");
+    response->print("<d:propstat>");
+    response->print("<d:prop>");
     if (is_dir) {
-        response->printf("<d:resourcetype><d:collection/></d:resourcetype>");
+        response->print("<d:resourcetype><d:collection/></d:resourcetype>");
     } else {
-        // response->printf("<d:getetag>%s</d:getetag>", tag.c_str());
-        response->printf("<d:getlastmodified>%s</d:getlastmodified>", time.c_str());
-        response->printf("<d:resourcetype/>");
-        response->printf("<d:getcontentlength>%d</d:getcontentlength>", size);
-        response->printf("<d:getcontenttype>%s</d:getcontenttype>", getContentType(name));
+        // response->print("<d:getetag>");
+        // response->print(tag.c_str());
+        // response->print("</d:getetag>");
+        response->print("<d:getlastmodified>");
+        response->print(time.c_str());
+        response->print("</d:getlastmodified>");
+        response->print("<d:resourcetype/>");
+        response->print("<d:getcontentlength>");
+        response->print(size);
+        response->print("</d:getcontentlength>");
+        response->print("<d:getcontenttype>");
+        response->print(getContentType(name));
+        response->print("</d:getcontenttype>");
     }
-    response->printf("</d:prop>");
-    response->printf("<d:status>HTTP/1.1 200 OK</d:status>");
-    response->printf("</d:propstat>");
-    response->printf("</d:response>");
+    response->print("</d:prop>");
+    response->print("<d:status>HTTP/1.1 200 OK</d:status>");
+    response->print("</d:propstat>");
+    response->print("</d:response>");
 }
 void WebDAV::sendPropResponse(AsyncResponseStream* response, int level, const stdfs::path& fpath, JSONencoder* j) {
     auto   ftime  = stdfs::last_write_time(fpath);

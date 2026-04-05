@@ -129,8 +129,8 @@ namespace WebUI {
     AsyncWebSocket*         WSChannels::_server = nullptr;
 
     std::vector<std::pair<pinnum_t, InputPin*>> WSChannels::_pins;
-    WSChannel* WSChannels::_lastWSChannel = nullptr;
 
+    WSChannel* WSChannels::_lastWSChannel = nullptr;
     WSChannel* WSChannels::getWSChannel(objnum_t pageid, std::string session) {
         for (auto it = _wsChannels.begin(); it < _wsChannels.end(); ++it) {
             if (pageid) {

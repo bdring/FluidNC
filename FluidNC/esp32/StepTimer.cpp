@@ -7,6 +7,7 @@
 extern "C" {
 #endif
 
+#include "Platform.h"
 #include "hal/timer_ll.h"
 #include "esp_intr_alloc.h"
 

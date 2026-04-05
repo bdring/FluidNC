@@ -7,7 +7,7 @@ volatile bool g_should_exit = false;
 
 #include "freertos/task.h"
 void restart() {
-    printf("Rastarting (exiting for now)\n");
+    printf("Exiting\n");
     g_should_exit = true;
     extern void stepTimerShutdown();
     stepTimerShutdown();
