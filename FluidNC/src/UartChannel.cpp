@@ -184,7 +184,7 @@ bool UartChannel::setAttr(pinnum_t index, bool* value, const std::string& attrSt
         if (_ackwait < 1) {
             return _ackwait == 0;
         }
-        delay_us(100);
+        delay_ms(1);
     }
     _ackwait = 0;
     log_error("IO Expander is unresponsive");
