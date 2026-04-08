@@ -89,6 +89,7 @@ void USBHostDriver::classTask(void* arg) {
         };
 
         CdcAcmDevice* dev = nullptr;
+        const char* dev_type = "VCP";
         try {
             dev = VCP::open(&dev_config);
         } catch (const std::exception& e) {
@@ -96,6 +97,17 @@ void USBHostDriver::classTask(void* arg) {
             if (self->_shutdown_requested.load()) break;
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
+        }
+
+        // Fallback: if no VCP driver matched, try standard CDC-ACM
+        if (!dev) {
+            dev = new CdcAcmDevice();
+            if (dev->open(CDC_HOST_ANY_VID, CDC_HOST_ANY_PID, 0, &dev_config) != ESP_OK) {
+                delete dev;
+                dev = nullptr;
+            } else {
+                dev_type = "CDC-ACM";
+            }
         }
         if (!dev) {
             continue;
@@ -116,7 +128,7 @@ void USBHostDriver::classTask(void* arg) {
 
         self->_vcp_dev = dev;
         self->_connected.store(true);
-        log_info("USB Host: device connected, baud " << self->_baud);
+        log_info("USB Host: device connected (" << dev_type << "), baud " << self->_baud);
 
         while (self->_connected.load() && !self->_shutdown_requested.load()) {
             size_t item_size = 0;
