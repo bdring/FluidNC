@@ -289,7 +289,7 @@ void protocol_main_loop() {
 
         if (idleEndTime && (getCpuTicks() - idleEndTime) > 0) {
             idleEndTime = 0;  //
-            Axes::set_disable(true);
+            Axes::set_disable(true, false);
         }
         uint32_t newHeapSize = xPortGetFreeHeapSize();
         if (newHeapSize < heapLowWater) {
@@ -773,17 +773,17 @@ static void protocol_do_cycle_start() {
 void protocol_disable_steppers() {
     if (state_is(State::Homing)) {
         // Leave steppers enabled while homing
-        Axes::set_disable(false);
+        Axes::set_disable(false, false);
         return;
     }
     if (state_is(State::Sleep)) {
         // Disable steppers immediately in sleep or alarm state
-        Axes::set_disable(true);
+        Axes::set_disable(true, false);
         return;
     }
     if (Stepping::_idleMsecs == 255) {
         // Leave steppers enabled if configured for "stay enabled"
-        Axes::set_disable(false);
+        Axes::set_disable(false, false);
         return;
     }
     // Otherwise, schedule stepper disable in a few milliseconds
