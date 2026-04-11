@@ -255,6 +255,7 @@ static Error toggle_check_mode(const char* value, AuthenticationLevel auth_level
     if (state_is(State::CheckMode)) {
         report_feedback_message(Message::Disabled);
         sys.set_abort(true);
+        protocol_send_event(&rtResetEvent);
     } else {
         if (!state_is(State::Idle)) {
             return Error::IdleError;  // Requires no alarm mode.
