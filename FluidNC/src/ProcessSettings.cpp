@@ -664,6 +664,10 @@ static Error motor_control(const char* value, bool disable) {
         return Error::InvalidValue;
     }
     log_info((disable ? "Dis" : "En") << "abling " << value << " motors");
+
+    if (axis == INVALID_AXIS || axis >= axes->_numberAxis || axes->_axis[axis] == nullptr) {
+        return Error::InvalidValue;
+    }
     axes->set_disable(axis, disable, true);
     return Error::Ok;
 }

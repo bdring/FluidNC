@@ -778,7 +778,7 @@ void protocol_disable_steppers() {
     }
     if (state_is(State::Sleep)) {
         // Disable steppers immediately in sleep or alarm state
-        Axes::set_disable(true, false);
+        Axes::set_disable(true, true);
         return;
     }
     if (Stepping::_idleMsecs == 255) {
@@ -1155,6 +1155,8 @@ void protocol_do_rt_reset() {
         } else {
             set_state(State::Idle);
         }
+    } else if (state_is(State::Sleep)) {
+        protocol_do_alarm((void*)ExecAlarm::AbortCycle);
     } else if (!state_is(State::Alarm)) {
         set_state(State::Idle);
     }
