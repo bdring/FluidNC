@@ -22,23 +22,6 @@ namespace {
         inline static void write(int pin, bool val) { __digitalWrite(pin, val ? HIGH : LOW); }
         inline static bool read(int pin) { return __digitalRead(pin) != LOW; }
     };
-
-    class InitialEventPin : public EventPin {
-    public:
-        uint32_t activeCount   = 0;
-        uint32_t inactiveCount = 0;
-
-        InitialEventPin(const char* legend) : EventPin(nullptr, ExecAlarm::None, legend) {}
-
-        void trigger(bool active) override {
-            InputPin::trigger(active);
-            if (active) {
-                ++activeCount;
-            } else {
-                ++inactiveCount;
-            }
-        }
-    };
 }
 #else
 #    include <SoftwareGPIO.h>
@@ -61,7 +44,14 @@ namespace {
         inline static void write(int pin, bool val) { SoftwareGPIO::instance().writeOutput(pin, val); }
         inline static bool read(int pin) { return SoftwareGPIO::instance().read(pin); }
     };
+}
+void digitalWrite(uint8_t pin, uint8_t val);
+void pinMode(uint8_t pin, uint8_t mode);
+int  digitalRead(uint8_t pin);
 
+#endif
+
+namespace {
     class InitialEventPin : public EventPin {
     public:
         uint32_t activeCount   = 0;
@@ -79,11 +69,6 @@ namespace {
         }
     };
 }
-void digitalWrite(uint8_t pin, uint8_t val);
-void pinMode(uint8_t pin, uint8_t mode);
-int  digitalRead(uint8_t pin);
-
-#endif
 
 namespace Pins {
     Test(GPIO, BasicInputOutput1) {
@@ -402,7 +387,6 @@ namespace Pins {
         GPIONative::initialize();
         protocol_init();
 
-        Pin gpio16 = Pin::create("gpio.16");
         Pin gpio17 = Pin::create("gpio.17");
 
         gpio17.setAttr(Pin::Attr::Output);
