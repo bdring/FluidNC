@@ -20,6 +20,8 @@ bool IRAM_ATTR gpio_read(pinnum_t pin) {
     return gpio_ll_get_level(_gpio_dev, (gpio_num_t)pin);
 }
 
+static void gpio_send_initial_event(int32_t gpio_num);
+
 void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown, bool opendrain) {
     gpio_config_t conf {};
     conf.pin_bit_mask = (1ULL << pin);
@@ -41,10 +43,15 @@ void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown
         conf.mode = (gpio_mode_t)((int)conf.mode | GPIO_MODE_DEF_OD);
     }
     gpio_config(&conf);
+    if (input) {
+        gpio_send_initial_event((int32_t)pin);
+    }
 }
+
 void gpio_drive_strength(pinnum_t pin, uint8_t strength) {
     gpio_set_drive_capability((gpio_num_t)pin, (gpio_drive_cap_t)strength);
 }
+
 #if 0
 void gpio_add_interrupt(pinnum_t pin, uint8_t mode, void (*callback)(void*), void* arg) {
     gpio_install_isr_service(ESP_INTR_FLAG_IRAM);  // Will return an err if already called
@@ -121,6 +128,19 @@ void gpio_set_event(int32_t gpio_num, void* arg, bool invert) {
 void gpio_clear_event(int32_t gpio_num) {
     gpioArgs[gpio_num] = nullptr;
     gpios_update(gpios_interest, gpio_num, false);
+}
+
+static void gpio_send_initial_event(int32_t gpio_num) {
+    if (gpios_interest & gpio_mask(gpio_num)) {
+        bool active = gpio_is_active(gpio_num);
+
+        auto arg = gpioArgs[gpio_num];
+        if (arg) {
+            protocol_send_event(active ? &pinActiveEvent : &pinInactiveEvent, arg);
+        }
+
+        gpios_update(gpios_current, gpio_num, active);
+    }
 }
 
 static void gpio_send_event(int32_t gpio_num, bool active) {
