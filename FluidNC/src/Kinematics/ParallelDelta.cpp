@@ -406,7 +406,7 @@ namespace Kinematics {
 
         // For servo motors, we let the motor do the homing and then
         // set the position accordingly
-        Axes::set_disable(false);
+        Axes::set_disable(false, false);
 
         float motor_pos[3];
         setArray(motor_pos, _up_degrees, 3);

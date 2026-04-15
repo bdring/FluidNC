@@ -71,7 +71,10 @@ namespace Machine {
         config_motors();
     }
 
-    void IRAM_ATTR Axes::set_disable(axis_t axis, bool disable) {
+    void IRAM_ATTR Axes::set_disable(axis_t axis, bool disable, bool manual_override) {
+        if (disable && !manual_override && !_axis[axis]->_idleDisable) {  //skip if idle disable is not allowed for this axis
+            return;
+        }
         for (motor_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
             auto m = _axis[axis]->_motors[motor];
             if (m) {
@@ -83,9 +86,9 @@ namespace Machine {
         }
     }
 
-    void IRAM_ATTR Axes::set_disable(bool disable) {
+    void IRAM_ATTR Axes::set_disable(bool disable, bool manual_override) {
         for (axis_t axis = X_AXIS; axis < _numberAxis; axis++) {
-            set_disable(axis, disable);
+            set_disable(axis, disable, manual_override);
         }
 
         _sharedStepperDisable.synchronousWrite(disable);
