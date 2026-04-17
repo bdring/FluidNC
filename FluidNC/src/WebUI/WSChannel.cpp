@@ -3,11 +3,12 @@
 
 #include "WSChannel.h"
 
-#include "SimulatorChannel.h"
 #include "Driver/Console.h"
 #include "WebUIServer.h"
+#include <cstdio>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
+#include <mutex>
 #include "System.h"
 
 #include "Serial.h"  // is_realtime_command
@@ -15,10 +16,32 @@
 namespace WebUI {
     class WSChannels;
 
+    namespace {
+        std::mutex ws_channels_mutex;
+
+        struct WSChannelInfo {
+            objnum_t    id;
+            std::string session;
+        };
+
+        AsyncWebSocketClient* get_client(AsyncWebSocket* server, objnum_t client_num) {
+            auto client = server ? server->client(client_num) : nullptr;
+            return (client && client->status() == WS_CONNECTED) ? client : nullptr;
+        }
+
+        bool send_control_message(AsyncWebSocketClient* client, std::string_view message) {
+            return client && client->status() == WS_CONNECTED && client->text(message.data(), message.length());
+        }
+    }
+
     WSChannel::WSChannel(AsyncWebSocket* server, objnum_t clientNum, std::string session) :
         Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {
         setReportInterval(200);  // we will set automatic reporting on by default for now
-        _server->client(_clientNum)->setCloseClientOnQueueFull(false);
+        if (auto client = get_client(_server, _clientNum)) {
+            client->setCloseClientOnQueueFull(false);
+        } else {
+            _active = false;
+        }
     }
 
     void WSChannel::active(bool is_active) {
@@ -47,6 +70,12 @@ namespace WebUI {
 
     size_t WSChannel::write(const uint8_t* buffer, size_t size) {
         if (buffer == NULL || !_active || !size) {
+            return 0;
+        }
+
+        auto client = get_client(_server, _clientNum);
+        if (!client) {
+            _active = false;
             return 0;
         }
 
@@ -81,20 +110,52 @@ namespace WebUI {
         // It would be a lot better to always force these commands to return as a http response instead of websocket,
         // however, Webui(3) expects the command $$ to come back from a websocket, which is at least one reason why we can't send all back as a http response
         if (!inMotionState()) {
-            while (_server->client(_clientNum) && _server->client(_clientNum)->queueLen() >= max(WS_MAX_QUEUED_MESSAGES - 2, 1)) {
+            const auto queue_limit = max(WS_MAX_QUEUED_MESSAGES - 2, 1);
+            auto       wait_start  = millis();
+            while ((client = get_client(_server, _clientNum)) && client->queueLen() >= queue_limit) {
+                if ((millis() - wait_start) > 250) {
+                    log_debug_to(Console, "Websocket queue stalled for cid#" << _clientNum << ", closing");
+                    client->close();
+                    _active = false;
+                    return 0;
+                }
                 delay(1);
             }
         } else {
             // To test this mechanism, try setting WS_MAX_QUEUED_MESSAGES to 2 and have 2 browsers on different PCs or your smartphone
-            if (_server->client(_clientNum) && _server->client(_clientNum)->queueIsFull() && (millis() - _last_queue_full) > 1000) {
+            if (client->queueIsFull() && (millis() - _last_queue_full) > 1000) {
                 _last_queue_full = millis();
                 log_debug_to(Console, "Websocket queue full while sending to cid#" << _clientNum << ", dropping");
             }
         }
+        client = get_client(_server, _clientNum);
+        if (!client) {
+            _active = false;
+            return 0;
+        }
         // No need to set active false, we continue to send and let the websocket drop if buffer is too high
         // and disconnect if client timeout
-        if (!_server->binary(_clientNum, out, outlen)) {
-            // _active =  false;
+        bool sent = false;
+        try {
+            sent = _server->binary(_clientNum, out, outlen);
+        } catch (const std::exception&) {
+            if (client) {
+                client->close();
+            }
+            _active = false;
+            return 0;
+        } catch (...) {
+            if (client) {
+                client->close();
+            }
+            _active = false;
+            return 0;
+        }
+        if (!sent) {
+            if (client->queueIsFull()) {
+                client->close();
+            }
+            _active = false;
         }
 
         if (_output_line.length()) {
@@ -104,12 +165,33 @@ namespace WebUI {
         return size;
     }
 
-    bool WSChannel::sendTXT(std::string& s) {
+    bool WSChannel::sendTXT(std::string_view s) {
         if (!_active) {
             return false;
         }
 
-        if (!_server->text(_clientNum, s.c_str())) {
+        auto client = get_client(_server, _clientNum);
+        if (!client) {
+            _active = false;
+            return false;
+        }
+
+        bool sent = false;
+        try {
+            sent = _server->text(_clientNum, s.data(), s.length());
+        } catch (const std::exception&) {
+            client->close();
+            _active = false;
+            return false;
+        } catch (...) {
+            client->close();
+            _active = false;
+            return false;
+        }
+        if (!sent) {
+            if (client->queueIsFull()) {
+                client->close();
+            }
             _active = false;
             return false;
         }
@@ -132,6 +214,7 @@ namespace WebUI {
 
     WSChannel* WSChannels::_lastWSChannel = nullptr;
     WSChannel* WSChannels::getWSChannel(objnum_t pageid, std::string session) {
+        std::lock_guard<std::mutex> lock(ws_channels_mutex);
         for (auto it = _wsChannels.begin(); it < _wsChannels.end(); ++it) {
             if (pageid) {
                 // Do not combine these predicates into a single to avoid
@@ -146,12 +229,25 @@ namespace WebUI {
         return nullptr;
     }
 
+    void WSChannels::removeChannel(WSChannel* channel) {
+        if (channel) {
+            removeChannel(channel->id());
+        }
+    }
+
     void WSChannels::removeChannel(objnum_t num) {
+        std::lock_guard<std::mutex> lock(ws_channels_mutex);
         for (auto it = _wsChannels.begin(); it < _wsChannels.end(); ++it) {
             if ((*it)->id() == num) {
                 auto wsChannel = *it;
-                _wsChannels.erase(it);
+                // Stop accepting or exposing any queued websocket input immediately.
+                // Otherwise the polling task can still promote stale commands that were
+                // buffered just before the disconnect event was delivered.
+                wsChannel->begin_closing();
                 wsChannel->active(false);
+                wsChannel->flushRx();
+
+                _wsChannels.erase(it);
                 allChannels.kill(wsChannel);
                 break;
             }
@@ -159,9 +255,18 @@ namespace WebUI {
     }
 
     void WSChannels::showChannels() {
-        log_debug("wsChannels: " << _wsChannels.size());
-        for (auto wsChannel : _wsChannels) {
-            log_debug("id " << wsChannel->id() << " session " << wsChannel->session());
+        std::vector<WSChannelInfo> wsChannels;
+        {
+            std::lock_guard<std::mutex> lock(ws_channels_mutex);
+            wsChannels.reserve(_wsChannels.size());
+            for (auto const wsChannel : _wsChannels) {
+                wsChannels.push_back({ wsChannel->id(), wsChannel->session() });
+            }
+        }
+
+        log_debug("wsChannels: " << wsChannels.size());
+        for (auto wsChannel : wsChannels) {
+            log_debug("id " << wsChannel.id << " session " << wsChannel.session);
         }
     }
 
@@ -195,14 +300,43 @@ namespace WebUI {
         }
         return true;
     }
-    void WSChannels::sendPing() {
-        if (_server) {
-            _server->textAll("PING\n");
+
+    void WSChannels::closeSessionChannels(const std::string& session, objnum_t exceptId) {
+        std::vector<objnum_t> channelIds;
+        {
+            std::lock_guard<std::mutex> lock(ws_channels_mutex);
+            for (auto const wsChannel : _wsChannels) {
+                if (wsChannel->session() == session && wsChannel->id() != exceptId) {
+                    channelIds.push_back(wsChannel->id());
+                }
+            }
+        }
+
+        for (auto const channelId : channelIds) {
+            if (auto oldClient = get_client(_server, channelId)) {
+                oldClient->close();
+            }
         }
     }
 
-    void WSChannels::handleEvent(
-        AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len, std::string session) {
+    void WSChannels::sendPing() {
+        std::vector<objnum_t> wsChannelIds;
+        {
+            std::lock_guard<std::mutex> lock(ws_channels_mutex);
+            wsChannelIds.reserve(_wsChannels.size());
+            for (auto const wsChannel : _wsChannels) {
+                wsChannelIds.push_back(wsChannel->id());
+            }
+        }
+
+        for (auto const channelId : wsChannelIds) {
+            if (_server) {
+                _server->text(channelId, "PING\n", 5);
+            }
+        }
+    }
+
+    void WSChannels::handleEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
         uint32_t num = client->id();
         _server      = server;
         switch (type) {
@@ -215,6 +349,8 @@ namespace WebUI {
                 log_debug_to(Console, "WebSocket disconnect cid#" << num);
                 break;
             case WS_EVT_CONNECT: {
+                auto*      request    = static_cast<AsyncWebServerRequest*>(arg);
+                auto       session    = request ? WebUI_Server::getWebSocketSession(request) : std::string {};
                 WSChannel* newChannel = new WSChannel(server, num, session);
                 if (!newChannel) {
                     log_error_to(Console, "Creating WebSocket channel failed");
@@ -223,24 +359,17 @@ namespace WebUI {
                     IPAddress   ip = client->remoteIP();
 
                     std::string s;
-                    // Ask any client with same session ID to disconnect
-                    // This is to deal with miltiple tabs within the same browser having the same session,
-                    // only deal with the last one connected, and disconnect the previous one.
-                    for (auto const oldChannel : _wsChannels) {
-                        if (oldChannel->session() == session && oldChannel->id() != num) {
-                            // This lets existing WebUI instances know that
-                            // a new one has started, so it can decide whether
-                            // or not to disconnect the old ones.
-
-                            s = "activeID:";  // WebUI3 variant
-                            s += std::to_string(num);
-                            oldChannel->sendTXT(s);
-
-                            s = "ACTIVE_ID:";  // WebUI2 variant
-                            s += std::to_string(num);
-                            oldChannel->sendTXT(s);
-                        }
+                    {
+                        std::lock_guard<std::mutex> lock(ws_channels_mutex);
+                        _lastWSChannel = newChannel;
+                        _wsChannels.push_back(newChannel);
                     }
+
+                    // The newest websocket for a session wins. Actively close any older
+                    // sockets instead of waiting for the old page to cooperate.
+                    closeSessionChannels(session, num);
+
+                    allChannels.registration(newChannel);
 
                     // This tells WebUI the ID of the newly-created websocket
                     // so it can include that ID in a PAGEID= argument to
@@ -248,15 +377,11 @@ namespace WebUI {
 
                     s = "currentID:";  // webui3
                     s += std::to_string(num);
-                    newChannel->sendTXT(s);
+                    send_control_message(client, s);
 
                     s = "CURRENT_ID:";  // webui2
                     s += std::to_string(num);
-                    newChannel->sendTXT(s);
-
-                    _lastWSChannel = newChannel;
-                    allChannels.registration(newChannel);
-                    _wsChannels.push_back(newChannel);
+                    send_control_message(client, s);
 
                     log_debug_to(Console, "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session);
                     for (auto const pin : _pins) {
@@ -265,32 +390,20 @@ namespace WebUI {
                 }
             } break;
             case WS_EVT_DATA: {
-                AwsFrameInfo* info = (AwsFrameInfo*)arg;
-                for (auto const wsChannel : _wsChannels) {
-                    if (wsChannel->id() == num) {
-                        if (info->opcode == WS_TEXT) {
-                            //data[len]=0; // !!! this should not be safe? but was there before,
-                            // will copy to a std::string of specified length to be on the safe side
-                            std::string msg((const char*)data, len);
-                            // Check if this is a simulator channel initialization message
-                            if (msg.find("\"simulator_channel\"") != std::string::npos && msg.find("true") != std::string::npos) {
-                                // Create a SimulatorChannel for this WebSocket connection
-                                SimulatorChannel* simChannel = new SimulatorChannel(wsChannel);
-                                allChannels.registration(simChannel);
-                                // Deregister the WSChannel since the SimulatorChannel replaces it
-                                // in the input multiplexor
-                                allChannels.deregistration(wsChannel);
-                                log_info_to(Console, "Simulator channel initialized for WebSocket client #" << num);
-                                // Don't push the initialization message to the queue
-                            } else if (msg.rfind("PING:", 0) == 0) {
-                                std::string response("PING:60000:60000");
-                                wsChannel->sendTXT(response);
-                            } else {
-                                wsChannel->push(data, len);
-                            }
+                AwsFrameInfo* info      = (AwsFrameInfo*)arg;
+                auto          wsChannel = getWSChannel(num, {});
+                if (wsChannel) {
+                    if (info->opcode == WS_TEXT) {
+                        //data[len]=0; // !!! this should not be safe? but was there before,
+                        // will copy to a std::string of specified length to be on the safe side
+                        std::string msg((const char*)data, len);
+                        if (msg.rfind("PING:", 0) == 0) {
+                            wsChannel->sendTXT("PING:60000:60000");
                         } else {
                             wsChannel->push(data, len);
                         }
+                    } else {
+                        wsChannel->push(data, len);
                     }
                 }
             } break;

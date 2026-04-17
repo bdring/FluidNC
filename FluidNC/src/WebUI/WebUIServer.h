@@ -55,6 +55,7 @@ namespace WebUI {
         void poll() override;
 
         static uint16_t port() { return _port; }
+        static std::string getWebSocketSession(AsyncWebServerRequest* request);
 
         ~WebUI_Server();
 
@@ -65,7 +66,6 @@ namespace WebUI {
         static AsyncWebServer*            _websocketserver;
         static AsyncWebServer*            _websocketserverv3;
         static AsyncWebSocket*            _socket_server;
-        static std::string                current_session;
 
         static uint16_t     _port;
         static UploadStatus _upload_status;
@@ -87,6 +87,7 @@ namespace WebUI {
         static std::string getSessionCookie(AsyncWebServerRequest* request);
         static void        handle_SSDP();
         static void        handle_root(AsyncWebServerRequest* request);
+        static void        handle_trace(AsyncWebServerRequest* request);
         static void        handle_login(AsyncWebServerRequest* request);
         static void        handle_not_found(AsyncWebServerRequest* request);
         static void        _handle_web_command(AsyncWebServerRequest* request, bool);

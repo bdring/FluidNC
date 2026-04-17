@@ -107,6 +107,34 @@ namespace WebUI {
             xBufferLock.unlock();
             return 0;
         }
+
+        // Give the background command a brief chance to produce output so
+        // chunked HTTP responses do not spin on empty buffers unnecessarily.
+        size_t wait_loops = 0;
+        while (_buflen == 0 && !done && !_silent && _active && wait_loops < 20) {
+            xBufferLock.unlock();
+            delay(1);
+            ++wait_loops;
+            xBufferLock.lock();
+            if (_buflen > 0) {
+                int bytes = min(_buflen, maxLen);
+                memcpy(dest_buffer, _buffer, bytes);
+                memmove(_buffer, &_buffer[bytes], _buflen - bytes);
+                _buflen -= bytes;
+                xBufferLock.unlock();
+                return bytes;
+            }
+        }
+
+        if (done) {
+            free(_buffer);
+            _buffer    = nullptr;
+            _allocsize = 0;
+            _buflen    = 0;
+            xBufferLock.unlock();
+            return 0;
+        }
+
         xBufferLock.unlock();
         return RESPONSE_TRY_AGAIN;
     }

@@ -19,7 +19,7 @@ namespace WebUI {
         size_t write(uint8_t c) override;
         size_t write(const uint8_t* buffer, size_t size) override;
 
-        bool sendTXT(std::string& s);
+        bool sendTXT(std::string_view s);
 
         inline size_t write(const char* s) { return write((uint8_t*)s, ::strlen(s)); }
 
@@ -71,9 +71,9 @@ namespace WebUI {
 
         static bool runGCode(uint32_t pageid, std::string_view cmd, std::string session);
         static bool sendError(uint32_t pageid, std::string error, std::string session);
+        static void closeSessionChannels(const std::string& session, objnum_t exceptId = 0);
         static void sendPing();
-        static void handleEvent(
-            AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len, std::string session);
+        static void handleEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len);
 
         static void showChannels();
 

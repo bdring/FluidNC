@@ -28,6 +28,7 @@
 #include "JSONEncoder.h"
 
 #include "HashFS.h"
+#include <cstdio>
 #include <list>
 
 #include "Mime.h"  // getContentType
@@ -70,7 +71,6 @@ namespace WebUI {
     AsyncWebServer*            WebUI_Server::_websocketserver = NULL;
     AsyncHeaderFreeMiddleware* WebUI_Server::_headerFilter    = NULL;
     AsyncWebSocket*            WebUI_Server::_socket_server   = NULL;
-    std::string                WebUI_Server::current_session  = "";
 #ifdef ENABLE_AUTHENTICATION
     AuthenticationIP* WebUI_Server::_head  = NULL;
     uint8_t           WebUI_Server::_nb_ip = 0;
@@ -146,15 +146,9 @@ namespace WebUI {
         // 4 - Potentially check for a difference in requests headers of v2 vs v3 to dynamically send the proper payload in the same handler
         // For now, I've settled with #3
         _socket_server = new AsyncWebSocket("/");
-
-        _socket_server->addMiddleware([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
-            current_session = getSessionCookie(request);
-            next();  // continue middleware chain
-        });
-        // Passing the current_session globally, lets hope there is no async switch back of other requests to change this in between
         _socket_server->onEvent(
             [](AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
-                WSChannels::handleEvent(server, client, type, arg, data, len, current_session);
+                WSChannels::handleEvent(server, client, type, arg, data, len);
             });
 
         _webserver->addHandler(_socket_server);
@@ -177,6 +171,7 @@ namespace WebUI {
         //web commands
         _webserver->on("/command", HTTP_ANY, handle_web_command);
         _webserver->on("/command_silent", HTTP_ANY, handle_web_command_silent);
+        _webserver->on("/trace", HTTP_ANY, handle_trace);
         _webserver->on("/feedhold_reload", HTTP_ANY, handleFeedholdReload);
         _webserver->on("/cyclestart_reload", HTTP_ANY, handleCyclestartReload);
         _webserver->on("/restart_reload", HTTP_ANY, handleRestartReload);
@@ -262,10 +257,21 @@ namespace WebUI {
             int pos = cookies.find("sessionId=");
             if (pos != std::string::npos) {
                 int pos2 = cookies.find(";", pos);
-                return cookies.substr(pos + strlen("sessionId="), pos2);
+                auto start = pos + strlen("sessionId=");
+                if (pos2 == std::string::npos) {
+                    return cookies.substr(start);
+                }
+                return cookies.substr(start, pos2 - start);
             }
         }
         return "";
+    }
+
+    std::string WebUI_Server::getWebSocketSession(AsyncWebServerRequest* request) {
+        if (request->hasParam("independent_session")) {
+            return getSession(request->client());
+        }
+        return getSessionCookie(request);
     }
 
     static void get_random_string(char* str, unsigned int len) {
@@ -445,6 +451,14 @@ namespace WebUI {
 
     void WebUI_Server::handle_root(AsyncWebServerRequest* request) {
         log_info("WebUI: Request from " << request->client()->remoteIP());
+        const char* referer    = request->hasHeader("Referer") ? request->getHeader("Referer")->value().c_str() : "";
+        const char* fetch_mode = request->hasHeader("Sec-Fetch-Mode") ? request->getHeader("Sec-Fetch-Mode")->value().c_str() : "";
+        const char* fetch_dest = request->hasHeader("Sec-Fetch-Dest") ? request->getHeader("Sec-Fetch-Dest")->value().c_str() : "";
+        const char* fetch_site = request->hasHeader("Sec-Fetch-Site") ? request->getHeader("Sec-Fetch-Site")->value().c_str() : "";
+        auto session = getSessionCookie(request);
+        if (!session.empty()) {
+            WSChannels::closeSessionChannels(session);
+        }
         if (!(request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes")) {
             if (myStreamFile(request, "index.html", false, true)) {
                 return;
@@ -457,6 +471,18 @@ namespace WebUI {
         request->send(response);
     }
 
+    void WebUI_Server::handle_trace(AsyncWebServerRequest* request) {
+        std::string msg;
+        if (request->hasParam("msg")) {
+            msg = request->getParam("msg")->value().c_str();
+        }
+        std::printf("[WEBUI_BROWSER] session=%s pageid=%lu msg=%s\n",
+                    getSessionCookie(request).c_str(),
+                    (unsigned long)getPageid(request),
+                    msg.c_str());
+        request->send(200, "text/plain", "");
+    }
+
     // Handle filenames and other things that are not explicitly registered
     void WebUI_Server::handle_not_found(AsyncWebServerRequest* request) {
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
@@ -466,7 +492,6 @@ namespace WebUI {
         }
 
         std::string path(request->url().c_str());  //request->urlDecode(request->url()).c_str());
-
         if (path.rfind("/api/", 0) == 0) {
             request->send(404);
             return;
@@ -544,8 +569,8 @@ namespace WebUI {
             request->send(401, "text/plain", "Authentication failed\n");
             return;
         }
-        std::string session  = getSessionCookie(request);
-        bool        hasError = WSChannels::runGCode(pageid, cmd, session);
+        std::string session = getSessionCookie(request);
+        bool hasError = WSChannels::runGCode(pageid, cmd, session);
         request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
     }
 
