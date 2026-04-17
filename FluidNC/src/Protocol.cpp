@@ -107,15 +107,20 @@ void output_loop(void* unused) {
         }
         // Block until a message is received
         LogMessage message;
-        if (xQueueReceive(message_queue, &message, 100)) { // Use timeout to check exit flag
-            if (message.isString) {
-                std::string* s = static_cast<std::string*>(message.line);
-                message.channel->print_msg(message.level, s->c_str());
-                delete s;
-            } else {
-                const char* cp = static_cast<const char*>(message.line);
-                message.channel->print_msg(message.level, cp);
+        if (xQueueReceive(message_queue, &message, 100)) {  // Use timeout to check exit flag
+            if (!message.channel->is_closing()) {
+                if (message.isString) {
+                    std::string* s = static_cast<std::string*>(message.line);
+                    message.channel->print_msg(message.level, s->c_str());
+                    delete s;
+                } else {
+                    const char* cp = static_cast<const char*>(message.line);
+                    message.channel->print_msg(message.level, cp);
+                }
+            } else if (message.isString) {
+                delete static_cast<std::string*>(message.line);
             }
+            message.channel->release_log_ref();
         }
     }
 }
@@ -259,6 +264,12 @@ void protocol_main_loop() {
             break;
         }
         if (activeChannel) {
+            if (activeChannel->is_closing()) {
+                activeChannel->release_processing_ref();
+                activeChannel = nullptr;
+                continue;
+            }
+
             // The input polling task has collected a line of input
             if (gcode_echo->get()) {
                 report_echo_line_received(activeLine, allChannels);
@@ -276,6 +287,7 @@ void protocol_main_loop() {
 
             // Tell the input polling task that the line has been processed,
             // so it can give us another one when available
+            activeChannel->release_processing_ref();
             activeChannel = nullptr;
         }
 

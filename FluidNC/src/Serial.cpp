@@ -47,16 +47,44 @@
 #include "Main.h"        // display()
 #include "StartupLog.h"  // startupLog
 
+#include "Driver/Console.h"
 #include "Driver/fluidnc_gpio.h"
 
 #include <atomic>
 #include <cstring>
 #include <vector>
 #include <algorithm>
+#include <string_view>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
 
 std::mutex AllChannels::_mutex_general;
 std::mutex AllChannels::_mutex_pollLine;
+
+std::vector<Channel*> AllChannels::snapshot_channels() {
+    std::vector<Channel*> channels;
+
+    std::lock_guard<std::mutex> lock(_mutex_general);
+    channels.reserve(_channelq.size());
+    for (auto channel : _channelq) {
+        if (channel->try_acquire_processing_ref()) {
+            channels.push_back(channel);
+        }
+    }
+
+    return channels;
+}
+
+void AllChannels::reap_channels() {
+    for (auto it = _zombies.begin(); it != _zombies.end();) {
+        auto channel = *it;
+        if (channel->pending_log_refs() || channel->pending_processing_refs()) {
+            ++it;
+            continue;
+        }
+        delete channel;
+        it = _zombies.erase(it);
+    }
+}
 
 void heapCheckTask(void* pvParameters) {
     static uint32_t heapSize = 0;
@@ -81,13 +109,17 @@ void AllChannels::init() {
 }
 
 void AllChannels::ready() {
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         channel->ready();
+        channel->release_processing_ref();
     }
 }
 
 void AllChannels::kill(Channel* channel) {
-    xQueueSend(_killQueue, &channel, 0);
+    if (_killQueue) {
+        xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10));
+    }
 }
 
 void AllChannels::registration(Channel* channel) {
@@ -109,75 +141,74 @@ void AllChannels::deregistration(Channel* channel) {
 }
 
 void AllChannels::listChannels(Channel& out) {
-    _mutex_general.lock();
-    std::string retval;
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         log_stream(out, channel->name());
+        channel->release_processing_ref();
     }
-    _mutex_general.unlock();
 }
 
 void AllChannels::flushRx() {
-    _mutex_general.lock();
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         channel->flushRx();
+        channel->release_processing_ref();
     }
-    _mutex_general.unlock();
 }
 
 size_t AllChannels::write(uint8_t data) {
-    _mutex_general.lock();
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         channel->write(data);
+        channel->release_processing_ref();
     }
-    _mutex_general.unlock();
     return 1;
 }
 void AllChannels::notifyState(void) {
-    _mutex_general.lock();
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         channel->notifyState();
+        channel->release_processing_ref();
     }
-    _mutex_general.unlock();
 }
 
 void AllChannels::notifyOvr(void) {
-    _mutex_general.lock();
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         channel->notifyOvr();
+        channel->release_processing_ref();
     }
-    _mutex_general.unlock();
 }
 
 void AllChannels::notifyWco(void) {
-    _mutex_general.lock();
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         channel->notifyWco();
+        channel->release_processing_ref();
     }
-    _mutex_general.unlock();
 }
 void AllChannels::notifyNgc(CoordIndex coord) {
-    _mutex_general.lock();
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         channel->notifyNgc(coord);
+        channel->release_processing_ref();
     }
-    _mutex_general.unlock();
 }
 
 size_t AllChannels::write(const uint8_t* buffer, size_t length) {
-    _mutex_general.lock();
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         channel->write(buffer, length);
+        channel->release_processing_ref();
     }
-    _mutex_general.unlock();
     return length;
 }
 void AllChannels::print_msg(MsgLevel level, const char* msg) {
-    _mutex_general.lock();
-    for (auto channel : _channelq) {
+    auto channels = snapshot_channels();
+    for (auto channel : channels) {
         channel->print_msg(level, msg);
+        channel->release_processing_ref();
     }
-    _mutex_general.unlock();
 }
 
 Channel* AllChannels::find(const std::string_view name) {
@@ -192,11 +223,16 @@ Channel* AllChannels::find(const std::string_view name) {
     return nullptr;
 }
 Channel* AllChannels::poll(char* line) {
+    reap_channels();
+
     Channel* deadChannel;
     while (xQueueReceive(_killQueue, &deadChannel, 0)) {
+        deadChannel->begin_closing();
         deregistration(deadChannel);
-        delete deadChannel;
+        _zombies.push_back(deadChannel);
     }
+
+    reap_channels();
 
     // To avoid starving other channels when one has a lot
     // of traffic, we poll the other channels before the last
@@ -206,7 +242,16 @@ Channel* AllChannels::poll(char* line) {
     for (auto channel : _channelq) {
         // Skip the last channel in the loop
 
-        if (channel != _lastChannel && channel->pollLine(line) == Error::Ok) {
+        if (channel == _lastChannel) {
+            continue;
+        }
+
+        auto status = channel->pollLine(line);
+
+        if (status == Error::Ok) {
+            if (!channel->try_acquire_processing_ref()) {
+                continue;
+            }
             _lastChannel = channel;
             _mutex_pollLine.unlock();
             return _lastChannel;
@@ -214,8 +259,15 @@ Channel* AllChannels::poll(char* line) {
     }
     _mutex_pollLine.unlock();
     // If no other channel returned a line, try the last one
-    if (_lastChannel && _lastChannel->pollLine(line) == Error::Ok) {
+    if (_lastChannel) {
+        auto status = _lastChannel->pollLine(line);
+        if (status == Error::Ok) {
+        if (!_lastChannel->try_acquire_processing_ref()) {
+            _lastChannel = nullptr;
+            return _lastChannel;
+        }
         return _lastChannel;
+        }
     }
     _lastChannel = nullptr;
     return _lastChannel;

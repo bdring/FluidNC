@@ -22,6 +22,7 @@ Channel* pollChannels(char* line = nullptr);
 
 class AllChannels : public Channel {
     std::vector<Channel*> _channelq;
+    std::vector<Channel*> _zombies;
 
     Channel*      _lastChannel = nullptr;
     QueueHandle_t _killQueue;
@@ -29,8 +30,11 @@ class AllChannels : public Channel {
     static std::mutex _mutex_general;
     static std::mutex _mutex_pollLine;
 
+    void                  reap_channels();
+    std::vector<Channel*> snapshot_channels();
+
 public:
-    AllChannels() : Channel("all") { _killQueue = xQueueCreate(3, sizeof(Channel*)); }
+    AllChannels() : Channel("all") { _killQueue = xQueueCreate(16, sizeof(Channel*)); }
 
     void kill(Channel* channel);
 
