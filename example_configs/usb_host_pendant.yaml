@@ -1,0 +1,29 @@
+name: "USB Host Pendant Example"
+board: "ESP32-S3 with USB Host"
+
+# USB host pendant via uart3 + uart_channel3
+# The usb_host: section inside uart3 selects USB host mode instead of
+# hardware UART pins. Supported USB-serial chips: CH340, CP2102, FTDI.
+# Requires 8MB flash (all ESP32-S3 builds include both USB stacks).
+uart3:
+  usb_host:
+    baud: 1000000
+
+uart_channel3:
+  uart_num: 3
+  report_interval_ms: 75
+
+# When usb_host uart is active, CDC is unavailable (they share the USB port).
+# Use the CP2102 (USB UART) port for console and flashing.
+# CDC is controlled by the USBCDC/Enable web setting (default: on).
+
+# Optional: UART pendant on a second port (can coexist with USB)
+# uart2:
+#   txd_pin: gpio.0
+#   rxd_pin: gpio.35
+#   baud: 1000000
+#   mode: 8N1
+#
+# uart_channel2:
+#   report_interval_ms: 75
+#   uart_num: 2

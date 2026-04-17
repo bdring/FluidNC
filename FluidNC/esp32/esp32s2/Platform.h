@@ -14,6 +14,7 @@
 
 #define MAX_N_UARTS SOC_UART_NUM
 #define MAX_N_I2C SOC_I2C_NUM
+#define MAX_N_USB_HOST 0
 #define MAX_N_DACS SOC_DAC_PERIPH_NUM
 
 // The number that we support, regardless of how many the chip has
