@@ -148,10 +148,7 @@ namespace WebUI {
 
     public:
         NetConfig(const char* name) : Module(name) {}
-        void init() {
-            new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/Info", showFwInfo, anyState);
-            PosixAsyncTCPManager::getInstance().begin();
-        }
+        void init() { new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/Info", showFwInfo, anyState); }
         ~NetConfig() {}
     };
 
