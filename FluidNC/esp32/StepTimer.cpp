@@ -3,10 +3,6 @@
 // Interface to the ESP32 alarm timer for step timing
 // Uses the timer_ll API from ESP-IDF v4.4.1
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "Platform.h"
 #include "hal/timer_ll.h"
 #include "esp_intr_alloc.h"
@@ -83,10 +79,6 @@ uint32_t stepTimerInit(bool (*callback)(void)) {
     timer_ll_intr_enable(&TIMERG0, TIMER_0);
     return STEPPING_FREQUENCY;
 }
-
-#    ifdef __cplusplus
-}
-#    endif
 
 #else
 #    include <esp_attr.h>
@@ -169,9 +161,5 @@ uint32_t stepTimerInit(bool (*callback)(void)) {
     timer_ll_enable_intr(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0), true);
     return STEPPING_FREQUENCY;
 }
-
-#    ifdef __cplusplus
-}
-#    endif
 
 #endif
