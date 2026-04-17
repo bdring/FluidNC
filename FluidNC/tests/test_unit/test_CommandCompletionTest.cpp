@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cctype>
-#include <cstring>
+#include <string>
 #include <string_view>
 
 #include "Settings.h"
@@ -93,7 +93,7 @@ TEST(CommandCompletion, SdSlashReturnsAtLeastOneMatch) {
     static MinimalSetting s("sd/list");
 
     std::string out;
-    uint32_t nfound = num_initial_matches("sd/", 0, out);
+    uint32_t    nfound = num_initial_matches("sd/", 0, out);
     EXPECT_GE(nfound, 1u);
 }
 
@@ -101,7 +101,7 @@ TEST(CommandCompletion, SdLReturnsPrefixMatch) {
     static MinimalSetting s("sd/list");
 
     std::string out;
-    uint32_t nfound = num_initial_matches("sd/l", 0, out);
+    uint32_t    nfound = num_initial_matches("sd/l", 0, out);
 
     EXPECT_GE(nfound, 1u);
     EXPECT_TRUE(starts_with_ci(out.c_str(), "sd/l"));
@@ -124,14 +124,14 @@ TEST(CommandCompletion, CaseInsensitiveMatches) {
 TEST(CommandCompletion, ExactMatchIsIncluded) {
     static MinimalSetting s("sd/list");
 
-    std::string_view key = "sd/list";
-    std::string dummy;
-    uint32_t nfound = num_initial_matches(key, 0, dummy);
+    const std::string_view key = "sd/list";
+    std::string            out;
+    uint32_t               nfound = num_initial_matches(key, 0, out);
     EXPECT_GE(nfound, 1u);
 
     bool foundExact = false;
     for (uint32_t i = 0; i < nfound; ++i) {
-        std::string out;
+        out.clear();
         (void)num_initial_matches(key, i, out);
         if (equals_ci(out.c_str(), "sd/list")) {
             foundExact = true;
@@ -168,12 +168,11 @@ TEST(CommandCompletion, AxesPathCompletionMatchesConfiguredAxes) {
     config         = &root;
 
     // Count matches for "/axes/" and verify the returned candidates.
-    std::string dummy;
-    uint32_t nfound = num_initial_matches("/axes/", 0, dummy);
+    std::string out;
+    uint32_t    nfound = num_initial_matches("/axes/", 0, out);
     EXPECT_EQ(nfound, 3u);
 
     // Verify each match starts with the expected prefix
-    std::string out;
     for (uint32_t i = 0; i < nfound; ++i) {
         out.clear();
         (void)num_initial_matches("/axes/", i, out);

@@ -1,6 +1,7 @@
 #include "WString.h"
 
 #include <cstdlib>
+#include <charconv>
 #include <iomanip>
 #include <sstream>
 
@@ -24,13 +25,11 @@ void String::trim() {
     auto   str      = this->backbuf;
     size_t endpos   = str.find_last_not_of(" \t");
     size_t startpos = str.find_first_not_of(" \t");
-    if (startpos == std::string::npos) {
-        startpos = 0;
+    if (startpos == std::string::npos || endpos == std::string::npos) {
+        this->backbuf.clear();
+        return;
     }
-    if (endpos == std::string::npos) {
-        endpos = str.size();
-    }
-    str           = str.substr(startpos, endpos - startpos);
+    str           = str.substr(startpos, (endpos - startpos) + 1);
     this->backbuf = str;
 }
 

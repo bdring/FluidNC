@@ -34,10 +34,12 @@ inline void vTaskSuspend(TaskHandle_t xTaskToSuspend) {}
 inline void vTaskResume(TaskHandle_t xTaskToResume) {}
 
 TickType_t xTaskGetTickCount(void);
+void delay(uint32_t value);
 
 #define CONFIG_FREERTOS_HZ 1000
 #define configTICK_RATE_HZ (CONFIG_FREERTOS_HZ)
 #define portTICK_PERIOD_MS ((TickType_t)1000 / configTICK_RATE_HZ)  // NOTE: CONFIG_FREERTOS_HZ
+#define pdMS_TO_TICKS(xTimeInMs) ((TickType_t)((xTimeInMs) / portTICK_PERIOD_MS))
 
 #define portMUX_FREE_VAL 0xB33FFFFF
 

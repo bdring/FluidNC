@@ -19,13 +19,27 @@
 
 #define PACK(__Declaration__) __pragma(pack(push, 1)) __Declaration__ __pragma(pack(pop))
 
-#define MAX_N_SDCARD 1
-#define MAX_N_UARTS 2
-#define MAX_N_I2SO 0
-#define MAX_N_I2C 0
-#define MAX_N_SPI 1
-#define MAX_N_DACS 0
-#define MAX_N_RMT 0
+#ifndef MAX_N_SDCARD
+#    define MAX_N_SDCARD 1
+#endif
+#ifndef MAX_N_UARTS
+#    define MAX_N_UARTS 2
+#endif
+#ifndef MAX_N_I2SO
+#    define MAX_N_I2SO 0
+#endif
+#ifndef MAX_N_I2C
+#    define MAX_N_I2C 0
+#endif
+#ifndef MAX_N_SPI
+#    define MAX_N_SPI 1
+#endif
+#ifndef MAX_N_DACS
+#    define MAX_N_DACS 0
+#endif
+#ifndef MAX_N_RMT
+#    define MAX_N_RMT 0
+#endif
 
 #define DEFAULT_STEPPING_ENGINE Stepping::TIMED
 

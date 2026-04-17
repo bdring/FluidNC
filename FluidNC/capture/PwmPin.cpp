@@ -8,11 +8,23 @@
 #include "Driver/PwmPin.h"
 #include "Config.h"
 
+int      g_pwmConstructCalls = 0;
+int      g_pwmSetDutyCalls = 0;
+pinnum_t g_pwmLastPin = INVALID_PINNUM;
+uint32_t g_pwmLastFrequency = 0;
+uint32_t g_pwmLastDuty = 0;
+
 PwmPin::PwmPin(pinnum_t gpio, bool invert, uint32_t frequency) : _gpio(gpio), _frequency(frequency) {
+    ++g_pwmConstructCalls;
+    g_pwmLastPin = gpio;
+    g_pwmLastFrequency = frequency;
     _period = 1000000 / frequency;
 }
 
 // cppcheck-suppress unusedFunction
-void PwmPin::setDuty(uint32_t duty) {}
+void PwmPin::setDuty(uint32_t duty) {
+    ++g_pwmSetDutyCalls;
+    g_pwmLastDuty = duty;
+}
 
 PwmPin::~PwmPin() {}

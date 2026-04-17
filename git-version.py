@@ -1,5 +1,6 @@
 import subprocess
 import filecmp, tempfile, shutil, os
+from pathlib import Path
 
 # Thank you https://docs.platformio.org/en/latest/projectconf/section_env_build.html !
 
@@ -65,21 +66,25 @@ git_url = url
 
 provisional = "FluidNC/src/version.cxx"
 final = "FluidNC/src/version.cpp"
-with open(provisional, "w") as fp:
+repo_root = Path(__file__).resolve().parent
+provisional_path = repo_root / provisional
+final_path = repo_root / final
+
+with open(provisional_path, "w") as fp:
     fp.write('const char* grbl_version = \"' + grbl_version + '\";\n')
     fp.write('const char* git_info     = \"' + git_info + '\";\n')
     fp.write('const char* git_url      = \"' + git_url + '\";\n')
 
-if not os.path.exists(final):
+if not os.path.exists(final_path):
     # No version.cpp so rename version.cxx to version.cpp
-    os.rename(provisional, final)
-elif not filecmp.cmp(provisional, final):
+    os.rename(provisional_path, final_path)
+elif not filecmp.cmp(provisional_path, final_path):
     # version.cxx differs from version.cpp so get rid of the
     # old .cpp and rename .cxx to .cpp
-    os.remove(final)
-    os.rename(provisional, final)
+    os.remove(final_path)
+    os.rename(provisional_path, final_path)
 else:
     # The existing version.cpp is the same as the new version.cxx
     # so we can just leave the old version.cpp in place and get
     # rid of version.cxx
-    os.remove(provisional)
+    os.remove(provisional_path)

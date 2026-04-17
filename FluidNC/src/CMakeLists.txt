@@ -127,20 +127,26 @@ idf_component_register(SRCS BTConfig.cpp
 							Spindles/Spindle.cpp
 							Spindles/VFDSpindle.cpp
 							Spindles/VFD/DanfossVLT2800Protocol.cpp
-							Spindles/VFD/GenericProtocol.cpp
-							Spindles/VFD/H100Protocol.cpp
-							Spindles/VFD/H2AProtocol.cpp
-							Spindles/VFD/HuanyangProtocol.cpp
-							Spindles/VFD/NowForeverProtocol.cpp
-							Spindles/VFD/SiemensV20Protocol.cpp
+							Spindles/VFD/DeltaMS300.cpp
+							Spindles/VFD/FolinnBD600.cpp
+							Spindles/VFD/H100.cpp
+							Spindles/VFD/H2A.cpp
+							Spindles/VFD/Huanyang.cpp
+							Spindles/VFD/ModbusVFD.cpp
+							Spindles/VFD/MollomG70.cpp
+							Spindles/VFD/NowForever.cpp
+							Spindles/VFD/SiemensV20.cpp
 							Spindles/VFD/VFDProtocol.cpp
-							Spindles/VFD/YL620Protocol.cpp
+							Spindles/VFD/YL620.cpp
 							ToolChangers/atc.cpp
 							ToolChangers/atc_manual.cpp
 							WebUI/Authentication.cpp
 							WebUI/Mdns.cpp
+							WebUI/MdnsRegistration.cpp
 							WebUI/NotificationsService.cpp
+							WebUI/NotificationsServiceRegistration.cpp
 							WebUI/OTA.cpp
+							WebUI/OTARegistration.cpp
 							WebUI/TelnetClient.cpp
 							WebUI/TelnetServer.cpp
 							WebUI/WebClient.cpp
