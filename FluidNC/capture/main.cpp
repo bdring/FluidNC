@@ -1,6 +1,8 @@
 extern void setup();
 extern void loop();
 
+#include "Platform.h"
+
 // #include "StringChannel.h"
 
 #include <string>
@@ -35,8 +37,7 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, [](int) { g_sigint_received = 1; });
 
     setup();
-    extern volatile bool g_should_exit;
-    while (!g_should_exit) {
+    while (!should_exit()) {
         if (g_sigint_received) {
             restart();
         }

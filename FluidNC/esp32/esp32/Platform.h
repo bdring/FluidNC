@@ -49,6 +49,10 @@ inline void platform_preinit() {
 #endif
 }
 
+inline bool should_exit() {
+    return false;
+}
+
 #define USE_ARDUINO_I2C_DRIVER 0
 
 #if ESP_IDF_VERSION_MAJOR >= 5

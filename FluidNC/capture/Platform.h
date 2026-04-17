@@ -35,3 +35,5 @@
 const int BAUD_RATE = 115200;
 
 inline void platform_preinit() {}
+
+bool should_exit();

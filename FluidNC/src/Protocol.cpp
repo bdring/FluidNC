@@ -1,5 +1,3 @@
-#include <atomic>
-extern volatile bool g_should_exit;
 // Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
 // Copyright (c) 2009-2011 Simen Svale Skogsrud
 // Copyright (c) 2018 -	Bart Dring
@@ -102,7 +100,7 @@ void drain_messages() {
 
 void output_loop(void* unused) {
     while (true) {
-        if (g_should_exit) {
+        if (should_exit()) {
             break;
         }
         // Block until a message is received
@@ -135,7 +133,7 @@ bool pollingPaused = false;
 void polling_loop(void* unused) {
     add_watchdog_to_task();
     for (;;) {
-        if (g_should_exit) {
+        if (should_exit()) {
             break;
         }
 
@@ -260,7 +258,7 @@ void protocol_main_loop() {
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
     for (;; vTaskDelay(1)) {
-        if (g_should_exit) {
+        if (should_exit()) {
             break;
         }
         if (activeChannel) {

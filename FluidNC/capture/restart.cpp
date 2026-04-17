@@ -1,11 +1,20 @@
 #include <atomic>
-volatile bool g_should_exit = false;
+
+namespace {
+    volatile bool g_should_exit = false;
+}
+
 #include "Driver/restart.h"
 #include <cstdlib>
 #include <cstdio>
 
 
 #include "freertos/task.h"
+
+bool should_exit() {
+    return g_should_exit;
+}
+
 void restart() {
     printf("Exiting\n");
     g_should_exit = true;

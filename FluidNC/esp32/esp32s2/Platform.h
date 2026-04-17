@@ -49,3 +49,8 @@ inline void platform_preinit() {
 // Compatibility for older compilers versions.
 #    define memory_order_seq_cst seq_cst
 #endif
+
+
+inline bool should_exit() {
+    return false;
+}
