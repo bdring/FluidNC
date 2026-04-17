@@ -4,15 +4,13 @@
 #pragma once
 
 #include "Module.h"  // Module
-#include <queue>
 
 #include "Settings.h"
 
+// For the POSIX Arduino-Emulator core, Arduino.h must come before WiFi.h
+// so WiFi symbols are visible without arduino:: qualification.
+#include <Arduino.h>
 #include <WiFi.h>
-
-class TelnetClient;
-
-using namespace arduino;
 
 namespace WebUI {
     class TelnetServer : public Module {
@@ -30,8 +28,6 @@ namespace WebUI {
         TelnetServer(const char* name) : Module(name) {}
 
         static uint16_t port() { return _port; }
-
-        static std::queue<TelnetClient*> _disconnected;
 
         void init() override;
         void deinit() override;

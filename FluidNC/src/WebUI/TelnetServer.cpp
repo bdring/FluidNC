@@ -8,16 +8,12 @@
 // WMB #include "Mdns.h"
 #include "Report.h"  // report_init_message()
 
-#include <WiFi.h>
-
 namespace WebUI {
 
     EnumSetting* telnet_enable;
     IntSetting*  telnet_port;
 
     uint16_t TelnetServer::_port = 0;
-
-    std::queue<TelnetClient*> TelnetServer::_disconnected;
 
     void TelnetServer::init() {
         if (WiFi.getMode() == WIFI_OFF) {
@@ -62,14 +58,6 @@ namespace WebUI {
     void TelnetServer::poll() {
         if (!_setupdone || _wifiServer == NULL) {
             return;
-        }
-
-        while (_disconnected.size()) {
-            log_debug("Telnet client disconnected");
-            TelnetClient* client = _disconnected.front();
-            _disconnected.pop();
-            allChannels.deregistration(client);
-            delete client;
         }
 
         //check if there are any new clients

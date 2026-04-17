@@ -4,8 +4,10 @@
 #pragma once
 
 #include "Channel.h"
-using namespace arduino;
 
+// For the POSIX Arduino-Emulator core, Arduino.h must come before WiFi.h
+// so WiFi symbols are visible without arduino:: qualification.
+#include <Arduino.h>
 #include <WiFi.h>
 
 namespace WebUI {
@@ -20,9 +22,10 @@ namespace WebUI {
         // common serial communication case is typically limited to 128 bytes.
         static const int WIFI_CLIENT_READ_BUFFER_SIZE = 1200;
 
-        static const int DISCONNECT_CHECK_COUNTS = 1000;
+        static const int DISCONNECT_CHECK_COUNTS = 10;
 
-        int32_t _state = 0;
+        std::atomic<bool> _disconnected { false };
+        int32_t           _empty_reads = 0;
 
     public:
         TelnetClient(WiFiClient* wifiClient);
