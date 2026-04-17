@@ -13,7 +13,7 @@ namespace WebUI {
 
     // SimulatorChannel is a Channel that receives simulator protocol messages
     // from a web-based CNC machine simulator via a WebSocket connection.
-    // When the simulator connects via WSChannel with {simulator_channel: true},
+    // When the simulator connects via WSChannel with {independent_session: true},
     // a SimulatorChannel instance is created to bridge the communication.
     //
     // SimulatorChannel performs bidirectional communication:
