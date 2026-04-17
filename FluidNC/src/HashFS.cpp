@@ -37,7 +37,7 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
         inFile.read(shaResult, 32);
 #endif
     } catch (const Error err) {
-        log_debug("Cannot hash file " << ipath.string());
+        log_verbose("Cannot hash file " << ipath.string());
         return Error::FsFailedOpenFile;
     }
 
