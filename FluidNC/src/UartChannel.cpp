@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "UartChannel.h"
+#include "Driver/Console.h"
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
 
@@ -135,9 +136,9 @@ size_t UartChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeo
     // It is likely that _queue will be empty because timedReadBytes() is only
     // used in situations where the UART is not receiving GCode commands
     // and Grbl realtime characters.
-    while (_queue.size() && remlen) {
-        *buffer++ = _queue.front();
-        _queue.pop();
+    uint8_t queued = 0;
+    while (remlen && try_pop_queued_byte(queued)) {
+        *buffer++ = queued;
         --remlen;
     }
 

@@ -27,7 +27,7 @@ namespace WebUI {
 
         objnum_t id() { return _clientNum; }
 
-        int      rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
+        int      rx_buffer_available() override { return std::max(0, 256 - int(queued_bytes())); }
         uint32_t clientNum() { return _clientNum; };
 
         operator bool() const;
@@ -35,7 +35,7 @@ namespace WebUI {
         ~WSChannel();
 
         int read() override;
-        int available() override { return _queue.size() + (_rtchar > -1); }
+        int available() override { return queued_bytes() + (_rtchar > -1); }
 
         void        autoReport() override;
         void        active(bool is_active);

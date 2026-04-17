@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Channel.h"
+#include "Driver/Console.h"
 #include "Report.h"                 // report_gcode_modes
 #include "Machine/MachineConfig.h"  // config
 #include "RealtimeCmd.h"            // execute_realtime_command
@@ -11,12 +12,83 @@
 #include <string_view>
 #include <algorithm>
 
+namespace {
+    constexpr TickType_t message_queue_retry_ticks = 10;
+    constexpr uint32_t   message_queue_max_retries = 25;
+
+    bool enqueue_log_message(LogMessage& msg) {
+        if (!message_queue) {
+            return false;
+        }
+
+        for (uint32_t attempt = 0; attempt < message_queue_max_retries; ++attempt) {
+            if (xQueueSend(message_queue, &msg, message_queue_retry_ticks)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 Channel::Channel(const std::string& name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
 Channel::Channel(const char* name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
 Channel::Channel(const char* name, objnum_t num, bool addCR) : _name(name) {
     _name += std::to_string(num);
     _linelen = 0;
     _addCR   = addCR;
+}
+
+bool Channel::try_acquire_log_ref() {
+    if (_closing.load(std::memory_order_acquire)) {
+        return false;
+    }
+
+    _queued_log_refs.fetch_add(1, std::memory_order_acq_rel);
+    if (_closing.load(std::memory_order_acquire)) {
+        _queued_log_refs.fetch_sub(1, std::memory_order_acq_rel);
+        return false;
+    }
+
+    return true;
+}
+
+void Channel::release_log_ref() {
+    _queued_log_refs.fetch_sub(1, std::memory_order_acq_rel);
+}
+
+bool Channel::try_acquire_processing_ref() {
+    if (_closing.load(std::memory_order_acquire)) {
+        return false;
+    }
+
+    _processing_refs.fetch_add(1, std::memory_order_acq_rel);
+    if (_closing.load(std::memory_order_acquire)) {
+        _processing_refs.fetch_sub(1, std::memory_order_acq_rel);
+        return false;
+    }
+
+    return true;
+}
+
+void Channel::release_processing_ref() {
+    _processing_refs.fetch_sub(1, std::memory_order_acq_rel);
+}
+
+void Channel::begin_closing() {
+    _closing.store(true, std::memory_order_release);
+}
+
+bool Channel::is_closing() const {
+    return _closing.load(std::memory_order_acquire);
+}
+
+uint32_t Channel::pending_log_refs() const {
+    return _queued_log_refs.load(std::memory_order_acquire);
+}
+
+uint32_t Channel::pending_processing_refs() const {
+    return _processing_refs.load(std::memory_order_acquire);
 }
 
 void Channel::pause() {
@@ -30,9 +102,25 @@ void Channel::resume() {
 void Channel::flushRx() {
     _linelen   = 0;
     _lastWasCR = false;
+    std::lock_guard<std::mutex> lock(_queue_mutex);
     while (_queue.size()) {
         _queue.pop();
     }
+}
+
+size_t Channel::queued_bytes() const {
+    std::lock_guard<std::mutex> lock(_queue_mutex);
+    return _queue.size();
+}
+
+bool Channel::try_pop_queued_byte(uint8_t& byte) {
+    std::lock_guard<std::mutex> lock(_queue_mutex);
+    if (_queue.empty()) {
+        return false;
+    }
+    byte = _queue.front();
+    _queue.pop();
+    return true;
 }
 
 bool Channel::lineComplete(char* line, char ch) {
@@ -204,7 +292,10 @@ void Channel::push(uint8_t byte) {
     if (is_realtime_command(byte)) {
         handleRealtimeCharacter(byte);
     } else {
-        _queue.push(byte);
+        {
+            std::lock_guard<std::mutex> lock(_queue_mutex);
+            _queue.push(byte);
+        }
     }
 }
 static int  _cnt = 10;
@@ -218,9 +309,9 @@ Error       Channel::pollLine(char* line) {
             --_cnt;
         }
         int32_t ch = -1;
-        if (line && _queue.size()) {
-            ch = _queue.front();
-            _queue.pop();
+        uint8_t queued = 0;
+        if (line && try_pop_queued_byte(queued)) {
+            ch = queued;
         } else {
             ch = read();
             if (ch < 0) {
@@ -233,6 +324,7 @@ Error       Channel::pollLine(char* line) {
             continue;
         }
         if (!line) {
+            std::lock_guard<std::mutex> lock(_queue_mutex);
             _queue.push(ch);
             continue;
         }
@@ -300,11 +392,15 @@ void Channel::print_msg(MsgLevel level, const char* msg) {
 // This is the most efficient form, but it only works
 // with fixed messages.
 void Channel::sendLine(MsgLevel level, const char* line) {
-    if (outputTask) {
+    if (outputTask && try_acquire_log_ref()) {
         LogMessage msg { this, (void*)line, level, false };
-        while (!xQueueSend(message_queue, &msg, 10)) {}
+        if (!enqueue_log_message(msg)) {
+            release_log_ref();
+        }
     } else {
-        print_msg(level, line);
+        if (!_closing.load(std::memory_order_acquire)) {
+            print_msg(level, line);
+        }
     }
 }
 
@@ -317,11 +413,16 @@ void Channel::sendLine(MsgLevel level, const char* line) {
 // This form has intermediate efficiency, as the string
 // is allocated once and freed once.
 void Channel::sendLine(MsgLevel level, const std::string* line) {
-    if (outputTask) {
+    if (outputTask && try_acquire_log_ref()) {
         LogMessage msg { this, (void*)line, level, true };
-        while (!xQueueSend(message_queue, &msg, 10)) {}
+        if (!enqueue_log_message(msg)) {
+            release_log_ref();
+            delete line;
+        }
     } else {
-        print_msg(level, line->c_str());
+        if (!_closing.load(std::memory_order_acquire)) {
+            print_msg(level, line->c_str());
+        }
         delete line;
     }
 }

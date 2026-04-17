@@ -10,8 +10,19 @@
 #include <thread>
 #include <vector>
 #include <memory>
+#include <mutex>
 
-std::vector<std::unique_ptr<std::thread>> threads;
+namespace {
+    std::mutex                                threads_mutex;
+    std::vector<std::unique_ptr<std::thread>> threads;
+
+    std::vector<std::unique_ptr<std::thread>> take_threads() {
+        std::lock_guard<std::mutex> lock(threads_mutex);
+        std::vector<std::unique_ptr<std::thread>> snapshot;
+        snapshot.swap(threads);
+        return snapshot;
+    }
+}
 
 BaseType_t xTaskCreatePinnedToCore(TaskFunction_t      pvTaskCode,
                                    const char* const   pcName,
@@ -21,7 +32,10 @@ BaseType_t xTaskCreatePinnedToCore(TaskFunction_t      pvTaskCode,
                                    TaskHandle_t* const pvCreatedTask,
                                    const BaseType_t    xCoreID) {
     std::unique_ptr<std::thread> thread = std::make_unique<std::thread>(pvTaskCode, pvParameters);
-    threads.emplace_back(std::move(thread));
+    {
+        std::lock_guard<std::mutex> lock(threads_mutex);
+        threads.emplace_back(std::move(thread));
+    }
     return pdTRUE;
 }
 
@@ -30,12 +44,12 @@ void vTaskDelay(const TickType_t xTicksToDelay) {
 }
 
 void cleanup_threads() {
-    for (auto& thread : threads) {
+    auto owned_threads = take_threads();
+    for (auto& thread : owned_threads) {
         if (thread && thread->joinable()) {
             thread->join();  // Wait for all threads to finish before exit
         }
     }
-    threads.clear();
 }
 
 void vTaskDelayUntil(TickType_t* const pxPreviousWakeTime, const TickType_t xTimeIncrement) {
@@ -67,8 +81,11 @@ void delay(uint32_t value) {
 }
 
 void cleanupThreads() {
-    for (auto const& thread : threads) {
+    auto owned_threads = take_threads();
+    for (auto const& thread : owned_threads) {
         // This lets the OS destroy the thread silently on exit
-        thread->detach();
+        if (thread && thread->joinable()) {
+            thread->detach();
+        }
     }
 }

@@ -94,11 +94,8 @@ namespace WebUI {
         }
 
         // Phase 2: Extract incoming ACK messages from WebSocket queue
-        auto& q = _wsChannel->queue();
-
-        while (q.size()) {
-            uint8_t ch = q.front();
-            q.pop();
+        uint8_t ch = 0;
+        while (_wsChannel->try_pop_queued_byte(ch)) {
 
             // Check for line ending
             if (ch == '\r' || ch == '\n') {
