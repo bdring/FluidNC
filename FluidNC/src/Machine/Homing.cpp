@@ -238,7 +238,7 @@ namespace Machine {
         Stepper::reset();  // Stop moving
         send_alarm(alarm);
         Axes::set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
-        Axes::set_disable(Stepping::_idleMsecs != 255);
+        Axes::set_disable(Stepping::_idleMsecs != 255, false);
     }
 
     bool Homing::needsPulloff2(MotorMask motors) {

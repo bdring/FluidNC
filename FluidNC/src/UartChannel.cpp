@@ -13,14 +13,23 @@ UartChannel::UartChannel(objnum_t num, bool addCR) : Channel("uart_channel", num
 
 void UartChannel::init() {
     auto uart = config->_uarts[_uart_num];
-    if (uart) {
-        init(uart);
-    } else {
+    if (!uart) {
         log_error(name() << ": missing uart" << _uart_num);
+    } else if (!uart->configured()) {
+        log_error(name() << ": uart" << _uart_num << " failed configuration");
+    } else {
+        init(uart);
+    }
+    if (uart->_rxd_pin.undefined()) {
+        _active = true; // there will be no rx activity to set this true
     }
     setReportInterval(_report_interval_ms);
 }
 void UartChannel::init(Uart* uart) {
+    if (!uart || !uart->configured()) {
+        log_error(name() << ": cannot initialize with unconfigured UART");
+        return;
+    }
     _uart = uart;
     allChannels.registration(this);
     if (_report_interval_ms) {
@@ -171,12 +180,12 @@ void UartChannel::registerEvent(pinnum_t pinnum, InputPin* obj) {
 bool UartChannel::setAttr(pinnum_t index, bool* value, const std::string& attrString) {
     out(attrString, "EXP:");
     _ackwait = 1;
-    for (size_t i = 0; i < 20; i++) {
+    for (size_t i = 0; i < 75; i++) {
         pollLine(nullptr);
         if (_ackwait < 1) {
             return _ackwait == 0;
         }
-        delay_us(100);
+        delay_ms(1);
     }
     _ackwait = 0;
     log_error("IO Expander is unresponsive");

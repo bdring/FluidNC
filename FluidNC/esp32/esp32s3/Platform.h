@@ -6,8 +6,9 @@
 #define WITH_MBEDTLS
 #define HAVE_UPDATE
 
-#define MAX_N_UARTS SOC_UART_NUM
+#define MAX_N_UARTS (SOC_UART_NUM + MAX_N_USB_HOST)
 #define MAX_N_I2C SOC_I2C_NUM
+#define MAX_N_USB_HOST 1
 
 // The number that we support, regardless of how many the chip has
 #define MAX_N_DACS 0

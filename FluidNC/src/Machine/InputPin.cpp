@@ -8,9 +8,10 @@ void InputPin::init() {
         return;
     }
     report(_legend);
-    setAttr(Pin::Attr::Input);  // Setup the pin first
-    // Register the event after pin setup so the initial state is correct
+    // Register the event first because some pin types send an
+    // initial pin state report upon setAttr()
     registerEvent(this);
+    setAttr(Pin::Attr::Input);
     update(read());
 }
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Channel.h"
-#include <stack>
+#include <vector>
 
 class JobSource {
 private:
@@ -24,6 +24,9 @@ public:
         return true;
     }
     bool param_exists(const std::string& name) { return _local_params.count(name) != 0; }
+
+    // Expose local parameters for enumeration
+    const std::map<std::string, float>& local_params() const { return _local_params; }
 
     void   save() { _channel->save(); }
     void   restore() { _channel->restore(); }
@@ -57,4 +60,7 @@ public:
     static bool     set_param(const std::string& name, float value);
     static bool     param_exists(const std::string& name);
     static Channel* channel();
+
+    // Expose access to jobs stack for listing local parameters
+    static const std::vector<JobSource*>& jobs_stack();
 };

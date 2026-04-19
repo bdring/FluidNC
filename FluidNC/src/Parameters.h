@@ -18,3 +18,14 @@ bool perform_assignments();
 bool named_param_exists(std::string& name);
 bool set_named_param(const char* name, float value);
 bool set_numbered_param(ngc_param_id_t, float value);
+
+// Forward declarations
+class Channel;
+
+// List global and local parameters
+void list_global_params(Channel& out);
+void list_local_params(Channel& out);
+
+// Forward declaration for list_named_parameters
+#include <map>
+extern std::map<std::string, float> global_named_params;

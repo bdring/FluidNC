@@ -1,0 +1,722 @@
+// Copyright (c) 2025 - FluidNC Contributors
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
+// HTTP Command for FluidNC
+// Allows GCode programs to make outgoing HTTP requests to external services.
+//
+// Usage: $HTTP/COMMAND=url or $HTTP/COMMAND=url{json_options} or $HTTP/COMMAND=@commandname
+//
+// JSON options:
+//   method  - HTTP method (GET, POST, PUT, DELETE). Default: GET (POST if body present)
+//   timeout - Request timeout in ms (max 10000). Default: 5000
+//   body    - Request body string
+//   headers - Object of custom headers, e.g. {"Authorization":"Bearer xyz"}
+//   extract       - Object mapping GCode params to JSON keys, e.g. {"_temp":"temperature"}
+//   halt_on_error - If true (default), errors halt GCode. If false, errors set _HTTP_STATUS=0
+//
+// Token substitution:
+//   Long tokens (like JWT auth tokens) can be stored in /localfs/http_settings.json and
+//   referenced using ${token_name} syntax. This avoids the 255-char GCode line limit.
+//
+// Command substitution:
+//   Long URLs or complete HTTP requests can be stored in /localfs/http_settings.json and
+//   referenced using @commandname syntax. This is useful for complex requests that exceed
+//   the 255-char GCode line limit. The command value replaces the entire @commandname.
+//
+//   Settings file format (JSON):
+//     {
+//       "tokens": { "ha_token": "Bearer eyJhbGciOiJIUzI1NiIs..." },
+//       "commands": {
+//         "fetch_temp": "http://sensor:8000/api/temperature",
+//         "nested_cmd": "http://api/complex{\"method\":\"POST\",\"body\":\"{...}\",\"headers\":{...}}"
+//       }
+//     }
+//
+//   Usage in GCode:
+//     $HTTP/COMMAND=@fetch_temp
+//     $HTTP/COMMAND=@nested_cmd
+//
+//   Settings are loaded at startup. Use $HTTP/Settings/Load to reload without reboot.
+//
+// Examples:
+//   $HTTP/COMMAND=http://example.com/api
+//   $HTTP/COMMAND=http://example.com/api{"method":"POST","body":"{\"key\":\"value\"}"}
+//   $HTTP/COMMAND=http://metrics.local/log{"halt_on_error":false}
+//   $HTTP/COMMAND=http://ha:8123/api{"headers":{"Authorization":"${ha_token}"}}
+//   $HTTP/COMMAND=@fetch_temp
+//
+// GCode parameters set after request:
+//   _HTTP_STATUS       - HTTP status code (0 if connection failed)
+//   _HTTP_RESPONSE_LEN - Response body length
+//   Plus any parameters defined in "extract" option
+//
+// Note: All GCode parameters are floats. Only numeric JSON values can be extracted.
+// String values in JSON responses cannot be stored in parameters.
+//
+// Example with extraction:
+//   ; Server returns: {"temperature": 25.5, "pressure": 101.3}
+//   $HTTP/COMMAND=http://sensor/api{"extract":{"_temp":"temperature","_psi":"pressure"}}
+//   ; Now use in GCode:
+//   #<_safe> = [#<_temp> LT 50]  ; Check if temperature < 50
+//   o100 if [#<_safe> EQ 0]
+//     M0 (Temperature too high!)
+//   o100 endif
+//
+// Limitations:
+//   - Blocks GCode processing (not stepper motion) during request
+//   - Maximum timeout: 10 seconds
+//   - Only works when WiFi is connected
+//   - HTTPS certificates are not validated
+
+#include "HttpCommand.h"
+
+#include "System.h"
+#include "Protocol.h"
+#include "Parameters.h"
+#include "Report.h"
+#include "Module.h"
+#include "FluidPath.h"
+#include "FileStream.h"
+
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WiFiClientSecure.h>
+
+namespace WebUI {
+
+    // Static member initialization
+    std::map<std::string, std::string> HttpCommand::_tokens;
+    std::map<std::string, std::string> HttpCommand::_commands;
+
+    // ============================================================================
+    // Token loading and substitution
+    // ============================================================================
+
+    void HttpCommand::load_tokens() {
+        _tokens.clear();
+        _commands.clear();
+
+        try {
+            // Build full path using FluidNC's localfs prefix
+            FileStream file { SETTINGS_FILE_PATH, "r" };
+
+            // Parse JSON using streaming parser
+            JsonStreamingParser parser;
+            TokenFileListener   listener(_tokens, _commands);
+            parser.setListener(&listener);
+
+            char c;
+            while (file.read(&c, 1) == 1) {
+                parser.parse(c);
+            }
+
+            log_info("HTTP: Loaded " << _tokens.size() << " tokens and " << _commands.size() << " commands from " << SETTINGS_FILE_PATH);
+            for (const auto& token : _tokens) {
+                log_debug("HTTP: Token '" << token.first << "' (" << token.second.length() << " chars)");
+            }
+            for (const auto& cmd : _commands) {
+                log_debug("HTTP: Command '" << cmd.first << "' = " << cmd.second);
+            }
+
+        } catch (const Error err) { log_debug("HTTP: No settings file at " << SETTINGS_FILE_PATH); }
+    }
+
+    std::string HttpCommand::substitute_tokens(const std::string& input) {
+        std::string result = input;
+        size_t      pos    = 0;
+
+        while ((pos = result.find("${", pos)) != std::string::npos) {
+            size_t end = result.find("}", pos + 2);
+            if (end == std::string::npos) {
+                // No closing brace, stop processing
+                break;
+            }
+
+            std::string token_name = result.substr(pos + 2, end - pos - 2);
+            auto        it         = _tokens.find(token_name);
+
+            if (it != _tokens.end()) {
+                result.replace(pos, end - pos + 1, it->second);
+                // Move past the substituted value
+                pos += it->second.length();
+            } else {
+                log_warn("HTTP: Unknown token '${" << token_name << "}'");
+                // Move past this token reference to avoid infinite loop
+                pos = end + 1;
+            }
+        }
+
+        return result;
+    }
+
+    // ============================================================================
+    // HttpOptionsListener implementation
+    // Parses JSON like: {"method":"POST","timeout":5000,"headers":{...},"extract":{...}}
+    // ============================================================================
+
+    void HttpOptionsListener::startDocument() {
+        _depth      = 0;
+        _inHeaders  = false;
+        _inExtract  = false;
+        _currentKey = "";
+        _nestedKey  = "";
+    }
+
+    void HttpOptionsListener::key(String key) {
+        if (_depth == 1) {
+            _currentKey = key;
+        } else if (_depth == 2 && (_inHeaders || _inExtract)) {
+            _nestedKey = key;
+        }
+    }
+
+    void HttpOptionsListener::value(String value) {
+        if (_depth == 1) {
+            // Top-level values
+            if (_currentKey == "method") {
+                _request.method = value.c_str();
+            } else if (_currentKey == "timeout") {
+                int timeout         = value.toInt();
+                _request.timeout_ms = std::min(static_cast<uint32_t>(timeout), HttpCommand::MAX_TIMEOUT_MS);
+            } else if (_currentKey == "body") {
+                _request.body = value.c_str();
+                // Default to POST if body is present and method not set
+                if (_request.method == "GET") {
+                    _request.method = "POST";
+                }
+            } else if (_currentKey == "halt_on_error") {
+                // "halt_on_error":true (default) = halt GCode on error, "halt_on_error":false = continue
+                _request.fail_on_error = (value == "true" || value == "1");
+            }
+        } else if (_depth == 2) {
+            // Nested object values (headers or extract)
+            if (_inHeaders && !_nestedKey.isEmpty()) {
+                _request.headers[_nestedKey.c_str()] = value.c_str();
+            } else if (_inExtract && !_nestedKey.isEmpty()) {
+                _request.extract[_nestedKey.c_str()] = value.c_str();
+            }
+        }
+    }
+
+    void HttpOptionsListener::startObject() {
+        _depth++;
+        if (_depth == 2) {
+            if (_currentKey == "headers") {
+                _inHeaders = true;
+            } else if (_currentKey == "extract") {
+                _inExtract = true;
+            } else if (_currentKey == "body") {
+                // Body can be an object - we'll need to capture it differently
+                // For now, treat nested body objects as strings
+            }
+        }
+    }
+
+    void HttpOptionsListener::endObject() {
+        if (_depth == 2) {
+            _inHeaders = false;
+            _inExtract = false;
+        }
+        _depth--;
+    }
+
+    void HttpOptionsListener::startArray() {
+        _depth++;
+    }
+
+    void HttpOptionsListener::endArray() {
+        _depth--;
+    }
+
+    void HttpOptionsListener::endDocument() {
+        // Nothing to do
+    }
+
+    // ============================================================================
+    // ValueExtractorListener implementation
+    // Extracts specific float values from JSON response body
+    // ============================================================================
+
+    void ValueExtractorListener::key(String key) {
+        if (_depth == 1) {
+            _currentKey = key;
+        }
+    }
+
+    void ValueExtractorListener::value(String value) {
+        if (_depth == 1 && !_currentKey.isEmpty()) {
+            // Check if this key should be extracted
+            std::string keyStr = _currentKey.c_str();
+            for (auto it = _extractMap.begin(); it != _extractMap.end(); ++it) {
+                if (it->second == keyStr) {
+                    // Found a matching key - convert value to float and store
+                    float floatVal = value.toFloat();
+                    set_named_param(it->first.c_str(), floatVal);
+                    log_debug("HTTP: Extracted " << it->first << " = " << floatVal);
+                    // Remove this key from the map (marks it as found)
+                    _extractMap.erase(it);
+                    break;
+                }
+            }
+        }
+    }
+
+    void ValueExtractorListener::startObject() {
+        _depth++;
+    }
+
+    void ValueExtractorListener::endObject() {
+        _depth--;
+    }
+
+    // ============================================================================
+    // TokenFileListener implementation
+    // Parses JSON like: {"tokens":{"token_name":"token_value",...}}
+    // ============================================================================
+
+    void TokenFileListener::startDocument() {
+        _depth      = 0;
+        _inTokens   = false;
+        _inCommands = false;
+        _currentKey = "";
+    }
+
+    void TokenFileListener::key(String key) {
+        _currentKey = key;
+        if (_depth == 1 && key == "tokens") {
+            // Next startObject will be the tokens object
+        } else if (_depth == 1 && key == "commands") {
+            // Next startObject will be the commands object
+        }
+    }
+
+    void TokenFileListener::value(String value) {
+        if (_inTokens && _depth == 2 && !_currentKey.isEmpty()) {
+            _tokens[_currentKey.c_str()] = value.c_str();
+        } else if (_inCommands && _depth == 2 && !_currentKey.isEmpty()) {
+            _commands[_currentKey.c_str()] = value.c_str();
+        }
+    }
+
+    void TokenFileListener::startObject() {
+        _depth++;
+        if (_depth == 2 && _currentKey == "tokens") {
+            _inTokens = true;
+        } else if (_depth == 2 && _currentKey == "commands") {
+            _inCommands = true;
+        }
+    }
+
+    void TokenFileListener::endObject() {
+        if (_depth == 2 && _inTokens) {
+            _inTokens = false;
+        } else if (_depth == 2 && _inCommands) {
+            _inCommands = false;
+        }
+        _depth--;
+    }
+
+    // ============================================================================
+    // State check and command handler
+    // ============================================================================
+
+    bool http_state_check() {
+        // Block during states where HTTP requests are inappropriate
+        if (state_is(State::Homing)) {
+            return true;  // Block
+        }
+        if (state_is(State::Jog)) {
+            return true;  // Block
+        }
+        if (state_is(State::SafetyDoor)) {
+            return true;  // Block
+        }
+        if (state_is(State::Sleep)) {
+            return true;  // Block
+        }
+        return false;  // Allow
+    }
+
+    Error http_command_handler(const char* value, AuthenticationLevel auth_level, Channel& out) {
+        return HttpCommand::execute(value, auth_level, out);
+    }
+
+    Error http_settings_load_handler(const char* value, AuthenticationLevel auth_level, Channel& out) {
+        HttpCommand::load_tokens();
+        return Error::Ok;
+    }
+
+    // Module for registering the HTTP command during system initialization
+    class HttpCommandModule : public Module {
+    public:
+        explicit HttpCommandModule(const char* name) : Module(name) {}
+
+        void init() override {
+            new UserCommand("HC", "HTTP/Command", http_command_handler, http_state_check, WG);
+            new UserCommand("HSL", "HTTP/Settings/Load", http_settings_load_handler, anyState, WA);
+            HttpCommand::load_tokens();
+            log_info("HTTP command registered");
+        }
+    };
+
+    // Register module with init_priority to ensure it runs after core initialization
+    ModuleFactory::InstanceBuilder<HttpCommandModule> http_command_module __attribute__((init_priority(110))) ("http_command", true);
+
+    // ============================================================================
+    // Main execute function
+    // ============================================================================
+
+    Error HttpCommand::execute(const char* value, AuthenticationLevel auth_level, Channel& out) {
+        // Check for command substitution (@commandname)
+        std::string command_value = value;
+        if (value && value[0] == '@') {
+            std::string command_name = value + 1;
+            auto        it           = _commands.find(command_name);
+            if (it != _commands.end()) {
+                command_value = it->second;
+                log_debug("HTTP: Substituting command @" << command_name);
+            } else {
+                log_error_to(out, "HTTP: Unknown command '@" << command_name << "'");
+                return Error::InvalidValue;
+            }
+        }
+
+        // Parse command first so we can check fail_on_error
+        std::string url;
+        std::string json_options;
+        if (!parse_command(command_value.c_str(), url, json_options)) {
+            log_error_to(out, "HTTP: Invalid command format. Use: $HTTP/COMMAND=url or $HTTP/COMMAND=url{json}");
+            return Error::InvalidStatement;  // Syntax errors always fail
+        }
+
+        // Build request
+        HttpRequest request;
+        request.url = url;
+
+        if (!json_options.empty() && !parse_json_options(json_options, request)) {
+            log_error_to(out, "HTTP: Failed to parse JSON options");
+            return Error::InvalidValue;  // Syntax errors always fail
+        }
+
+        // Substitute tokens (${token_name} patterns) in URL, headers, and body
+        request.url  = substitute_tokens(request.url);
+        request.body = substitute_tokens(request.body);
+        for (auto& header : request.headers) {
+            header.second = substitute_tokens(header.second);
+        }
+
+        // Variables to hold response data
+        int      status_code    = 0;
+        uint32_t bytes_received = 0;
+
+        // Check WiFi connection (runtime error - respects fail_on_error)
+        if (WiFi.status() != WL_CONNECTED) {
+            log_error_to(out, "HTTP: WiFi not connected");
+            if (request.fail_on_error) {
+                return Error::MessageFailed;
+            }
+            // Create empty response for no-extraction case
+            status_code    = 0;
+            bytes_received = 0;
+            store_response_params(status_code, bytes_received);
+            return Error::Ok;
+        }
+
+        // Warn if in Cycle state
+        if (state_is(State::Cycle)) {
+            log_warn_to(out, "HTTP: Request during active motion may cause buffer underrun");
+        }
+
+        // Execute request
+        Error result = execute_request(request, status_code, bytes_received, out);
+
+        // Store response in parameters
+        store_response_params(status_code, bytes_received);
+
+        if (result == Error::Ok) {
+            log_info_to(out, "HTTP: " << status_code);
+        }
+
+        // If fail_on_error is false, convert errors to Ok
+        if (result != Error::Ok && !request.fail_on_error) {
+            return Error::Ok;
+        }
+
+        return result;
+    }
+
+    // ============================================================================
+    // Command parsing
+    // ============================================================================
+
+    bool HttpCommand::parse_command(const char* value, std::string& url, std::string& json_options) {
+        // Format: url{json} or url
+        // Note: ${...} is a token substitution pattern, NOT JSON start
+        if (!value || *value == '\0') {
+            return false;
+        }
+
+        // Find the start of JSON options (if any)
+        // Skip ${...} patterns - JSON starts with { that is NOT preceded by $
+        const char* json_start = nullptr;
+        const char* p          = value;
+        while (*p) {
+            if (*p == '{') {
+                // Check if this is a token pattern (preceded by $)
+                if (p > value && *(p - 1) == '$') {
+                    // This is ${...}, skip to the closing }
+                    p++;
+                    while (*p && *p != '}') {
+                        p++;
+                    }
+                    if (*p == '}') {
+                        p++;
+                    }
+                    continue;
+                }
+                // This is the start of JSON options
+                json_start = p;
+                break;
+            }
+            p++;
+        }
+
+        if (json_start) {
+            // URL is everything before the '{'
+            url = std::string(value, json_start - value);
+
+            // JSON is everything from '{' to matching '}'
+            int brace_count = 1;
+            p               = json_start + 1;
+
+            while (*p && brace_count > 0) {
+                if (*p == '{') {
+                    brace_count++;
+                } else if (*p == '}') {
+                    brace_count--;
+                }
+                p++;
+            }
+
+            if (brace_count != 0) {
+                return false;  // Unbalanced braces
+            }
+
+            json_options = std::string(json_start, p - json_start);
+        } else {
+            url = value;
+            json_options.clear();
+        }
+
+        return !url.empty();
+    }
+
+    // ============================================================================
+    // JSON parsing using streaming parser
+    // ============================================================================
+
+    bool HttpCommand::parse_json_options(const std::string& json, HttpRequest& request) {
+        JsonStreamingParser parser;
+        HttpOptionsListener listener(request);
+        parser.setListener(&listener);
+
+        for (char c : json) {
+            parser.parse(c);
+        }
+
+        return true;
+    }
+
+    // ============================================================================
+    // URL parsing
+    // ============================================================================
+
+    bool HttpCommand::parse_url(const std::string& url, std::string& protocol, std::string& host, uint16_t& port, std::string& path) {
+        size_t protocol_end = url.find("://");
+        if (protocol_end == std::string::npos) {
+            return false;
+        }
+
+        protocol = url.substr(0, protocol_end);
+        if (protocol != "http" && protocol != "https") {
+            return false;
+        }
+
+        size_t host_start = protocol_end + 3;
+        size_t path_start = url.find('/', host_start);
+        if (path_start == std::string::npos) {
+            path_start = url.length();
+            path       = "/";
+        } else {
+            path = url.substr(path_start);
+        }
+
+        std::string host_port = url.substr(host_start, path_start - host_start);
+        size_t      port_pos  = host_port.find(':');
+        if (port_pos != std::string::npos) {
+            host = host_port.substr(0, port_pos);
+            port = std::stoi(host_port.substr(port_pos + 1));
+        } else {
+            host = host_port;
+            port = (protocol == "https") ? 443 : 80;
+        }
+
+        return !host.empty();
+    }
+
+    // ============================================================================
+    // HTTP request execution
+    // ============================================================================
+
+    Error HttpCommand::execute_request(HttpRequest& request, int& status_code, uint32_t& bytes_received, Channel& out) {
+        std::string protocol;
+        std::string host;
+        uint16_t    port;
+        std::string path;
+
+        if (!parse_url(request.url, protocol, host, port, path)) {
+            log_error_to(out, "HTTP: Invalid URL format");
+            return Error::InvalidValue;
+        }
+
+        log_debug("HTTP: " << request.method << " " << protocol << "://" << host << ":" << port << path);
+
+        // Create client based on protocol
+        WiFiClient       http_client;
+        WiFiClientSecure https_client;
+        WiFiClient*      client_ptr;
+
+        bool connected = false;
+        if (protocol == "https") {
+            https_client.setInsecure();
+            https_client.setTimeout(request.timeout_ms / 1000);
+            connected  = https_client.connect(host.c_str(), port);
+            client_ptr = &https_client;
+        } else {
+            http_client.setTimeout(request.timeout_ms / 1000);
+            connected  = http_client.connect(host.c_str(), port);
+            client_ptr = &http_client;
+        }
+
+        if (!connected) {
+            log_error_to(out, "HTTP: Connection failed to " << host << ":" << port);
+            return Error::MessageFailed;
+        }
+
+        WiFiClient& client = *client_ptr;
+
+        // Build request
+        std::string http_request;
+        http_request += request.method + " " + path + " HTTP/1.1\r\n";
+        http_request += "Host: " + host + "\r\n";
+        http_request += "Connection: close\r\n";
+        http_request += "User-Agent: FluidNC\r\n";
+
+        // Add custom headers
+        for (const auto& header : request.headers) {
+            http_request += header.first + ": " + header.second + "\r\n";
+        }
+
+        // Add body
+        if (!request.body.empty()) {
+            if (request.body[0] == '{') {
+                http_request += "Content-Type: application/json\r\n";
+            }
+            http_request += "Content-Length: " + std::to_string(request.body.length()) + "\r\n";
+            http_request += "\r\n";
+            http_request += request.body;
+        } else {
+            http_request += "\r\n";
+        }
+
+        // Send request
+        client.print(http_request.c_str());
+
+        // Read response
+        uint32_t start_time = millis();
+        while (client.connected() && !client.available()) {
+            if (millis() - start_time > request.timeout_ms) {
+                client.stop();
+                log_error_to(out, "HTTP: Response timeout");
+                return Error::AnotherInterfaceBusy;
+            }
+            delay(10);
+        }
+
+        // Parse status line
+        std::string status_line = client.readStringUntil('\n').c_str();
+        log_debug("HTTP response: " << status_line);
+
+        // Extract status code
+        size_t space1 = status_line.find(' ');
+        if (space1 != std::string::npos) {
+            size_t space2 = status_line.find(' ', space1 + 1);
+            if (space2 != std::string::npos) {
+                status_code = std::stoi(status_line.substr(space1 + 1, space2 - space1 - 1));
+            }
+        }
+
+        // Skip headers
+        while (client.connected()) {
+            std::string line = client.readStringUntil('\n').c_str();
+            if (line.length() <= 1) {
+                break;
+            }
+        }
+
+        // Stream response body, extracting values if requested and counting bytes
+        bytes_received = 0;
+
+        if (request.extract.empty()) {
+            // No extraction needed - just count bytes
+            while ((client.connected() || client.available())) {
+                if (client.available()) {
+                    client.read();
+                    bytes_received++;
+                } else if (client.connected()) {
+                    delay(1);
+                }
+            }
+        } else {
+            // Extraction requested - parse JSON and extract values
+            // Listener will erase found keys from request.extract in-place
+            JsonStreamingParser    parser;
+            ValueExtractorListener listener(request.extract, out);
+            parser.setListener(&listener);
+
+            while ((client.connected() || client.available())) {
+                if (client.available()) {
+                    char c = client.read();
+                    parser.parse(c);
+                    bytes_received++;
+                } else if (client.connected()) {
+                    delay(1);
+                }
+            }
+
+            // Report any keys that weren't found (still in request.extract)
+            for (const auto& mapping : request.extract) {
+                log_warn_to(out, "HTTP: Key '" << mapping.second << "' not found in response");
+            }
+        }
+
+        log_debug("HTTP: Received " << bytes_received << " bytes");
+
+        client.stop();
+
+        if (status_code >= 200 && status_code < 300) {
+            return Error::Ok;
+        } else if (status_code >= 400) {
+            log_warn_to(out, "HTTP: Server returned " << status_code);
+            return Error::Ok;
+        }
+
+        return Error::Ok;
+    }
+
+    void HttpCommand::store_response_params(int status_code, uint32_t bytes_received) {
+        set_named_param("_HTTP_STATUS", static_cast<float>(status_code));
+        set_named_param("_HTTP_RESPONSE_LEN", static_cast<float>(bytes_received));
+    }
+
+}  // namespace WebUI

@@ -14,7 +14,7 @@
 #include "Machine/MachineConfig.h"
 #include "Uart.h"
 
-#include <cstdint> // MUST be before TMCStepper.h
+#include <cstdint>       // MUST be before TMCStepper.h
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <atomic>
 
@@ -23,6 +23,11 @@ namespace MotorDrivers {
     void TrinamicUartDriver::init() {
         _uart = config->_uarts[_uart_num];
         Assert(_uart, "TMC Driver missing uart%d section", _uart_num);
+        if (!_uart->configured()) {
+            log_error(name() << ": uart" << _uart_num << " failed configuration");
+            _has_errors = true;
+            return;
+        }
 
         _cs_pin.setAttr(Pin::Attr::Output);
         TrinamicBase::init();
