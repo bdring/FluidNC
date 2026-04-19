@@ -5,6 +5,103 @@
 #include <termios.h>
 #include <unistd.h>
 #include <stdio.h>
+
+// termios defines baud-rate macros like B0 and B9600 that collide with
+// Arduino-Emulator's Binary.h enum constants on Linux.
+#ifdef B0
+#    undef B0
+#endif
+#ifdef B50
+#    undef B50
+#endif
+#ifdef B75
+#    undef B75
+#endif
+#ifdef B110
+#    undef B110
+#endif
+#ifdef B134
+#    undef B134
+#endif
+#ifdef B150
+#    undef B150
+#endif
+#ifdef B200
+#    undef B200
+#endif
+#ifdef B300
+#    undef B300
+#endif
+#ifdef B600
+#    undef B600
+#endif
+#ifdef B1200
+#    undef B1200
+#endif
+#ifdef B1800
+#    undef B1800
+#endif
+#ifdef B2400
+#    undef B2400
+#endif
+#ifdef B4800
+#    undef B4800
+#endif
+#ifdef B9600
+#    undef B9600
+#endif
+#ifdef B19200
+#    undef B19200
+#endif
+#ifdef B38400
+#    undef B38400
+#endif
+#ifdef B57600
+#    undef B57600
+#endif
+#ifdef B115200
+#    undef B115200
+#endif
+#ifdef B230400
+#    undef B230400
+#endif
+#ifdef B460800
+#    undef B460800
+#endif
+#ifdef B500000
+#    undef B500000
+#endif
+#ifdef B576000
+#    undef B576000
+#endif
+#ifdef B921600
+#    undef B921600
+#endif
+#ifdef B1000000
+#    undef B1000000
+#endif
+#ifdef B1152000
+#    undef B1152000
+#endif
+#ifdef B1500000
+#    undef B1500000
+#endif
+#ifdef B2000000
+#    undef B2000000
+#endif
+#ifdef B2500000
+#    undef B2500000
+#endif
+#ifdef B3000000
+#    undef B3000000
+#endif
+#ifdef B3500000
+#    undef B3500000
+#endif
+#ifdef B4000000
+#    undef B4000000
+#endif
+
 #include "Serial.h"  // allChannels
 #include "Driver/Console.h"
 

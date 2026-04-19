@@ -34,6 +34,8 @@
 #include <map>
 #include <filesystem>
 
+#include <Arduino.h>  // PIN_LED
+
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin
@@ -167,6 +169,9 @@ extern void make_settings();
 extern void make_user_commands();
 
 void settings_init() {
+    // Initialize NVS - detects and recovers from corruption
+    nvs.init();
+
     make_settings();
     make_file_commands();
 }

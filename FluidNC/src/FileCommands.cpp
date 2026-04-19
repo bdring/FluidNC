@@ -50,10 +50,13 @@ static Error openFile(const Volume& fs, const char* parameter, Channel& out, Inp
 
     try {
         theFile = new InputFile(fs, path.c_str());
+    } catch (const ErrorException& ex) {
+        log_error_to(out, ex.what());
+        return ex.error();
     } catch (std::filesystem::filesystem_error const& ex) {
         log_error_to(out, ex.what());
         return Error::FsFailedOpenFile;
-    } catch (Error err) { return err; }
+    }
     return Error::Ok;
 }
 
@@ -486,9 +489,9 @@ static Error copyFile(const Volume& ifs, const char* ipath, const Volume& ofs, c
             outFile.write(buf, len);
         }
         filepath = outFile.fpath();
-    } catch (const Error err) {
+    } catch (const ErrorException& err) {
         log_error_to(out, "Cannot create file " << opath);
-        return Error::FsFailedCreateFile;
+        return err.error();
     }
     // Rehash after outFile goes out of scope
     HashFS::rehash_file(filepath);

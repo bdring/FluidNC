@@ -19,6 +19,7 @@ bool isLittleFS(const std::string_view mountpoint) {
 // cppcheck-suppress unusedFunction
 bool fluidnc_vfs_stats(const std::string_view mountpoint, uint64_t& total, uint64_t& used) {
     if (isSD(mountpoint)) {
+#if 0
         FATFS* fsinfo;
         DWORD  fre_clust;
         if (f_getfree("0:", &fre_clust, &fsinfo) != 0) {
@@ -29,6 +30,7 @@ bool fluidnc_vfs_stats(const std::string_view mountpoint, uint64_t& total, uint6
 
         total = clsize * total_cl;
         used  = clsize * (total_cl - fsinfo->free_clst);
+#endif
         return true;
     }
     size_t stotal, sused;

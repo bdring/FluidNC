@@ -24,7 +24,7 @@ static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
     return step_pin;
 }
 
-static int _stepPulseEndTime;
+static int32_t _stepPulseEndTime;
 
 static void IRAM_ATTR set_pin(pinnum_t pin, bool level) {
     gpio_write(pin, level);

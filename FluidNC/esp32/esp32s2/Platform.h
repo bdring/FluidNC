@@ -11,6 +11,7 @@
 
 #define WEAK_LINK __attribute__((weak))
 #define WITH_MBEDTLS
+#define HAVE_UPDATE
 
 #define MAX_N_UARTS SOC_UART_NUM
 #define MAX_N_I2C SOC_I2C_NUM

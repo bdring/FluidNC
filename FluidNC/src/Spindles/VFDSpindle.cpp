@@ -69,13 +69,13 @@ namespace Spindles {
             VFD::VFDProtocol::vfd_cmd_queue   = xQueueCreate(VFD_RS485_QUEUE_SIZE, sizeof(VFD::VFDProtocol::VFDaction));
             VFD::VFDProtocol::vfd_speed_queue = xQueueCreate(VFD_RS485_QUEUE_SIZE, sizeof(uint32_t));
 
-            xTaskCreatePinnedToCore(VFD::VFDProtocol::vfd_cmd_task,  // task
+            xTaskCreateAffinitySet(VFD::VFDProtocol::vfd_cmd_task,  // task
                                     "vfd_cmdTaskHandle",             // name for task
                                     4096,                            // size of task stack
                                     this,                            // parameters
                                     1,                               // priority
-                                    &VFD::VFDProtocol::vfd_cmdTaskHandle,
-                                    SUPPORT_TASK_CORE  // core
+                                    (1 << SUPPORT_TASK_CORE),        // affinity mask
+                                    &VFD::VFDProtocol::vfd_cmdTaskHandle
             );
         }
 

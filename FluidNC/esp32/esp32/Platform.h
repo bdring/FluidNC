@@ -11,6 +11,7 @@
 
 #define WEAK_LINK __attribute__((weak))
 #define WITH_MBEDTLS
+#define HAVE_UPDATE
 
 #define MAX_N_UARTS SOC_UART_NUM
 #define MAX_N_I2C SOC_I2C_NUM
@@ -33,6 +34,8 @@
 // messages from the ESP32 bootloader if you use a different baud rate,
 // and some serial monitor programs that assume 115200 might not work.
 const int BAUD_RATE = 115200;
+
+#define LAST_ERROR lastError
 
 #include <esp_task_wdt.h>
 
@@ -59,3 +62,19 @@ inline bool should_exit() {
 // Compatibility for older compilers versions.
 #    define memory_order_seq_cst seq_cst
 #endif
+
+inline BaseType_t xTaskCreateAffinitySet(TaskFunction_t      pvTaskCode,
+                                         const char* const   pcName,
+                                         const uint32_t      usStackDepth,
+                                         void* const         pvParameters,
+                                         UBaseType_t         uxPriority,
+                                         int                 affinityMask,
+                                         TaskHandle_t* const pvCreatedTask) {
+    BaseType_t core = tskNO_AFFINITY;
+    if (affinityMask & 0x1) {
+        core = 0;
+    } else if (affinityMask & 0x2) {
+        core = 1;
+    }
+    return xTaskCreateUniversal(pvTaskCode, pcName, usStackDepth, pvParameters, uxPriority, pvCreatedTask, core);
+}

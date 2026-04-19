@@ -10,6 +10,8 @@
 #include "Protocol.h"
 #include "Event.h"
 
+#include <climits>  // UINT_MAX
+
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"
 #include "Report.h"               // report_feedback_message
@@ -217,22 +219,22 @@ void start_polling() {
     if (pollingTask) {
         vTaskResume(pollingTask);
     } else {
-        xTaskCreatePinnedToCore(polling_loop,      // task
+        xTaskCreateAffinitySet(polling_loop,      // task
                                 "poller",          // name for task
                                 8192,              // size of task stack
                                 0,                 // parameters
                                 1,                 // priority
-                                &pollingTask,      // task handle
-                                SUPPORT_TASK_CORE  // core
+                                (1 << SUPPORT_TASK_CORE),  // affinity mask
+                                &pollingTask       // task handle
         );
-        xTaskCreatePinnedToCore(output_loop,  // task
+        xTaskCreateAffinitySet(output_loop,  // task
                                 "output",     // name for task
                                 16000,
                                 // 8192,              // size of task stack
                                 0,                 // parameters
                                 2,                 // priority
-                                &outputTask,       // task handle
-                                SUPPORT_TASK_CORE  // core
+                                (1 << SUPPORT_TASK_CORE),  // affinity mask
+                                &outputTask        // task handle
         );
     }
 }

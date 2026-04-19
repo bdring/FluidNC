@@ -39,8 +39,6 @@ volatile bool protocol_pin_changed = false;
 
 std::string report_pin_string;
 
-portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
-
 void notifyf(const char* title, const char* format, ...) {
     char    loc_buf[64];
     char*   temp = loc_buf;
