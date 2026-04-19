@@ -8,7 +8,7 @@
 #include <cstdio>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
-#include <mutex>
+#include <freertos/semphr.h>
 #include "System.h"
 
 #include "Serial.h"  // is_realtime_command
@@ -17,7 +17,7 @@ namespace WebUI {
     class WSChannels;
 
     namespace {
-        std::mutex ws_channels_mutex;
+        SemaphoreHandle_t ws_channels_mutex = xSemaphoreCreateMutex();
 
         struct WSChannelInfo {
             objnum_t    id;
@@ -214,18 +214,21 @@ namespace WebUI {
 
     WSChannel* WSChannels::_lastWSChannel = nullptr;
     WSChannel* WSChannels::getWSChannel(objnum_t pageid, std::string session) {
-        std::lock_guard<std::mutex> lock(ws_channels_mutex);
+        xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
         for (auto it = _wsChannels.begin(); it < _wsChannels.end(); ++it) {
             if (pageid) {
                 // Do not combine these predicates into a single to avoid
                 // a match on session if pageid is 0.
                 if ((*it)->id() == pageid) {
+                    xSemaphoreGive(ws_channels_mutex);
                     return *it;
                 }
             } else if ((*it)->session() == session) {
+                xSemaphoreGive(ws_channels_mutex);
                 return *it;
             }
         }
+        xSemaphoreGive(ws_channels_mutex);
         return nullptr;
     }
 
@@ -236,7 +239,7 @@ namespace WebUI {
     }
 
     void WSChannels::removeChannel(objnum_t num) {
-        std::lock_guard<std::mutex> lock(ws_channels_mutex);
+        xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
         for (auto it = _wsChannels.begin(); it < _wsChannels.end(); ++it) {
             if ((*it)->id() == num) {
                 auto wsChannel = *it;
@@ -252,16 +255,18 @@ namespace WebUI {
                 break;
             }
         }
+        xSemaphoreGive(ws_channels_mutex);
     }
 
     void WSChannels::showChannels() {
         std::vector<WSChannelInfo> wsChannels;
         {
-            std::lock_guard<std::mutex> lock(ws_channels_mutex);
+            xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
             wsChannels.reserve(_wsChannels.size());
             for (auto const wsChannel : _wsChannels) {
                 wsChannels.push_back({ wsChannel->id(), wsChannel->session() });
             }
+            xSemaphoreGive(ws_channels_mutex);
         }
 
         log_debug("wsChannels: " << wsChannels.size());
@@ -304,12 +309,13 @@ namespace WebUI {
     void WSChannels::closeSessionChannels(const std::string& session, objnum_t exceptId) {
         std::vector<objnum_t> channelIds;
         {
-            std::lock_guard<std::mutex> lock(ws_channels_mutex);
+            xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
             for (auto const wsChannel : _wsChannels) {
                 if (wsChannel->session() == session && wsChannel->id() != exceptId) {
                     channelIds.push_back(wsChannel->id());
                 }
             }
+            xSemaphoreGive(ws_channels_mutex);
         }
 
         for (auto const channelId : channelIds) {
@@ -322,11 +328,12 @@ namespace WebUI {
     void WSChannels::sendPing() {
         std::vector<objnum_t> wsChannelIds;
         {
-            std::lock_guard<std::mutex> lock(ws_channels_mutex);
+            xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
             wsChannelIds.reserve(_wsChannels.size());
             for (auto const wsChannel : _wsChannels) {
                 wsChannelIds.push_back(wsChannel->id());
             }
+            xSemaphoreGive(ws_channels_mutex);
         }
 
         for (auto const channelId : wsChannelIds) {
@@ -360,9 +367,10 @@ namespace WebUI {
 
                     std::string s;
                     {
-                        std::lock_guard<std::mutex> lock(ws_channels_mutex);
+                        xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
                         _lastWSChannel = newChannel;
                         _wsChannels.push_back(newChannel);
+                        xSemaphoreGive(ws_channels_mutex);
                     }
 
                     // The newest websocket for a session wins. Actively close any older

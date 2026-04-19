@@ -46,10 +46,10 @@ namespace WebUI {
         void   out_acked(const std::string& s, const char* tag) override;
         size_t copyBufferSafe(uint8_t* dest_buffer, size_t maxLen, size_t total);
 
-        std::mutex             xBufferLock;
-        std::list<std::string> cmds;
-        bool                   done = false;  // Is used to tell that the background command is done executing,
-                                              // which also mean all write events have occured
+        SemaphoreHandle_t        xBufferLock;
+        std::list<std::string>   cmds;
+        bool                     done = false;  // Is used to tell that the background command is done executing,
+                                                // which also mean all write events have occured
 
     private:
         bool                    _silent = false;  // Used to get no response, but also to discard data after a client may have disconnected

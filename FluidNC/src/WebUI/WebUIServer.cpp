@@ -4,12 +4,14 @@
 #include "Machine/MachineConfig.h"
 #include "Serial.h"    // is_realtime_command()
 #include "Settings.h"  // settings_execute_line()
+#include "Error.h"     // ErrorException
 
 #include "WebUIServer.h"
 
-// WMB #include "Mdns.h"
+#include "Driver/fluidnc_mdns.h"
 
 #include <WiFi.h>
+// #include <StreamString.h>
 #ifdef HAVE_UPDATE
 #    include <Update.h>
 #    include <esp_wifi_types.h>
@@ -34,15 +36,14 @@
 #include "Mime.h"  // getContentType
 
 #include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
 #include "WebDAV.h"
 
-namespace WebUI {
 #ifdef HAVE_DNS
+namespace WebUI {
     const byte DNS_PORT = 53;
     DNSServer  dnsServer;
-#endif
 }
+#endif
 
 using namespace asyncsrv;
 
@@ -200,13 +201,12 @@ namespace WebUI {
             //do not forget the / at the end
             _webserver->on("/fwlink/", HTTP_ANY, handle_root);
         }
+        Mdns::add("_http", "_tcp", _port);
 #endif
 
         log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
-
-        // WMB Mdns::add("_http", "_tcp", _port);
 
         HashFS::hash_all();
 
@@ -218,7 +218,9 @@ namespace WebUI {
 
         //        SSDP.end();
 
-        // WMB Mdns::remove("_http", "_tcp");
+#ifdef HAVE_DNS
+        WMB Mdns::remove("_http", "_tcp");
+#endif
 
         if (_socket_server) {
             delete _socket_server;
@@ -354,14 +356,14 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file   = NULL;
         try {
-            file = new FileStream(fpath, "r");
-        } catch (const Error err) {
+            file = new FileStream(fpath, "r", LocalFS);
+        } catch (const ErrorException& err) {
             if (acceptGz) {
                 try {
                     fpath += ".gz";
                     file   = new FileStream(fpath, "r");
                     isGzip = true;
-                } catch (const Error err) {}
+                } catch (const ErrorException& err) {}
             }
         }
         if (!file) {
@@ -410,10 +412,7 @@ namespace WebUI {
         return true;
     }
     void WebUI_Server::sendWithOurAddress(AsyncWebServerRequest* request, const char* content, uint16_t code) {
-        // WMB        auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
-        auto ip = WiFi.localIP();
-
-        std::string ipstr = IP_string(ip);
+        std::string ipstr = webServerIp();
         if (_port != 80) {
             ipstr += ":";
             ipstr += std::to_string(_port);
@@ -485,6 +484,10 @@ namespace WebUI {
 
     // Handle filenames and other things that are not explicitly registered
     void WebUI_Server::handle_not_found(AsyncWebServerRequest* request) {
+        const char* upgrade    = request->hasHeader("Upgrade") ? request->getHeader("Upgrade")->value().c_str() : "";
+        const char* connection = request->hasHeader("Connection") ? request->getHeader("Connection")->value().c_str() : "";
+        const char* protocol =
+            request->hasHeader("Sec-WebSocket-Protocol") ? request->getHeader("Sec-WebSocket-Protocol")->value().c_str() : "";
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             request->redirect("/");
             //_webserver->client().stop();
@@ -562,7 +565,7 @@ namespace WebUI {
     }
 
     std::string getSession(AsyncClient* client) {
-        return (std::to_string(IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
+        return (std::to_string((uint32_t)IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
     }
     void WebUI_Server::websocketCommand(AsyncWebServerRequest* request, const char* cmd, uint32_t pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
@@ -591,9 +594,6 @@ namespace WebUI {
             // [ESPXXX] commands expect data in the HTTP response
             String cmdUpper = cmd;
             cmdUpper.toUpperCase();
-            // Modified async hack // no longer needed...
-            //if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") || cmdUpper.startsWith("$ESP") {
-            // Original check (now also work with $ESP400, but is slower than if it was returned as http response)
             if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/")) {
                 synchronousCommand(request, cmd.c_str(), silent, auth_level, isAllowedInMotion(cmdUpper));
             } else {
@@ -910,7 +910,6 @@ namespace WebUI {
         fileUpload(request, SD, filename, index, data, len, final);
     }
 
-#ifdef HAVE_UPDATE
     //Web Update handler
     void WebUI_Server::handleUpdate(AsyncWebServerRequest* request) {
         AuthenticationLevel auth_level = is_authenticated();
@@ -931,6 +930,7 @@ namespace WebUI {
         }
     }
 
+#ifdef HAVE_UPDATE
     //File upload for Web update
     void WebUI_Server::WebUpdateUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
         static size_t   last_upload_update;
@@ -1200,7 +1200,7 @@ namespace WebUI {
             try {
                 _uploadFile    = new FileStream(fpath, "w");
                 _upload_status = UploadStatus::ONGOING;
-            } catch (const Error err) {
+            } catch (const ErrorException& err) {
                 _uploadFile    = nullptr;
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload failed - cannot create file");
@@ -1245,7 +1245,7 @@ namespace WebUI {
                 size_t actual_size;
                 try {
                     actual_size = stdfs::file_size(filepath);
-                } catch (const Error err) { actual_size = 0; }
+                } catch (const ErrorException& err) { actual_size = 0; }
 
                 if (filesize != actual_size) {
                     _upload_status = UploadStatus::FAILED;

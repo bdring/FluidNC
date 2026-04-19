@@ -27,6 +27,8 @@ namespace WebUI {
     static const int MIN_HTTP_PORT = 1;
     static const int MAX_HTTP_PORT = 65001;
 
+    std::string webServerIp();
+
     extern EnumSetting* http_enable;
     extern IntSetting*  http_port;
 

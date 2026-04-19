@@ -5,6 +5,7 @@
 #include "Machine/MachineConfig.h"
 #include <sstream>
 #include <iomanip>
+#include <unistd.h>
 
 #include "Channel.h"         // Channel
 #include "Error.h"           // Error
@@ -26,6 +27,15 @@
 #define Network WiFi
 
 namespace WebUI {
+    std::string webServerIp() {
+        return IP_string(Network.localIP());
+    }
+    std::string myHostname() {
+        char name[64];
+        gethostname(name, 63);
+        return std::string(name);
+    }
+
 #ifdef HAVE_DNS
     const byte DNS_PORT = 53;
     DNSServer  dnsServer;
@@ -35,7 +45,7 @@ namespace WebUI {
         static constexpr int MAX_HOSTNAME_LENGTH = 32;
         static constexpr int MIN_HOSTNAME_LENGTH = 1;
         static Error         showIP(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
-            log_stream(out, parameter << Network.localIP());
+            log_stream(out, parameter << webServerIp());
             return Error::Ok;
         }
 
@@ -46,13 +56,11 @@ namespace WebUI {
 
             log_stream(out, "IP: " << IP_string(Network.localIP()));
 
-#if 0
             LogStream s(out, "Notifications: ");
             s << (NotificationsService::started() ? "Enabled" : "Disabled");
             if (NotificationsService::started()) {
                 s << "(" << NotificationsService::getTypeString() << ")";
             }
-#endif
         }
 
         static Error showFwInfoJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
@@ -77,7 +85,7 @@ namespace WebUI {
 #endif
                 j.member("WebCommunication", "Synchronous");
 
-                j.member("WebSocketIP", IP_string(Network.localIP()));
+                j.member("WebSocketIP", webServerIp());
 
                 j.member("WebSocketPort", std::to_string(WebUI_Server::port()));
                 j.member("HostName", "localhost");

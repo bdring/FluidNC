@@ -116,7 +116,7 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
             // MacOS tends to create an empty file first, then
             // lock it and write to it.
             FileStream file(fpath, "w", LocalFS);
-        } catch (const Error err) {
+        } catch (const ErrorException& err) {
             log_debug(fpath << " cannot be opened");
             return request->send(403);
         }
@@ -192,7 +192,7 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
             // file if it already exists.
             try {
                 state->outFile = new FileStream(fpath, "w", LocalFS);
-            } catch (const Error err) {
+            } catch (const ErrorException& err) {
                 log_debug(fpath << " cannot be opened");
                 return request->send(500);
             }
@@ -301,12 +301,12 @@ void WebDAV::handleGet(const FluidPath& fpath, DavResource resource, AsyncWebSer
             try {
                 file   = new FileStream(gzpath, "r", LocalFS);
                 isGzip = true;
-            } catch (const Error err) {}
+            } catch (const ErrorException& err) {}
         }
     } else {
         try {
             file = new FileStream(fpath, "r", LocalFS);
-        } catch (const Error err) {}
+        } catch (const ErrorException& err) {}
     }
 
     if (!file) {
@@ -352,7 +352,7 @@ void WebDAV::handlePut(
         FileStream file(fpath, index ? "a" : "w", LocalFS);
         file.write(data, len);
         file.flush();
-    } catch (const Error err) { log_debug(fpath << " cannot be opened"); }
+    } catch (const ErrorException& err) { log_debug(fpath << " cannot be opened"); }
 }
 
 void WebDAV::handleLock(const stdfs::path& path, AsyncWebServerRequest* request) {

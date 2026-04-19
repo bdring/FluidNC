@@ -23,8 +23,6 @@ namespace WebUI {
 
         inline size_t write(const char* s) { return write((uint8_t*)s, ::strlen(s)); }
 
-        void flush(void) override {}
-
         objnum_t id() { return _clientNum; }
 
         int      rx_buffer_available() override { return std::max(0, 256 - int(queued_bytes())); }

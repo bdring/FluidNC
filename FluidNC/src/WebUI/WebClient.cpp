@@ -10,6 +10,16 @@
 #include "Authentication.h"  // Auth levels
 
 namespace WebUI {
+    namespace {
+        constexpr UBaseType_t webclient_task_priority() {
+#ifdef configMAX_PRIORITIES
+            return (configMAX_PRIORITIES > 1) ? ((20 < (configMAX_PRIORITIES - 1)) ? 20 : (configMAX_PRIORITIES - 1)) : 0;
+#else
+            return 20;
+#endif
+        }
+    }
+
     QueueHandle_t WebClients::_background_task_queue  = nullptr;
     TaskHandle_t  WebClients::_background_task_handle = nullptr;
 
@@ -18,19 +28,19 @@ namespace WebUI {
         while (true) {
             WebClient* webClient;
             if (xQueueReceive(_background_task_queue, &webClient, portMAX_DELAY) == pdTRUE) {
-                webClient->xBufferLock.lock();
+                xSemaphoreTake(webClient->xBufferLock, portMAX_DELAY);
                 if (webClient->cmds.size() > 0) {
                     cmd = webClient->cmds.front();
                     webClient->cmds.pop_front();
-                    webClient->xBufferLock.unlock();
+                    xSemaphoreGive(webClient->xBufferLock);
                     // TODO: check error result and see if we can do anything...
                     settings_execute_line(cmd.c_str(), *webClient, AuthenticationLevel::LEVEL_ADMIN);
                     // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.
-                    webClient->xBufferLock.lock();
+                    xSemaphoreTake(webClient->xBufferLock, portMAX_DELAY);
                     webClient->done = true;
-                    webClient->xBufferLock.unlock();
+                    xSemaphoreGive(webClient->xBufferLock);
                 } else {
-                    webClient->xBufferLock.unlock();
+                    xSemaphoreGive(webClient->xBufferLock);
                 }
             } else
                 delay(1);  // This should never happen if portMAX_DELAY is trully infinite
@@ -38,34 +48,50 @@ namespace WebUI {
     }
 
     WebClient::WebClient() : Channel("webclient") {
-        if (WebClients::_background_task_queue == nullptr)  // If we are the first instanciation ever, create the event queue
+        xBufferLock = xSemaphoreCreateMutex();
+        if (WebClients::_background_task_queue == nullptr) {  // If we are the first instanciation ever, create the event queue
             WebClients::_background_task_queue = xQueueCreate(64, sizeof(WebClient*));
-        if (WebClients::_background_task_handle == nullptr) {     // Same here, create the unique background task
-            xTaskCreatePinnedToCore(WebClients::background_task,  // task
-                                    "WebClient_background_task",  // name for task
-                                    5 * 1024,                     // 4KB seems enough, 3.5 crash, setting to 5KB
-                                    NULL,                         // parameters
-                                    20,  // priority // If higher than (ASYNC TCP?) the commands like [ESP800] return faster
+        }
+        if (WebClients::_background_task_handle == nullptr) {  // Same here, create the unique background task
+#if defined(PICO_RP2040) || defined(PICO_RP2350)
+            xTaskCreateAffinitySet(WebClients::background_task,  // task
+                                   "WebClient_background_task",  // name for task
+                                   5 * 1024,                     // 4KB seems enough, 3.5 crash, setting to 5KB
+                                   NULL,                         // parameters
+                                   webclient_task_priority(),  // Keep within configMAX_PRIORITIES
+                                   (1 << SUPPORT_TASK_CORE),  // affinity mask
+                                   &WebClients::_background_task_handle);
+#else
+            xTaskCreatePinnedToCore(WebClients::background_task,
+                                    "WebClient_background_task",
+                                    5 * 1024,
+                                    NULL,
+                                    webclient_task_priority(),
                                     &WebClients::_background_task_handle,
-                                    SUPPORT_TASK_CORE  // not sure if SUPPORT_TASK_CORE is the best choice
-            );
+                                    SUPPORT_TASK_CORE);
+#endif
         }
     }
 
     WebClient::~WebClient() {
-        xBufferLock.lock();
+        if (!xBufferLock) {
+            return;
+        }
+        xSemaphoreTake(xBufferLock, portMAX_DELAY);
         if (_buffer)
             free(_buffer);
         _buffer    = nullptr;
         _allocsize = 0;
         _buflen    = 0;
         done       = true;
-        xBufferLock.unlock();
+        xSemaphoreGive(xBufferLock);
+        vSemaphoreDelete(xBufferLock);
+        xBufferLock = nullptr;
     }
 
     void WebClient::attachWS(bool silent) {
         _silent = silent;
-        xBufferLock.lock();
+        xSemaphoreTake(xBufferLock, portMAX_DELAY);
         _buflen    = 0;
         _allocsize = 0;
         if (_buffer) {
@@ -73,38 +99,38 @@ namespace WebUI {
             _buffer = nullptr;
         }
         done = false;
-        xBufferLock.unlock();
+        xSemaphoreGive(xBufferLock);
     }
 
     // Should be used externally to signify to free any potential resources
     // Any unread buffer will be cleared after that.
     void WebClient::detachWS() {
-        xBufferLock.lock();
+        xSemaphoreTake(xBufferLock, portMAX_DELAY);
         _silent = true;
         while (!done) {
             //done = true;
-            xBufferLock.unlock();
+            xSemaphoreGive(xBufferLock);
             delay(1);
-            xBufferLock.lock();
+            xSemaphoreTake(xBufferLock, portMAX_DELAY);
         }
-        xBufferLock.unlock();
+        xSemaphoreGive(xBufferLock);
     }
 
     size_t WebClient::copyBufferSafe(uint8_t* dest_buffer, size_t maxLen, size_t total) {
-        xBufferLock.lock();
+        xSemaphoreTake(xBufferLock, portMAX_DELAY);
         if (_buflen > 0) {
             int bytes = min(_buflen, maxLen);
             memcpy(dest_buffer, _buffer, bytes);
             memmove(_buffer, &_buffer[bytes], _buflen - bytes);
             _buflen -= bytes;
-            xBufferLock.unlock();
+            xSemaphoreGive(xBufferLock);
             return bytes;
         } else if (done) {
             free(_buffer);
             _buffer    = nullptr;
             _allocsize = 0;
             _buflen    = 0;
-            xBufferLock.unlock();
+            xSemaphoreGive(xBufferLock);
             return 0;
         }
 
@@ -112,16 +138,16 @@ namespace WebUI {
         // chunked HTTP responses do not spin on empty buffers unnecessarily.
         size_t wait_loops = 0;
         while (_buflen == 0 && !done && !_silent && _active && wait_loops < 20) {
-            xBufferLock.unlock();
+            xSemaphoreGive(xBufferLock);
             delay(1);
             ++wait_loops;
-            xBufferLock.lock();
+            xSemaphoreTake(xBufferLock, portMAX_DELAY);
             if (_buflen > 0) {
                 int bytes = min(_buflen, maxLen);
                 memcpy(dest_buffer, _buffer, bytes);
                 memmove(_buffer, &_buffer[bytes], _buflen - bytes);
                 _buflen -= bytes;
-                xBufferLock.unlock();
+                xSemaphoreGive(xBufferLock);
                 return bytes;
             }
         }
@@ -131,36 +157,41 @@ namespace WebUI {
             _buffer    = nullptr;
             _allocsize = 0;
             _buflen    = 0;
-            xBufferLock.unlock();
+            xSemaphoreGive(xBufferLock);
             return 0;
         }
 
-        xBufferLock.unlock();
+        xSemaphoreGive(xBufferLock);
         return RESPONSE_TRY_AGAIN;
     }
 
     void WebClient::executeCommandBackground(const char* cmd) {
-        xBufferLock.lock();
+        if (!WebClients::_background_task_queue || !WebClients::_background_task_handle || !xBufferLock) {
+            settings_execute_line(cmd, *this, AuthenticationLevel::LEVEL_ADMIN);
+            done = true;
+            return;
+        }
+        xSemaphoreTake(xBufferLock, portMAX_DELAY);
         cmds.push_back(std::string(cmd));
         WebClient* _this = this;
         xQueueSend(WebClients::_background_task_queue, &_this, portTICK_PERIOD_MS * 100);
-        xBufferLock.unlock();
+        xSemaphoreGive(xBufferLock);
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
         if (_silent || !_active) {
             return length;
         }
-        xBufferLock.lock();
+        xSemaphoreTake(xBufferLock, portMAX_DELAY);
         if (_buflen + length > _allocsize) {
             if (_allocsize >= BUFLEN) {
                 while (_buflen + length > _allocsize && !_silent && _active) {
-                    xBufferLock.unlock();
+                    xSemaphoreGive(xBufferLock);
                     delay(1);
-                    xBufferLock.lock();
+                    xSemaphoreTake(xBufferLock, portMAX_DELAY);
                 }
                 if (_silent || !_active) {
-                    xBufferLock.unlock();
+                    xSemaphoreGive(xBufferLock);
                     return length;
                 }
             } else {
@@ -168,7 +199,7 @@ namespace WebUI {
                 char* new_buffer = (char*)realloc((void*)_buffer, _allocsize);
                 if (!new_buffer) {
                     log_info_to(Console, "Not enough memory!" << _allocsize);
-                    xBufferLock.unlock();
+                    xSemaphoreGive(xBufferLock);
                     return length;
                 }
                 _buffer = new_buffer;
@@ -178,8 +209,7 @@ namespace WebUI {
             memcpy(&_buffer[_buflen], buffer, length);
             _buflen += length;
         }
-        xBufferLock.unlock();
-
+        xSemaphoreGive(xBufferLock);
         return length;
     }
 
