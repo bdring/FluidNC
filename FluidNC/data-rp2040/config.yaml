@@ -1,0 +1,156 @@
+board: None
+name: Default (Test Drive no I/O)
+meta: 
+stepping:
+  engine: RMT
+  idle_ms: 255
+  pulse_us: 4
+  dir_delay_us: 0
+  disable_delay_us: 0
+  segments: 12
+
+spi:
+  miso_pin: NO_PIN
+  mosi_pin: NO_PIN
+  sck_pin: NO_PIN
+
+sdcard:
+  cs_pin: NO_PIN
+  card_detect_pin: NO_PIN
+  frequency_hz: 8000000
+
+kinematics:
+  Cartesian:
+
+axes:
+  shared_stepper_disable_pin: NO_PIN
+  shared_stepper_reset_pin: NO_PIN
+  homing_runs: 2
+  x:
+    steps_per_mm: 80.000000
+    max_rate_mm_per_min: 1000.000000
+    acceleration_mm_per_sec2: 25.000000
+    max_travel_mm: 1000.000000
+    soft_limits: false
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000000
+      null_motor:
+
+  y:
+    steps_per_mm: 80.000000
+    max_rate_mm_per_min: 1000.000000
+    acceleration_mm_per_sec2: 25.000000
+    max_travel_mm: 1000.000000
+    soft_limits: false
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000000
+      null_motor:
+
+  z:
+    steps_per_mm: 80.000000
+    max_rate_mm_per_min: 1000.000000
+    acceleration_mm_per_sec2: 25.000000
+    max_travel_mm: 1000.000000
+    soft_limits: false
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000000
+      null_motor:
+
+control:
+  safety_door_pin: NO_PIN
+  reset_pin: NO_PIN
+  feed_hold_pin: NO_PIN
+  cycle_start_pin: NO_PIN
+  macro0_pin: NO_PIN
+  macro1_pin: NO_PIN
+  macro2_pin: NO_PIN
+  macro3_pin: NO_PIN
+  fault_pin: NO_PIN
+  estop_pin: NO_PIN
+
+coolant:
+  flood_pin: NO_PIN
+  mist_pin: NO_PIN
+  delay_ms: 0
+
+probe:
+  pin: NO_PIN
+  toolsetter_pin: NO_PIN
+  check_mode_start: true
+  hard_stop: false
+
+macros:
+  startup_line0:
+  startup_line1:
+  Macro0:
+  Macro1:
+  Macro2:
+  Macro3:
+  after_homing:
+  after_reset:
+  after_unlock:
+
+start:
+  must_home: false
+  deactivate_parking: false
+  check_limits: true
+
+parking:
+  enable: false
+  axis: Z
+  target_mpos_mm: -5.000000
+  rate_mm_per_min: 800.000000
+  pullout_distance_mm: 5.000000
+  pullout_rate_mm_per_min: 250.000000
+
+user_outputs:
+  analog0_pin: NO_PIN
+  analog1_pin: NO_PIN
+  analog2_pin: NO_PIN
+  analog3_pin: NO_PIN
+  analog0_hz: 5000
+  analog1_hz: 5000
+  analog2_hz: 5000
+  analog3_hz: 5000
+  digital0_pin: NO_PIN
+  digital1_pin: NO_PIN
+  digital2_pin: NO_PIN
+  digital3_pin: NO_PIN
+  digital4_pin: NO_PIN
+  digital5_pin: NO_PIN
+  digital6_pin: NO_PIN
+  digital7_pin: NO_PIN
+
+user_inputs:
+  analog0_pin: NO_PIN
+  analog1_pin: NO_PIN
+  analog2_pin: NO_PIN
+  analog3_pin: NO_PIN
+  digital0_pin: NO_PIN
+  digital1_pin: NO_PIN
+  digital2_pin: NO_PIN
+  digital3_pin: NO_PIN
+  digital4_pin: NO_PIN
+  digital5_pin: NO_PIN
+  digital6_pin: NO_PIN
+  digital7_pin: NO_PIN
+
+arc_tolerance_mm: 0.002000
+junction_deviation_mm: 0.010000
+verbose_errors: true
+report_inches: false
+enable_parking_override_control: false
+use_line_numbers: false
+planner_blocks: 16

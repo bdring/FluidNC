@@ -7,18 +7,6 @@
 
 std::vector<step_engine_t*> step_engines;
 
-#if 0
-step_engine_t* find_engine(const char* name) {
-    for (auto const engine : step_engines) {
-        // Initial substring match, handles different forms of I2S
-        if (strncmp(name, engine->name, strlen(engine->name)) == 0) {
-            return engine;
-        }
-    }
-    return NULL;
-}
-#endif
-
 namespace Machine {
 
     step_engine_t* Stepping::_engine = nullptr;
@@ -43,6 +31,9 @@ namespace Machine {
 #endif
 #if MAX_N_SIMULATOR
                                    { Stepping::SIMULATOR, "Simulator" },
+#endif
+#if defined(MAX_N_PIO) && MAX_N_PIO
+                                   { Stepping::PIO_ENGINE, "PIO" },
 #endif
                                    EnumItem(DEFAULT_STEPPING_ENGINE) };
 

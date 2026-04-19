@@ -102,24 +102,29 @@ void Channel::resume() {
 void Channel::flushRx() {
     _linelen   = 0;
     _lastWasCR = false;
-    std::lock_guard<std::mutex> lock(_queue_mutex);
+    xSemaphoreTake(_queue_mutex, portMAX_DELAY);
     while (_queue.size()) {
         _queue.pop();
     }
+    xSemaphoreGive(_queue_mutex);
 }
 
 size_t Channel::queued_bytes() const {
-    std::lock_guard<std::mutex> lock(_queue_mutex);
-    return _queue.size();
+    xSemaphoreTake(_queue_mutex, portMAX_DELAY);
+    auto size = _queue.size();
+    xSemaphoreGive(_queue_mutex);
+    return size;
 }
 
 bool Channel::try_pop_queued_byte(uint8_t& byte) {
-    std::lock_guard<std::mutex> lock(_queue_mutex);
+    xSemaphoreTake(_queue_mutex, portMAX_DELAY);
     if (_queue.empty()) {
+        xSemaphoreGive(_queue_mutex);
         return false;
     }
     byte = _queue.front();
     _queue.pop();
+    xSemaphoreGive(_queue_mutex);
     return true;
 }
 
@@ -292,10 +297,9 @@ void Channel::push(uint8_t byte) {
     if (is_realtime_command(byte)) {
         handleRealtimeCharacter(byte);
     } else {
-        {
-            std::lock_guard<std::mutex> lock(_queue_mutex);
-            _queue.push(byte);
-        }
+        xSemaphoreTake(_queue_mutex, portMAX_DELAY);
+        _queue.push(byte);
+        xSemaphoreGive(_queue_mutex);
     }
 }
 static int  _cnt = 10;
@@ -324,8 +328,9 @@ Error       Channel::pollLine(char* line) {
             continue;
         }
         if (!line) {
-            std::lock_guard<std::mutex> lock(_queue_mutex);
+            xSemaphoreTake(_queue_mutex, portMAX_DELAY);
             _queue.push(ch);
+            xSemaphoreGive(_queue_mutex);
             continue;
         }
         // Fall through if line is non-null and it is not a realtime character

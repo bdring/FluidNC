@@ -15,7 +15,7 @@ bool xSemaphoreTake(SemaphoreHandle_t lock, TickType_t xTicksToWait) {
             } else {
                 acquired = lock->count_lock->try_lock();
             }
-            
+
             if (acquired) {
                 if (*lock->count > 0) {
                     (*lock->count)--;
@@ -30,7 +30,7 @@ bool xSemaphoreTake(SemaphoreHandle_t lock, TickType_t xTicksToWait) {
         }
         return false;
     }
-    
+
     auto sem = lock->semaphore;
     if (sem) {
         if (xTicksToWait == 0) {
@@ -75,7 +75,7 @@ bool xSemaphoreGive(SemaphoreHandle_t lock) {
         }
         return false;
     }
-    
+
     auto sem = lock->semaphore;
     if (sem) {
         sem->release();
@@ -105,26 +105,26 @@ void vSemaphoreDelete(SemaphoreHandle_t xSemaphore) {
     if (xSemaphore == nullptr) {
         return;
     }
-    
+
     if (xSemaphore->mutex != nullptr) {
         delete xSemaphore->mutex;
         xSemaphore->mutex = nullptr;
     }
-    
+
     if (xSemaphore->semaphore != nullptr) {
         delete xSemaphore->semaphore;
         xSemaphore->semaphore = nullptr;
     }
-    
+
     if (xSemaphore->count != nullptr) {
         delete xSemaphore->count;
         xSemaphore->count = nullptr;
     }
-    
+
     if (xSemaphore->count_lock != nullptr) {
         delete xSemaphore->count_lock;
         xSemaphore->count_lock = nullptr;
     }
-    
+
     delete xSemaphore;
 }

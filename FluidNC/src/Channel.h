@@ -27,8 +27,8 @@
 
 #include <Stream.h>
 #include <freertos/FreeRTOS.h>  // TickType_T
+#include <freertos/semphr.h>
 #include <atomic>
-#include <mutex>
 #include <queue>
 
 class Channel : public Stream {
@@ -58,7 +58,7 @@ protected:
     bool        _addCR         = false;
     char        _lastWasCR     = false;
 
-    mutable std::mutex _queue_mutex;
+    mutable SemaphoreHandle_t _queue_mutex = xSemaphoreCreateMutex();
     std::queue<uint8_t> _queue;
 
     uint32_t _reportInterval = 0;

@@ -1,10 +1,7 @@
 // Copyright (c) 2024 -  Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-// Interface between Stepping.cpp and low-level stepping engine drivers
-// This is in C instead of C++ to make it easy to force the relevant pieces
-// to be in RAM or IRAM, thus avoiding ESP32 problems with accessing FLASH
-// from interrupt service routines.
+// Interface between Stepping.cpp and low-level stepping engine drivers.
 
 #pragma once
 
@@ -64,11 +61,11 @@ typedef struct step_engine {
     // Stop the pulse event timer
     void (*stop_timer)();
 
-    // Link to next engine in the list of registered stepping engines
+    // Reserved for compatibility with older engine definitions.
     struct step_engine* link;
 } step_engine_t;
 
-// Linked list of registered step engines
+// Registered step engines.
 extern std::vector<step_engine_t*> step_engines;
 
 // clang-format off

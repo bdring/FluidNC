@@ -46,6 +46,9 @@ namespace Machine {
             RMT_ENGINE,
             I2S_STATIC,
             I2S_STREAM,
+#if MAX_N_PIO
+            PIO_ENGINE,
+#endif
         };
 
         Stepping() = default;

@@ -1,6 +1,10 @@
 #pragma once
 
-#define WEAK_LINK
+#if defined(__GNUC__) || defined(__clang__)
+#    define WEAK_LINK __attribute__((weak))
+#else
+#    define WEAK_LINK
+#endif
 #define IRAM_ATTR
 
 #ifndef likely

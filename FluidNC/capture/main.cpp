@@ -1,9 +1,7 @@
-extern void setup();
-extern void loop();
+extern "C" void setup();
+extern "C" void loop();
 
 #include "Platform.h"
-
-// #include "StringChannel.h"
 
 #include <string>
 // Signal handling for SIGINT
@@ -12,8 +10,11 @@ extern void loop();
 void restart();
 #include <atomic>
 
+#if 0
 // Global StringChannel pointer - used by posix/Console.cpp
-// StringChannel* g_stringChannel = nullptr;
+#    include "StringChannel.h"
+StringChannel* g_stringChannel = nullptr;
+#endif
 
 std::string command_line_cmds;
 bool        continue_after_cmds = false;

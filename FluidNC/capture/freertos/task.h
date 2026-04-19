@@ -55,3 +55,11 @@ TickType_t xTaskGetTickCount(void);
 #    define portMUX_INITIALIZER_UNLOCKED                                                                                                   \
         { .owner = portMUX_FREE_VAL, .count = 0, .lastLockedFn = "(never locked)", .lastLockedLine = -1 }
 #endif
+
+inline void xTaskCreateAffinitySet(void(void*),  // task
+                                   const char*,  // name for task
+                                   size_t,       // size of task stack
+                                   void*,        // parameters
+                                   int,          // priority
+                                   int,          // affinity mask
+                                   void*) {}
