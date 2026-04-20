@@ -56,10 +56,13 @@ TickType_t xTaskGetTickCount(void);
         { .owner = portMUX_FREE_VAL, .count = 0, .lastLockedFn = "(never locked)", .lastLockedLine = -1 }
 #endif
 
-inline void xTaskCreateAffinitySet(void(void*),  // task
-                                   const char*,  // name for task
-                                   size_t,       // size of task stack
-                                   void*,        // parameters
-                                   int,          // priority
-                                   int,          // affinity mask
-                                   void*) {}
+inline BaseType_t xTaskCreateAffinitySet(TaskFunction_t      pvTaskCode,
+                                                                                 const char* const   pcName,
+                                                                                 const uint32_t      usStackDepth,
+                                                                                 void* const         pvParameters,
+                                                                                 UBaseType_t         uxPriority,
+                                                                                 const BaseType_t    xCoreAffinityMask,
+                                                                                 TaskHandle_t* const pvCreatedTask) {
+        (void)xCoreAffinityMask;
+        return xTaskCreatePinnedToCore(pvTaskCode, pcName, usStackDepth, pvParameters, uxPriority, pvCreatedTask, tskNO_AFFINITY);
+}

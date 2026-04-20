@@ -31,7 +31,15 @@ BaseType_t xTaskCreatePinnedToCore(TaskFunction_t      pvTaskCode,
                                    UBaseType_t         uxPriority,
                                    TaskHandle_t* const pvCreatedTask,
                                    const BaseType_t    xCoreID) {
+    (void)pcName;
+    (void)usStackDepth;
+    (void)uxPriority;
+    (void)xCoreID;
+
     std::unique_ptr<std::thread> thread = std::make_unique<std::thread>(pvTaskCode, pvParameters);
+    if (pvCreatedTask != nullptr) {
+        *pvCreatedTask = thread.get();
+    }
     {
         std::lock_guard<std::mutex> lock(threads_mutex);
         threads.emplace_back(std::move(thread));
