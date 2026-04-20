@@ -118,7 +118,11 @@ namespace WebUI {
                 log_debug("HTTP: Command '" << cmd.first << "' = " << cmd.second);
             }
 
-        } catch (const Error err) { log_debug("HTTP: No settings file at " << SETTINGS_FILE_PATH); }
+        } catch (const ErrorException& err) {
+            log_debug("HTTP: No settings file at " << SETTINGS_FILE_PATH << " (" << errorString(err.error()) << ")");
+        } catch (const std::exception& ex) {
+            log_warn("HTTP: Failed to load settings from " << SETTINGS_FILE_PATH << ": " << ex.what());
+        }
     }
 
     std::string HttpCommand::substitute_tokens(const std::string& input) {

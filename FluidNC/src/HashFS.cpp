@@ -107,7 +107,11 @@ void HashFS::hash_all() {
 
     auto iter = stdfs::directory_iterator { lfspath, ec };
     if (ec) {
-        log_error(lfspath.string() << " " << ec.message());
+        if (ec == std::errc::no_such_file_or_directory) {
+            log_debug("HashFS: LocalFS unavailable at " << lfspath.string());
+        } else {
+            log_error(lfspath.string() << " " << ec.message());
+        }
         return;
     }
     for (auto const& dir_entry : iter) {
