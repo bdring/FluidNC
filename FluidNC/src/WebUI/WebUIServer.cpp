@@ -269,9 +269,9 @@ namespace WebUI {
         return "";
     }
 
-    std::string WebUI_Server::getWebSocketSession(AsyncWebServerRequest* request) {
+    std::string WebUI_Server::getWebSocketSession(AsyncWebServerRequest* request, AsyncWebSocketClient* client) {
         if (request->hasParam("independent_session")) {
-            return getSession(request->client());
+            return client ? getSession(client) : getSession(request->client());
         }
         return getSessionCookie(request);
     }
@@ -565,7 +565,16 @@ namespace WebUI {
     }
 
     std::string getSession(AsyncClient* client) {
+        if (!client) {
+            return "";
+        }
         return (std::to_string((uint32_t)IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
+    }
+    std::string getSession(AsyncWebSocketClient* client) {
+        if (!client) {
+            return "";
+        }
+        return (std::to_string((uint32_t)client->remoteIP()) + ":" + std::to_string(client->remotePort()));
     }
     void WebUI_Server::websocketCommand(AsyncWebServerRequest* request, const char* cmd, uint32_t pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {

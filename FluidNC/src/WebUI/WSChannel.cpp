@@ -357,7 +357,7 @@ namespace WebUI {
                 break;
             case WS_EVT_CONNECT: {
                 auto*      request    = static_cast<AsyncWebServerRequest*>(arg);
-                auto       session    = request ? WebUI_Server::getWebSocketSession(request) : std::string {};
+                auto       session    = request ? WebUI_Server::getWebSocketSession(request, client) : std::string {};
                 WSChannel* newChannel = new WSChannel(server, num, session);
                 if (!newChannel) {
                     log_error_to(Console, "Creating WebSocket channel failed");

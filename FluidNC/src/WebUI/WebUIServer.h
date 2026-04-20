@@ -13,6 +13,7 @@
 #include <freertos/task.h>
 
 class AsyncWebSocket;
+class AsyncWebSocketClient;
 class AsyncWebServer;
 class AsyncWebSocketMessageHandler;
 class AsyncHeaderFreeMiddleware;
@@ -44,6 +45,7 @@ namespace WebUI {
 #endif
 
     std::string getSession(AsyncClient* client);
+    std::string getSession(AsyncWebSocketClient* client);
 
     //Upload status
     enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
@@ -57,7 +59,7 @@ namespace WebUI {
         void poll() override;
 
         static uint16_t port() { return _port; }
-        static std::string getWebSocketSession(AsyncWebServerRequest* request);
+        static std::string getWebSocketSession(AsyncWebServerRequest* request, AsyncWebSocketClient* client = nullptr);
 
         ~WebUI_Server();
 
