@@ -89,11 +89,5 @@ void delay(uint32_t value) {
 }
 
 void cleanupThreads() {
-    auto owned_threads = take_threads();
-    for (auto const& thread : owned_threads) {
-        // This lets the OS destroy the thread silently on exit
-        if (thread && thread->joinable()) {
-            thread->detach();
-        }
-    }
+    cleanup_threads();
 }

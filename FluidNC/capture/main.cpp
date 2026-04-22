@@ -9,6 +9,7 @@ extern "C" void loop();
 // Forward declaration for restart
 void restart();
 #include <atomic>
+#include "SignalHandler.h"
 
 #if 0
 // Global StringChannel pointer - used by posix/Console.cpp
@@ -35,7 +36,7 @@ int main(int argc, char** argv) {
 
     // Install SIGINT handler to set a flag (async-signal-safe)
     static volatile std::sig_atomic_t g_sigint_received = 0;
-    std::signal(SIGINT, [](int) { g_sigint_received = 1; });
+    SignalHandler::registerHandler(SIGINT, [](int) { g_sigint_received = 1; });
 
     setup();
     while (!should_exit()) {
