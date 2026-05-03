@@ -64,3 +64,5 @@ public:
     // Expose access to jobs stack for listing local parameters
     static const std::vector<JobSource*>& jobs_stack();
 };
+
+void list_local_params(Channel& out);

@@ -3,11 +3,15 @@
 
 #pragma once
 
-#include <cstdint>
-#include "EnumItem.h"
-#include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
-#include "State.h"
+#ifdef UNIT_TEST
+#    include "../tests/Logging.h"
+#else
+#    include <cstdint>
+#    include <string>
+#    include "EnumItem.h"
+#    include <freertos/FreeRTOS.h>
+#    include <freertos/queue.h>
+#    include "State.h"
 
 class Channel;
 
@@ -46,7 +50,7 @@ extern const EnumItem messageLevels2[];
 //
 // log_info("Twelve is written as " << 12 << ", isn't it");
 
-#include "MyIOStream.h"
+#    include "MyIOStream.h"
 
 class LogStream : public Print {
 public:
@@ -90,3 +94,15 @@ extern bool atMsgLevel(MsgLevel level);
 // #define log_to(out, prefix, x) { LogStream ss(out, MsgLevelNone, prefix); ss << x; }
 #define log_stream(out, x) { LogStream ss(out, MsgLevelNone); ss << x; }
 #define log_string(out, x) out.sendLine(MsgLevelNone, x)
+
+template <typename S>
+void logArray(const char* legend, S* src, size_t n) {
+    std::string s(legend);
+    for (size_t i = 0; i < n; i++) {
+        s += " ";
+        s += std::to_string(src[i]);
+    }
+    log_debug(s);
+}
+
+#endif
