@@ -4,7 +4,7 @@
 #pragma once
 
 #include <cstdint>
-// Stub implmentation of log_* for use with unit tests
+// Stub implementation of log_* for use with unit tests
 
 #include <string>
 #include <string_view>
