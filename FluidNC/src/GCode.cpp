@@ -595,6 +595,7 @@ Error gc_execute_line(const char* input_line) {
                                 gc_block.modal.coord_select = CoordIndex::G59_3;
                                 break;
                         }
+                        mantissa    = 0;  // Set to zero to indicate valid non-integer G command.
                         mg_word_bit = ModalGroup::MG12;
                         break;
                         // NOTE: G59.x are not supported.
