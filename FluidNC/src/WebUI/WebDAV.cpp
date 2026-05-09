@@ -126,10 +126,42 @@ namespace {
         frame.initialized  = true;
     }
 
+    std::string xml_escape(std::string_view text) {
+        std::string escaped;
+        escaped.reserve(text.size());
+
+        for (char ch : text) {
+            switch (ch) {
+                case '&':
+                    escaped += "&amp;";
+                    break;
+                case '<':
+                    escaped += "&lt;";
+                    break;
+                case '>':
+                    escaped += "&gt;";
+                    break;
+                case '\"':
+                    escaped += "&quot;";
+                    break;
+                case '\'':
+                    escaped += "&apos;";
+                    break;
+                default:
+                    escaped += ch;
+                    break;
+            }
+        }
+
+        return escaped;
+    }
+
     void append_propfind_xml_response(PropfindChunkState& state, const PropfindNodeFrame& frame) {
+        auto escaped_name = xml_escape(frame.display_name);
+
         state.pending += "<d:response>";
         state.pending += "<d:href>";
-        state.pending += frame.display_name;
+        state.pending += escaped_name;
         state.pending += "</d:href>";
         state.pending += "<d:propstat>";
         state.pending += "<d:prop>";
@@ -137,14 +169,14 @@ namespace {
             state.pending += "<d:resourcetype><d:collection/></d:resourcetype>";
         } else {
             state.pending += "<d:getlastmodified>";
-            state.pending += frame.timestr;
+            state.pending += xml_escape(frame.timestr);
             state.pending += "</d:getlastmodified>";
             state.pending += "<d:resourcetype/>";
             state.pending += "<d:getcontentlength>";
             state.pending += std::to_string(frame.size);
             state.pending += "</d:getcontentlength>";
             state.pending += "<d:getcontenttype>";
-            state.pending += getContentType(frame.display_name.c_str());
+            state.pending += xml_escape(getContentType(frame.display_name.c_str()));
             state.pending += "</d:getcontenttype>";
         }
         state.pending += "</d:prop>";
