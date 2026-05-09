@@ -25,6 +25,8 @@
 
 #include "HashFS.h"
 #include <list>
+#include <algorithm>
+#include <memory>
 
 #include "Mime.h"  // getContentType
 
@@ -35,6 +37,189 @@
 namespace WebUI {
     const byte DNS_PORT = 53;
     DNSServer  dnsServer;
+}
+
+namespace {
+    struct FileListChunkState {
+        enum class Phase : uint8_t { Begin, FileEntries, Footer, End, Done };
+
+        explicit FileListChunkState(
+            FluidPath root,
+            std::string request_path,
+            std::string response_status,
+            std::string total_bytes,
+            std::string used_bytes,
+            uint8_t occupation_percent,
+            bool emit_file_array) :
+            root_path(std::move(root)),
+            path(std::move(request_path)),
+            status(std::move(response_status)),
+            total(std::move(total_bytes)),
+            used(std::move(used_bytes)),
+            percent(occupation_percent),
+            emit_files(emit_file_array),
+            encoder([this](const char* s) { pending += s; }) {}
+
+        FileListChunkState(const FileListChunkState&) = delete;
+        FileListChunkState& operator=(const FileListChunkState&) = delete;
+
+        Phase                     phase          = Phase::Begin;
+        stdfs::directory_iterator iter;
+        stdfs::directory_iterator end;
+        FluidPath                 root_path;
+        std::string               path;
+        std::string               status;
+        std::string               total;
+        std::string               used;
+        std::string               pending;
+        size_t                    pending_offset = 0;
+        uint8_t                   percent        = 100;
+        bool                      emit_files     = false;
+        JSONencoder               encoder;
+    };
+
+    int32_t file_entry_size(const stdfs::directory_entry& dir_entry) {
+        std::error_code ec;
+
+        if (dir_entry.is_directory(ec) || ec) {
+            return -1;
+        }
+
+        ec = {};
+        if (!dir_entry.is_regular_file(ec) || ec) {
+            return -1;
+        }
+
+        ec = {};
+        auto entry_size = dir_entry.file_size(ec);
+        if (ec || entry_size == static_cast<uintmax_t>(-1)) {
+            return -1;
+        }
+
+        return static_cast<int32_t>(entry_size);
+    }
+
+    void advance_file_iterator(FileListChunkState& state) {
+        std::error_code ec;
+        state.iter.increment(ec);
+        if (ec) {
+            state.iter = state.end;
+        }
+    }
+
+    void append_file_entry(FileListChunkState& state) {
+        const auto& dir_entry = *state.iter;
+        std::string name      = dir_entry.path().filename().string();
+        int32_t     size      = file_entry_size(dir_entry);
+
+        state.encoder.begin_object();
+        state.encoder.member("name", name);
+        state.encoder.member("shortname", name);
+        state.encoder.member("size", size);
+        state.encoder.member("datetime", "");
+        state.encoder.end_object();
+        advance_file_iterator(state);
+    }
+
+    bool advance_file_list_chunk(FileListChunkState& state) {
+        switch (state.phase) {
+            case FileListChunkState::Phase::Begin:
+                state.encoder.begin();
+                if (state.emit_files) {
+                    state.encoder.begin_array("files");
+                    state.phase = FileListChunkState::Phase::FileEntries;
+                } else {
+                    state.phase = FileListChunkState::Phase::Footer;
+                }
+                state.encoder.flush();
+                return true;
+
+            case FileListChunkState::Phase::FileEntries:
+                if (state.iter == state.end) {
+                    state.encoder.end_array();
+                    state.phase = FileListChunkState::Phase::Footer;
+                } else {
+                    append_file_entry(state);
+                }
+                state.encoder.flush();
+                return true;
+
+            case FileListChunkState::Phase::Footer:
+                state.encoder.member("path", state.path.c_str());
+                state.encoder.member("total", state.total.c_str());
+                state.encoder.member("used", state.used.c_str());
+                state.encoder.member("occupation", state.percent);
+                state.encoder.member("status", state.status.c_str());
+                state.phase = FileListChunkState::Phase::End;
+                state.encoder.flush();
+                return true;
+
+            case FileListChunkState::Phase::End:
+                state.encoder.end();
+                state.phase = FileListChunkState::Phase::Done;
+                return true;
+
+            case FileListChunkState::Phase::Done:
+                return false;
+        }
+
+        return false;
+    }
+
+    AsyncWebServerResponse* create_file_list_response(AsyncWebServerRequest* request,
+                                                      const FluidPath&          fpath,
+                                                      const std::string&        path,
+                                                      const std::string&        status,
+                                                      bool                      list_files) {
+        std::error_code ec;
+        auto            space      = stdfs::space(fpath, ec);
+        uint64_t        totalspace = space.capacity;
+        uint64_t        usedspace  = totalspace - space.available;
+        uint8_t         percent    = totalspace ? (usedspace * 100) / totalspace : 100;
+
+        auto state = std::make_shared<FileListChunkState>(
+            fpath,
+            path,
+            status,
+            formatBytes(totalspace),
+            formatBytes(usedspace + 1),
+            percent,
+            false);
+
+        if (list_files) {
+            state->iter       = stdfs::directory_iterator { fpath, stdfs::directory_options::skip_permission_denied, ec };
+            state->emit_files = !ec;
+        }
+
+        AsyncWebServerResponse* response = request->beginChunkedResponse(
+            asyncsrv::T_application_json,
+            [state](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
+                (void)total;
+
+                size_t written = 0;
+
+                while (written < maxLen) {
+                    if (state->pending_offset < state->pending.length()) {
+                        size_t chunk_len = std::min(maxLen - written, state->pending.length() - state->pending_offset);
+                        memcpy(buffer + written, state->pending.data() + state->pending_offset, chunk_len);
+                        state->pending_offset += chunk_len;
+                        written += chunk_len;
+                        continue;
+                    }
+
+                    state->pending.clear();
+                    state->pending_offset = 0;
+
+                    if (!advance_file_list_chunk(*state)) {
+                        break;
+                    }
+                }
+
+                return written;
+            });
+        response->addHeader(asyncsrv::T_Cache_Control, asyncsrv::T_no_cache);
+        return response;
+    }
 }
 
 using namespace asyncsrv;
@@ -997,8 +1182,6 @@ namespace WebUI {
         }
         _upload_status      = UploadStatus::NONE;
         bool     list_files = true;
-        uint64_t totalspace = 0;
-        uint64_t usedspace  = 0;
 
         //get current path
         if (request->hasParam("path")) {
@@ -1080,45 +1263,7 @@ namespace WebUI {
             list_files = false;
         }
 
-        AsyncResponseStream* response = request->beginResponseStream(T_application_json);
-        response->setCode(200);
-        response->addHeader(T_Cache_Control, T_no_cache);
-
-        JSONencoder j([response](const char* s) { response->print(s); });
-
-        j.begin();
-
-        if (list_files) {
-            auto iter = stdfs::directory_iterator { fpath, ec };
-            if (!ec) {
-                j.begin_array("files");
-                for (auto const& dir_entry : iter) {
-                    j.begin_object();
-                    j.member("name", dir_entry.path().filename().string());
-                    j.member("shortname", dir_entry.path().filename().string());
-                    j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
-                    j.member("datetime", "");
-                    j.end_object();
-                }
-                j.end_array();
-            }
-        }
-
-        auto space = stdfs::space(fpath, ec);
-        totalspace = space.capacity;
-        usedspace  = totalspace - space.available;
-
-        j.member("path", path.c_str());
-        j.member("total", formatBytes(totalspace));
-        j.member("used", formatBytes(usedspace + 1));
-
-        uint8_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
-
-        j.member("occupation", percent);
-        j.member("status", sstatus);
-        j.end();
-
-        request->send(response);
+        request->send(create_file_list_response(request, fpath, path, sstatus, list_files));
     }
 
     void WebUI_Server::handle_direct_SDFileList(AsyncWebServerRequest* request) {
