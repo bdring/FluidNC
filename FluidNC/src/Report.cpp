@@ -252,7 +252,13 @@ void report_gcode_modes(Channel& channel) {
             break;
     }
 
-    msg << " G" << (gc_state.modal.coord_select + 54);
+    if (gc_state.modal.coord_select < CoordIndex::G59_1) {
+        // G54 .. G59
+        msg << " G" << (gc_state.modal.coord_select + 54);
+    } else {
+        // G59.1 .. G59.3
+        msg << " G59." << (gc_state.modal.coord_select - CoordIndex::G59);
+    }
 
     switch (gc_state.modal.plane_select) {
         case Plane::XY:

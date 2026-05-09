@@ -594,7 +594,10 @@ Error gc_execute_line(const char* input_line) {
                             case 30:
                                 gc_block.modal.coord_select = CoordIndex::G59_3;
                                 break;
+                            default:
+                                return Error::GcodeUnsupportedCommand;  // [G59.4+ not supported]
                         }
+                        mantissa    = 0;  // Set to zero to indicate valid non-integer G command.
                         mg_word_bit = ModalGroup::MG12;
                         break;
                         // NOTE: G59.x are not supported.
@@ -1665,7 +1668,7 @@ Error gc_execute_line(const char* input_line) {
             if (new_spindle) {
                 gc_state.spindle_speed = 0.0;
             }
-            log_info("Current T:" << gc_state.current_tool  << "Selected T:" << gc_state.selected_tool);
+            log_info("Current T:" << gc_state.current_tool << " Selected T:" << gc_state.selected_tool);
             spindle->tool_change(gc_state.selected_tool, false, false);
             if (spindle->_atc_name == "" && spindle->_m6_macro.get().empty()) {  // if neither of these exist we need to set the value here
                 gc_state.current_tool = gc_state.selected_tool;
