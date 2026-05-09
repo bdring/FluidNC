@@ -49,15 +49,13 @@ namespace {
             std::string response_status,
             std::string total_bytes,
             std::string used_bytes,
-            uint8_t occupation_percent,
-            bool emit_file_array) :
+            uint8_t occupation_percent) :
             root_path(std::move(root)),
             path(std::move(request_path)),
             status(std::move(response_status)),
             total(std::move(total_bytes)),
             used(std::move(used_bytes)),
             percent(occupation_percent),
-            emit_files(emit_file_array),
             encoder([this](const char* s) { pending += s; }) {}
 
         FileListChunkState(const FileListChunkState&) = delete;
@@ -183,8 +181,7 @@ namespace {
             status,
             formatBytes(totalspace),
             formatBytes(usedspace + 1),
-            percent,
-            false);
+            percent);
 
         if (list_files) {
             state->iter       = stdfs::directory_iterator { fpath, stdfs::directory_options::skip_permission_denied, ec };
