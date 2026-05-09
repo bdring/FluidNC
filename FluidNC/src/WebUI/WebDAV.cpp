@@ -4,6 +4,7 @@
 #include <AsyncTCP.h>
 #include "ESP32SHA1.h"
 
+#include <algorithm>
 #include <chrono>
 #include <ctime>
 #include <functional>
