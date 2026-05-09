@@ -85,13 +85,20 @@ namespace {
     };
 
     std::string propfind_time_string(const stdfs::path& fpath) {
-        auto ftime = stdfs::last_write_time(fpath);
+        std::error_code ec;
+        auto            ftime = stdfs::last_write_time(fpath, ec);
 
         // last modified
 #if __cpp_lib_format
+        if (ec) {
+            return "Fri, 05 Sep 2014 19:00:00 GMT";
+        }
         return std::format("{:%c}", ftime);
 #else
 #    if 0
+        if (ec) {
+            return "Fri, 05 Sep 2014 19:00:00 GMT";
+        }
         std::time_t cftime  = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(ftime));
         std::string timestr = std::asctime(std::localtime(&cftime));
         timestr.pop_back();  // rm the trailing '\n' put by `asctime`
@@ -108,8 +115,12 @@ namespace {
             return;
         }
 
-        frame.is_dir       = stdfs::is_directory(frame.path);
-        frame.size         = frame.is_dir ? -1 : static_cast<int32_t>(stdfs::file_size(frame.path));
+        std::error_code ec;
+        frame.is_dir = stdfs::is_directory(frame.path, ec) && !ec;
+
+        ec = {};
+        auto file_size = frame.is_dir ? static_cast<uintmax_t>(-1) : stdfs::file_size(frame.path, ec);
+        frame.size     = (ec || file_size == static_cast<uintmax_t>(-1)) ? -1 : static_cast<int32_t>(file_size);
         frame.display_name = state.replace_fs_name(frame.path).string();
         frame.timestr      = propfind_time_string(frame.path);
         frame.initialized  = true;
