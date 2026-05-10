@@ -75,3 +75,26 @@ Channel* Job::channel() {
 const std::vector<JobSource*>& Job::jobs_stack() {
     return job;
 }
+
+void list_local_params(Channel& out) {
+    const auto& job_stack = Job::jobs_stack();
+    if (job_stack.empty()) {
+        log_info_to(out, "No active jobs - no local parameters");
+        return;
+    }
+
+    int depth = 0;
+    for (auto source : job_stack) {
+        const auto& local_params = source->local_params();
+        if (local_params.empty()) {
+            log_info_to(out, "Job depth " << depth << " - No local parameters");
+        } else {
+            log_info_to(out, "Job depth " << depth << " - Local Parameters");
+            for (const auto& param : local_params) {
+                // Format: parameter_name = value
+                log_info_to(out, param.first << " = " << param.second);
+            }
+        }
+        depth++;
+    }
+}
