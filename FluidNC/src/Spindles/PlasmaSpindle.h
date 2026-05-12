@@ -60,8 +60,8 @@ namespace Spindles {
         void config_message() override;
 
         // Methods introduced by this base clase
-        virtual void set_direction(bool Clockwise);
-        virtual void set_enable(bool enable);
+        void set_direction(bool Clockwise);
+        void set_enable(bool enable);
 
         bool wait_for_arc_ok();
 

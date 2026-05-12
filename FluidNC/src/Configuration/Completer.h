@@ -9,10 +9,10 @@
 namespace Configuration {
     class Completer : public Configuration::HandlerBase {
     private:
-        std::string _key;
-        uint32_t    _reqMatch;
-        char*       _matchedStr;
-        std::string _currentPath;
+        std::string  _key;
+        uint32_t     _reqMatch;
+        std::string& _matchedStr;
+        std::string  _currentPath;
 
         void addCandidate(std::string fullName);
 
@@ -21,7 +21,7 @@ namespace Configuration {
         bool matchesUninitialized(const char* name) override { return false; }
 
     public:
-        Completer(const char* key, uint32_t requestedMatch, char* matchedStr);
+        Completer(const std::string_view key, uint32_t requestedMatch, std::string& matchedStr);
 
         uint32_t _numMatches;
 
@@ -34,10 +34,10 @@ namespace Configuration {
         void item(const char* name, std::vector<float>& value) override { item(name); }
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override { item(name); }
         void item(const char* name, std::string& value, const int minLength, const int maxLength) override { item(name); }
-        void item(const char* name, EventPin& value) { item(name); }
-        void item(const char* name, InputPin& value) { item(name); }
-        void item(const char* name, Pin& value) { item(name); }
-        void item(const char* name, Macro& value) { item(name); }
+        void item(const char* name, EventPin& value) override { item(name); }
+        void item(const char* name, InputPin& value) override { item(name); }
+        void item(const char* name, Pin& value) override { item(name); }
+        void item(const char* name, Macro& value) override { item(name); }
         void item(const char* name, IPAddress& value) override { item(name); }
         void item(const char* name, uint32_t& value, const EnumItem* e) override { item(name); }
         void item(const char* name, axis_t& value) override { item(name); }

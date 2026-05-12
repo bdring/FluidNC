@@ -276,7 +276,7 @@ void Stepper::wake_up() {
     // Cancel any pending stepper disable
     protocol_cancel_disable_steppers();
     // Enable stepper drivers.
-    Axes::set_disable(false);
+    Axes::set_disable(false, false);
 
     // Enable Stepping Driver Interrupt
     Stepping::startTimer();

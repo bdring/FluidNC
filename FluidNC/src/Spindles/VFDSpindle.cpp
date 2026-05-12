@@ -52,6 +52,11 @@ namespace Spindles {
             }
         }
 
+        if (!_uart->configured()) {
+            log_error("VFDSpindle: uart:" << _uart_num << " failed configuration");
+            return;
+        }
+
         if (_uart->setHalfDuplex()) {
             log_info("VFD: RS485 UART set half duplex failed");
             return;
@@ -71,7 +76,7 @@ namespace Spindles {
 
             xTaskCreatePinnedToCore(VFD::VFDProtocol::vfd_cmd_task,  // task
                                     "vfd_cmdTaskHandle",             // name for task
-                                    2048,                            // size of task stack
+                                    4096,                            // size of task stack
                                     this,                            // parameters
                                     1,                               // priority
                                     &VFD::VFDProtocol::vfd_cmdTaskHandle,
@@ -135,30 +140,38 @@ namespace Spindles {
             return;
         }
 
-        // _sync_dev_speed is set by a callback that handles
-        // responses from periodic get_current_speed() requests.
-        // It changes as the actual speed ramps toward the target.
-
         _syncing = true;  // poll for speed
 
         auto minSpeedAllowed = dev_speed > _slop ? (dev_speed - _slop) : 0;
         auto maxSpeedAllowed = dev_speed + _slop;
 
-        int unchanged = 0;
-
-        const int limit = 100;  // 10 sec / 100 ms
-
-        if (_debug > 1 && _sync_dev_speed != UINT32_MAX) {
+        if (_debug > 1) {
             log_info("Syncing to " << int(dev_speed));
         }
 
+        uint32_t   prev_sync_speed   = _sync_dev_speed;
+        TickType_t last_change_ticks = xTaskGetTickCount();
+
         while ((_last_override_value == sys.spindle_speed_ovr()) &&  // skip if the override changes
-               ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit)) {
+               (_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed)) {
+            if (sys.abort()) {
+                _syncing = false;
+                return;
+            }
             if (!xQueueReceive(VFD::VFDProtocol::vfd_speed_queue, &_sync_dev_speed, 3000)) {
                 mc_critical(ExecAlarm::SpindleControl);
                 log_error(name() << ": spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
                 _syncing = false;
                 return;
+            }
+
+            if (_sync_dev_speed == prev_sync_speed) {
+                if ((xTaskGetTickCount() - last_change_ticks) >= pdMS_TO_TICKS(3000)) {
+                    break;  // speed has not changed for 3 seconds; give up waiting
+                }
+            } else {
+                last_change_ticks = xTaskGetTickCount();
+                prev_sync_speed   = _sync_dev_speed;
             }
         }
         _last_override_value = sys.spindle_speed_ovr();
@@ -202,6 +215,7 @@ namespace Spindles {
 
     void VFDSpindle::validate() {
         Spindle::validate();
+
         Assert(_uart != nullptr || _uart_num != -1, "VFD: missing UART configuration");
     }
 

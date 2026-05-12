@@ -199,9 +199,9 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                         }
                     } else {
                         stack_push(o_label, operation, !value);
+                        context.top().expr = expr;
+                        context.top().file = Job::source();
                         if (value) {
-                            context.top().expr        = expr;
-                            context.top().file        = Job::source();
                             context.top().file_pos    = context.top().file->position();
                             context.top().line_number = context.top().file->lineNumber();
                         }
@@ -225,6 +225,8 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                         if (context.top().skip) {
                             stack_pull();
                         }
+                    } else if (skipping && o_label == context.top().o_label) {
+                        stack_pull();
                     }
                 } else if (!skipping) {
                     status = Error::FlowControlSyntaxError;
@@ -274,7 +276,7 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                 if (!skipping) {
                     while (o_label != context.top().o_label && stack_pull())
                         ;
-                    last_op = !context.empty() ? Op_NoOp : context.top().operation;
+                    last_op = !context.empty() ? context.top().operation : Op_NoOp;
                     if (last_op == Op_Do || last_op == Op_While || last_op == Op_Repeat) {
                         if (o_label == context.top().o_label) {
                             context.top().repeats = 0;

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Settings.h"
+#include "Parameters.h"  // global_named_params
+
+#define CRASH_TEST
 
 #include "Machine/MachineConfig.h"
 #include "Configuration/RuntimeSetting.h"
@@ -20,6 +23,7 @@
 #include "FileStream.h"           // FileStream()
 #include "StartupLog.h"           // startupLog
 #include "Driver/gpio_dump.h"     // gpio_dump()
+#include "Driver/backtrace.h"     // backtrace_get(), etc.
 #include "FileCommands.h"         // make_file_commands()
 #include "Job.h"                  // Job::active()
 
@@ -251,6 +255,7 @@ static Error toggle_check_mode(const char* value, AuthenticationLevel auth_level
     if (state_is(State::CheckMode)) {
         report_feedback_message(Message::Disabled);
         sys.set_abort(true);
+        protocol_send_event(&rtResetEvent);
     } else {
         if (!state_is(State::Idle)) {
             return Error::IdleError;  // Requires no alarm mode.
@@ -293,8 +298,10 @@ static Error msg_to_uart0(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 static Error msg_to_uart1(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value && config->_uart_channels[1]) {
+    if (value && config->_uart_channels[1] && config->_uart_channels[1]->uart() && config->_uart_channels[1]->uart()->configured()) {
         log_msg_to(*(config->_uart_channels[1]), value);
+    } else if (value) {
+        log_error_to(out, "uart_channel1 is not configured");
     }
     return Error::Ok;
 }
@@ -642,7 +649,7 @@ static Error motor_control(const char* value, bool disable) {
     }
     if (!value || *value == '\0') {
         log_info((disable ? "Dis" : "En") << "abling all motors");
-        Axes::set_disable(disable);
+        Axes::set_disable(disable, true);
         return Error::Ok;
     }
 
@@ -658,7 +665,11 @@ static Error motor_control(const char* value, bool disable) {
         return Error::InvalidValue;
     }
     log_info((disable ? "Dis" : "En") << "abling " << value << " motors");
-    axes->set_disable(axis, disable);
+
+    if (axis == INVALID_AXIS || axis >= axes->_numberAxis || axes->_axis[axis] == nullptr) {
+        return Error::InvalidValue;
+    }
+    axes->set_disable(axis, disable, true);
     return Error::Ok;
 }
 static Error motor_disable(const char* value, AuthenticationLevel auth_level, Channel& out) {
@@ -693,7 +704,7 @@ static Error dump_config(const char* value, AuthenticationLevel auth_level, Chan
 
         try {
             //            ss = new FileStream(std::string(value), "", "w");
-            ss = new FileStream(value, "w", "");
+            ss = new FileStream(value, "w", LocalFS);
         } catch (Error err) { return err; }
     } else {
         ss = &out;
@@ -734,6 +745,36 @@ static Error showStartupLog(const char* value, AuthenticationLevel auth_level, C
     StartupLog::dump(out);
     return Error::Ok;
 }
+
+static Error showBacktrace(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    backtrace_t bt;
+    if (!backtrace_get(&bt)) {
+        log_stream(out, "No saved backtrace from a previous crash");
+        return Error::Ok;
+    }
+    log_stream(out, "Backtrace from previous crash:");
+    log_stream(out, "  PC:       0x" << String(bt.pc, HEX).c_str());
+    log_stream(out, "  ExcCause: " << bt.exccause);
+    if (bt.excvaddr) {
+        log_stream(out, "  ExcVAddr: 0x" << String(bt.excvaddr, HEX).c_str());
+    }
+    // Output in the standard ESP32 Backtrace format for the stack trace decoder
+    String btLine = "Backtrace:";
+    for (size_t i = 0; i < bt.num_addresses; i++) {
+        btLine += " 0x" + String(bt.addresses[i], HEX) + ":0x00000000";
+    }
+    log_stream(out, btLine.c_str());
+    return Error::Ok;
+}
+
+#ifdef CRASH_TEST
+static Error forceCrash(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    log_stream(out, "Forcing crash by writing to address 0");
+    delay(100);  // Let the message flush
+    *(volatile int*)0 = 0;
+    return Error::Ok;  // Never reached
+}
+#endif
 
 static Error showGPIOs(const char* value, AuthenticationLevel auth_level, Channel& out) {
     gpio_dump(out);
@@ -799,6 +840,11 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
             log_error_to(out, uart_name << " does not exist");
             return Error::InvalidValue;
         }
+    }
+
+    if (!downstream_uart || !downstream_uart->configured()) {
+        log_error_to(out, "Selected UART is not configured");
+        return Error::InvalidValue;
     }
 
     out.pause();  // Stop input polling on the upstream channel
@@ -951,6 +997,12 @@ static Error showHeap(const char* value, AuthenticationLevel auth_level, Channel
     return Error::Ok;
 }
 
+static Error list_parameters(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    list_global_params(out);
+    list_local_params(out);
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -987,6 +1039,7 @@ void make_user_commands() {
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
     new UserCommand("RM", "Macros/Run", macros_run, nullptr);
+    new UserCommand("PL", "Parameters/List", list_parameters, nullptr);
 
     new UserCommand("H", "Home", home_all, allowConfigStates);
     new UserCommand("HX", "Home/X", home_x, allowConfigStates);
@@ -1016,6 +1069,10 @@ void make_user_commands() {
     new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
     new UserCommand("Heap", "Heap/Show", showHeap, anyState);
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
+    new UserCommand("BS", "Backtrace/Show", showBacktrace, anyState);
+#ifdef CRASH_TEST
+    new UserCommand("CRASH", "Crash/Test", forceCrash, anyState);
+#endif
     new UserCommand("UP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarm);
 
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);

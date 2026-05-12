@@ -11,6 +11,7 @@ namespace Machine {
         handler.item("acceleration_mm_per_sec2", _acceleration, 0.001, 100000.0);
         handler.item("max_travel_mm", _maxTravel, 0.1, 10000000.0);
         handler.item("soft_limits", _softLimits);
+        handler.item("idle_disable", _idleDisable);
         handler.section("homing", _homing);
 
         char tmp[7];
@@ -60,12 +61,17 @@ namespace Machine {
 
         // see if the configured switches support the homing direction.
         if (_homing) {
-            auto direction = _homing->_positiveDirection;
+            bool homing_dir_supported = false;
+            auto direction            = _homing->_positiveDirection;
             for (motor_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
                 auto m = _motors[i];
-                if (m && !m->supports_homing_dir(direction)) {
-                    log_warn("  Motor" << i << " switches do not support " << (direction ? "positive" : "negative") << " homing dir");
+                if (m && m->supports_homing_dir(direction)) {
+                    homing_dir_supported = true;
+                    break;
                 }
+            }
+            if (!homing_dir_supported) {
+                log_warn("  Limit switches do not support " << (direction ? "positive" : "negative") << " homing dir");
             }
         }
     }

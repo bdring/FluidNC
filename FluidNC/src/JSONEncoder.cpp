@@ -7,7 +7,7 @@
 
 // Constructor.  If _encapsulate is true, the output is
 // encapsulated in [MSG:JSON: ...] lines
-JSONencoder::JSONencoder(Channel* channel, const char* json_tag) : level(0), _channel(channel), category("nvs") {
+JSONencoder::JSONencoder(Channel* channel, const char* json_tag) : level(0), _channel(channel), _json_tag(json_tag), category("nvs") {
     count[level] = 0;
 }
 JSONencoder::JSONencoder(JsonCallback callback) : level(0), _callback(callback) {

@@ -35,6 +35,7 @@ namespace Machine {
         float _acceleration = 25.0f;
         float _maxTravel    = 1000.0f;
         bool  _softLimits   = false;
+        bool  _idleDisable  = true;
 
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;

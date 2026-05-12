@@ -102,7 +102,7 @@ namespace Kinematics {
 
         auto n_axis = Axes::_numberAxis;
 
-        float motors[n_axis];
+        float motors[MAX_N_AXIS];
         transform_cartesian_to_motors(motors, target);
 
         if (!pl_data->motion.rapidMotion) {
@@ -110,7 +110,7 @@ namespace Kinematics {
             float cartesian_distance = vector_distance(target, position, n_axis);
 
             // Calculate vector distance of the motion in motor coordinates
-            float last_motors[n_axis];
+            float last_motors[MAX_N_AXIS];
             transform_cartesian_to_motors(last_motors, position);
             float motor_distance = vector_distance(motors, last_motors, n_axis);
 

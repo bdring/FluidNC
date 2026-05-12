@@ -25,6 +25,8 @@
 
 #include "HashFS.h"
 #include <list>
+#include <algorithm>
+#include <memory>
 
 #include "Mime.h"  // getContentType
 
@@ -35,6 +37,203 @@
 namespace WebUI {
     const byte DNS_PORT = 53;
     DNSServer  dnsServer;
+}
+
+namespace {
+    struct FileListChunkState {
+        enum class Phase : uint8_t { Begin, FileEntries, Footer, End, Done };
+
+        explicit FileListChunkState(
+            FluidPath root,
+            std::string request_path,
+            std::string response_status,
+            std::string total_bytes,
+            std::string used_bytes,
+            uint8_t occupation_percent) :
+            root_path(std::move(root)),
+            path(std::move(request_path)),
+            status(std::move(response_status)),
+            total(std::move(total_bytes)),
+            used(std::move(used_bytes)),
+            percent(occupation_percent),
+            encoder([this](const char* s) { pending += s; }) {}
+
+        FileListChunkState(const FileListChunkState&) = delete;
+        FileListChunkState& operator=(const FileListChunkState&) = delete;
+
+        Phase                     phase          = Phase::Begin;
+        stdfs::directory_iterator iter;
+        stdfs::directory_iterator end;
+        FluidPath                 root_path;
+        std::string               path;
+        std::string               status;
+        std::string               total;
+        std::string               used;
+        std::string               pending;
+        size_t                    pending_offset = 0;
+        uint8_t                   percent        = 100;
+        bool                      emit_files     = false;
+        JSONencoder               encoder;
+    };
+
+    int32_t file_entry_size(const stdfs::directory_entry& dir_entry) {
+        std::error_code ec;
+
+        if (dir_entry.is_directory(ec) || ec) {
+            return -1;
+        }
+
+        ec = {};
+        if (!dir_entry.is_regular_file(ec) || ec) {
+            return -1;
+        }
+
+        ec = {};
+        auto entry_size = dir_entry.file_size(ec);
+        if (ec || entry_size == static_cast<uintmax_t>(-1)) {
+            return -1;
+        }
+
+        return static_cast<int32_t>(entry_size);
+    }
+
+    void advance_file_iterator(FileListChunkState& state) {
+        std::error_code ec;
+        state.iter.increment(ec);
+        if (ec) {
+            state.iter = state.end;
+        }
+    }
+
+    void append_file_entry(FileListChunkState& state) {
+        const auto& dir_entry = *state.iter;
+        std::string name      = dir_entry.path().filename().string();
+        int32_t     size      = file_entry_size(dir_entry);
+
+        state.encoder.begin_object();
+        state.encoder.member("name", name);
+        state.encoder.member("shortname", name);
+        state.encoder.member("size", size);
+        // Get last write time and format as ISO 8601 string
+        std::string datetime;
+        try {
+            auto ftime = dir_entry.last_write_time();
+            auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                ftime - std::filesystem::file_time_type::clock::now()
+                + std::chrono::system_clock::now()
+            );
+            std::time_t cftime = std::chrono::system_clock::to_time_t(sctp);
+            char buf[32];
+            if (std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&cftime))) {
+                datetime = buf;
+            }
+        } catch (...) {
+            datetime = "";
+        }
+        j.member("datetime", datetime.c_str());
+
+        state.encoder.end_object();
+        advance_file_iterator(state);
+    }
+
+    bool advance_file_list_chunk(FileListChunkState& state) {
+        switch (state.phase) {
+            case FileListChunkState::Phase::Begin:
+                state.encoder.begin();
+                if (state.emit_files) {
+                    state.encoder.begin_array("files");
+                    state.phase = FileListChunkState::Phase::FileEntries;
+                } else {
+                    state.phase = FileListChunkState::Phase::Footer;
+                }
+                state.encoder.flush();
+                return true;
+
+            case FileListChunkState::Phase::FileEntries:
+                if (state.iter == state.end) {
+                    state.encoder.end_array();
+                    state.phase = FileListChunkState::Phase::Footer;
+                } else {
+                    append_file_entry(state);
+                }
+                state.encoder.flush();
+                return true;
+
+            case FileListChunkState::Phase::Footer:
+                state.encoder.member("path", state.path.c_str());
+                state.encoder.member("total", state.total.c_str());
+                state.encoder.member("used", state.used.c_str());
+                state.encoder.member("occupation", state.percent);
+                state.encoder.member("status", state.status.c_str());
+                state.phase = FileListChunkState::Phase::End;
+                state.encoder.flush();
+                return true;
+
+            case FileListChunkState::Phase::End:
+                state.encoder.end();
+                state.phase = FileListChunkState::Phase::Done;
+                return true;
+
+            case FileListChunkState::Phase::Done:
+                return false;
+        }
+
+        return false;
+    }
+
+    AsyncWebServerResponse* create_file_list_response(AsyncWebServerRequest* request,
+                                                      const FluidPath&          fpath,
+                                                      const std::string&        path,
+                                                      const std::string&        status,
+                                                      bool                      list_files) {
+        std::error_code ec;
+        auto            space      = stdfs::space(fpath, ec);
+        uint64_t        totalspace = space.capacity;
+        uint64_t        usedspace  = totalspace - space.available;
+        uint8_t         percent    = totalspace ? (usedspace * 100) / totalspace : 100;
+
+        auto state = std::make_shared<FileListChunkState>(
+            fpath,
+            path,
+            status,
+            formatBytes(totalspace),
+            formatBytes(usedspace + 1),
+            percent);
+
+        if (list_files) {
+            state->iter       = stdfs::directory_iterator { fpath, stdfs::directory_options::skip_permission_denied, ec };
+            state->emit_files = !ec;
+        }
+
+        AsyncWebServerResponse* response = request->beginChunkedResponse(
+            asyncsrv::T_application_json,
+            [state](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
+                (void)total;
+
+                size_t written = 0;
+
+                while (written < maxLen) {
+                    if (state->pending_offset < state->pending.length()) {
+                        size_t chunk_len = std::min(maxLen - written, state->pending.length() - state->pending_offset);
+                        memcpy(buffer + written, state->pending.data() + state->pending_offset, chunk_len);
+                        state->pending_offset += chunk_len;
+                        written += chunk_len;
+                        continue;
+                    }
+
+                    state->pending.clear();
+                    state->pending_offset = 0;
+
+                    if (!advance_file_list_chunk(*state)) {
+                        break;
+                    }
+                }
+
+                return written;
+            });
+        response->addHeader(asyncsrv::T_Cache_Control, asyncsrv::T_no_cache);
+        return response;
+    }
 }
 
 using namespace asyncsrv;
@@ -73,6 +272,7 @@ namespace WebUI {
     const int         MAX_AUTH_IP          = 10;
 #endif
     FileStream* WebUI_Server::_uploadFile = nullptr;
+    std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
 
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
@@ -109,6 +309,7 @@ namespace WebUI {
         _headerFilter->keep("Accept-Encoding");
         _headerFilter->keep("Cookie");
         _headerFilter->keep("If-None-Match");
+        _headerFilter->keep("User-Agent");
 
         // WebDAV needs these
         _headerFilter->keep("Depth");
@@ -124,8 +325,9 @@ namespace WebUI {
 
         _webserver->addMiddlewares({ _headerFilter });
 
-        auto flash_dav = new WebDAV("/flash", localfsName);
-        auto sd_dav    = new WebDAV("/sd", sdName);
+        // No metadata on the FLASH filesystem; it consumes too much space
+        auto flash_dav = new WebDAV("/flash", LocalFS, true);
+        auto sd_dav    = new WebDAV("/sd", SD, true);
 
         _webserver->addHandler(flash_dav);
         _webserver->addHandler(sd_dav);
@@ -272,7 +474,7 @@ namespace WebUI {
     // Send a file, either the specified path or path.gz
     bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
         std::error_code ec;
-        FluidPath       fpath { path, localfsName, ec };
+        FluidPath       fpath { path, LocalFS, ec };
         if (ec) {
             return false;
         }
@@ -337,14 +539,14 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file   = NULL;
         try {
-            file = new FileStream(path, "r", "");
+            file = new FileStream(path, "r", LocalFS);
         } catch (const Error err) {
             if (acceptGz) {
                 try {
                     std::string gzpath(fpath);
                     //                    std::filesystem::path gzpath(fpath);
                     gzpath += ".gz";
-                    file   = new FileStream(gzpath, "r", "");
+                    file   = new FileStream(gzpath, "r", LocalFS);
                     isGzip = true;
                 } catch (const Error err) {}
             }
@@ -360,16 +562,16 @@ namespace WebUI {
                     request->client()->close();
                     return 0;  //RESPONSE_TRY_AGAIN; // This only works for ChunkedResponse
                 }
-                if (total >= file->size() || request->methodToString() != "GET") {
+                if (total >= file->size() || request->method() != HTTP_GET) {
                     file = nullptr;
                     return 0;
                 }
-                size_t bytes  = min(file->size(), maxLen);
+                size_t bytes  = min(file->size() - total, maxLen);
                 int    actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
                 if (actual == 0 || (actual + total) >= file->size()) {
                     file = nullptr;
                 }
-                return bytes;
+                return actual;  // Return actual bytes read, not requested bytes
             });
 
         request->onDisconnect([request, file]() { delete file; });
@@ -498,13 +700,13 @@ namespace WebUI {
         char line[256];
         strncpy(line, cmd, 255);
         AsyncWebServerResponse* response;
-        if (request->methodToString() == "GET") {
+        if (request->method() == HTTP_GET) {
             WebClient* webClient = new WebClient();
             webClient->attachWS(silent);
             webClient->executeCommandBackground(line);
             response = request->beginChunkedResponse("", [webClient, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
                 // The method can change before the end... not good
-                //if(request->methodToString() != "GET")
+                //if(request->method() != HTTP_GET)
                 //    return 0;
                 auto ret = webClient->copyBufferSafe(buffer, min((int)maxLen, 1024), total);
                 return ret;
@@ -802,7 +1004,7 @@ namespace WebUI {
 
     //LocalFS files uploader handle
     void WebUI_Server::fileUpload(
-        AsyncWebServerRequest* request, const char* fs, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+        AsyncWebServerRequest* request, const Volume& fs, String filename, size_t index, uint8_t* data, size_t len, bool final) {
         if (!index) {
             std::string sizeargname(filename.c_str());
             sizeargname += "S";
@@ -868,10 +1070,10 @@ namespace WebUI {
     }
 
     void WebUI_Server::LocalFSFileupload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
-        return fileUpload(request, localfsName, filename, index, data, len, final);
+        fileUpload(request, LocalFS, filename, index, data, len, final);
     }
     void WebUI_Server::SDFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
-        return fileUpload(request, sdName, filename, index, data, len, final);
+        fileUpload(request, SD, filename, index, data, len, final);
     }
 
     //Web Update handler
@@ -977,7 +1179,7 @@ namespace WebUI {
         }
     }
 
-    void WebUI_Server::handleFileOps(AsyncWebServerRequest* request, const char* fs) {
+    void WebUI_Server::handleFileOps(AsyncWebServerRequest* request, const Volume& fs) {
         //this is only for admin and user
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatus::NONE;
@@ -994,12 +1196,17 @@ namespace WebUI {
         }
         _upload_status      = UploadStatus::NONE;
         bool     list_files = true;
-        uint64_t totalspace = 0;
-        uint64_t usedspace  = 0;
 
         //get current path
         if (request->hasParam("path")) {
             path += request->getParam("path")->value().c_str();
+        } else if (!_uploadPath.empty()) {
+            // If no path parameter but we have a stored upload path, use it
+            path = _uploadPath;
+            _uploadPath.clear();  // Clear it after use
+        }
+
+        if (!path.empty()) {
             // path.trim();
             replace_string_in_place(path, "//", "/");
             if (path[path.length() - 1] == '/') {
@@ -1070,72 +1277,18 @@ namespace WebUI {
             list_files = false;
         }
 
-        AsyncResponseStream* response = request->beginResponseStream(T_application_json);
-        response->setCode(200);
-        response->addHeader(T_Cache_Control, T_no_cache);
-
-        JSONencoder j([response](const char* s) { response->print(s); });
-
-        j.begin();
-
-        if (list_files) {
-            auto iter = stdfs::directory_iterator { fpath, ec };
-            if (!ec) {
-                j.begin_array("files");
-                for (auto const& dir_entry : iter) {
-                    j.begin_object();
-                    j.member("name", dir_entry.path().filename().string());
-                    j.member("shortname", dir_entry.path().filename().string());
-                    j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
-                    // Get last write time and format as ISO 8601 string
-                    std::string datetime;
-                    try {
-                        auto ftime = dir_entry.last_write_time();
-                        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-                            ftime - std::filesystem::file_time_type::clock::now()
-                            + std::chrono::system_clock::now()
-                        );
-                        std::time_t cftime = std::chrono::system_clock::to_time_t(sctp);
-                        char buf[32];
-                        if (std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&cftime))) {
-                            datetime = buf;
-                        }
-                    } catch (...) {
-                        datetime = "";
-                    }
-                    j.member("datetime", datetime.c_str());
-                    j.end_object();
-                }
-                j.end_array();
-            }
-        }
-
-        auto space = stdfs::space(fpath, ec);
-        totalspace = space.capacity;
-        usedspace  = totalspace - space.available;
-
-        j.member("path", path.c_str());
-        j.member("total", formatBytes(totalspace));
-        j.member("used", formatBytes(usedspace + 1));
-
-        uint8_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
-
-        j.member("occupation", percent);
-        j.member("status", sstatus);
-        j.end();
-
-        request->send(response);
+        request->send(create_file_list_response(request, fpath, path, sstatus, list_files));
     }
 
     void WebUI_Server::handle_direct_SDFileList(AsyncWebServerRequest* request) {
-        handleFileOps(request, sdName);
+        handleFileOps(request, SD);
     }
     void WebUI_Server::handleFileList(AsyncWebServerRequest* request) {
-        handleFileOps(request, localfsName);
+        handleFileOps(request, LocalFS);
     }
 
     // File upload
-    void WebUI_Server::uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const char* fs) {
+    void WebUI_Server::uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const Volume& fs) {
         std::error_code ec;
 
         FluidPath fpath { filename, fs, ec };
@@ -1144,6 +1297,13 @@ namespace WebUI {
             log_info("Upload filesystem inaccessible");
             pushError(request, ESP_ERROR_FILE_CREATION, "Upload rejected, filesystem inaccessible");
             return;
+        }
+
+        // Store the directory path of the uploaded file for later listing
+        stdfs::path filepath(filename);
+        _uploadPath = filepath.parent_path().string();
+        if (_uploadPath == ".") {
+            _uploadPath = "";  // Root directory
         }
 
         auto space = stdfs::space(fpath);
@@ -1200,7 +1360,7 @@ namespace WebUI {
             _uploadFile = nullptr;
             log_debug("pathname " << pathname);
 
-            FluidPath filepath { pathname, "" };
+            FluidPath filepath { pathname, LocalFS };
 
             HashFS::rehash_file(filepath);
 
@@ -1231,6 +1391,7 @@ namespace WebUI {
     }
     void WebUI_Server::uploadStop() {
         _upload_status = UploadStatus::FAILED;
+        _uploadPath.clear();  // Clear stored upload path on failure
         if (_uploadFile) {
             log_info("Upload cancelled");
             std::filesystem::path filepath = _uploadFile->fpath();
@@ -1318,16 +1479,17 @@ namespace WebUI {
         //get remote IP
         IPAddress remoteIP = _webserver->client().remoteIP();
         //generate SESSIONID
-        if (0 > sprintf(sessionID,
-                        "%02X%02X%02X%02X%02X%02X%02X%02X",
-                        remoteIP[0],
-                        remoteIP[1],
-                        remoteIP[2],
-                        remoteIP[3],
-                        (uint8_t)((now >> 0) & 0xff),
-                        (uint8_t)((now >> 8) & 0xff),
-                        (uint8_t)((now >> 16) & 0xff),
-                        (uint8_t)((now >> 24) & 0xff))) {
+        if (0 > snprintf(sessionID,
+                         17,
+                         "%02X%02X%02X%02X%02X%02X%02X%02X",
+                         remoteIP[0],
+                         remoteIP[1],
+                         remoteIP[2],
+                         remoteIP[3],
+                         (uint8_t)((now >> 0) & 0xff),
+                         (uint8_t)((now >> 8) & 0xff),
+                         (uint8_t)((now >> 16) & 0xff),
+                         (uint8_t)((now >> 24) & 0xff))) {
             strcpy(sessionID, "NONE");
         }
         return sessionID;

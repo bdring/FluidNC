@@ -1,14 +1,15 @@
 #include "WString.h"
 
+#include <cstdlib>
 #include <iomanip>
 #include <sstream>
 
 #pragma warning(disable : 4996)  // itoa
 
 std::string String::ValueToString(int value, int base) {
-    char        buffer[100] = { 0 };
-    int         number_base = 10;
-    std::string output      = itoa(value, buffer, base);
+    char                 buffer[100] = { 0 };
+    std::to_chars_result result      = std::to_chars(buffer, buffer + sizeof(buffer), value, base);
+    std::string          output(buffer, result.ptr);
     return output;
 }
 

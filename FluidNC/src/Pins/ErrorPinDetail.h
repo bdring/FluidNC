@@ -24,5 +24,5 @@ namespace Pins {
 
         ~ErrorPinDetail() override {}
     };
-
+    extern ErrorPinDetail errorPin;
 }

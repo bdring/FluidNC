@@ -43,7 +43,7 @@ namespace Spindles {
         volatile bool _syncing;
 
     public:
-        uint8_t _debug = 0;
+        uint8_t _debug = 2;
 
         VFDSpindle(const char* name, VFD::VFDProtocol* detail) : Spindle(name), detail_(detail) {}
         VFDSpindle(const VFDSpindle&)            = delete;
@@ -51,12 +51,11 @@ namespace Spindles {
         VFDSpindle& operator=(const VFDSpindle&) = delete;
         VFDSpindle& operator=(VFDSpindle&&)      = delete;
 
-        void init();
-        void config_message();
-        void setState(SpindleState state, SpindleSpeed speed);
+        void init() override;
+        void config_message() override;
+        void setState(SpindleState state, SpindleSpeed speed) override;
         void setSpeedfromISR(uint32_t dev_speed) override;
 
-        // volatile uint32_t _sync_dev_speed;
         uint32_t     _sync_dev_speed;
         SpindleSpeed _slop;
 

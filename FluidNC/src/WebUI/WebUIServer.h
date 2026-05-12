@@ -70,6 +70,7 @@ namespace WebUI {
         static uint16_t     _port;
         static UploadStatus _upload_status;
         static FileStream*  _uploadFile;
+        static std::string  _uploadPath;  // Store upload directory path for listing
         static bool         _schedule_reboot;
         static uint32_t     _schedule_reboot_time;
 
@@ -89,17 +90,13 @@ namespace WebUI {
         static void        handle_login(AsyncWebServerRequest* request);
         static void        handle_not_found(AsyncWebServerRequest* request);
         static void        _handle_web_command(AsyncWebServerRequest* request, bool);
-        static void        handle_web_command(AsyncWebServerRequest* request) {
-                   _handle_web_command(request, false);
-        }
-        static void handle_web_command_silent(AsyncWebServerRequest* request) {
-            _handle_web_command(request, true);
-        }
-        static void handleReloadBlocked(AsyncWebServerRequest* request);
-        static void handleFeedholdReload(AsyncWebServerRequest* request);
-        static void handleCyclestartReload(AsyncWebServerRequest* request);
-        static void handleRestartReload(AsyncWebServerRequest* request);
-        static void handleDidRestart(AsyncWebServerRequest* request);
+        static void        handle_web_command(AsyncWebServerRequest* request) { _handle_web_command(request, false); }
+        static void        handle_web_command_silent(AsyncWebServerRequest* request) { _handle_web_command(request, true); }
+        static void        handleReloadBlocked(AsyncWebServerRequest* request);
+        static void        handleFeedholdReload(AsyncWebServerRequest* request);
+        static void        handleCyclestartReload(AsyncWebServerRequest* request);
+        static void        handleRestartReload(AsyncWebServerRequest* request);
+        static void        handleDidRestart(AsyncWebServerRequest* request);
         static void LocalFSFileupload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final);
         static void handleFileList(AsyncWebServerRequest* request);
         static void handleUpdate(AsyncWebServerRequest* request);
@@ -109,12 +106,12 @@ namespace WebUI {
 
         static void pushError(AsyncWebServerRequest* request, uint16_t code, const char* st, int32_t web_error = 500, uint16_t timeout = 1000);
         static void cancelUpload(AsyncWebServerRequest* request);
-        static void handleFileOps(AsyncWebServerRequest* request, const char* mountpoint);
+        static void handleFileOps(AsyncWebServerRequest* request, const Volume& fs);
         static void handle_direct_SDFileList(AsyncWebServerRequest* request);
         static void fileUpload(
-            AsyncWebServerRequest* request, const char* fs, String filename, size_t index, uint8_t* data, size_t len, bool final);
+            AsyncWebServerRequest* request, const Volume& fs, String filename, size_t index, uint8_t* data, size_t len, bool final);
         static void SDFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final);
-        static void uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const char* fs);
+        static void uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const Volume& fs);
         static void uploadWrite(AsyncWebServerRequest* request, uint8_t* buffer, size_t length);
         static void uploadEnd(AsyncWebServerRequest* request, size_t filesize);
         static void uploadStop();
@@ -126,9 +123,7 @@ namespace WebUI {
         static void websocketCommand(AsyncWebServerRequest* request, const char* cmd, uint32_t pageid, AuthenticationLevel auth_level);
 
         static void sendJSON(AsyncWebServerRequest* request, uint16_t code, const char* s);
-        static void sendJSON(AsyncWebServerRequest* request, uint16_t code, const std::string& s) {
-            sendJSON(request, code, s.c_str());
-        }
+        static void sendJSON(AsyncWebServerRequest* request, uint16_t code, const std::string& s) { sendJSON(request, code, s.c_str()); }
         static void sendAuth(AsyncWebServerRequest* request, const char* status, const char* level, const char* user);
         static void sendAuthFailed(AsyncWebServerRequest* request);
         static void sendStatus(AsyncWebServerRequest* request, uint16_t code, const char* str);

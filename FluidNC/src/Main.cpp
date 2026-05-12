@@ -19,6 +19,7 @@
 #    include "Platform.h"
 #    include "StartupLog.h"
 #    include "Module.h"
+#    include "FluidPath.h"
 
 #    include "Driver/localfs.h"
 
@@ -52,9 +53,7 @@ void setup() {
         log_info("FluidNC " << git_info << " " << git_url);
 
         if (localfs_mount()) {
-            log_error("Cannot mount a local filesystem");
-        } else {
-            log_info("Local filesystem type is " << localfsName);
+            log_info("Local filesystem is " << LocalFS.prefix);
         }
 
         config->load();

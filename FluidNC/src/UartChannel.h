@@ -10,7 +10,7 @@
 class UartChannel : public Channel, public Configuration::Configurable {
 private:
     Lineedit* _lineedit;
-    Uart*     _uart;
+    Uart*     _uart = nullptr;
 
     uint32_t _uart_num           = 0;
     int32_t  _report_interval_ms = 0;
@@ -35,7 +35,7 @@ public:
     // Channel methods
     int      rx_buffer_available() override;
     void     flushRx() override;
-    size_t   timedReadBytes(char* buffer, size_t length, TickType_t timeout);
+    size_t   timedReadBytes(char* buffer, size_t length, TickType_t timeout) override;
     size_t   timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); };
     bool     realtimeOkay(char c) override;
     bool     lineComplete(char* line, char c) override;

@@ -105,9 +105,14 @@ static bool decode_format_string(const char* comment, size_t& index, size_t len,
 }
 
 static void gcode_comment_msg(const char* comment) {
-    char   msg[128];
-    size_t offset = strlen("MSG_");
-    size_t index;
+    if (gc_state.skip_blocks) {
+        return;
+    }
+
+    const size_t msglen = 128;
+    char         msg[msglen];
+    size_t       offset = strlen("MSG_");
+    size_t       index;
     if (strstr(comment, "MSG")) {
         log_info("MSG," << &comment[offset]);
         return;
@@ -127,7 +132,7 @@ static void gcode_comment_msg(const char* comment) {
             } else if (c == '#') {
                 float number;
                 if (read_number(comment, index, number)) {
-                    msgindex += sprintf(&msg[msgindex], format, number);
+                    msgindex += snprintf(&msg[msgindex], msglen - msgindex, format, number);
                 } else {
                     msg[msgindex++] = c;
                 }
@@ -156,6 +161,7 @@ void collapseGCode(char* line) {
     // outPtr is always less than or equal to inPtr.
     char* outPtr = line;
     char  c;
+    bool  hasComment = false;
     for (char* inPtr = line; (c = *inPtr) != '\0'; inPtr++) {
         if (isspace(c)) {
             continue;
@@ -171,32 +177,14 @@ void collapseGCode(char* line) {
                 // Strip out ) that does not follow a (
                 break;
             case '(':
-                if (gc_state.skip_blocks) {
-                    *line = '\0';
-                    return;
-                }
-
+                hasComment = true;
                 // Start the comment at the character after (
                 parenPtr = inPtr + 1;
                 break;
             case ';':
-                if (gc_state.skip_blocks) {
-                    *line = '\0';
-                    return;
-                }
                 // NOTE: ';' comment to EOL is a LinuxCNC definition. Not NIST.
-                // gcode_comment_msg(inPtr + 1);
                 *outPtr = '\0';
                 return;
-            case '%':
-                // Per https://linuxcnc.org/docs/html/gcode/overview.html#gcode:file-requirements
-                // % only applies to "job" channels like files and macros, not to serial channels
-                // where the sequence of lines is potentially never-ending.  A sender that handles
-                // files on the host system could apply the % semantics.
-                if (Job::active()) {
-                    Job::channel()->percent();
-                }
-                break;
             case '\r':
                 // In case one sneaks in
                 break;
@@ -207,11 +195,28 @@ void collapseGCode(char* line) {
         }
     }
     // On loop exit, *inPtr is '\0'
+
+    *outPtr = '\0';
+
     if (parenPtr) {
         // Handle unterminated ( comments
         gcode_comment_msg(parenPtr);
     }
-    *outPtr = '\0';
+    if (!hasComment && strcmp(line, "%") == 0) {
+        // Per https://linuxcnc.org/docs/2.6/html/gcode/overview.html#_overview, % lines
+        // can contain spaces, so this check happens after space removal.
+
+        // Per https://linuxcnc.org/docs/html/gcode/overview.html#gcode:file-requirements
+        // % only applies to "job" channels like files and macros, not to serial channels
+        // where the sequence of lines is potentially never-ending.  A sender that handles
+        // files on the host system could apply the % semantics.
+
+        if (Job::active()) {
+            Job::channel()->percent();
+        }
+        // Do not pass the % to the GCode interpreter
+        *line = '\0';
+    }
 }
 
 void gc_ngc_changed(CoordIndex coord) {
@@ -220,6 +225,9 @@ void gc_ngc_changed(CoordIndex coord) {
 
 void gc_ovr_changed() {
     allChannels.notifyOvr();
+
+    // Force the override to be reported on next status report
+    report_ovr_counter = 0;
 }
 
 void gc_wco_changed() {
@@ -586,7 +594,10 @@ Error gc_execute_line(const char* input_line) {
                             case 30:
                                 gc_block.modal.coord_select = CoordIndex::G59_3;
                                 break;
+                            default:
+                                return Error::GcodeUnsupportedCommand;  // [G59.4+ not supported]
                         }
+                        mantissa    = 0;  // Set to zero to indicate valid non-integer G command.
                         mg_word_bit = ModalGroup::MG12;
                         break;
                         // NOTE: G59.x are not supported.
@@ -1051,7 +1062,7 @@ Error gc_execute_line(const char* input_line) {
         clear_bitnum(value_words, GCodeWord::E);
         clear_bitnum(value_words, GCodeWord::Q);
     }
-    if ((gc_block.modal.io_control == IoControl::WaitOnInput)) {
+    if (gc_block.modal.io_control == IoControl::WaitOnInput) {
         // M66 P<digital input> L<wait mode type> Q<timeout>
         // M66 E<analog input> L<wait mode type> Q<timeout>
         // Exactly one of P or E must be present
@@ -1640,7 +1651,7 @@ Error gc_execute_line(const char* input_line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     // [M6. Change tool ]:
     if (gc_block.modal.tool_change == ToolChange::Enable) {
@@ -1657,7 +1668,7 @@ Error gc_execute_line(const char* input_line) {
             if (new_spindle) {
                 gc_state.spindle_speed = 0.0;
             }
-            log_info("Sel:" << gc_state.selected_tool << " Cur:" << gc_state.current_tool);
+            log_info("Current T:" << gc_state.current_tool << " Selected T:" << gc_state.selected_tool);
             spindle->tool_change(gc_state.selected_tool, false, false);
             if (spindle->_atc_name == "" && spindle->_m6_macro.get().empty()) {  // if neither of these exist we need to set the value here
                 gc_state.current_tool = gc_state.selected_tool;
@@ -1992,21 +2003,14 @@ Error gc_execute_line(const char* input_line) {
 
   - Canned cycles
   - Tool radius compensation
-  - A,B,C-axes
-  - Evaluation of expressions
-  - Variables
-  - Override control (TBD)
-  - Tool changes
   - Switches
 
    (*) Indicates optional parameter, enabled through config.h and re-compile
    group 0 = {G92.2, G92.3} (Non modal: Cancel and re-enable G92 offsets)
    group 1 = {G81 - G89} (Motion modes: Canned cycles)
    group 4 = {M1} (Optional stop, ignored)
-   group 6 = {M6} (Tool change)
    group 7 = {G41, G42} cutter radius compensation (G40 is supported)
    group 8 = {G43} tool length offset (G43.1/G49 are supported)
-   group 8 = {M7*} enable mist coolant (* Compile-option)
    group 9 = {M48, M49} enable/disable feed and speed override switches
    group 10 = {G98, G99} return mode canned cycles
    group 13 = {G61.1, G64} path control mode (G61 is supported)

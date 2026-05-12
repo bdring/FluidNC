@@ -82,7 +82,7 @@ namespace Spindles {
         uint32_t _spinup_ms   = 0;
         uint32_t _spindown_ms = 0;
 
-        int32_t _tool = -1;
+        int32_t _tool = 0;
 
         std::vector<Configuration::speedEntry> _speeds;
 
@@ -95,7 +95,6 @@ namespace Spindles {
         const char* name() { return _name; }
 
         // Configuration handlers:
-        void validate() override;
         void afterParse() override;
 
         void group(Configuration::HandlerBase& handler) override {

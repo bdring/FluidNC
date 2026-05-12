@@ -606,7 +606,7 @@ namespace WebUI {
                 j.member("HostPath", "/");
                 j.member("Time", "none");
                 std::string axisLetters;
-                for (axis_t axis; axis < Axes::_numberAxis; axis++) {
+                for (axis_t axis = X_AXIS; axis < Axes::_numberAxis; axis++) {
                     axisLetters += Axes::axisName(axis);
                 }
                 j.member("Axisletters", axisLetters);
@@ -627,10 +627,6 @@ namespace WebUI {
             s << git_info;
             // TODO: change grbl-embedded to FluidNC after fixing WebUI
             s << " # FW target:grbl-embedded  # FW HW:";
-
-            // std::error_code ec;
-            // FluidPath { "/sd", ec };
-            // s << (ec ? "No SD" : "Direct SD");
 
             // We do not check the SD presence here because if the SD card is out,
             // WebUI will switch to M20 for SD access, which is wrong for FluidNC
@@ -968,7 +964,7 @@ namespace WebUI {
 
         static const char* mac2str(uint8_t mac[8]) {
             static char macstr[18];
-            if (0 > sprintf(macstr, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])) {
+            if (0 > snprintf(macstr, 18, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])) {
                 strcpy(macstr, "00:00:00:00:00:00");
             }
             return macstr;

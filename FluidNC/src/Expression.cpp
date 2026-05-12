@@ -18,8 +18,6 @@
 /* Modified by Terje Io for grblHAL */
 // Further modified by Mitch Bradley for FluidNC
 
-#include "Config.h"
-#include "NutsBolts.h"
 #include "Parameters.h"
 #include "Logging.h"
 
@@ -702,14 +700,14 @@ Error expression(const char* line, size_t& pos, float& value) {
 
     Error status;
 
-    if ((!read_number(line, pos, values[0], true)))
+    if (!read_number(line, pos, values[0]))
         return Error::BadNumberFormat;
 
     if ((status = read_operation(line, pos, operators[0])) != Error::Ok)
         return status;
 
     for (; operators[0] != Binary_RightBracket;) {
-        if ((!read_number(line, pos, values[stack_index], true)))
+        if (!read_number(line, pos, values[stack_index]))
             return Error::BadNumberFormat;
 
         if ((status = read_operation(line, pos, operators[stack_index])) != Error::Ok)

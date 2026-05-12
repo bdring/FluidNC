@@ -77,8 +77,8 @@ namespace Machine {
         // The return value is a bitmask of axes that can home
         static MotorMask set_homing_mode(AxisMask homing_mask, bool isHoming);
 
-        static void set_disable(axis_t axis, bool disable);
-        static void set_disable(bool disable);
+        static void set_disable(axis_t axis, bool disable, bool manual_override);
+        static void set_disable(bool disable, bool manual_override);
         static void config_motors();
 
         static std::string maskToNames(AxisMask mask);

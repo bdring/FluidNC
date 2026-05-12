@@ -7,21 +7,15 @@ struct mime_type {
     const char* suffix;
     const char* mime_type;
 } mime_types[] = {
-    { ".htm", "text/html" },
-    { ".html", "text/html" },
-    { ".css", "text/css" },
-    { ".js", "application/javascript" },
-    { ".png", "image/png" },
-    { ".gif", "image/gif" },
-    { ".jpeg", "image/jpeg" },
-    { ".jpg", "image/jpeg" },
-    { ".ico", "image/x-icon" },
-    { ".xml", "text/xml" },
-    { ".pdf", "application/x-pdf" },
-    { ".zip", "application/x-zip" },
-    { ".gz", "application/x-gzip" },
-    { ".txt", "text/plain" },
-    { "", "application/octet-stream" },
+    { ".htm", "text/html" },         { ".html", "text/html" },
+    { ".css", "text/css" },          { ".js", "application/javascript" },
+    { ".png", "image/png" },         { ".gif", "image/gif" },
+    { ".jpeg", "image/jpeg" },       { ".jpg", "image/jpeg" },
+    { ".ico", "image/x-icon" },      { ".xml", "text/xml" },
+    { ".pdf", "application/x-pdf" }, { ".zip", "application/x-zip" },
+    { ".gz", "application/x-gzip" }, { ".txt", "text/plain" },
+    { ".gc", "text/plain" },         { ".gcode", "text/plain" },
+    { ".nc", "text/plain" },         { "", "application/octet-stream" },
 };
 
 const char* getContentType(const std::string_view filename) {

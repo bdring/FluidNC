@@ -8,6 +8,7 @@
 #include "Protocol.h"
 
 const int PINNUM_MAX                        = 64;
+bool      events_enabled[UART_NUM_MAX]      = { false };
 InputPin* objects[UART_NUM_MAX][PINNUM_MAX] = { nullptr };
 uint8_t   last[UART_NUM_MAX]                = { 0 };
 
@@ -25,7 +26,7 @@ void uart_data_callback(uart_port_t uart_num, uint8_t* buf, int* len) {
             protocol_send_event_from_ISR(last[uart_num] == 0xc4 ? &pinInactiveEvent : &pinActiveEvent, (void*)objects[uart_num][pinnum]);
             last[uart_num] = 0;
         } else {
-            if (c == 0xc4 || c == 0xc5) {
+            if (events_enabled[uart_num] && (c == 0xc4 || c == 0xc5)) {
                 --out;
                 last[uart_num] = c;
             }
@@ -33,7 +34,9 @@ void uart_data_callback(uart_port_t uart_num, uint8_t* buf, int* len) {
     }
     *len = int(out);
 }
+
 void uart_register_input_pin(uint32_t uart_num, pinnum_t pinnum, InputPin* object) {
+    events_enabled[uart_num]  = true;
     objects[uart_num][pinnum] = object;
     last[uart_num]            = 0;
 }

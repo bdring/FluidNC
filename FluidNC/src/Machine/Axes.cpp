@@ -8,34 +8,6 @@
 #include "Limit.h"
 #include "MachineConfig.h"  // config->
 
-// Pre-increment operator
-axis_t& operator++(axis_t& axis) {
-    // Cast to underlying integer type, increment, then cast back
-    axis = static_cast<axis_t>((static_cast<int>(axis) + 1));
-    return axis;
-}
-
-// Post-increment operator
-axis_t operator++(axis_t& axis, int) {
-    axis_t old_axis = axis;
-    ++axis;
-    return old_axis;
-}
-
-// Pre-decrement operator
-axis_t& operator--(axis_t& axis) {
-    // Cast to underlying integer type, increment, then cast back
-    axis = static_cast<axis_t>((static_cast<int>(axis) - 1));
-    return axis;
-}
-
-// Post-deccrement operator
-axis_t operator--(axis_t& axis, int) {
-    axis_t old_axis = axis;
-    --axis;
-    return old_axis;
-}
-
 namespace Machine {
     MotorMask Axes::posLimitMask = 0;
     MotorMask Axes::negLimitMask = 0;
@@ -50,7 +22,7 @@ namespace Machine {
         "X", "Y", "Z", "A", "B", "C", "U", "V", "W",
     };
     axis_t Axes::axisNum(std::string_view name) {
-        for (axis_t axis; axis < MAX_N_AXIS; axis++) {
+        for (axis_t axis = X_AXIS; axis < MAX_N_AXIS; axis++) {
             if (string_util::equal_ignore_case(name, axisName(axis))) {
                 return axis;
             }
@@ -99,7 +71,10 @@ namespace Machine {
         config_motors();
     }
 
-    void IRAM_ATTR Axes::set_disable(axis_t axis, bool disable) {
+    void IRAM_ATTR Axes::set_disable(axis_t axis, bool disable, bool manual_override) {
+        if (disable && !manual_override && !_axis[axis]->_idleDisable) {  //skip if idle disable is not allowed for this axis
+            return;
+        }
         for (motor_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
             auto m = _axis[axis]->_motors[motor];
             if (m) {
@@ -111,9 +86,9 @@ namespace Machine {
         }
     }
 
-    void IRAM_ATTR Axes::set_disable(bool disable) {
+    void IRAM_ATTR Axes::set_disable(bool disable, bool manual_override) {
         for (axis_t axis = X_AXIS; axis < _numberAxis; axis++) {
-            set_disable(axis, disable);
+            set_disable(axis, disable, manual_override);
         }
 
         _sharedStepperDisable.synchronousWrite(disable);

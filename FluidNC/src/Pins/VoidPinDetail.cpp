@@ -5,7 +5,7 @@
 
 namespace Pins {
     VoidPinDetail::VoidPinDetail(pinnum_t number) : PinDetail(number) {
-        _name = "NO PIN";
+        _name = "NO_PIN";
     }
     VoidPinDetail::VoidPinDetail(const PinOptionsParser& options) : VoidPinDetail() {}
 
@@ -27,4 +27,5 @@ namespace Pins {
     PinAttributes VoidPinDetail::getAttr() const {
         return PinAttributes::None;
     }
+    VoidPinDetail undefinedPin;
 }

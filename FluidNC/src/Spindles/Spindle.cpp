@@ -98,12 +98,6 @@ namespace Spindles {
         _speeds[i].scale  = scaler;
     }
 
-    void Spindle::validate() {
-        for (auto s : Spindles::SpindleFactory::objects()) {
-            Assert(s == this || s->_tool != _tool, "Duplicate tool_number %d with /%s", _tool, s->name());
-        }
-    }
-
     void Spindle::afterParse() {
         if (_speeds.size() && !maxSpeed()) {
             log_error("Speed map max speed is 0. Using default");
@@ -144,7 +138,8 @@ namespace Spindles {
                 return true;
             }
             _m6_macro.run(nullptr);
-            _last_tool = tool_number;
+            // What happens if the macro failed...set alarm in macro & test here?
+            //gc_state.current_tool = gc_state.selected_tool;
             return true;
             //}
         }
@@ -187,7 +182,7 @@ namespace Spindles {
         }
 
         // if the offset is that max value of uint32, then the offset was never set. therefore, bypass the mapping process
-        if(_speeds[i].offset == -1) {
+        if (_speeds[i].offset == -1) {
             return speed;
         }
 
@@ -238,7 +233,7 @@ namespace Spindles {
                         if (speed > _current_speed) {
                             up = speed - _current_speed;
                         } else {
-                            down = speed - _current_speed;
+                            down = _current_speed - speed;
                         }
                         break;
                     case SpindleState::Ccw:
@@ -269,12 +264,18 @@ namespace Spindles {
                 }
                 break;
         }
+        int32_t dwell = 0;
         if (down) {
-            dwell_ms(down < maxSpeed() ? _spindown_ms * down / maxSpeed() : _spindown_ms, DwellMode::SysSuspend);
+            dwell = (down < maxSpeed() ? _spindown_ms * down / maxSpeed() : _spindown_ms);
+            log_debug("Spin down delay ms:" << dwell);
+            dwell_ms((uint32_t)dwell, DwellMode::SysSuspend);
         }
         if (up) {
-            dwell_ms(up < maxSpeed() ? _spinup_ms * up / maxSpeed() : _spinup_ms, DwellMode::SysSuspend);
+            dwell = (up < maxSpeed() ? _spinup_ms * up / maxSpeed() : _spinup_ms);
+            log_debug("Spin up delay ms:" << dwell);
+            dwell_ms((uint32_t)dwell, DwellMode::SysSuspend);
         }
+
         _current_state = state;
         _current_speed = speed;
     }

@@ -34,12 +34,13 @@ private:
 
     std::string category;
 
-    void flush();
-
 public:
     // Constructor; set _json_tag for [MSG:JSON: ,,,] encapsulation
     JSONencoder(Channel* channel, const char* json_tag = nullptr);
     JSONencoder(JsonCallback);
+
+    // Emits any buffered JSON output without changing encoder state.
+    void flush();
 
     // begin() starts the encoding process.
     void begin();

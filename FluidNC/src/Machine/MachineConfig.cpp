@@ -23,6 +23,7 @@
 #include "Config.h"  // ENABLE_*
 
 #include "Driver/restart.h"
+#include "Driver/backtrace.h"
 
 #include <cstdio>
 #include <cstring>
@@ -145,21 +146,28 @@ namespace Machine {
             _parking = new Parking();
         }
 
-        auto spindles = Spindles::SpindleFactory::objects();
+        auto& spindles = Spindles::SpindleFactory::objects();
         if (spindles.size() == 0) {
             spindles.push_back(new Spindles::Null("NoSpindle"));
             //            Spindles::SpindleFactory::add(new Spindles::Null());
         }
 
+        std::sort(spindles.begin(), spindles.end(), [](Spindles::Spindle* s1, Spindles::Spindle* s2) { return s1->_tool < s2->_tool; });
+
         // Precaution in case the full spindle initialization does not happen
         // due to a configuration error
         spindle = spindles[0];
 
-        uint32_t next_tool = 100;
+        int32_t last_tool = -1;
         for (auto s : Spindles::SpindleFactory::objects()) {
-            if (s->_tool == -1) {
-                s->_tool = next_tool++;
+            if (last_tool == -1 && s->_tool != 0) {  // first must be 0
+                log_warn(s->name() << " spindle set to tool 0");
+                s->_tool = 0;
+            } else if (s->_tool <= last_tool) {
+                s->_tool = last_tool + 100;
+                log_warn(s->name() << " spindle tool set to:" << s->_tool);
             }
+            last_tool = s->_tool;
         }
 
         if (_macros == nullptr) {
@@ -174,6 +182,19 @@ namespace Machine {
         // builtin config.  This helps prevent reset loops on bad config files.
         if (restart_was_panic()) {
             log_error("Skipping configuration file due to panic");
+            backtrace_t bt;
+            if (backtrace_get(&bt)) {
+                char buf[16];
+                snprintf(buf, sizeof(buf), "0x%08x", bt.pc);
+                log_error("Previous crash backtrace (PC=" << buf << " cause=" << bt.exccause << "):");
+                std::string btLine = "Backtrace:";
+                for (size_t i = 0; i < bt.num_addresses; i++) {
+                    snprintf(buf, sizeof(buf), " 0x%08x", bt.addresses[i]);
+                    btLine += buf;
+                    btLine += ":0x00000000";
+                }
+                log_error(btLine.c_str());
+            }
             log_info("Using default configuration");
             load_yaml(defaultConfig);
             set_state(State::ConfigAlarm);
@@ -184,7 +205,7 @@ namespace Machine {
 
     void MachineConfig::load_file(const std::string_view filename) {
         try {
-            FileStream file(std::string { filename }, "rb", "");
+            FileStream file(std::string { filename }, "rb", LocalFS);
 
             auto filesize = file.size();
             if (filesize <= 0) {

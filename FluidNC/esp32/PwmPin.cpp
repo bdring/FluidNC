@@ -161,6 +161,7 @@ void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
     // -> ledc_hal_set_sig_out_en(&(p_ledc_obj[speed_mode]->ledc_hal), channel, true);
     ch.conf0.sig_out_en = on;
     // -> ledc_hal_set_duty_start(&(p_ledc_obj[speed_mode]->ledc_hal), channel, true);
+    while (ch.conf1.duty_start) {}
     ch.conf1.duty_start = on;
     // -> ledc_ls_channel_update(speed_mode, channel); // Doesn't seem to hurt for high speed channels.
     ch.conf0.low_speed_update = 1;

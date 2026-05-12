@@ -65,7 +65,7 @@ void steps_to_motor_pos(float* motor_pos, steps_t* steps) {
 void steps_to_mpos(float* position, steps_t* steps) {
     auto   a      = config->_axes;
     axis_t n_axis = a ? a->_numberAxis : X_AXIS;
-    float  motor_pos[n_axis];
+    float  motor_pos[MAX_N_AXIS];
     steps_to_motor_pos(motor_pos, steps);
     config->_kinematics->motors_to_cartesian(position, motor_pos, n_axis);
 }

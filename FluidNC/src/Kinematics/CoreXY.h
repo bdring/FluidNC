@@ -33,7 +33,7 @@ namespace Kinematics {
 
         bool canHome(AxisMask axisMask) override;
         void releaseMotors(AxisMask axisMask, MotorMask motors) override;
-        bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
+        bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) override;
 
         // Configuration handlers:
         void         validate() override {}

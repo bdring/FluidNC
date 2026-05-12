@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Task.h"
-#include "Queue.h"
+#include "task.h"
+#include "queue.h"
 #include "FreeRTOSTypes.h"
 #include <mutex>
 #include <atomic>

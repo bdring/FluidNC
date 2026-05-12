@@ -2,6 +2,8 @@
 
 #include <src/Pin.h>
 #include <src/PinMapper.h>
+#include <src/Protocol.h>
+#include <src/Machine/EventPin.h>
 
 #ifdef ESP32
 extern "C" void __pinMode(uint8_t pin, uint8_t mode);
@@ -48,6 +50,25 @@ void pinMode(uint8_t pin, uint8_t mode);
 int  digitalRead(uint8_t pin);
 
 #endif
+
+namespace {
+    class InitialEventPin : public EventPin {
+    public:
+        uint32_t activeCount   = 0;
+        uint32_t inactiveCount = 0;
+
+        InitialEventPin(const char* legend) : EventPin(nullptr, ExecAlarm::None, legend) {}
+
+        void trigger(bool active) override {
+            InputPin::trigger(active);
+            if (active) {
+                ++activeCount;
+            } else {
+                ++inactiveCount;
+            }
+        }
+    };
+}
 
 namespace Pins {
     Test(GPIO, BasicInputOutput1) {
@@ -360,5 +381,30 @@ namespace Pins {
 
     Test(GPIO, ISRChangePinClass) {
         GPIOISR isr(1, 1, CHANGE);
+    }
+
+    Test(GPIO, InitialInputEventQueuedOnce) {
+        GPIONative::initialize();
+        protocol_init();
+
+        Pin gpio17 = Pin::create("gpio.17");
+
+        gpio17.setAttr(Pin::Attr::Output);
+        gpio17.off();
+
+        InitialEventPin pin("gpio_test_event_pin");
+        pin = Pin::create("gpio.16");
+        pin.init();
+
+        Assert(pin.activeCount == 0, "Expected no active events before handling");
+        Assert(pin.inactiveCount == 0, "Expected no inactive events before handling");
+
+        protocol_handle_events();
+        Assert(pin.activeCount == 0, "Expected no active events");
+        Assert(pin.inactiveCount == 1, "Expected exactly one initial inactive event");
+
+        protocol_handle_events();
+        Assert(pin.activeCount == 0, "Expected no active events");
+        Assert(pin.inactiveCount == 1, "Expected exactly one initial inactive event");
     }
 }

@@ -2,6 +2,7 @@
 
 #include "FreeRTOS.h"
 #include "FreeRTOSTypes.h"
+#include <climits>
 
 void vTaskDelay(const TickType_t xTicksToDelay);
 

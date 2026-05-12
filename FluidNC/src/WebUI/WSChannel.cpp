@@ -145,14 +145,12 @@ namespace WebUI {
     }
 
     void WSChannels::removeChannel(objnum_t num) {
-        log_debug("REMOVING " << num);
         for (auto it = _wsChannels.begin(); it < _wsChannels.end(); ++it) {
             if ((*it)->id() == num) {
                 auto wsChannel = *it;
                 _wsChannels.erase(it);
                 wsChannel->active(false);
                 allChannels.kill(wsChannel);
-                log_debug("ERASING " << (int)wsChannel << " " << wsChannel->id());
                 break;
             }
         }
