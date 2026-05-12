@@ -118,32 +118,41 @@ bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
 }
 
 void mc_clustered_linear_move(float* target, plan_line_data_t* pl_data, float* position, const std::vector<float>& clustered_values) {
-    float start_position[MAX_N_AXIS];
+    float segment_start[MAX_N_AXIS];
     float segment_target[MAX_N_AXIS];
-    float delta[MAX_N_AXIS];
+    float increment[MAX_N_AXIS];
 
-    copyAxes(start_position, position);
+    size_t cluster_count = clustered_values.size();
+    if (cluster_count == 0) {
+        return;
+    }
+
+    copyAxes(segment_start, position);
+    copyAxes(segment_target, position);
 
     auto n_axis = Axes::_numberAxis;
     for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-        delta[axis] = target[axis] - start_position[axis];
+        increment[axis] = (target[axis] - position[axis]) / float(cluster_count);
     }
 
-    for (size_t cluster = 0; cluster < clustered_values.size(); cluster++) {
+    for (size_t cluster = 0; cluster < cluster_count; cluster++) {
         plan_line_data_t segment_data = *pl_data;
-        float            fraction     = float(cluster + 1) / float(clustered_values.size());
 
         for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-            segment_target[axis] = start_position[axis] + delta[axis] * fraction;
+            if (cluster + 1 == cluster_count) {
+                segment_target[axis] = target[axis];
+            } else {
+                segment_target[axis] += increment[axis];
+            }
         }
 
         segment_data.spindle_speed = static_cast<SpindleSpeed>(clustered_values[cluster]);
-        mc_linear(segment_target, &segment_data, start_position);
+        mc_linear(segment_target, &segment_data, segment_start);
         if (sys.abort()) {
             return;
         }
 
-        copyAxes(start_position, segment_target);
+        copyAxes(segment_start, segment_target);
     }
 }
 
