@@ -93,6 +93,7 @@ typedef struct {
     uint8_t  st_block_index;  // Index of stepper common data block being prepped
     PrepFlag recalculate_flag;
 
+    float current_acceleration;
     float dt_remainder;
     float steps_remaining;
     float step_per_mm;
@@ -421,6 +422,7 @@ void Stepper::prep_buffer() {
                 prep.steps_remaining  = (float)pl_block->step_event_count;
                 prep.step_per_mm      = prep.steps_remaining / pl_block->millimeters;
                 prep.req_mm_increment = REQ_MM_INCREMENT_SCALAR / prep.step_per_mm;
+                prep.current_acceleration = 0.0f;
                 prep.dt_remainder     = 0.0;  // Reset for new segment block
                 if ((sys.step_control.executeHold) || prep.recalculate_flag.decelOverride) {
                     // New block loaded mid-hold. Override planner block entry speed to enforce deceleration.
@@ -577,10 +579,26 @@ void Stepper::prep_buffer() {
                     } else {  // Mid-deceleration override ramp.
                         prep.current_speed -= speed_var;
                     }
+                    prep.current_acceleration = 0.0f;
                     break;
                 case RAMP_ACCEL:
                     // NOTE: Acceleration ramp only computes during first do-while loop.
-                    speed_var = pl_block->acceleration * time_var;
+                    if (pl_block->jerk > 0.0f) {
+                        float accel_var    = pl_block->jerk * time_var;
+                        float time_to_jerk = prep.current_acceleration / pl_block->jerk;
+                        float jerk_rampdown = time_to_jerk
+                                              * (prep.current_speed + (0.5f * prep.current_acceleration * time_to_jerk)
+                                                 + (pl_block->jerk * time_to_jerk * time_to_jerk * (1.0f / 6.0f)));
+
+                        if ((mm_remaining - prep.accelerate_until) > jerk_rampdown) {
+                            prep.current_acceleration = MIN(prep.current_acceleration + accel_var, pl_block->max_acceleration);
+                        } else {
+                            prep.current_acceleration = MAX(prep.current_acceleration - accel_var, accel_var);
+                        }
+                        speed_var = prep.current_acceleration * time_var;
+                    } else {
+                        speed_var = pl_block->acceleration * time_var;
+                    }
                     mm_remaining -= time_var * (prep.current_speed + 0.5f * speed_var);
                     if (mm_remaining < prep.accelerate_until) {  // End of acceleration ramp.
                         // Acceleration-cruise, acceleration-deceleration ramp junction, or end of block.
@@ -592,6 +610,7 @@ void Stepper::prep_buffer() {
                             prep.ramp_type = RAMP_CRUISE;
                         }
                         prep.current_speed = prep.maximum_speed;
+                        prep.current_acceleration = 0.0f;
                     } else {  // Acceleration only.
                         prep.current_speed += speed_var;
                     }
@@ -612,7 +631,23 @@ void Stepper::prep_buffer() {
                     break;
                 default:  // case RAMP_DECEL:
                     // NOTE: mm_var used as a misc worker variable to prevent errors when near zero speed.
-                    speed_var = pl_block->acceleration * time_var;  // Used as delta speed (mm/min)
+                    if (pl_block->jerk > 0.0f) {
+                        float accel_var    = pl_block->jerk * time_var;
+                        float time_to_jerk = prep.current_acceleration > 0.0f ? (prep.current_acceleration / pl_block->jerk) : time_var;
+                        float jerk_rampdown = prep.exit_speed
+                                              + time_to_jerk
+                                                    * (prep.current_acceleration
+                                                       - (0.5f * pl_block->jerk * time_to_jerk));
+
+                        if (prep.current_speed > jerk_rampdown) {
+                            prep.current_acceleration = MIN(prep.current_acceleration + accel_var, pl_block->max_acceleration);
+                        } else {
+                            prep.current_acceleration = MAX(prep.current_acceleration - accel_var, accel_var);
+                        }
+                        speed_var = prep.current_acceleration * time_var;
+                    } else {
+                        speed_var = pl_block->acceleration * time_var;  // Used as delta speed (mm/min)
+                    }
                     if (prep.current_speed > speed_var) {           // Check if at or below zero speed.
                         // Compute distance from end of segment to end of block.
                         mm_var = mm_remaining - time_var * (prep.current_speed - 0.5f * speed_var);  // (mm)

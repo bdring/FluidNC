@@ -78,6 +78,7 @@ float convert_delta_vector_to_unit_vector(float* v) {
 }
 
 const float secPerMinSq = 60.0 * 60.0;  // Seconds Per Minute Squared, for acceleration conversion
+const float secPerMinCu = 60.0 * 60.0 * 60.0;  // Seconds Per Minute Cubed, for jerk conversion
 
 float limit_acceleration_by_axis_maximum(float* unit_vec) {
     float limit_value = SOME_LARGE_VALUE;
@@ -93,6 +94,18 @@ float limit_acceleration_by_axis_maximum(float* unit_vec) {
     // exit, since the limit computation above is independent of units - it simply
     // finds the smallest value.
     return limit_value * secPerMinSq;
+}
+
+float limit_jerk_by_axis_maximum(float* unit_vec) {
+    float limit_value = SOME_LARGE_VALUE;
+    auto  n_axis      = Axes::_numberAxis;
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        auto axisSetting = Axes::_axis[axis];
+        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
+            limit_value = MIN(limit_value, fabsf(axisSetting->_jerk / unit_vec[axis]));
+        }
+    }
+    return limit_value * secPerMinCu;
 }
 
 float limit_rate_by_axis_maximum(float* unit_vec) {

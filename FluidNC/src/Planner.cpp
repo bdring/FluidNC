@@ -348,9 +348,11 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     // down such that no individual axes maximum values are exceeded with respect to the line direction.
     // NOTE: This calculation assumes all axes are orthogonal (Cartesian) and works with ABC-axes,
     // if they are also orthogonal/independent. Operates on the absolute value of the unit vector.
-    block->millimeters  = convert_delta_vector_to_unit_vector(unit_vec);
-    block->acceleration = limit_acceleration_by_axis_maximum(unit_vec);
-    block->rapid_rate   = limit_rate_by_axis_maximum(unit_vec);
+    block->millimeters      = convert_delta_vector_to_unit_vector(unit_vec);
+    block->max_acceleration = limit_acceleration_by_axis_maximum(unit_vec);
+    block->acceleration     = block->max_acceleration;
+    block->jerk             = (block->is_jog || block->motion.systemMotion) ? 0.0f : limit_jerk_by_axis_maximum(unit_vec);
+    block->rapid_rate       = limit_rate_by_axis_maximum(unit_vec);
     // Store programmed rate.
     if (block->motion.rapidMotion) {
         block->programmed_rate = block->rapid_rate;
@@ -360,6 +362,24 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
             block->programmed_rate *= block->millimeters;
         }
     }
+
+    if (block->jerk > 0.0f) {
+        // Use an effective acceleration for lookahead while keeping the stepper-side
+        // segment generator free to apply a jerk-limited ramp shape later.
+        float time_to_max_accel    = block->max_acceleration / block->jerk;
+        float speed_after_jerk_ramp = 0.5f * block->jerk * time_to_max_accel * time_to_max_accel;
+        float half_programmed_rate = 0.5f * block->programmed_rate;
+
+        if (half_programmed_rate > speed_after_jerk_ramp) {
+            block->acceleration = block->programmed_rate
+                                  / (2.0f
+                                     * (time_to_max_accel
+                                        + (half_programmed_rate - speed_after_jerk_ramp) / block->max_acceleration));
+        } else {
+            block->acceleration = block->programmed_rate / (2.0f * sqrtf(block->programmed_rate / block->jerk));
+        }
+    }
+
     // TODO: Need to check this method handling zero junction speeds when starting from rest.
     if ((block_buffer_head == block_buffer_tail) || (block->motion.systemMotion)) {
         // Initialize block entry speed as zero. Assume it will be starting from rest. Planner will correct this later.
