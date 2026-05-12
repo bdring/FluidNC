@@ -130,7 +130,7 @@ namespace {
         } catch (...) {
             datetime = "";
         }
-        j.member("datetime", datetime.c_str());
+        state.encoder.member("datetime", datetime.c_str());
 
         state.encoder.end_object();
         advance_file_iterator(state);
