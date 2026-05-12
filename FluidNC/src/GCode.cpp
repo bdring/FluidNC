@@ -171,36 +171,6 @@ static bool parse_spindle_speed_cluster(const char* line, size_t& pos, float fir
     return true;
 }
 
-static void execute_clustered_linear_move(float* target, plan_line_data_t* pl_data, float* position, const std::vector<float>& clustered_values) {
-    float start_position[MAX_N_AXIS];
-    float segment_target[MAX_N_AXIS];
-    float delta[MAX_N_AXIS];
-
-    copyAxes(start_position, position);
-
-    auto n_axis = Axes::_numberAxis;
-    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-        delta[axis] = target[axis] - start_position[axis];
-    }
-
-    for (size_t cluster = 0; cluster < clustered_values.size(); cluster++) {
-        plan_line_data_t segment_data = *pl_data;
-        float            fraction     = float(cluster + 1) / float(clustered_values.size());
-
-        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-            segment_target[axis] = start_position[axis] + delta[axis] * fraction;
-        }
-
-        segment_data.spindle_speed = static_cast<SpindleSpeed>(clustered_values[cluster]);
-        mc_linear(segment_target, &segment_data, start_position);
-        if (sys.abort()) {
-            return;
-        }
-
-        copyAxes(start_position, segment_target);
-    }
-}
-
 // Edit GCode line in-place, removing whitespace and comments and
 // converting to uppercase
 void collapseGCode(char* line) {
@@ -1955,7 +1925,7 @@ Error gc_execute_line(const char* input_line) {
             GCUpdatePos gc_update_pos = GCUpdatePos::Target;
             if (gc_state.modal.motion == Motion::Linear) {
                 if (clustered_spindle_speeds.size() > 1) {
-                    execute_clustered_linear_move(gc_block.values.xyz, pl_data, gc_state.position, clustered_spindle_speeds);
+                    mc_clustered_linear_move(gc_block.values.xyz, pl_data, gc_state.position, clustered_spindle_speeds);
                 } else {
                     mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
                 }
