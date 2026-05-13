@@ -103,6 +103,7 @@ typedef struct {
     float   last_steps_remaining;
     float   last_step_per_mm;
     float   last_dt_remainder;
+    float   last_current_acceleration;
 
     uint8_t ramp_type;    // Current segment ramp state
     float   mm_complete;  // End of velocity profile from end of current planner block in (mm).
@@ -328,6 +329,7 @@ void Stepper::parking_setup_buffer() {
         prep.last_steps_remaining = prep.steps_remaining;
         prep.last_dt_remainder    = prep.dt_remainder;
         prep.last_step_per_mm     = prep.step_per_mm;
+        prep.last_current_acceleration = prep.current_acceleration;
     }
     // Set flags to execute a parking motion
     prep.recalculate_flag.parking     = 1;
@@ -344,6 +346,7 @@ void Stepper::parking_restore_buffer() {
         prep.steps_remaining                   = prep.last_steps_remaining;
         prep.dt_remainder                      = prep.last_dt_remainder;
         prep.step_per_mm                       = prep.last_step_per_mm;
+        prep.current_acceleration              = prep.last_current_acceleration;
         prep.recalculate_flag.holdPartialBlock = 1;
         prep.recalculate_flag.recalculate      = 1;
         prep.req_mm_increment                  = REQ_MM_INCREMENT_SCALAR / prep.step_per_mm;  // Recompute this value.
