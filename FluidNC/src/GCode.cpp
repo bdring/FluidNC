@@ -153,11 +153,18 @@ static void gcode_comment_msg(const char* comment) {
 static std::optional<WaitOnInputMode> validate_wait_on_input_mode_value(objnum_t);
 static Error                          gc_wait_on_input(bool is_digital, objnum_t input_number, WaitOnInputMode mode, float timeout);
 
+static constexpr size_t MaxSpindleSpeedClusterSize = 16;
+
 static bool parse_spindle_speed_cluster(const char* line, size_t& pos, float first_value, std::vector<float>& clustered_values) {
     clustered_values.clear();
     clustered_values.push_back(first_value);
 
     while (line[pos] == ':') {
+        if (clustered_values.size() >= MaxSpindleSpeedClusterSize) {
+            log_error("Spindle speed cluster exceeds maximum of " << MaxSpindleSpeedClusterSize << " values");
+            return false;
+        }
+
         ++pos;
 
         float clustered_value;

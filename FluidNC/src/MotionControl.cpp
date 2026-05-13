@@ -138,6 +138,14 @@ void mc_clustered_linear_move(float* target, plan_line_data_t* pl_data, float* p
     for (size_t cluster = 0; cluster < cluster_count; cluster++) {
         plan_line_data_t segment_data = *pl_data;
 
+        if (segment_data.motion.inverseTime) {
+            // G93 inverse-time feed specifies the total move duration. When one
+            // logical move is split into multiple planner blocks, each block must
+            // be assigned a proportionally shorter duration so the overall time
+            // remains unchanged.
+            segment_data.feed_rate *= float(cluster_count);
+        }
+
         for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (cluster + 1 == cluster_count) {
                 segment_target[axis] = target[axis];
