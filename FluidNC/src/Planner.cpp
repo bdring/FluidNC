@@ -244,6 +244,23 @@ uint8_t plan_check_full_buffer() {
     return block_buffer_tail == next_buffer_head;
 }
 
+static float plan_compute_effective_acceleration(plan_block_t* block, float target_speed) {
+    if (block->jerk <= 0.0f) {
+        return block->max_acceleration;
+    }
+
+    float time_to_max_accel     = block->max_acceleration / block->jerk;
+    float speed_after_jerk_ramp = 0.5f * block->jerk * time_to_max_accel * time_to_max_accel;
+    float half_target_speed     = 0.5f * target_speed;
+
+    if (half_target_speed > speed_after_jerk_ramp) {
+        return target_speed
+               / (2.0f * (time_to_max_accel + (half_target_speed - speed_after_jerk_ramp) / block->max_acceleration));
+    }
+
+    return target_speed / (2.0f * sqrtf(target_speed / block->jerk));
+}
+
 // Computes and returns block nominal speed based on running condition and override values.
 // NOTE: All system motion commands, such as homing/parking, are not subject to overrides.
 float plan_compute_profile_nominal_speed(plan_block_t* block) {
@@ -288,6 +305,7 @@ void plan_update_velocity_profile_parameters() {
     while (block_index != block_buffer_head) {
         block         = &block_buffer[block_index];
         nominal_speed = plan_compute_profile_nominal_speed(block);
+        block->acceleration = plan_compute_effective_acceleration(block, nominal_speed);
         plan_compute_profile_parameters(block, nominal_speed, prev_nominal_speed);
         prev_nominal_speed = nominal_speed;
         block_index        = plan_next_block_index(block_index);
@@ -350,7 +368,6 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     // if they are also orthogonal/independent. Operates on the absolute value of the unit vector.
     block->millimeters      = convert_delta_vector_to_unit_vector(unit_vec);
     block->max_acceleration = limit_acceleration_by_axis_maximum(unit_vec);
-    block->acceleration     = block->max_acceleration;
     block->jerk             = (block->is_jog || block->motion.systemMotion) ? 0.0f : limit_jerk_by_axis_maximum(unit_vec);
     block->rapid_rate       = limit_rate_by_axis_maximum(unit_vec);
     // Store programmed rate.
@@ -363,22 +380,9 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         }
     }
 
-    if (block->jerk > 0.0f) {
-        // Use an effective acceleration for lookahead while keeping the stepper-side
-        // segment generator free to apply a jerk-limited ramp shape later.
-        float time_to_max_accel    = block->max_acceleration / block->jerk;
-        float speed_after_jerk_ramp = 0.5f * block->jerk * time_to_max_accel * time_to_max_accel;
-        float half_programmed_rate = 0.5f * block->programmed_rate;
-
-        if (half_programmed_rate > speed_after_jerk_ramp) {
-            block->acceleration = block->programmed_rate
-                                  / (2.0f
-                                     * (time_to_max_accel
-                                        + (half_programmed_rate - speed_after_jerk_ramp) / block->max_acceleration));
-        } else {
-            block->acceleration = block->programmed_rate / (2.0f * sqrtf(block->programmed_rate / block->jerk));
-        }
-    }
+    // Use an effective acceleration for lookahead while keeping the stepper-side
+    // segment generator free to apply a jerk-limited ramp shape later.
+    block->acceleration = plan_compute_effective_acceleration(block, plan_compute_profile_nominal_speed(block));
 
     // TODO: Need to check this method handling zero junction speeds when starting from rest.
     if ((block_buffer_head == block_buffer_tail) || (block->motion.systemMotion)) {
