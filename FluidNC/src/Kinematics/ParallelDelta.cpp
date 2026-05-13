@@ -73,6 +73,7 @@ namespace Kinematics {
         auto steps0 = axis0->_stepsPerMm;
         auto accel0 = axis0->_acceleration;
         auto rate0  = axis0->_maxRate;
+        auto jerk0  = axis0->_jerk;
 
         for (axis_t axis = X_AXIS; axis < A_AXIS; axis++) {
             auto axisp = axes->_axis[axis];
@@ -81,6 +82,7 @@ namespace Kinematics {
             axisp->_stepsPerMm   = steps0;
             axisp->_maxRate      = rate0;
             axisp->_acceleration = accel0;
+            axisp->_jerk         = jerk0;
         }
 
         init_position();
