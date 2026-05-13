@@ -587,6 +587,7 @@ void Stepper::prep_buffer() {
                 case RAMP_ACCEL:
                     // NOTE: Acceleration ramp only computes during first do-while loop.
                     if (pl_block->jerk > 0.0f) {
+                        float previous_acceleration = prep.current_acceleration;
                         float accel_var    = pl_block->jerk * time_var;
                         float time_to_jerk = prep.current_acceleration / pl_block->jerk;
                         float jerk_rampdown = time_to_jerk
@@ -598,7 +599,7 @@ void Stepper::prep_buffer() {
                         } else {
                             prep.current_acceleration = MAX(prep.current_acceleration - accel_var, accel_var);
                         }
-                        speed_var = prep.current_acceleration * time_var;
+                        speed_var = 0.5f * (previous_acceleration + prep.current_acceleration) * time_var;
                     } else {
                         speed_var = pl_block->acceleration * time_var;
                     }
@@ -635,6 +636,7 @@ void Stepper::prep_buffer() {
                 default:  // case RAMP_DECEL:
                     // NOTE: mm_var used as a misc worker variable to prevent errors when near zero speed.
                     if (pl_block->jerk > 0.0f) {
+                        float previous_acceleration = prep.current_acceleration;
                         float accel_var    = pl_block->jerk * time_var;
                         float time_to_jerk = prep.current_acceleration > 0.0f ? (prep.current_acceleration / pl_block->jerk) : time_var;
                         float jerk_rampdown = prep.exit_speed
@@ -647,7 +649,7 @@ void Stepper::prep_buffer() {
                         } else {
                             prep.current_acceleration = MAX(prep.current_acceleration - accel_var, accel_var);
                         }
-                        speed_var = prep.current_acceleration * time_var;
+                        speed_var = 0.5f * (previous_acceleration + prep.current_acceleration) * time_var;
                     } else {
                         speed_var = pl_block->acceleration * time_var;  // Used as delta speed (mm/min)
                     }
