@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../Pin.h"
+#include "Pin.h"
 #include "HandlerBase.h"
 
 #include <vector>
@@ -34,9 +34,11 @@ namespace Configuration {
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {}
         void item(const char* name, std::string& value, const int minLength, const int maxLength) override {}
         void item(const char* name, EventPin& value) override {}
+        void item(const char* name, InputPin& value) override {}
         void item(const char* name, Pin& value) override {}
         void item(const char* name, Macro& value) override {}
         void item(const char* name, IPAddress& value) override {}
-        void item(const char* name, int& value, const EnumItem* e) override {}
+        void item(const char* name, uint32_t& value, const EnumItem* e) override {}
+        void item(const char* name, axis_t& value) override {}
     };
 }

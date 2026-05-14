@@ -9,6 +9,7 @@ class Event {
 public:
     Event() {}
     virtual void run(void* arg) const = 0;
+    virtual ~Event() {}
 };
 
 class NoArgEvent : public Event {

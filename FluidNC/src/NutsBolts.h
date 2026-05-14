@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include "Types.h"
 #include "Logging.h"
 #include "Driver/delay_usecs.h"
 
@@ -18,7 +19,7 @@ enum class DwellMode : uint8_t {
 
 const float SOME_LARGE_VALUE = 1.0E+38f;
 
-static inline int toMotor2(int axis) {
+static inline motor_t toMotor2(axis_t axis) {
     return axis + MAX_N_AXIS;
 }
 
@@ -51,10 +52,8 @@ const float INCH_PER_MM = (0.0393701f);
 #define bitnum_is_true(target, num) ((target & bitnum_to_mask(num)) != 0)
 #define bitnum_is_false(target, num) ((target & bitnum_to_mask(num)) == 0)
 
-// Read a floating point value from a string. Line points to the input buffer, pos
-// is the indexer pointing to the current character of the line, while float_ptr is
-// a pointer to the result variable. Returns true when it succeeds
-bool read_float(const char* line, size_t& pos, float& result);
+// Get the current "time" in millisecond ticks
+uint32_t get_ms();
 
 // Delay while checking for realtime characters and other events
 bool dwell_ms(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);
@@ -62,7 +61,7 @@ bool dwell_ms(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);
 // Delay without checking for realtime events.  Use only for short delays
 void delay_ms(uint32_t ms);
 
-// Computes hypotenuse, avoiding avr-gcc's bloated version and the extra error checking.
+// Computes hypotenuse (magnitude of 2-vector)
 float hypot_f(float x, float y);
 
 // Distance between endpoints of n-vectors
@@ -83,9 +82,9 @@ const char* to_hex(uint32_t n);
 bool char_is_numeric(char value);
 void trim(std::string_view& sv);
 
-template <typename T>
-T myMap(T x, const T in_min, const T in_max, T out_min, T out_max) {  // DrawBot_Badge
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+template <typename I, typename O>
+O myMap(I x, const I in_min, const I in_max, O out_min, O out_max) {
+    return static_cast<O>((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
 }
 
 template <typename T>
@@ -99,8 +98,8 @@ T myConstrain(T in, const T min, const T max) {
     return in;
 }
 
-template <typename T>
-T mapConstrain(T x, const T in_min, const T in_max, T out_min, T out_max) {
+template <typename I, typename O>
+O mapConstrain(I x, const I in_min, const I in_max, O out_min, O out_max) {
     x = myConstrain(x, in_min, in_max);
     return myMap(x, in_min, in_max, out_min, out_max);
 }
@@ -123,3 +122,59 @@ std::string formatBytes(uint64_t bytes);
 std::string IP_string(uint32_t ipaddr);
 
 void replace_string_in_place(std::string& subject, const std::string& search, const std::string& replace);
+
+template <typename D, typename S>
+void copyArray(D* dest, S src, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] = src[i];
+    }
+}
+
+template <typename D, typename S>
+void addArray(D* dest, S* src, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] += src[i];
+    }
+}
+
+template <typename D, typename S>
+void addArray(D* dest, S addend, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] += addend;
+    }
+}
+
+template <typename D, typename S>
+void subtractArray(D* dest, S* src, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] -= src[i];
+    }
+}
+
+template <typename D, typename S>
+void subtractArray(D* dest, S subtrahend, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] -= subtrahend;
+    }
+}
+
+template <typename D, typename S>
+void multiplyArray(D* dest, S* src, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] *= src[i];
+    }
+}
+
+template <typename D, typename S>
+void multiplyArray(D* dest, S factor, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] *= factor;
+    }
+}
+
+template <typename D, typename S>
+void setArray(D* dest, S value, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] = value;
+    }
+}

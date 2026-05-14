@@ -1,4 +1,4 @@
-#include "../TestFramework.h"
+#include "TestFramework.h"
 
 #include <src/Configuration/Tokenizer.h>
 #include <src/Configuration/Parser.h>

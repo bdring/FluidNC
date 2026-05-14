@@ -5,51 +5,16 @@
 
 #pragma once
 
+#include "Types.h"
+#include "Platform.h"
+
 // This file contains compile-time configuration choices.  Most users will not need
 // to directly modify these, but they are here for unusual needs, i.e.
 // performance tuning or adjusting to non-typical machines.
 
 // IMPORTANT: Any changes here require recompilation.
 
-/*
-ESP 32 Notes
-
-Some features should not be changed. See notes below.
-
-*/
-
-// It is no longer necessary to edit this file to choose
-// a machine configuration; edit machine.h instead
-// machine.h is #included below, after some definitions
-// that the machine file might choose to undefine.
-
-const int MAX_N_AXIS = 6;
-
-const int MAX_MESSAGE_LINE = 256;
-
-// Axis array index values. Must start with 0 and be continuous.
-// Note: You set the number of axes used by changing MAX_N_AXIS.
-// Be sure to define pins or servos in the machine definition file.
-const int X_AXIS = 0;  // Axis indexing value.
-const int Y_AXIS = 1;
-const int Z_AXIS = 2;
-const int A_AXIS = 3;
-const int B_AXIS = 4;
-const int C_AXIS = 5;
-
-const int X2_AXIS = (X_AXIS + MAX_N_AXIS);
-const int Y2_AXIS = (Y_AXIS + MAX_N_AXIS);
-const int Z2_AXIS = (Z_AXIS + MAX_N_AXIS);
-const int A2_AXIS = (A_AXIS + MAX_N_AXIS);
-const int B2_AXIS = (B_AXIS + MAX_N_AXIS);
-const int C2_AXIS = (C_AXIS + MAX_N_AXIS);
-
 const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
-
-// Serial baud rate
-// OK to change, but the ESP32 boot text is 115200, so you will not see that is your
-// serial monitor, sender, etc uses a different value than 115200
-const int BAUD_RATE = 115200;
 
 //Connect to your local AP with these credentials
 //#define CONNECT_TO_SSID  "your SSID"
@@ -121,7 +86,7 @@ const bool RESTORE_OVERRIDES_AFTER_PROGRAM_END = true;  // Default enabled. Comm
 // change often. The following macros configures how many times a status report needs to be called before
 // the associated data is refreshed and included in the status report. However, if one of these value
 // changes, this data will be included in the next status report, regardless of the current count.
-// This reduces the communication overhead of high frequency reporting and agressive streaming.
+// This reduces the communication overhead of high frequency reporting and aggressive streaming.
 // The busy and idle refresh counts send refreshes more frequently when not doing anything important.
 // With a good GUI, this data doesn't need to be refreshed very often, on the order of a several seconds.
 // NOTE: WCO refresh must be 2 or greater. OVR refresh must be 1 or greater.
@@ -140,11 +105,6 @@ const int REPORT_WCO_REFRESH_IDLE_COUNT = 10;  // (2-255) Must be less than or e
 // certain the step segment buffer is increased/decreased to account for these changes.
 const int ACCELERATION_TICKS_PER_SECOND = 100;
 
-// Sets which axis the tool length offset is applied. Assumes the spindle is always parallel with
-// the selected axis with the tool oriented toward the negative direction. In other words, a positive
-// tool length offset value is subtracted from the current location.
-const int TOOL_LENGTH_OFFSET_AXIS = Z_AXIS;  // Default z-axis. Valid values are X_AXIS, Y_AXIS, or Z_AXIS.
-
 // Minimum planner junction speed. Sets the default minimum junction speed the planner plans to at
 // every buffer block junction, except for starting from rest and end of the buffer, which are always
 // zero. This value controls how fast the machine moves through junctions with no regard for acceleration
@@ -160,7 +120,7 @@ const float MINIMUM_JUNCTION_SPEED = 0.0f;  // (mm/min)
 const double MINIMUM_FEED_RATE = 1.0;  // (mm/min)
 
 // Number of arc generation iterations by small angle approximation before exact arc trajectory
-// correction with expensive sin() and cos() calcualtions. This parameter maybe decreased if there
+// correction with expensive sin() and cos() calculations. This parameter maybe decreased if there
 // are issues with the accuracy of the arc generations, or increased if arc execution is getting
 // bogged down by too many trig calculations.
 const int N_ARC_CORRECTION = 12;  // Integer (1-255)
@@ -175,20 +135,11 @@ const int N_ARC_CORRECTION = 12;  // Integer (1-255)
 // much greater than this. The default setting should capture most, if not all, full arc error situations.
 const double ARC_ANGULAR_TRAVEL_EPSILON = 5E-7;  // Float (radians)
 
-// Serial send and receive buffer size. The receive buffer is often used as another streaming
-// buffer to store incoming blocks to be processed when ready. Most streaming
-// interfaces will character count and track each block send to each block response. So,
-// increase the receive buffer if a deeper receive buffer is needed for streaming and avaiable
-// memory allows. The send buffer primarily handles messages. Only increase if large
-// messages are sent and the system begins to stall, waiting to send the rest of the message.
-// #define RX_BUFFER_SIZE 128 // (1-254) Uncomment to override defaults in serial.h
-// #define TX_BUFFER_SIZE 100 // (1-254)
-
 // Writing to non-volatile storage (NVS) can take a long time and interfere with timely instruction
 // execution, causing problems for the stepper ISRs and serial comm ISRs and subsequent loss of
 // stepper position and serial data. This configuration option forces the planner buffer to completely
 // empty whenever the NVS is written, to prevent any chance of lost steps.
-// It doesn't prevent loss of serial Rx data, especially if a GUI is premptively filling up the
+// It doesn't prevent loss of serial Rx data, especially if a GUI is preemptively filling up the
 // serial Rx buffer.  GUIs should detect GCodes that write to NVS - notably G10,G28.1,G30.1 -
 // and wait for an 'ok' before sending more data.
 // NOTE: Most setting changes - $ commands - are blocked when a job is running. Coordinate setting
@@ -211,6 +162,6 @@ const bool FORCE_BUFFER_SYNC_DURING_WCO_CHANGE = true;  // Default enabled. Comm
 // repeatable. If needed, you can disable this behavior by uncommenting the define below.
 const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 
-const int MAX_N_I2C = 2;
-
 #include "NutsBolts.h"
+
+#include "Assertion.h"

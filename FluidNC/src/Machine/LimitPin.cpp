@@ -1,13 +1,16 @@
-#include "src/Machine/EventPin.h"
-#include "src/Machine/Axes.h"
-#include "src/Machine/MachineConfig.h"  // config
+// Copyright (c) 2021 -  Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/Limits.h"
-#include "src/Protocol.h"  // protocol_send_event_from_ISR()
+#include "Machine/EventPin.h"
+#include "Machine/Axes.h"
+#include "Machine/MachineConfig.h"  // config
+
+#include "Limit.h"
+#include "Protocol.h"  // protocol_send_event_from_ISR()
 
 namespace Machine {
-    LimitPin::LimitPin(int axis, int motor, int direction, bool& pHardLimits) :
-        EventPin(&limitEvent, "Limit"), _axis(axis), _motorNum(motor), _pHardLimits(pHardLimits) {
+    LimitPin::LimitPin(axis_t axis, motor_t motor, int8_t direction, bool& pHardLimits) :
+        EventPin(&limitEvent, ExecAlarm::HardLimit, "Limit"), _axis(axis), _motorNum(motor), _pHardLimits(pHardLimits) {
         const char* sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -30,6 +33,7 @@ namespace Machine {
                 _negLimits   = nullptr;
                 _posLimits   = nullptr;
                 _pHardLimits = false;
+                sDir         = nullptr;
                 break;
         }
 
@@ -43,16 +47,8 @@ namespace Machine {
     }
 
     void LimitPin::init() {
-        EventPin::init();
         _pLimited = Stepping::limit_var(_axis, _motorNum);
-
-        // If there is a positive or negative limit pin that is initially true,
-        // calling trigger(false) during the initialization of the all limit
-        // pin would incorrectly clear the bit in the positive or negative maks,
-        // thus trigger() must only be called if _value is true.
-        if (_value) {
-            trigger(_value);
-        }
+        EventPin::init();
     }
 
     void LimitPin::trigger(bool active) {
@@ -96,7 +92,7 @@ namespace Machine {
         _bitmask = Axes::axes_to_motors(Axes::motors_to_axes(_bitmask));
     }
 
-    void LimitPin::setExtraMotorLimit(int axis, int motorNum) {
+    void LimitPin::setExtraMotorLimit(axis_t axis, motor_t motorNum) {
         _pExtraLimited = Stepping::limit_var(axis, motorNum);
     }
 }

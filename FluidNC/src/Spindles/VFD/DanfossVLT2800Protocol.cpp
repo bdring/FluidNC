@@ -11,8 +11,7 @@
 */
 
 #include "DanfossVLT2800Protocol.h"
-#include "../../Platform.h"
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 #include <algorithm>
 
@@ -56,8 +55,8 @@ namespace Spindles {
                 // const uint8_t function = response[1]
                 // const uint8_t response_byte_count = response[2]
 
-                uint16_t freq        = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
-                vfd->_sync_dev_speed = freq;
+                uint32_t dev_speed = (uint16_t(response[3]) << 8) | response[4];
+                xQueueSend(VFD::VFDProtocol::vfd_speed_queue, &dev_speed, 0);
                 return true;
             };
         }
@@ -84,10 +83,10 @@ namespace Spindles {
                 };
             } else {
                 return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
+#ifdef DEBUG_VFD
                     SpindleStatus status;
                     status.statusWord = int16_t(response[3]) | uint16_t(response[4] << 8);  // See DanfossSpindle.h for structure
 
-#ifdef DEBUG_VFD
                     log_debug("Control ready:" << status.flags.control_ready);
                     log_debug("Drive ready:" << status.flags.drive_ready);
                     log_debug("Coasting stop:" << status.flags.warning);

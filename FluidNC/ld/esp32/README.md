@@ -25,7 +25,7 @@ One solution would be to stop calling virtual methods from ISR code,
 but that would require some tedious recoding.  Instead, we choose,
 for now, to force the compilation toolchain to place vtables in RAM.
 
-Changing the vtable placment requires modifications to the linker
+Changing the vtable placement requires modifications to the linker
 scripts (.ld files) that control where things are placed in memory.
 The linker scripts reside in the Arduino framework code where they
 cannot easily be changed, but we can take advantage of some PlatformIO

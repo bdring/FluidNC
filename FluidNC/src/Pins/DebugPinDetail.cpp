@@ -2,33 +2,31 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "DebugPinDetail.h"
-
-#include "../UartChannel.h"
-#include <esp32-hal.h>  // millis()
+#include "Driver/Console.h"
 
 namespace Pins {
 
     // I/O:
-    void IRAM_ATTR DebugPinDetail::write(int high) {
-        if (high != int(_isHigh)) {
-            _isHigh = bool(high);
+    void IRAM_ATTR DebugPinDetail::write(bool high) {
+        if (high != _isHigh) {
+            _isHigh = high;
             if (shouldEvent()) {
-                log_msg_to(Uart0, "Write " << toString() << " < " << high);
+                log_msg_to(Console, "Write " << name() << " < " << high);
             }
         }
         _implementation->write(high);
     }
 
-    int DebugPinDetail::read() {
+    bool DebugPinDetail::read() {
         auto result = _implementation->read();
         if (shouldEvent()) {
-            log_msg_to(Uart0, "Read  " << toString() << " > " << result);
+            log_msg_to(Console, "Read  " << name() << " > " << result);
         }
         return result;
     }
     void DebugPinDetail::setAttr(PinAttributes value, uint32_t frequency) {
-        char buf[10];
-        int  n = 0;
+        char   buf[10];
+        size_t n = 0;
         if (value.has(PinAttributes::Input)) {
             buf[n++] = 'I';
         }
@@ -53,20 +51,20 @@ namespace Pins {
         buf[n++] = '\0';
 
         if (shouldEvent()) {
-            log_msg_to(Uart0, "Set pin attr " << toString() << " = " << buf);
+            log_msg_to(Console, "Set pin attr " << name() << " = " << buf);
         }
         _implementation->setAttr(value);
     }
-
-    PinAttributes DebugPinDetail::getAttr() const {
-        return _implementation->getAttr();
-    }
-
-    void DebugPinDetail::CallbackHandler::handle(void* arg) {
+#if 0
+    void DebugPinDetail::CallbackHandler::handle(void* arg, bool v) {
         auto handler = static_cast<CallbackHandler*>(arg);
         if (handler->_myPin->shouldEvent()) {
-            log_msg_to(Uart0, "Received ISR on " << handler->_myPin->toString());
+            log_msg_to(Console, "Received ISR on " << handler->_myPin->name());
         }
-        handler->callback(handler->argument);
+        handler->callback(handler->argument, v);
+    }
+#endif
+    PinAttributes DebugPinDetail::getAttr() const {
+        return _implementation->getAttr();
     }
 }

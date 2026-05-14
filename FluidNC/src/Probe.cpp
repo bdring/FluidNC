@@ -9,7 +9,7 @@
 extern void    protocol_do_probe(void* arg);
 const ArgEvent probeEvent { protocol_do_probe };
 
-Probe::ProbeEventPin::ProbeEventPin(const char* legend) : EventPin(&probeEvent, legend) {}
+Probe::ProbeEventPin::ProbeEventPin(const char* legend) : EventPin(&probeEvent, ExecAlarm::None, legend) {}
 
 void Probe::init() {
     _probePin.init();
@@ -37,18 +37,26 @@ void Probe::group(Configuration::HandlerBase& handler) {
     handler.item("toolsetter_pin", _toolsetterPin);
     handler.item("check_mode_start", _check_mode_start);
     handler.item("hard_stop", _hard_stop);
+    handler.item("probe_hard_limit", _probe_hard_limit);  // non probing motion protection
 }
 void protocol_do_probe(void* arg) {
     Probe* p = config->_probe;
     if (p->tripped() && probing) {
         probing = false;
-        get_motor_steps(probe_steps);
+        get_steps(probe_steps);
         if (p->_hard_stop) {
             Stepper::reset();
             plan_reset();
-            sys.state = State::Idle;
+            set_state(State::Idle);
         } else {
             protocol_do_motion_cancel();
+        }
+    } else if (p->tripped() && p->_probe_hard_limit) {
+        // trip if in homing, cycle or jog, but not probing
+        if ((state_is(State::Cycle) || state_is(State::Jog) || state_is(State::Homing)) &&
+            (gc_state.modal.motion != Motion::ProbeAway && gc_state.modal.motion != Motion::ProbeAwayNoError &&
+             gc_state.modal.motion != Motion::ProbeToward && gc_state.modal.motion != Motion::ProbeTowardNoError)) {
+            mc_critical(ExecAlarm::ProbeHardLimit);
         }
     }
 }

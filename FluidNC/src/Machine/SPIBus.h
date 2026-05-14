@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 
 namespace Machine {
     class SPIBus : public Configuration::Configurable {

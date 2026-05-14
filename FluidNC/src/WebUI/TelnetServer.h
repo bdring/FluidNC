@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include "src/Module.h"  // Module
+#include "Module.h"  // Module
 #include <queue>
 
-#include "src/Settings.h"
+#include "Settings.h"
 
 #include <WiFi.h>
 

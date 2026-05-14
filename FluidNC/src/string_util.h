@@ -4,9 +4,10 @@
 #include <string_view>
 
 namespace string_util {
-    char                   tolower(char c);
-    bool                   equal_ignore_case(std::string_view a, std::string_view b);
-    bool                   starts_with_ignore_case(std::string_view a, std::string_view b);
+    bool equal_ignore_case(std::string_view a, std::string_view b);
+    bool starts_with_ignore_case(std::string_view a, std::string_view b);
+    bool ends_with_ignore_case(std::string_view a, std::string_view b);
+
     const std::string_view trim(std::string_view s);
 
     bool from_xdigit(char c, uint8_t& value);

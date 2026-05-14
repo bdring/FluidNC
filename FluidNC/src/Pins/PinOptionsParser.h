@@ -3,6 +3,7 @@
 
 #pragma once
 #include <string_view>
+#include <cstdint>
 
 namespace Pins {
     // Pin options are passed as PinOption object. This is a simple C++ forward iterator,
@@ -36,7 +37,7 @@ namespace Pins {
     public:
         bool is(const char* option) const;
 
-        int iValue() const;
+        int32_t iValue() const;
 
         inline const std::string_view operator()() { return _option; }
         inline const std::string_view value() { return _value; }

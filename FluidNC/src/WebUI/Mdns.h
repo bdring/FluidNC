@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
-#include "src/Settings.h"
+#include "Settings.h"
 #include "esp_wifi.h"
 #include <mdns.h>
 
@@ -15,7 +15,7 @@ namespace WebUI {
 
         void        init() override;
         void        deinit() override;
-        static void add(const char* service, const char* proto, int port);
+        static void add(const char* service, const char* proto, uint16_t port);
         static void remove(const char* service, const char* proto);
         ~Mdns() {}
     };

@@ -9,7 +9,7 @@
      enable_pin : optional.
      output_cw_pin : Clockwise PWM signal
      output_ccw_pin : Counter Clockwise PWM signal
-     When the output CW is toggling, CCW is set LOW, and viceversa.
+     When the output CW is toggling, CCW is set LOW, and vice-versa.
 
      Features which could be added afterwards:
 
@@ -59,13 +59,12 @@ namespace Spindles {
             // At the other end, the minimum useful precision is 2^2
             // or 4 levels of control, so the max is 80MHz/2^2 = 20MHz.
             // Those might not be practical for many CNC applications,
-            // but the ESP32 hardware can handle them, so we let the
+            // but the hardware can handle them, so we let the
             // user choose.
             handler.item("pwm_hz", _pwm_freq, 1, 20000000);
             handler.item("output_cw_pin", _output_cw_pin);
             handler.item("output_ccw_pin", _output_ccw_pin);
             handler.item("enable_pin", _enable_pin);
-            handler.item("disable_with_s0", _disable_with_zero_speed);
 
             Spindle::group(handler);
         }

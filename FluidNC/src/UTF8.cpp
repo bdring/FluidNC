@@ -9,7 +9,7 @@
 // Returns 1 if we have a valid sequence, and value is set
 // Returns 0 if we are in the middle of a sequence
 // Returns -1 if there is a sequence error
-int UTF8::decode(uint8_t ch, uint32_t& value) {
+int8_t UTF8::decode(uint8_t ch, uint32_t& value) {
     if (_state) {
         if ((ch & 0xc0) != 0x80) {
             // Trailing bytes in a sequence must have 10 in the two high bits
@@ -70,10 +70,10 @@ int UTF8::decode(uint8_t ch, uint32_t& value) {
     return -1;
 }
 bool UTF8::decode(const std::vector<uint8_t>& input, uint32_t& value) {
-    int len = input.size();
+    size_t len = input.size();
     for (auto const& ch : input) {
         --len;
-        int result = decode(ch, value);
+        int32_t result = decode(ch, value);
         if (result == -1) {
             return false;
         }

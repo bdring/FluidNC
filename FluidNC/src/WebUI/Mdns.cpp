@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Mitch Bradley All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/Module.h"
+#include "Module.h"
 #include "Mdns.h"
 #include <WiFi.h>
 
@@ -28,7 +28,7 @@ namespace WebUI {
     void Mdns::deinit() {
         mdns_free();
     }
-    void Mdns::add(const char* service, const char* proto, int port) {
+    void Mdns::add(const char* service, const char* proto, uint16_t port) {
         if (WiFi.getMode() == WIFI_STA && _enable->get()) {
             mdns_service_add(NULL, service, proto, port, NULL, 0);
         }

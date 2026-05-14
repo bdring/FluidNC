@@ -4,59 +4,87 @@
 
 #include "Kinematics.h"
 
-#include "src/Config.h"
+#include "Config.h"
 #include "Cartesian.h"
 
 namespace Kinematics {
+    const char* no_system = "No kinematic system";
+
     void Kinematics::constrain_jog(float* target, plan_line_data_t* pl_data, float* position) {
-        Assert(_system != nullptr, "No kinematic system");
+        Assert(_system != nullptr, no_system);
         return _system->constrain_jog(target, pl_data, position);
     }
 
     bool Kinematics::invalid_line(float* target) {
-        Assert(_system != nullptr, "No kinematic system");
+        Assert(_system != nullptr, no_system);
         return _system->invalid_line(target);
     }
 
-    bool Kinematics::invalid_arc(
-        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
-        Assert(_system != nullptr, "No kinematic system");
-        return _system->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc);
+    bool Kinematics::invalid_arc(float*            target,
+                                 plan_line_data_t* pl_data,
+                                 float*            position,
+                                 float             center[3],
+                                 float             radius,
+                                 axis_t            caxes[3],
+                                 bool              is_clockwise_arc,
+                                 uint32_t          rotations) {
+        Assert(_system != nullptr, no_system);
+        return _system->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc, rotations);
     }
 
     bool Kinematics::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        Assert(_system != nullptr, "No kinematic system");
+        Assert(_system != nullptr, no_system);
         return _system->cartesian_to_motors(target, pl_data, position);
     }
 
-    void Kinematics::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
-        Assert(_system != nullptr, "No kinematic system");
+    void Kinematics::motors_to_cartesian(float* cartesian, float* motors, axis_t n_axis) {
+        Assert(_system != nullptr, no_system);
         return _system->motors_to_cartesian(cartesian, motors, n_axis);
     }
 
     bool Kinematics::canHome(AxisMask axisMask) {
-        Assert(_system != nullptr, "No kinematic system");
+        Assert(_system != nullptr, no_system);
         return _system->canHome(axisMask);
     }
 
     bool Kinematics::kinematics_homing(AxisMask axisMask) {
-        Assert(_system != nullptr, "No kinematic system");
+        Assert(_system != nullptr, no_system);
         return _system->kinematics_homing(axisMask);
     }
 
     void Kinematics::releaseMotors(AxisMask axisMask, MotorMask motors) {
-        Assert(_system != nullptr, "No kinematic system");
+        Assert(_system != nullptr, no_system);
         _system->releaseMotors(axisMask, motors);
     }
 
     bool Kinematics::limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) {
-        Assert(_system != nullptr, "No kinematics system.");
+        Assert(_system != nullptr, no_system);
         return _system->limitReached(axisMask, motors, limited);
     }
 
     bool Kinematics::transform_cartesian_to_motors(float* motors, float* cartesian) {
-        Assert(_system != nullptr, "No kinematics system.");
+        Assert(_system != nullptr, no_system);
         return _system->transform_cartesian_to_motors(motors, cartesian);
+    }
+
+    float Kinematics::min_motor_pos(axis_t axis) {
+        Assert(_system != nullptr, no_system);
+        return _system->min_motor_pos(axis);
+    }
+
+    float Kinematics::max_motor_pos(axis_t axis) {
+        Assert(_system != nullptr, no_system);
+        return _system->max_motor_pos(axis);
+    }
+
+    void Kinematics::homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) {
+        Assert(_system != nullptr, no_system);
+        return _system->homing_move(axes, motors, phase, settling_ms);
+    }
+
+    void Kinematics::set_homed_mpos(float* mpos) {
+        Assert(_system != nullptr, no_system);
+        return _system->set_homed_mpos(mpos);
     }
 
     void Kinematics::group(Configuration::HandlerBase& handler) {
@@ -70,12 +98,12 @@ namespace Kinematics {
     }
 
     void Kinematics::init() {
-        Assert(_system != nullptr, "init: Kinematics system missing.");
+        Assert(_system != nullptr, no_system);
         _system->init();
     }
 
     void Kinematics::init_position() {
-        Assert(_system != nullptr, "init_position: Kinematics system missing.");
+        Assert(_system != nullptr, no_system);
         _system->init_position();
     }
 

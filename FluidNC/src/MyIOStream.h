@@ -7,8 +7,7 @@
 #include <IPAddress.h>
 #include <string>
 #include <string_view>
-
-#include "Pin.h"
+#include <type_traits>
 
 std::string IP_string(uint32_t ipaddr);
 
@@ -32,17 +31,16 @@ inline Print& operator<<(Print& lhs, const std::string& v) {
     return lhs;
 }
 
-inline Print& operator<<(Print& lhs, int v) {
+// This handles all types that are forms of integers
+template <typename Integer, std::enable_if_t<std::is_integral<Integer>::value, bool> = true>
+inline Print& operator<<(Print& lhs, Integer v) {
     lhs.print(v);
     return lhs;
 }
 
-inline Print& operator<<(Print& lhs, unsigned int v) {
-    lhs.print(v);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, uint64_t v) {
+// This handles enums
+template <typename Enum, std::enable_if_t<std::is_enum<Enum>::value, bool> = true>
+inline Print& operator<<(Print& lhs, Enum v) {
     lhs.print(v);
     return lhs;
 }
@@ -57,21 +55,16 @@ inline Print& operator<<(Print& lhs, double v) {
     return lhs;
 }
 
-inline Print& operator<<(Print& lhs, const Pin& v) {
-    lhs.print(v.name().c_str());
-    return lhs;
-}
-
 inline Print& operator<<(Print& lhs, IPAddress v) {
     lhs.print(IP_string(v).c_str());
     return lhs;
 }
 
 class setprecision {
-    int precision;
+    uint8_t precision;
 
 public:
-    explicit setprecision(int p) : precision(p) {}
+    explicit setprecision(uint8_t p) : precision(p) {}
 
     inline void Write(Print& stream, float f) const { stream.print(f, precision); }
     inline void Write(Print& stream, double d) const { stream.print(d, precision); }

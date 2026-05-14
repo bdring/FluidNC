@@ -16,7 +16,7 @@
 
 #include <cstdint>
 
-#include "../esp_err.h"
+#include "esp_err.h"
 
 typedef struct rmt_item32_s {
     union {

@@ -8,18 +8,17 @@
   old WebUI interface code are presented via the Settings class.
 */
 
-#include "src/Settings.h"
-#include "src/Machine/MachineConfig.h"
-#include "src/Configuration/JsonGenerator.h"
-#include "src/Uart.h"    // Uart0.baud
-#include "src/Report.h"  // git_info
+#include "Settings.h"
+#include "Machine/MachineConfig.h"
+#include "Configuration/JsonGenerator.h"
+#include "Report.h"  // git_info
 
 #include <Esp.h>
 
 #include <sstream>
 #include <iomanip>
 
-#include "src/Module.h"
+#include "Module.h"
 
 namespace WebUI {
 
@@ -71,7 +70,7 @@ namespace WebUI {
         // Used by js/statusdlg.js
         static Error showSysStatsJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
 
-            JSONencoder j(true, &out);
+            JSONencoder j(&out);
             j.begin();
             j.member("cmd", "420");
             j.member("status", "ok");
@@ -106,7 +105,7 @@ namespace WebUI {
         }
 
         static void send_json_command_response(Channel& out, uint cmdID, bool isok, const std::string& message) {
-            JSONencoder j(true, &out);
+            JSONencoder j(&out);
             j.begin();
             j.member("cmd", String(cmdID).c_str());
             j.member("status", isok ? "ok" : "error");
@@ -129,9 +128,6 @@ namespace WebUI {
             log_stream(out, "Free memory: " << formatBytes(ESP.getFreeHeap()));
             log_stream(out, "SDK: " << ESP.getSdkVersion());
             log_stream(out, "Flash Size: " << formatBytes(ESP.getFlashChipSize()));
-
-            // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
-            //        log_stream(out, "Baud rate: " << ((Uart0.baud / 100) * 100));
 
             for (auto const& module : Modules()) {
                 module->build_info(out);
@@ -166,7 +162,7 @@ namespace WebUI {
 
         // Used by js/setting.js
         static Error listSettingsJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
-            JSONencoder j(false, &out);
+            JSONencoder j(&out);
             j.begin();
             j.member("cmd", "400");
             j.member("status", "ok");
@@ -196,7 +192,7 @@ namespace WebUI {
                 }
             }
 
-            JSONencoder j(false, &out);
+            JSONencoder j(&out);
 
             j.begin();
             j.begin_array("EEPROM");

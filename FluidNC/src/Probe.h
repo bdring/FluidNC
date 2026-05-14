@@ -28,7 +28,8 @@ class Probe : public Configuration::Configurable {
     ProbeEventPin _toolsetterPin;
 
 public:
-    bool _hard_stop = false;
+    bool _hard_stop        = false;
+    bool _probe_hard_limit = false;
     // Configurable
     bool _check_mode_start = true;
     // _check_mode_start configures the position after a probing cycle
@@ -49,7 +50,7 @@ public:
     bool get_state();
 
     // Returns true if the probe pin is tripped, depending on the direction (away or not)
-    bool IRAM_ATTR tripped();
+    bool tripped();
 
     ProbeEventPin& probePin() { return _probePin; }
     ProbeEventPin& toolsetterPin() { return _toolsetterPin; }

@@ -7,56 +7,49 @@ namespace Machine {
     UserInputs::UserInputs() {}
     UserInputs::~UserInputs() {}
 
+    // clang-format off
+    InputPin UserInputs::digitalInput[MaxUserDigitalPin] = {
+        InputPin { "digital0_pin" },
+        InputPin { "digital1_pin" },
+        InputPin { "digital2_pin" },
+        InputPin { "digital3_pin" },
+        InputPin { "digital4_pin" },
+        InputPin { "digital5_pin" },
+        InputPin { "digital6_pin" },
+        InputPin { "digital7_pin" },
+    };
+    InputPin UserInputs::analogInput[MaxUserAnalogPin] = {
+        InputPin { "analog0_pin" },
+        InputPin { "analog1_pin" },
+        InputPin { "analog2_pin" },
+        InputPin { "analog3_pin" },
+    };
+    // clang-format on
+
     void UserInputs::group(Configuration::HandlerBase& handler) {
-        char item_name[64];
-        for (size_t i = 0; i < MaxUserAnalogPin; i++) {
-            snprintf(item_name, sizeof(item_name), "analog%d_pin", i);
-            handler.item(item_name, _analogInput[i].pin);
-            _analogInput[i].name = item_name;
-        }
         for (size_t i = 0; i < MaxUserDigitalPin; i++) {
-            snprintf(item_name, sizeof(item_name), "digital%d_pin", i);
-            handler.item(item_name, _digitalInput[i].pin);
-            _digitalInput[i].name = item_name;
+            auto& pin = digitalInput[i];
+            handler.item(pin.legend(), pin);
+        }
+        for (size_t i = 0; i < MaxUserAnalogPin; i++) {
+            auto& pin = analogInput[i];
+            handler.item(pin.legend(), pin);
         }
     }
 
     void UserInputs::init() {
-        for (auto& input : _analogInput) {
-            if (input.pin.defined()) {
-                input.pin.setAttr(Pin::Attr::Input);
-                log_info("User Analog Input: " << input.name << " on Pin " << input.pin.name());
+        for (size_t i = 0; i < MaxUserDigitalPin; i++) {
+            auto& pin = digitalInput[i];
+            if (pin.defined()) {
+                pin.init();
             }
         }
-        for (auto& input : _digitalInput) {
-            if (input.pin.defined()) {
-                input.pin.setAttr(Pin::Attr::Input);
-                log_info("User Digital Input: " << input.name << " on Pin " << input.pin.name());
+        for (size_t i = 0; i < MaxUserAnalogPin; i++) {
+            auto& pin = analogInput[i];
+            if (pin.defined()) {
+                pin.init();
             }
         }
-    }
-
-    UserInputs::ReadInputResult UserInputs::readDigitalInput(uint8_t input_number) {
-        if (input_number >= MaxUserDigitalPin) {
-            return Error::PParamMaxExceeded;
-        }
-        auto& input = _digitalInput[input_number];
-        if (!input.pin.defined()) {
-            return Error::InvalidValue;
-        }
-        return input.pin.read();
-    }
-
-    UserInputs::ReadInputResult UserInputs::readAnalogInput(uint8_t input_number) {
-        // TODO - analog pins are read the same as digital.
-        if (input_number >= MaxUserAnalogPin) {
-            return Error::PParamMaxExceeded;
-        }
-        auto& input = _analogInput[input_number];
-        if (!input.pin.defined()) {
-            return Error::InvalidValue;
-        }
-        return input.pin.read();
     }
 
 }  // namespace Machine

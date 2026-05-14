@@ -7,15 +7,14 @@
 #include <cstring>
 #include <list>
 #include <map>
+#include <ESPAsyncWebServer.h>
 
-class WebSocketsServer;
-
-#include "src/Channel.h"
+#include "Channel.h"
 
 namespace WebUI {
     class WSChannel : public Channel {
     public:
-        WSChannel(WebSocketsServer* server, uint8_t clientNum);
+        WSChannel(AsyncWebSocket* server, objnum_t clientNum, std::string session);
 
         size_t write(uint8_t c);
         size_t write(const uint8_t* buffer, size_t size);
@@ -23,16 +22,13 @@ namespace WebUI {
         bool sendTXT(std::string& s);
 
         inline size_t write(const char* s) { return write((uint8_t*)s, ::strlen(s)); }
-        inline size_t write(unsigned long n) { return write((uint8_t)n); }
-        inline size_t write(long n) { return write((uint8_t)n); }
-        inline size_t write(unsigned int n) { return write((uint8_t)n); }
-        inline size_t write(int n) { return write((uint8_t)n); }
 
         void flush(void) override {}
 
-        int id() { return _clientNum; }
+        objnum_t id() { return _clientNum; }
 
-        int rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
+        int      rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
+        uint32_t clientNum() { return _clientNum; };
 
         operator bool() const;
 
@@ -41,36 +37,42 @@ namespace WebUI {
         int read() override;
         int available() override { return _queue.size() + (_rtchar > -1); }
 
-        void autoReport() override;
+        void        autoReport() override;
+        void        active(bool is_active);
+        std::string session() { return _session; };
 
     private:
-        WebSocketsServer* _server;
-        uint8_t           _clientNum;
+        AsyncWebSocket* _server;
+        objnum_t        _clientNum;
+        std::string     _session;
 
-        std::string _output_line;
+        std::string   _output_line;
+        unsigned long _last_queue_full = 0;
 
         // Instead of queueing realtime characters, we put them here
         // so they can be processed immediately during operations like
         // homing where GCode handling is blocked.
-        int _rtchar = -1;
+        int32_t _rtchar = -1;
     };
 
     class WSChannels {
     private:
-        static std::map<uint8_t, WSChannel*> _wsChannels;
-        static std::list<WSChannel*>         _webWsChannels;
+        static std::vector<WSChannel*> _wsChannels;  // List of channels by client ID
+        static AsyncWebSocket*         _server;
 
         static WSChannel* _lastWSChannel;
-        static WSChannel* getWSChannel(int pageid);
+        static WSChannel* getWSChannel(uint32_t pageid, std::string session);
 
     public:
         static void removeChannel(WSChannel* channel);
-        static void removeChannel(uint8_t num);
+        static void removeChannel(objnum_t num);
 
-        static bool runGCode(int pageid, std::string_view cmd);
-        static bool sendError(int pageid, std::string error);
+        static bool runGCode(uint32_t pageid, std::string_view cmd, std::string session);
+        static bool sendError(uint32_t pageid, std::string error, std::string session);
         static void sendPing();
-        static void handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
-        static void handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
+        static void handleEvent(
+            AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len, std::string session);
+
+        static void showChannels();
     };
 }

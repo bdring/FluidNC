@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "TrinamicBase.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 
 #include <atomic>
 

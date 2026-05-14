@@ -12,10 +12,6 @@
   For the most part, these functions primarily are called from Protocol.cpp methods. If a
   different style feedback is desired (i.e. JSON), then a user can change these following
   methods to accommodate their needs.
-
-
-  ESP32 Notes:
-
 */
 
 #include "Report.h"
@@ -23,7 +19,7 @@
 #include "Machine/MachineConfig.h"
 #include "SettingsDefinitions.h"
 #include "MotionControl.h"               // probe_succeeded
-#include "Limits.h"                      // limits_get_state
+#include "Limit.h"                       // limits_get_state
 #include "Planner.h"                     // plan_get_block_buffer_available
 #include "Stepper.h"                     // step_count
 #include "Platform.h"                    // WEAK_LINK
@@ -38,10 +34,6 @@
 #include <cstdarg>
 #include <sstream>
 #include <iomanip>
-
-#ifdef DEBUG_REPORT_HEAP
-EspClass esp;
-#endif
 
 volatile bool protocol_pin_changed = false;
 
@@ -83,25 +75,25 @@ static const int axesStringLen  = coordStringLen * MAX_N_AXIS;
 static std::string report_util_axis_values(const float* axis_value) {
     std::ostringstream msg;
     auto               n_axis = Axes::_numberAxis;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        int   decimals;
-        float value = axis_value[idx];
-        if (idx >= A_AXIS && idx <= C_AXIS) {
-            // Rotary axes are in degrees so mm vs inch is not
-            // relevant.  Three decimal places is probably overkill
-            // for rotary axes but we use 3 in case somebody wants
-            // to use ABC as linear axes in mm.
-            decimals = 3;
-        } else {
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        uint8_t decimals;
+        float   value = axis_value[axis];
+        if (is_linear(axis)) {
             if (config->_reportInches) {
                 value /= MM_PER_INCH;
                 decimals = 4;  // Report inches to 4 decimal places
             } else {
                 decimals = 3;  // Report mm to 3 decimal places
             }
+        } else {
+            // Rotary axes are in degrees so mm vs inch is not
+            // relevant.  Three decimal places is probably overkill
+            // for rotary axes but we use 3 in case somebody wants
+            // to use ABC as linear axes in mm.
+            decimals = 3;
         }
         msg << std::fixed << std::setprecision(decimals) << value;
-        if (idx < (n_axis - 1)) {
+        if (axis < (n_axis - 1)) {
             msg << ",";
         }
     }
@@ -166,6 +158,9 @@ void report_init_message(Channel& channel) {
                 case 'V':
                     msg << grbl_version;
                     break;
+                case 'X':
+                    msg << MCU << "-" << VARIANT;
+                    break;
                 case 'R': {
                     const char* delim     = "";
                     bool        have_name = false;
@@ -199,7 +194,7 @@ void report_probe_parameters(Channel& channel) {
     // Report in terms of machine position.
     // get the machine position and put them into a string and append to the probe report
     float print_position[MAX_N_AXIS];
-    motor_steps_to_mpos(print_position, probe_steps);
+    steps_to_mpos(print_position, probe_steps);
 
     log_stream(channel, "[PRB:" << report_util_axis_values(print_position) << ":" << probe_succeeded);
 }
@@ -209,18 +204,6 @@ void report_g92(Channel& channel) {}
 void report_tlo(Channel& channel) {}
 
 void report_ngc_coord(CoordIndex coord, Channel& channel) {
-    if (coord == CoordIndex::TLO) {  // Non-persistent tool length offset
-        float tlo      = gc_state.tool_length_offset;
-        int   decimals = 3;
-        if (config->_reportInches) {
-            tlo *= INCH_PER_MM;
-            decimals = 4;
-        }
-        std::ostringstream msg;
-        msg << std::fixed << std::setprecision(decimals) << tlo;
-        log_stream(channel, "[TLO:" << msg.str());
-        return;
-    }
     if (coord == CoordIndex::G92) {  // Non-persistent G92 offset
         log_stream(channel, "[G92:" << report_util_axis_values(gc_state.coord_offset));
         return;
@@ -269,7 +252,13 @@ void report_gcode_modes(Channel& channel) {
             break;
     }
 
-    msg << " G" << (gc_state.modal.coord_select + 54);
+    if (gc_state.modal.coord_select < CoordIndex::G59_1) {
+        // G54 .. G59
+        msg << " G" << (gc_state.modal.coord_select + 54);
+    } else {
+        // G59.1 .. G59.3
+        msg << " G59." << (gc_state.modal.coord_select - CoordIndex::G59);
+    }
 
     switch (gc_state.modal.plane_select) {
         case Plane::XY:
@@ -364,12 +353,12 @@ void report_gcode_modes(Channel& channel) {
         }
     }
 
-    if (config->_enableParkingOverrideControl && sys.override_ctrl == Override::ParkingMotion) {
+    if (config->_enableParkingOverrideControl && sys.override_ctrl() == Override::ParkingMotion) {
         msg << " M56";
     }
 
     msg << " T" << gc_state.selected_tool;
-    int digits = config->_reportInches ? 1 : 0;
+    uint8_t digits = config->_reportInches ? 1 : 0;
     msg << " F" << std::fixed << std::setprecision(digits) << gc_state.feed_rate;
     msg << " S" << uint32_t(gc_state.spindle_speed);
     log_stream(channel, "[GC:" << msg.str())
@@ -377,7 +366,7 @@ void report_gcode_modes(Channel& channel) {
 
 // Prints build info line
 void report_build_info(const char* line, Channel& channel) {
-    log_stream(channel, "[VER:" << grbl_version << " FluidNC " << git_info << ":" << line);
+    log_stream(channel, "[VER:" << grbl_version << " FluidNC " << git_info << " (" << MCU << "-" << VARIANT << ") :" << line);
 
     // The option message is included for backwards compatibility but
     // is not particularly useful for FluidNC, which has runtime
@@ -430,21 +419,22 @@ void report_echo_line_received(const char* line, Channel& channel) {
 void mpos_to_wpos(float* position) {
     float* wco    = get_wco();
     auto   n_axis = Axes::_numberAxis;
-    for (int idx = 0; idx < n_axis; idx++) {
-        position[idx] -= wco[idx];
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        position[axis] -= wco[axis];
     }
 }
 
 const char* state_name() {
-    switch (sys.state) {
+    switch (sys.state()) {
         case State::Idle:
             return "Idle";
         case State::Cycle:
             return "Run";
         case State::Hold:
-            if (!(sys.suspend.bit.jogCancel)) {
-                return sys.suspend.bit.holdComplete ? "Hold:0" : "Hold:1";
+            if (!(sys.suspend().bit.jogCancel)) {
+                return sys.suspend().bit.holdComplete ? "Hold:0" : "Hold:1";
             }  // Continues to print jog state during jog cancel.
+            [[fallthrough]];
         case State::Jog:
             return "Jog";
         case State::Homing:
@@ -456,16 +446,20 @@ const char* state_name() {
         case State::CheckMode:
             return "Check";
         case State::SafetyDoor:
-            if (sys.suspend.bit.initiateRestore) {
+            if (sys.suspend().bit.initiateRestore) {
                 return "Door:3";  // Restoring
             }
-            if (sys.suspend.bit.retractComplete) {
-                return sys.suspend.bit.safetyDoorAjar ? "Door:1" : "Door:0";
+            if (sys.suspend().bit.retractComplete) {
+                return sys.suspend().bit.safetyDoorAjar ? "Door:1" : "Door:0";
                 // Door:0 means door closed and ready to resume
             }
             return "Door:2";  // Retracting
         case State::Sleep:
             return "Sleep";
+        case State::Starting:
+            return "Starting";
+        default:  // Held or Starting
+            break;
     }
     return "";
 }
@@ -482,7 +476,7 @@ void report_recompute_pin_string() {
     MotorMask lim_pin_state = limits_get_state();
     if (lim_pin_state) {
         auto n_axis = Axes::_numberAxis;
-        for (size_t axis = 0; axis < n_axis; axis++) {
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) ||
                 bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
                 report_pin_string += Axes::axisName(axis);
@@ -509,7 +503,8 @@ void report_realtime_status(Channel& channel) {
     msg << state_name();
 
     // Report position
-    float* print_position = get_mpos();
+
+    float* print_position = state_is(State::Homing) ? get_motor_pos() : get_mpos();
     if (bits_are_true(status_mask->get(), RtStatus::Position)) {
         msg << "|MPos:";
     } else {
@@ -540,7 +535,7 @@ void report_realtime_status(Channel& channel) {
     if (config->_reportInches) {
         rate /= MM_PER_INCH;
     }
-    msg << "|FS:" << setprecision(0) << rate << "," << sys.spindle_speed;
+    msg << "|FS:" << setprecision(0) << rate << "," << sys.spindle_speed();
 
     if (report_pin_string.length()) {
         msg << "|Pn:" << report_pin_string;
@@ -549,13 +544,14 @@ void report_realtime_status(Channel& channel) {
     if (report_wco_counter > 0) {
         report_wco_counter--;
     } else {
-        switch (sys.state) {
+        switch (sys.state()) {
             case State::Homing:
             case State::Cycle:
             case State::Hold:
             case State::Jog:
             case State::SafetyDoor:
                 report_wco_counter = (REPORT_WCO_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
+                break;
             default:
                 report_wco_counter = (REPORT_WCO_REFRESH_IDLE_COUNT - 1);
                 break;
@@ -569,19 +565,20 @@ void report_realtime_status(Channel& channel) {
     if (report_ovr_counter > 0) {
         report_ovr_counter--;
     } else {
-        switch (sys.state) {
+        switch (sys.state()) {
             case State::Homing:
             case State::Cycle:
             case State::Hold:
             case State::Jog:
             case State::SafetyDoor:
                 report_ovr_counter = (REPORT_OVR_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
+                break;
             default:
                 report_ovr_counter = (REPORT_OVR_REFRESH_IDLE_COUNT - 1);
                 break;
         }
 
-        msg << "|Ov:" << int(sys.f_override) << "," << int(sys.r_override) << "," << int(sys.spindle_speed_ovr);
+        msg << "|Ov:" << int(sys.f_override()) << "," << int(sys.r_override()) << "," << int(sys.spindle_speed_ovr());
         SpindleState sp_state      = spindle->get_state();
         CoolantState coolant_state = config->_coolant->get_state();
         if (sp_state != SpindleState::Disable || coolant_state.Mist || coolant_state.Flood) {
@@ -621,16 +618,16 @@ void report_realtime_status(Channel& channel) {
     // The destructor sends the line when msg goes out of scope
 }
 
-void hex_msg(uint8_t* buf, const char* prefix, int len) {
+void hex_msg(uint8_t* buf, const char* prefix, size_t len) {
     char report[200];
     char temp[20];
-    sprintf(report, "%s", prefix);
-    for (int i = 0; i < len; i++) {
-        sprintf(temp, " %02X", buf[i]);
+    snprintf(report, 200, "%s", prefix);
+    for (size_t i = 0; i < len; i++) {
+        snprintf(temp, 20, " %02X", buf[i]);
         strcat(report, temp);
     }
 
-    log_info(report);
+    log_debug(report);
 }
 
 void reportTaskStackSize(UBaseType_t& saved) {

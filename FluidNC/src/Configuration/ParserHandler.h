@@ -6,7 +6,7 @@
 #include "HandlerBase.h"
 #include "Parser.h"
 #include "Configurable.h"
-#include "../System.h"
+#include "System.h"
 #include "parser_logging.h"
 
 #include <vector>
@@ -23,13 +23,13 @@ namespace Configuration {
 
             // On entry, the token is for the section that invoked us.
             // We will handle following nodes with indents greater than entryIndent
-            int entryIndent = _parser._token._indent;
+            int_fast8_t entryIndent = _parser._token._indent;
             log_parser_verbose("Entered section " << name << " at indent " << entryIndent);
 
             // The next token controls what we do next.  If thisIndent is greater
             // than entryIndent, there are some subordinate tokens.
             _parser.Tokenize();
-            int thisIndent = _parser._token._indent;
+            int_fast8_t thisIndent = _parser._token._indent;
             log_parser_verbose("thisIndent " << _parser.key() << " " << thisIndent);
 
             // If thisIndent <= entryIndent, the section is empty - there are
@@ -39,7 +39,7 @@ namespace Configuration {
                 // If thisIndent > entryIndent, the new token is the first token within
                 // this section so we process tokens at the same level as thisIndent.
                 for (; _parser._token._indent >= thisIndent; _parser.Tokenize()) {
-                    log_parser_verbose(" KEY " << _parser.key() << " state " << int(_parser._token._state) << " indent "
+                    log_parser_verbose(" KEY " << _parser.key() << " state " << uint32_t(_parser._token._state) << " indent "
                                                << _parser._token._indent);
                     if (_parser._token._indent > thisIndent) {
                         log_error("Skipping key " << _parser.key() << " indent " << _parser._token._indent << " this indent " << thisIndent);
@@ -47,9 +47,8 @@ namespace Configuration {
                         log_parser_verbose("Parsing key " << _parser.key());
                         try {
                             section->group(*this);
-                        } catch (const AssertionFailed& ex) {
-                            // Log something meaningful to the user:
-                            log_config_error("Configuration error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.msg);
+                        } catch (std::exception& ex) {
+                            log_config_error("Configuration error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.what());
                         }
 
                         if (_parser._token._state == TokenState::Matching) {
@@ -94,9 +93,23 @@ namespace Configuration {
             }
         }
 
-        void item(const char* name, int& value, const EnumItem* e) override {
+        void item(const char* name, uint32_t& value, const EnumItem* e) override {
             if (_parser.is(name)) {
                 value = _parser.enumValue(e);
+            }
+        }
+
+        void item(const char* name, axis_t& value) override {
+            if (_parser.is(name)) {
+                auto token = string_util::trim(_parser.stringValue());
+                if (token.length()) {
+                    axis_t axis = Machine::Axes::axisNum(token);
+                    if (axis != INVALID_AXIS) {
+                        value = axis;
+                        return;
+                    }
+                }
+                value = X_AXIS;
             }
         }
 
@@ -138,6 +151,13 @@ namespace Configuration {
         }
 
         void item(const char* name, EventPin& value) override {
+            if (_parser.is(name)) {
+                auto parsed = _parser.pinValue();
+                value.swap(parsed);
+            }
+        }
+
+        void item(const char* name, InputPin& value) override {
             if (_parser.is(name)) {
                 auto parsed = _parser.pinValue();
                 value.swap(parsed);

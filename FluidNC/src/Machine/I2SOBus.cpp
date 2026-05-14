@@ -22,6 +22,7 @@ namespace Machine {
         handler.item("data_pin", _data);
         handler.item("ws_pin", _ws);
         handler.item("min_pulse_us", _min_pulse_us, pulseUsValues);
+        handler.item("oe_pin", _oe);
     }
 
     void I2SOBus::init() {
@@ -31,26 +32,33 @@ namespace Machine {
         if (!_ws.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
             log_info("Not setting up I2SO: WS pin has incorrect capabilities");
             return;
-        } else if (!_bck.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
+        }
+        if (!_bck.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
             log_info("Not setting up I2SO: BCK pin has incorrect capabilities");
             return;
-        } else if (!_data.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
+        }
+        if (!_data.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
             log_info("Not setting up I2SO: DATA pin has incorrect capabilities");
             return;
-        } else {
-            i2s_out_init_t params;
-            params.ws_pin   = _ws.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            params.bck_pin  = _bck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            params.data_pin = _data.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            params.init_val = 0;
+        }
+        i2s_out_init_t params;
+        params.ws_pin   = _ws.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+        params.bck_pin  = _bck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+        params.data_pin = _data.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+        params.init_val = 0;
 
-            params.min_pulse_us = _min_pulse_us;
+        params.min_pulse_us = _min_pulse_us;
 
-            params.ws_drive_strength   = _ws.driveStrength();
-            params.bck_drive_strength  = _bck.driveStrength();
-            params.data_drive_strength = _data.driveStrength();
+        params.ws_drive_strength   = _ws.driveStrength();
+        params.bck_drive_strength  = _bck.driveStrength();
+        params.data_drive_strength = _data.driveStrength();
 
-            i2s_out_init(&params);
+        i2s_out_init(&params);
+
+        if (_oe.defined()) {
+            log_info("I2SO OE is defined on " << _oe.name());
+            _oe.setAttr(Pin::Attr::Output);
+            _oe.off();
         }
     }
 }

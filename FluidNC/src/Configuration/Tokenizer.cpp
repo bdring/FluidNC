@@ -4,10 +4,10 @@
 
 #include "Tokenizer.h"
 
-#include "ParseException.h"
 #include "parser_logging.h"
 
 #include <cstdlib>
+#include <stdexcept>
 
 namespace Configuration {
 
@@ -21,15 +21,21 @@ namespace Configuration {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
     }
 
-    void Tokenizer::ParseError(const char* description) const {
-        throw ParseException(_linenum, description);
+    void Tokenizer::parseError(const std::string_view description) const {
+        set_state(State::ConfigAlarm);
+
+        std::string s("Line ");
+        s += std::to_string(_linenum);
+        s += ": ";
+        s += description;
+        throw std::runtime_error(s);
     }
 
     void Tokenizer::parseKey() {
         // entry: first character is not space
         // The first character in the line is neither # nor whitespace
         if (!isIdentifierChar(_line.front())) {
-            ParseError("Invalid character");
+            parseError("Invalid character");
         }
         auto pos    = _line.find_first_of(':');
         _token._key = _line.substr(0, pos);
@@ -40,7 +46,7 @@ namespace Configuration {
             std::string err = "Key ";
             err += _token._key;
             err += " must be followed by ':'";
-            ParseError(err.c_str());
+            parseError(err);
         }
         _line.remove_prefix(pos + 1);
     }
@@ -88,9 +94,9 @@ namespace Configuration {
             }
             _line.remove_prefix(_token._indent);
 
-            // Disallow inital tabs
+            // Disallow initial tabs
             if (_line.front() == '\t') {
-                ParseError("Use spaces, not tabs, for indentation");
+                parseError("Use spaces, not tabs, for indentation");
             }
 
             // Discard comment lines
@@ -123,7 +129,7 @@ namespace Configuration {
             _line.remove_prefix(1);
             auto pos = _line.find_first_of(delimiter);
             if (pos == std::string_view::npos) {
-                ParseError("Did not find matching delimiter");
+                parseError("Did not find matching delimiter");
             }
             _token._value = _line.substr(0, pos);
             _line.remove_prefix(pos + 1);

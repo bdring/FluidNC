@@ -12,8 +12,8 @@ namespace Configuration {
         std::string_view setting_;  // foo/bar
         std::string_view start_;
 
-        bool   _get;
         float& _iovalue;
+        bool   _get;
 
         bool is(std::string_view name) const {
             if (start_.empty()) {
@@ -40,9 +40,11 @@ namespace Configuration {
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {}
         void item(const char* name, std::string& value, const int minLength, const int maxLength) override;
         void item(const char* name, EventPin& value) override;
+        void item(const char* name, InputPin& value) override;
         void item(const char* name, Pin& value) override;
         void item(const char* name, IPAddress& value) override;
-        void item(const char* name, int& value, const EnumItem* e) override;
+        void item(const char* name, uint32_t& value, const EnumItem* e) override;
+        void item(const char* name, axis_t& value) override;
         void item(const char* name, Macro& value) override;
 
         std::string setting_prefix();
