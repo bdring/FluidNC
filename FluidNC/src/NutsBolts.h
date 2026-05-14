@@ -52,11 +52,6 @@ const float INCH_PER_MM = (0.0393701f);
 #define bitnum_is_true(target, num) ((target & bitnum_to_mask(num)) != 0)
 #define bitnum_is_false(target, num) ((target & bitnum_to_mask(num)) == 0)
 
-// Read a floating point value from a string. Line points to the input buffer, pos
-// is the indexer pointing to the current character of the line, while float_ptr is
-// a pointer to the result variable. Returns true when it succeeds
-bool read_float(const char* line, size_t& pos, float& result);
-
 // Get the current "time" in millisecond ticks
 uint32_t get_ms();
 
@@ -66,7 +61,7 @@ bool dwell_ms(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);
 // Delay without checking for realtime events.  Use only for short delays
 void delay_ms(uint32_t ms);
 
-// Computes hypotenuse, avoiding avr-gcc's bloated version and the extra error checking.
+// Computes hypotenuse (magnitude of 2-vector)
 float hypot_f(float x, float y);
 
 // Distance between endpoints of n-vectors
@@ -182,14 +177,4 @@ void setArray(D* dest, S value, size_t n) {
     for (size_t i = 0; i < n; i++) {
         dest[i] = value;
     }
-}
-
-template <typename S>
-void logArray(const char* legend, S* src, size_t n) {
-    std::string s(legend);
-    for (size_t i = 0; i < n; i++) {
-        s += " ";
-        s += std::to_string(src[i]);
-    }
-    log_debug(s);
 }

@@ -594,7 +594,10 @@ Error gc_execute_line(const char* input_line) {
                             case 30:
                                 gc_block.modal.coord_select = CoordIndex::G59_3;
                                 break;
+                            default:
+                                return Error::GcodeUnsupportedCommand;  // [G59.4+ not supported]
                         }
+                        mantissa    = 0;  // Set to zero to indicate valid non-integer G command.
                         mg_word_bit = ModalGroup::MG12;
                         break;
                         // NOTE: G59.x are not supported.
@@ -1665,7 +1668,7 @@ Error gc_execute_line(const char* input_line) {
             if (new_spindle) {
                 gc_state.spindle_speed = 0.0;
             }
-            log_info("Current T:" << gc_state.current_tool  << "Selected T:" << gc_state.selected_tool);
+            log_info("Current T:" << gc_state.current_tool << " Selected T:" << gc_state.selected_tool);
             spindle->tool_change(gc_state.selected_tool, false, false);
             if (spindle->_atc_name == "" && spindle->_m6_macro.get().empty()) {  // if neither of these exist we need to set the value here
                 gc_state.current_tool = gc_state.selected_tool;
@@ -2000,21 +2003,14 @@ Error gc_execute_line(const char* input_line) {
 
   - Canned cycles
   - Tool radius compensation
-  - A,B,C-axes
-  - Evaluation of expressions
-  - Variables
-  - Override control (TBD)
-  - Tool changes
   - Switches
 
    (*) Indicates optional parameter, enabled through config.h and re-compile
    group 0 = {G92.2, G92.3} (Non modal: Cancel and re-enable G92 offsets)
    group 1 = {G81 - G89} (Motion modes: Canned cycles)
    group 4 = {M1} (Optional stop, ignored)
-   group 6 = {M6} (Tool change)
    group 7 = {G41, G42} cutter radius compensation (G40 is supported)
    group 8 = {G43} tool length offset (G43.1/G49 are supported)
-   group 8 = {M7*} enable mist coolant (* Compile-option)
    group 9 = {M48, M49} enable/disable feed and speed override switches
    group 10 = {G98, G99} return mode canned cycles
    group 13 = {G61.1, G64} path control mode (G61 is supported)

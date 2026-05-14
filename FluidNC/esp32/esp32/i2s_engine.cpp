@@ -341,7 +341,9 @@ static void IRAM_ATTR stop_timer() {
     }
 }
 
-static void IRAM_ATTR i2s_isr() {
+static void IRAM_ATTR i2s_isr(void* arg) {
+    (void)arg;
+
     // gpio_write(12, 1);  // For debugging
 
     // Keeping local copies of this information speeds up the ISR
