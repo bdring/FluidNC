@@ -20,6 +20,52 @@ static uint8_t       block_buffer_head;       // Index of the next block to be p
 static uint8_t       next_buffer_head;        // Index of the next buffer head
 static uint8_t       block_buffer_planned;    // Index of the optimally planned block
 
+namespace {
+const float secPerMinSq = 60.0 * 60.0;         // Seconds Per Minute Squared, for acceleration conversion
+const float secPerMinCu = 60.0 * 60.0 * 60.0;  // Seconds Per Minute Cubed, for jerk conversion
+
+float limit_acceleration_by_axis_maximum(float* unit_vec) {
+    float limit_value = SOME_LARGE_VALUE;
+    auto  n_axis      = Axes::_numberAxis;
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        auto axisSetting = Axes::_axis[axis];
+        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
+            limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[axis]));
+        }
+    }
+    return limit_value * secPerMinSq;
+}
+
+float limit_jerk_by_axis_maximum(float* unit_vec) {
+    float limit_value = SOME_LARGE_VALUE;
+    auto  n_axis      = Axes::_numberAxis;
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        auto axisSetting = Axes::_axis[axis];
+        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
+            float axisJerk = 0.0f;
+            if (axisSetting->_jerkFactor > 0.0f) {
+                axisJerk = 60.0f * axisSetting->_jerkFactor * axisSetting->_acceleration * axisSetting->_acceleration
+                           / axisSetting->_maxRate;
+            }
+            limit_value = MIN(limit_value, fabsf(axisJerk / unit_vec[axis]));
+        }
+    }
+    return limit_value * secPerMinCu;
+}
+
+float limit_rate_by_axis_maximum(float* unit_vec) {
+    float limit_value = SOME_LARGE_VALUE;
+    auto  n_axis      = Axes::_numberAxis;
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        auto axisSetting = Axes::_axis[axis];
+        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
+            limit_value = MIN(limit_value, fabsf(axisSetting->_maxRate / unit_vec[axis]));
+        }
+    }
+    return limit_value;
+}
+}  // namespace
+
 void plan_init() {
     if (block_buffer) {
         delete[] block_buffer;
@@ -261,6 +307,24 @@ static float plan_compute_effective_acceleration(plan_block_t* block, float targ
     return target_speed / (2.0f * sqrtf(target_speed / block->jerk));
 }
 
+static void plan_refresh_block_directional_limits(plan_block_t* block) {
+    float unit_vec[MAX_N_AXIS];
+    auto  n_axis = Axes::_numberAxis;
+
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        steps_t signed_steps = block->steps[axis];
+        if (block->direction_bits & bitnum_to_mask(axis)) {
+            signed_steps = -signed_steps;
+        }
+        unit_vec[axis] = steps_to_motor_pos(signed_steps, axis);
+    }
+
+    convert_delta_vector_to_unit_vector(unit_vec);
+    block->max_acceleration = limit_acceleration_by_axis_maximum(unit_vec);
+    block->jerk             = (block->is_jog || block->motion.systemMotion) ? 0.0f : limit_jerk_by_axis_maximum(unit_vec);
+    block->rapid_rate       = limit_rate_by_axis_maximum(unit_vec);
+}
+
 // Computes and returns block nominal speed based on running condition and override values.
 // NOTE: All system motion commands, such as homing/parking, are not subject to overrides.
 float plan_compute_profile_nominal_speed(plan_block_t* block) {
@@ -304,6 +368,7 @@ void plan_update_velocity_profile_parameters() {
     float         prev_nominal_speed = SOME_LARGE_VALUE;  // Set high for first block nominal speed calculation.
     while (block_index != block_buffer_head) {
         block         = &block_buffer[block_index];
+        plan_refresh_block_directional_limits(block);
         nominal_speed = plan_compute_profile_nominal_speed(block);
         block->acceleration = plan_compute_effective_acceleration(block, nominal_speed);
         plan_compute_profile_parameters(block, nominal_speed, prev_nominal_speed);
@@ -366,10 +431,8 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     // down such that no individual axes maximum values are exceeded with respect to the line direction.
     // NOTE: This calculation assumes all axes are orthogonal (Cartesian) and works with ABC-axes,
     // if they are also orthogonal/independent. Operates on the absolute value of the unit vector.
-    block->millimeters      = convert_delta_vector_to_unit_vector(unit_vec);
-    block->max_acceleration = limit_acceleration_by_axis_maximum(unit_vec);
-    block->jerk             = (block->is_jog || block->motion.systemMotion) ? 0.0f : limit_jerk_by_axis_maximum(unit_vec);
-    block->rapid_rate       = limit_rate_by_axis_maximum(unit_vec);
+    block->millimeters = convert_delta_vector_to_unit_vector(unit_vec);
+    plan_refresh_block_directional_limits(block);
     // Store programmed rate.
     if (block->motion.rapidMotion) {
         block->programmed_rate = block->rapid_rate;
