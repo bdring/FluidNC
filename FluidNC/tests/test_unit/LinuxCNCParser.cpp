@@ -10,7 +10,9 @@
 #include <cstdlib>
 #include <strings.h>
 
+#ifndef M_PIl
 #define M_PIl M_PI
+#endif
 
 // Simplified error handling for testing
 enum ErrorCode {
