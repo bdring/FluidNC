@@ -422,10 +422,14 @@ void Stepper::prep_buffer() {
                 st_prep_block->step_event_count = pl_block->step_event_count << maxAmassLevel;
 
                 // Initialize segment buffer data for generating the segments.
+                bool carry_forced_decel_accel = (pl_block->jerk > 0.0f) && (sys.step_control.executeHold || prep.recalculate_flag.decelOverride)
+                                               && ((prep.ramp_type == RAMP_DECEL) || (prep.ramp_type == RAMP_DECEL_OVERRIDE));
                 prep.steps_remaining  = (float)pl_block->step_event_count;
                 prep.step_per_mm      = prep.steps_remaining / pl_block->millimeters;
                 prep.req_mm_increment = REQ_MM_INCREMENT_SCALAR / prep.step_per_mm;
-                prep.current_acceleration = 0.0f;
+                if (!carry_forced_decel_accel) {
+                    prep.current_acceleration = 0.0f;
+                }
                 prep.dt_remainder     = 0.0;  // Reset for new segment block
                 if ((sys.step_control.executeHold) || prep.recalculate_flag.decelOverride) {
                     // New block loaded mid-hold. Override planner block entry speed to enforce deceleration.
@@ -570,8 +574,25 @@ void Stepper::prep_buffer() {
         do {
             switch (prep.ramp_type) {
                 case RAMP_DECEL_OVERRIDE:
-                    speed_var = pl_block->acceleration * time_var;
-                    mm_var    = time_var * (prep.current_speed - 0.5f * speed_var);
+                    if (pl_block->jerk > 0.0f) {
+                        float previous_acceleration = prep.current_acceleration;
+                        float accel_var             = pl_block->jerk * time_var;
+                        float time_to_jerk = prep.current_acceleration > 0.0f ? (prep.current_acceleration / pl_block->jerk) : time_var;
+                        float jerk_rampdown = prep.maximum_speed
+                                              + time_to_jerk
+                                                    * (prep.current_acceleration
+                                                       - (0.5f * pl_block->jerk * time_to_jerk));
+
+                        if (prep.current_speed > jerk_rampdown) {
+                            prep.current_acceleration = MIN(prep.current_acceleration + accel_var, pl_block->max_acceleration);
+                        } else {
+                            prep.current_acceleration = MAX(prep.current_acceleration - accel_var, accel_var);
+                        }
+                        speed_var = 0.5f * (previous_acceleration + prep.current_acceleration) * time_var;
+                    } else {
+                        speed_var = pl_block->acceleration * time_var;
+                    }
+                    mm_var = time_var * (prep.current_speed - 0.5f * speed_var);
                     mm_remaining -= mm_var;
                     if ((mm_remaining < prep.accelerate_until) || (mm_var <= 0)) {
                         // Cruise or cruise-deceleration types only for deceleration override.
@@ -579,10 +600,10 @@ void Stepper::prep_buffer() {
                         time_var           = 2.0f * (pl_block->millimeters - mm_remaining) / (prep.current_speed + prep.maximum_speed);
                         prep.ramp_type     = RAMP_CRUISE;
                         prep.current_speed = prep.maximum_speed;
+                        prep.current_acceleration = 0.0f;
                     } else {  // Mid-deceleration override ramp.
                         prep.current_speed -= speed_var;
                     }
-                    prep.current_acceleration = 0.0f;
                     break;
                 case RAMP_ACCEL:
                     // NOTE: Acceleration ramp only computes during first do-while loop.
@@ -662,8 +683,11 @@ void Stepper::prep_buffer() {
                             break;  // Segment complete. Exit switch-case statement. Continue do-while loop.
                         }
                     }
-                    // Otherwise, at end of block or end of forced-deceleration.
-                    time_var           = 2.0f * (mm_remaining - prep.mm_complete) / (prep.current_speed + prep.exit_speed);
+                        // Otherwise, at end of block or end of forced-deceleration. The completion
+                        // time must fit inside the current segment budget; if jerk shaping leaves
+                        // a numerically inconsistent near-zero-speed remainder, avoid stretching
+                        // the segment into an artificial pause.
+                        time_var           = MIN(2.0f * (mm_remaining - prep.mm_complete) / (prep.current_speed + prep.exit_speed), time_var);
                     mm_remaining       = prep.mm_complete;
                     prep.current_speed = prep.exit_speed;
             }
