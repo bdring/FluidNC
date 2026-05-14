@@ -1,12 +1,18 @@
 // Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
 // Copyright (c) 2009-2011 Simen Svale Skogsrud
 // Copyright (c) 2018 -	Bart Dring
+// Copyright (c) 2024 - Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
 
 /*
   Planner.h - buffers movement commands and manages the acceleration profile plan
+  
+  This file provides the public interface for motion planning. The actual implementation
+  is in the Planner/ subdirectory with polymorphic planners:
+  - TrapezoidPlanner: Original GRBL-style trapezoidal profiles
+  - SCurvePlanner: Jerk-limited S-curve profiles for smoother motion
 */
 
 #include "Config.h"            // MAX_N_AXIS
@@ -14,6 +20,13 @@
 #include "GCode.h"             // CoolantState
 
 #include <cstdint>
+
+// Spindle synchronization modes
+enum class SpindleSyncMode : uint8_t {
+    None = 0,   // Normal time-based motion (G94)
+    PerRev = 1, // Feed per revolution - soft sync, allows overrides (G95)
+    Rigid = 2,  // Rigid threading - hard sync, no overrides (G33)
+};
 
 // Define planner data condition flags. Used to denote running conditions of a block.
 struct PlMotion {
@@ -56,7 +69,23 @@ struct plan_block_t {
     // Stored spindle speed data used by spindle overrides and resuming methods.
     SpindleSpeed spindle_speed;  // Block spindle speed. Copied from pl_line_data.
 
+    // Spindle synchronization data for G95/G33 moves
+    SpindleSyncMode sync_mode;           // Synchronization mode
+    float           feed_per_revolution; // Feed rate in mm/rev (for G95/G33)
+
+    // CSS (Constant Surface Speed) data
+    bool  css_mode;           // True when in G96 CSS mode
+    float css_surface_speed;  // Surface speed in m/min (G96 S value)
+    float css_max_rpm;        // Maximum RPM limit
+    float css_start_position; // CSS axis position at block start (mm)
+
     bool is_jog;
+    
+    // S-curve planner extensions (used by SCurvePlanner, ignored by TrapezoidPlanner)
+    float entry_accel;          // Entry acceleration at junction (mm/min²)
+    float exit_accel;           // Exit acceleration at junction (mm/min²)
+    float max_entry_accel;      // Max allowable entry accel based on direction change
+    float jerk;                 // Axis-limited jerk for this block (mm/min³)
 };
 
 // Planner data prototype. Must be used when passing new motions to the planner.
@@ -69,6 +98,16 @@ struct plan_line_data_t {
     int32_t      line_number;     // Desired line number to report when executing.
     bool         is_jog;          // true if this was generated due to a jog command
     bool         limits_checked;  // true if soft limits already checked
+    
+    // Spindle synchronization data
+    SpindleSyncMode sync_mode;           // Synchronization mode (None/PerRev/Rigid)
+    float           feed_per_revolution; // Feed rate in mm/rev (for G95/G33)
+
+    // CSS (Constant Surface Speed) data
+    bool  css_mode;           // True when in G96 CSS mode
+    float css_surface_speed;  // Surface speed in m/min (G96 S value)
+    float css_max_rpm;        // Maximum RPM limit
+    float css_tool_offset;    // Tool length offset on CSS axis (added to machine position)
 };
 
 void plan_init();

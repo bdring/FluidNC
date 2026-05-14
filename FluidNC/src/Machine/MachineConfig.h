@@ -12,6 +12,7 @@
 #include "CoolantControl.h"
 #include "Kinematics/Kinematics.h"
 #include "Extenders/Extenders.h"
+#include "Planner/BasePlanner.h"
 #include "Control.h"
 #include "Probe.h"
 #include "Parking.h"
@@ -73,6 +74,7 @@ namespace Machine {
         I2SOBus* _i2so = nullptr;
 #endif
         Stepping*       _stepping    = nullptr;
+        BasePlanner*    _planner     = nullptr;
         CoolantControl* _coolant     = nullptr;
         Probe*          _probe       = nullptr;
         Control*        _control     = nullptr;
