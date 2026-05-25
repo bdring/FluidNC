@@ -74,6 +74,8 @@ namespace Machine {
         handler.section("user_outputs", _userOutputs);
         handler.section("user_inputs", _userInputs);
 
+        handler.section("espnow", _espnow);
+
         ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
@@ -286,6 +288,7 @@ namespace Machine {
     }
 
     MachineConfig::~MachineConfig() {
+        delete _espnow;
         delete _axes;
 #if MAX_N_I2SO
         delete _i2so;

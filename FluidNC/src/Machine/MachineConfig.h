@@ -30,6 +30,7 @@
 #include "UserOutputs.h"
 #include "UserInputs.h"
 #include "Macros.h"
+#include "../ESPNow/ESPNowConfig.h"
 
 #include <string_view>
 
@@ -89,6 +90,8 @@ namespace Machine {
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };
+
+        ESPNowConfig* _espnow = nullptr;
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;
