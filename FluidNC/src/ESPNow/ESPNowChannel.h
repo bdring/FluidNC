@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <atomic>
 #include <esp_idf_version.h>
 #include <esp_now.h>
 
@@ -40,6 +41,7 @@ public:
 #else
     static void onRecv(const uint8_t* mac_addr, const uint8_t* data, int len);
 #endif
+    static void onSent(const uint8_t* mac, esp_now_send_status_t status);
 
 private:
     static ESPNowChannel* _instance;
@@ -57,8 +59,8 @@ private:
     // RX
     static constexpr size_t RX_BUF_SIZE = 4096;
     static uint8_t          _rx_buf[RX_BUF_SIZE];
-    static volatile int     _rx_head;
-    static int              _rx_tail;
+    static std::atomic<int> _rx_head;
+    static std::atomic<int> _rx_tail;
 
     struct FragBuf {
         uint8_t  data[MAX_FRAGS][MAX_FRAG_DATA];
@@ -67,6 +69,7 @@ private:
         uint8_t  total;
         uint8_t  seq;
         bool     active;
+        uint32_t start_ms;
     };
     FragBuf _frag;
 
@@ -80,6 +83,13 @@ private:
     void handleRealtime(const uint8_t* data, int len);
 
     bool registerPeer(const uint8_t* mac, const uint8_t* lmk);
+
+    static std::atomic<uint32_t> _last_rx_ms;
+    static std::atomic<bool> _echo_pending;
+    static volatile int8_t _echo_rssi;
+
+    static std::atomic<bool> _pair_ack_pending;
+    static uint8_t       _pair_ack_buf[12];  // sizeof(PairAckPkt)
 };
 
 extern ESPNowChannel espnowChannel;
