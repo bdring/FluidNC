@@ -1213,7 +1213,7 @@ const ArgEvent alarmEvent { (void (*)(void*))protocol_do_alarm };
 QueueHandle_t event_queue;
 
 void protocol_init() {
-    event_queue   = xQueueCreate(50, sizeof(EventItem));
+    event_queue   = xQueueCreate(200, sizeof(EventItem));
     message_queue = xQueueCreate(15, sizeof(LogMessage));
 }
 
