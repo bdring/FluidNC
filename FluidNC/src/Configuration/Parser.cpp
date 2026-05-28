@@ -178,7 +178,7 @@ namespace Configuration {
     step_engine* Parser::stepEngineValue() const {
         auto token = string_util::trim(_token._value);
         for (auto const engine : step_engines) {
-            if (string_util::equal_ignore_case(token, engine->name)) {
+            if (string_util::starts_with_ignore_case(token, engine->name)) {
                 return engine;
             }
         }
