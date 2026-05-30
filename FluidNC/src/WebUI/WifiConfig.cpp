@@ -406,6 +406,7 @@ namespace WebUI {
             std::string msg, msg_out;
             uint8_t     dot          = 0;
             bool        use_dhcp     = (_sta_mode && (_sta_mode->get() == DHCP_MODE));
+            bool        logged_transient_disconnect = false;
             size_t      max_attempts = use_dhcp ? 20 : 10;
             for (size_t i = 0; i < max_attempts; ++i) {
                 msg.clear();
@@ -449,8 +450,15 @@ namespace WebUI {
                         return true;
 #if 1
                     case WL_DISCONNECTED:
-                        if (use_dhcp && i < (max_attempts - 3)) {
-                            log_info("Disconnected (transient during DHCP/association), retrying");
+                        if (i < (max_attempts - 3)) {
+                            if (!logged_transient_disconnect) {
+                                if (use_dhcp) {
+                                    log_debug("Disconnected (transient during DHCP/association), retrying");
+                                } else {
+                                    log_debug("Disconnected (transient during static-IP association), retrying");
+                                }
+                                logged_transient_disconnect = true;
+                            }
                             break;
                         }
                         log_info("Disconnected");
@@ -519,7 +527,12 @@ namespace WebUI {
             //if not DHCP
             if (IP_mode != DHCP_MODE) {
                 IPAddress ip((uint32_t)IP), mask((uint32_t)MK), gateway((uint32_t)GW);
-                WiFi.config(ip, gateway, mask);
+                log_info("Using static STA config IP=" << IP_string(ip) << " GW=" << IP_string(gateway)
+                                                        << " MASK=" << IP_string(mask));
+                if (!WiFi.config(ip, gateway, mask)) {
+                    log_error("Failed to apply static STA config");
+                    return false;
+                }
             }
 
             uint8_t        selected_bssid[6];
