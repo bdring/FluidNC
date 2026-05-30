@@ -385,7 +385,7 @@ namespace WebUI {
             s << WiFi.getHostname();
             if (WiFi.getMode() == WIFI_AP) {
                 s << "(AP mode)";
-            }
+            }
 
             //to save time in decoding `?`
             s << " # axis:" << Axes::_numberAxis;
