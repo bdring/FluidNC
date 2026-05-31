@@ -6,6 +6,7 @@
 #include "Channel.h"
 
 #include <WiFi.h>
+#include <string>
 
 namespace WebUI {
     class TelnetClient : public Channel {
@@ -21,7 +22,17 @@ namespace WebUI {
 
         static const int DISCONNECT_CHECK_COUNTS = 1000;
 
-        int32_t _state = 0;
+        // Disconnect clients that repeatedly stall writes, so a dead peer can't
+        // block FluidNC's write path and trip the task watchdog.
+        static const int TX_STALL_LIMIT = 10;
+        static const int TX_IDLE_WAIT_MS = 50;
+
+        int32_t     _state        = 0;
+        int         _txStallCount = 0;
+        std::string _txLine;            // output accumulated until a full line
+        uint8_t     _txLastChar   = '\0';  // for \n -> \r\n across write() calls
+
+        void sendBuffered(const uint8_t* data, size_t len, int sockfd, int wait_ms);
 
     public:
         TelnetClient(WiFiClient* wifiClient);
