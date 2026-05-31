@@ -4,7 +4,11 @@
 #include "TelnetClient.h"
 #include "TelnetServer.h"
 
+#include "../System.h"     // inMotionState()
+
 #include <WiFi.h>
+#include <lwip/sockets.h>  // ::send(), MSG_DONTWAIT
+#include <errno.h>
 
 namespace WebUI {
     TelnetClient::TelnetClient(WiFiClient* wifiClient) : Channel("telnet"), _wifiClient(wifiClient) {}
@@ -26,32 +30,68 @@ namespace WebUI {
         return write(&data, 1);
     }
 
-    size_t TelnetClient::write(const uint8_t* buffer, size_t length) {
-        // Replace \n with \r\n
-        size_t  rem      = length;
-        uint8_t lastchar = '\0';
-        size_t  j        = 0;
-        while (rem) {
-            const int bufsize = 128;
-            uint8_t   modbuf[bufsize];
-            // bufsize-1 in case the last character is \n
-            size_t k = 0;
-            while (rem && k < (bufsize - 1)) {
-                uint8_t c = buffer[j++];
-                if (c == '\n' && lastchar != '\r') {
-                    modbuf[k++] = '\r';
+    // Send `len` bytes, never blocking long enough to risk the task watchdog.
+    void TelnetClient::sendBuffered(const uint8_t* data, size_t len, int sockfd, int wait_ms) {
+        size_t off    = 0;
+        int    waited = 0;
+        while (off < len) {
+            int n = ::send(sockfd, data + off, len - off, MSG_DONTWAIT);
+            if (n > 0) {
+                off += (size_t)n;
+            } else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                if (waited >= wait_ms) {
+                    break;  // send buffer still full — drop the rest
                 }
-                lastchar    = c;
-                modbuf[k++] = c;
-                --rem;
-            }
-            if (k) {
-                auto nWritten = _wifiClient->write(modbuf, k);
-                if (nWritten == 0) {
-                    closeOnDisconnect();
-                }
+                delay(1);
+                ++waited;
+            } else {
+                _wifiClient->stop();  // hard error / peer gone
+                closeOnDisconnect();
+                return;
             }
         }
+
+        if (off < len) {  // could not fully deliver this line
+            if (++_txStallCount >= TX_STALL_LIMIT) {
+                _wifiClient->stop();  // wedged peer — drop it
+                closeOnDisconnect();  // connected() now false -> reaped in poll()
+            }
+        } else {
+            _txStallCount = 0;
+        }
+    }
+
+    size_t TelnetClient::write(const uint8_t* buffer, size_t length) {
+        if (_state == -1 || buffer == nullptr || length == 0) {
+            return length;
+        }
+        int sockfd = _wifiClient->fd();
+        if (sockfd < 0) {
+            closeOnDisconnect();
+            return length;
+        }
+
+        // Accumulate \r\n-normalized output until a complete line is obtained and
+        // prevent emitting a partial line
+        for (size_t i = 0; i < length; i++) {
+            uint8_t c = buffer[i];
+            if (c == '\n' && _txLastChar != '\r') {
+                _txLine.push_back('\r');
+            }
+            _txLastChar = c;
+            _txLine.push_back((char)c);
+        }
+        if (_txLine.empty() || _txLine.back() != '\n') {
+            return length;  // wait for the rest of the line
+        }
+
+        // Idle: briefly wait for room so large responses survive a slow client.
+        // In motion: don't wait - drop instead, so jogging/running never stalls.
+        int wait_ms = inMotionState() ? 0 : TX_IDLE_WAIT_MS;
+        sendBuffered((const uint8_t*)_txLine.data(), _txLine.size(), sockfd, wait_ms);
+
+        _txLine.clear();
+        _txLastChar = '\0';
         return length;
     }
 
