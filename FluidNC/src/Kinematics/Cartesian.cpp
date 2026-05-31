@@ -490,7 +490,7 @@ namespace Kinematics {
         log_debug("Planned move to " << target[0] << "," << target[1] << "," << target[2] << " @ " << rate);
     }
 
-    void Cartesian::homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) {
+    void Cartesian::homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t& settle_ms) {
         releaseMotors(axisMask, motors);
         float rate;
         float target[MAX_N_AXIS];
