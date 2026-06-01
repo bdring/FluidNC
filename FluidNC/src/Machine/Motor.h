@@ -32,6 +32,7 @@ namespace Machine {
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;
         bool hasSwitches();
+        void rearmSwitches();
         bool isReal();
         void makeDualSwitches();
         void limitOtherAxis(axis_t axis);

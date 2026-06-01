@@ -51,6 +51,18 @@ namespace Machine {
         return (_negLimitPin.defined() || _posLimitPin.defined() || _allLimitPin.defined());
     }
 
+    void Motor::rearmSwitches() {
+        if (_negLimitPin.defined()) {
+            _negLimitPin.rearm();
+        }
+        if (_posLimitPin.defined()) {
+            _posLimitPin.rearm();
+        }
+        if (_allLimitPin.defined()) {
+            _allLimitPin.rearm();
+        }
+    }
+
     // Used when a single switch input is wired to 2 axes.
     void Motor::makeDualSwitches() {
         _negLimitPin.makeDualMask();

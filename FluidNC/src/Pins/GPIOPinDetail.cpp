@@ -164,4 +164,10 @@ namespace Pins {
         gpio_set_event(_index, reinterpret_cast<void*>(obj), _attributes.has(Pin::Attr::ActiveLow));
     }
 
+    void GPIOPinDetail::disarm() {
+        gpio_disarm(_index);
+    }
+    void GPIOPinDetail::rearm() {
+        gpio_rearm(_index);
+    }
 }

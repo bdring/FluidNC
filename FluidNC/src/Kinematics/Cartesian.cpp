@@ -526,6 +526,28 @@ namespace Kinematics {
         return false;  // kinematics does not do the homing for catesian systems
     }
 
+    void Cartesian::rearmLimits(AxisMask axisMask, MotorMask motorMask) {
+        // Iterate through all motors in the motorMask and rearm their switches
+        for (int i = 0; i < MAX_N_AXIS; ++i) {
+            axis_t axis = static_cast<axis_t>(i);
+            if (!(axisMask & (1 << axis))) {
+                continue;  // Skip axes not in the mask
+            }
+            Machine::Axis* a = Machine::Axes::_axis[axis];
+            if (!a) {
+                continue;
+            }
+            // Check motor 0 (bits 0-15)
+            if ((motorMask & (1UL << axis)) && a->_motors[0]) {
+                a->_motors[0]->rearmSwitches();
+            }
+            // Check motor 1 (bits 16-31)
+            if ((motorMask & (1UL << (axis + 16))) && a->_motors[1]) {
+                a->_motors[1]->rearmSwitches();
+            }
+        }
+    }
+
     // Configuration registration
     namespace {
         KinematicsFactory::InstanceBuilder<Cartesian> registration("Cartesian");

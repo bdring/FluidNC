@@ -42,6 +42,8 @@ namespace Pins {
         bool canStep() override { return true; }
 
         void registerEvent(InputPin* obj) override;
+        void disarm() override;
+        void rearm() override;
 
         ~GPIOPinDetail() override { _claimed[_index] = false; }
     };
