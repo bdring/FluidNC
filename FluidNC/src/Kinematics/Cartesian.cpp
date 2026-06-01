@@ -494,7 +494,7 @@ namespace Kinematics {
         releaseMotors(axisMask, motors);
         float rate;
         float target[MAX_N_AXIS];
-        axesVector(axisMask, motors, phase, target, rate, settling_ms);
+        axesVector(axisMask, motors, phase, target, rate, settle_ms);
 
         plan_line_data_t plan_data      = {};
         plan_data.spindle_speed         = 0;
