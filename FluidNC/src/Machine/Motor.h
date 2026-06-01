@@ -12,10 +12,6 @@ namespace MotorDrivers {
 }
 
 namespace Machine {
-    class Endstops;
-}
-
-namespace Machine {
     class Motor : public Configuration::Configurable {
         axis_t  _axis;
         motor_t _motorNum;
