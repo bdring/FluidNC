@@ -50,3 +50,4 @@ coverage.css
 coverage.js
 coverage.functions.html
 coverage.*.html
+.DS_Store
