@@ -3,9 +3,9 @@
 #include "ESPNowChannel.h"
 #include "ESPNowCrypto.h"
 #include "../Module.h"
-#include "../Machine/MachineConfig.h"
 #include "../Serial.h"
 #include "../Logging.h"
+#include "../Settings.h"
 
 #include <WiFi.h>
 #include <esp_now.h>
@@ -13,9 +13,13 @@
 #include <string.h>
 #include <Arduino.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 static constexpr uint32_t FRAG_REASSEMBLY_TIMEOUT_MS = 3000;
 static constexpr uint32_t PENDANT_IDLE_TIMEOUT_MS = 10000;
+static constexpr uint32_t PAIRING_WINDOW_MS = 60000;
+
+static const char* mac_str(const uint8_t* mac);
 
 namespace {
 class PeerStateLock {
@@ -36,6 +40,50 @@ private:
     SemaphoreHandle_t _mutex;
     bool              _locked = false;
 };
+
+void copyHostname(char out[ESPNOW_HOSTNAME_SIZE]) {
+    const char* hostname = WiFi.getHostname();
+    if (!hostname || !*hostname) {
+        hostname = "fluidnc";
+    }
+    strlcpy(out, hostname, ESPNOW_HOSTNAME_SIZE);
+}
+
+static Error espnowPairCommand(const char* value, AuthenticationLevel, Channel& out) {
+    if (value && *value) {
+        return Error::InvalidValue;
+    }
+    if (!espnowChannel.startPairingWindow(PAIRING_WINDOW_MS)) {
+        log_error_to(out, "ESP-NOW pairing is not available");
+        return Error::InvalidValue;
+    }
+    log_info_to(out, "ESP-NOW pairing enabled for " << (PAIRING_WINDOW_MS / 1000) << " seconds");
+    return Error::Ok;
+}
+
+static Error espnowUnpairCommand(const char* value, AuthenticationLevel, Channel& out) {
+    if (!value || !*value) {
+        espnowChannel.listPairings(out);
+        return Error::Ok;
+    }
+
+    int parsed = atoi(value);
+    if (parsed < 0 || parsed > (int)ESPNowConfig::MAX_PAIRINGS) {
+        return Error::NumberRange;
+    }
+    if (parsed == 0) {
+        espnowChannel.clearPairings();
+        log_info_to(out, "ESP-NOW whitelist cleared");
+        return Error::Ok;
+    }
+
+    uint8_t removed_mac[6] = {};
+    if (!espnowChannel.removePairingIndex((size_t)parsed, removed_mac)) {
+        return Error::InvalidValue;
+    }
+    log_info_to(out, "ESP-NOW removed pendant " << mac_str(removed_mac));
+    return Error::Ok;
+}
 }
 
 class ESPNowModule : public Module {
@@ -67,37 +115,54 @@ static bool mac_eq(const uint8_t* a, const uint8_t* b) {
     return a && b && memcmp(a, b, 6) == 0;
 }
 
-struct __attribute__((packed)) DiscoveryPkt {
+struct __attribute__((packed)) DiscoveryV3Pkt {
     uint8_t type;
+    uint8_t version;
+    uint8_t mode;
     uint8_t mac[6];
     uint8_t channel;
+    uint8_t pair_nonce[4];
+    uint8_t pubkey[ESPNowCrypto::ECDH_PUBLIC_KEY_SIZE];
+};
+
+struct __attribute__((packed)) PairChallengeV3Pkt {
+    uint8_t type;
+    uint8_t version;
+    uint8_t mode;
+    uint8_t mac[6];
+    uint8_t channel;
+    uint8_t pair_nonce[4];
+    uint8_t pubkey[ESPNowCrypto::ECDH_PUBLIC_KEY_SIZE];
+    char hostname[ESPNOW_HOSTNAME_SIZE];
+};
+
+struct __attribute__((packed)) PairConfirmV3Pkt {
+    uint8_t type;
+    uint8_t version;
+    uint8_t mode;
+    uint8_t mac[6];
     uint8_t pair_nonce[4];
     uint8_t auth_tag[PAIR_TAG_SIZE];
 };
 
-struct __attribute__((packed)) PairAckPkt {
+struct __attribute__((packed)) PairResultV3Pkt {
     uint8_t type;
+    uint8_t version;
+    uint8_t mode;
     uint8_t mac[6];
     uint8_t channel;
     uint8_t pair_nonce[4];
+    char hostname[ESPNOW_HOSTNAME_SIZE];
     uint8_t auth_tag[PAIR_TAG_SIZE];
 };
 
 
 void ESPNowModule::init() {
-    if (!config) {
-        return;
-    }
-
-    bool has_espnow = false;
-    for (auto* espnow_cfg : config->_espnow) {
-        if (espnow_cfg && espnow_cfg->configured()) {
-            has_espnow = true;
-            break;
-        }
-    }
-    if (!has_espnow) {
-        return;
+    static bool commands_registered = false;
+    if (!commands_registered) {
+        commands_registered = true;
+        new UserCommand("EP", "ESPNow/Pair", espnowPairCommand, anyState, WA);
+        new UserCommand("EU", "ESPNow/Unpair", espnowUnpairCommand, anyState, WA);
     }
 
     if (WiFi.getMode() == WIFI_OFF) {
@@ -105,7 +170,7 @@ void ESPNowModule::init() {
         WiFi.disconnect(false, false);
     }
 
-    espnowChannel.init(config->_espnow, ESPNowConfig::MAX_CONFIGS);
+    espnowChannel.init();
 }
 
 void ESPNowModule::poll() {
@@ -121,10 +186,9 @@ ESPNowChannel::ESPNowChannel() : Channel("espnow") {
     }
 }
 
-void ESPNowChannel::init(ESPNowConfig* cfgs[], size_t cfg_count) {
-    _cfg_count = (cfg_count > ESPNowConfig::MAX_CONFIGS) ? ESPNowConfig::MAX_CONFIGS : cfg_count;
-    for (size_t i = 0; i < _cfg_count; ++i) {
-        _cfgs[i] = cfgs[i];
+void ESPNowChannel::init() {
+    if (_initialized) {
+        return;
     }
 
     if (esp_now_init() != ESP_OK) {
@@ -135,6 +199,7 @@ void ESPNowChannel::init(ESPNowConfig* cfgs[], size_t cfg_count) {
     uint8_t pmk[16];
     ESPNowCrypto::derivePmk(pmk);
     esp_now_set_pmk(pmk);
+    ESPNowCrypto::secureZero(pmk, sizeof(pmk));
 
     esp_now_register_recv_cb(ESPNowChannel::onRecv);
     esp_now_register_send_cb(ESPNowChannel::onSent);
@@ -143,11 +208,6 @@ void ESPNowChannel::init(ESPNowConfig* cfgs[], size_t cfg_count) {
     size_t saved_count = ESPNowConfig::loadPairings(records, ESPNowConfig::MAX_PAIRINGS);
     _paired_count.store(0, std::memory_order_release);
     for (size_t i = 0; i < saved_count; ++i) {
-        int cfg_index = findConfigIndexForLmk(records[i].lmk);
-        if (cfg_index < 0) {
-            log_info("ESP-NOW: skipping saved pairing with no matching espnow config");
-            continue;
-        }
         size_t paired_count = _paired_count.load(std::memory_order_acquire);
         if (paired_count >= MAX_SERVER_PAIRINGS) {
             log_error("ESP-NOW: saved pairing roster exceeds runtime capacity");
@@ -156,41 +216,131 @@ void ESPNowChannel::init(ESPNowConfig* cfgs[], size_t cfg_count) {
         size_t new_index = paired_count;
         memcpy(_paired_peers[new_index].mac, records[i].peer_mac, 6);
         memcpy(_paired_peers[new_index].lmk, records[i].lmk, 16);
-        _paired_peers[new_index].report_interval_ms = _cfgs[cfg_index]->_report_interval_ms;
-        _paired_peers[new_index].name = _cfgs[cfg_index]->displayName();
         resetPeerRuntime((int)new_index);
         if (registerPeer(_paired_peers[new_index].mac, _paired_peers[new_index].lmk)) {
             _paired_count.store(new_index + 1, std::memory_order_release);
             log_info("ESP-NOW: loaded saved pairing, peer " << mac_str(_paired_peers[new_index].mac));
         } else {
-            _paired_peers[new_index].name.clear();
             memset(_paired_peers[new_index].mac, 0, sizeof(_paired_peers[new_index].mac));
             memset(_paired_peers[new_index].lmk, 0, sizeof(_paired_peers[new_index].lmk));
-            _paired_peers[new_index].report_interval_ms = ESPNowConfig::DEFAULT_REPORT_INTERVAL_MS;
             log_error("ESP-NOW: failed to restore saved pairing for " << mac_str(records[i].peer_mac));
         }
     }
+    ESPNowCrypto::secureZero(records, sizeof(records));
     _paired.store(_paired_count.load(std::memory_order_acquire) > 0, std::memory_order_release);
+
+    if (!_registered) {
+        allChannels.registration(this);
+        _registered = true;
+    }
+
     if (_paired.load(std::memory_order_acquire)) {
         setActivePeer(0);
-    }
-
-    for (size_t i = 0; i < _cfg_count; ++i) {
-        if (_cfgs[i] && _cfgs[i]->configured()) {
-            log_info("ESP-NOW: configured peripheral " << _cfgs[i]->displayName());
-        }
-    }
-
-    allChannels.registration(this);
-    if (!_paired.load(std::memory_order_acquire)) {
+    } else {
         setReportInterval(ESPNowConfig::DEFAULT_REPORT_INTERVAL_MS);
     }
 
+    _initialized = true;
 }
 
-int ESPNowChannel::findPairedPeerIndex(const uint8_t* mac) const {
-    PeerStateLock peer_lock(_peer_mutex);
+bool ESPNowChannel::startPairingWindow(uint32_t window_ms) {
+    _pairing_window_until_ms.store((uint32_t)millis() + window_ms, std::memory_order_release);
+    _pairing_window_active.store(true, std::memory_order_release);
+    log_info("ESP-NOW: pairing window opened");
+    return true;
+}
+
+bool ESPNowChannel::pairingWindowActive() {
+    if (!_pairing_window_active.load(std::memory_order_acquire)) {
+        return false;
+    }
+    uint32_t until = _pairing_window_until_ms.load(std::memory_order_acquire);
+    if ((int32_t)(until - (uint32_t)millis()) <= 0) {
+        _pairing_window_active.store(false, std::memory_order_release);
+        return false;
+    }
+    return true;
+}
+
+bool ESPNowChannel::listPairings(Channel& out) const {
+    ESPNowPairingRecord records[ESPNowConfig::MAX_PAIRINGS];
+    size_t count = ESPNowConfig::loadPairings(records, ESPNowConfig::MAX_PAIRINGS);
+    if (count == 0) {
+        log_info_to(out, "ESP-NOW whitelist is empty");
+        return true;
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+        log_info_to(out, (i + 1) << ": " << mac_str(records[i].peer_mac));
+    }
+    ESPNowCrypto::secureZero(records, sizeof(records));
+    return true;
+}
+
+bool ESPNowChannel::removeRuntimePeer(const uint8_t* mac) {
     if (!mac) {
+        return false;
+    }
+
+    PeerStateLock peer_lock(_peer_mutex);
+    int index = findPairedPeerIndex(mac);
+    if (index < 0) {
+        return false;
+    }
+
+    size_t paired_count = _paired_count.load(std::memory_order_acquire);
+    esp_now_del_peer(_paired_peers[index].mac);
+    ESPNowCrypto::secureZero(_paired_peers[index].lmk, sizeof(_paired_peers[index].lmk));
+
+    for (size_t i = (size_t)index; i + 1 < paired_count; ++i) {
+        memcpy(_paired_peers[i].mac, _paired_peers[i + 1].mac, sizeof(_paired_peers[i].mac));
+        memcpy(_paired_peers[i].lmk, _paired_peers[i + 1].lmk, sizeof(_paired_peers[i].lmk));
+        resetPeerRuntime((int)i);
+    }
+
+    size_t last = paired_count - 1;
+    memset(_paired_peers[last].mac, 0, sizeof(_paired_peers[last].mac));
+    ESPNowCrypto::secureZero(_paired_peers[last].lmk, sizeof(_paired_peers[last].lmk));
+    resetPeerRuntime((int)last);
+
+    _paired_count.store(last, std::memory_order_release);
+    _paired.store(last > 0, std::memory_order_release);
+    int active = _active_peer_index.load(std::memory_order_acquire);
+    if (active == index || active >= (int)last) {
+        _active_peer_index.store(last > 0 ? 0 : -1, std::memory_order_release);
+    }
+    refreshReportInterval();
+    return true;
+}
+
+bool ESPNowChannel::removePairingIndex(size_t one_based_index, uint8_t removed_mac[6]) {
+    if (!ESPNowConfig::removePairingIndex(one_based_index, removed_mac)) {
+        return false;
+    }
+    removeRuntimePeer(removed_mac);
+    return true;
+}
+
+void ESPNowChannel::clearPairings() {
+    PeerStateLock peer_lock(_peer_mutex);
+    size_t paired_count = _paired_count.load(std::memory_order_acquire);
+    for (size_t i = 0; i < paired_count; ++i) {
+        esp_now_del_peer(_paired_peers[i].mac);
+        memset(_paired_peers[i].mac, 0, sizeof(_paired_peers[i].mac));
+        ESPNowCrypto::secureZero(_paired_peers[i].lmk, sizeof(_paired_peers[i].lmk));
+        resetPeerRuntime((int)i);
+    }
+    _paired_count.store(0, std::memory_order_release);
+    _paired.store(false, std::memory_order_release);
+    _active_peer_index.store(-1, std::memory_order_release);
+    _pairing_window_active.store(false, std::memory_order_release);
+    ESPNowConfig::clearPairing();
+    refreshReportInterval();
+}
+
+int ESPNowChannel::findPairedPeerIndex(const uint8_t* mac, TickType_t timeout) const {
+    PeerStateLock peer_lock(_peer_mutex, timeout);
+    if (!peer_lock.locked() || !mac) {
         return -1;
     }
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
@@ -220,32 +370,12 @@ bool ESPNowChannel::peerConnected(int index) const {
 }
 
 void ESPNowChannel::refreshReportInterval() {
-    PeerStateLock peer_lock(_peer_mutex);
-    uint32_t interval = ESPNowConfig::DEFAULT_REPORT_INTERVAL_MS;
-    bool     found = false;
-
-    size_t paired_count = _paired_count.load(std::memory_order_acquire);
-    for (size_t i = 0; i < paired_count; ++i) {
-        if (!peerConnected((int)i)) {
-            continue;
-        }
-        interval = found ? std::min(interval, _paired_peers[i].report_interval_ms)
-                         : _paired_peers[i].report_interval_ms;
-        found = true;
-    }
-
-    int active_peer_index = _active_peer_index.load(std::memory_order_acquire);
-    if (!found && active_peer_index >= 0 && active_peer_index < (int)paired_count) {
-        interval = _paired_peers[active_peer_index].report_interval_ms;
-    }
-
-    setReportInterval(interval);
+    setReportInterval(ESPNowConfig::DEFAULT_REPORT_INTERVAL_MS);
 }
 
 void ESPNowChannel::resetPeerRuntime(int index) {
     PeerStateLock peer_lock(_peer_mutex);
-    size_t paired_count = _paired_count.load(std::memory_order_acquire);
-    if (index < 0 || index >= (int)paired_count) {
+    if (index < 0 || index >= (int)MAX_SERVER_PAIRINGS) {
         return;
     }
 
@@ -264,8 +394,11 @@ void ESPNowChannel::resetPeerRuntime(int index) {
     peer.was_connected = false;
 }
 
-void ESPNowChannel::notePeerAuthenticated(int index, bool control_activity) {
-    PeerStateLock peer_lock(_peer_mutex);
+void ESPNowChannel::notePeerAuthenticated(int index, bool control_activity, TickType_t timeout) {
+    PeerStateLock peer_lock(_peer_mutex, timeout);
+    if (!peer_lock.locked()) {
+        return;
+    }
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
     if (index < 0 || index >= (int)paired_count) {
         return;
@@ -297,11 +430,7 @@ bool ESPNowChannel::setActivePeer(int index) {
 
     _active_peer_index.store(index, std::memory_order_release);
     refreshReportInterval();
-    if (!_paired_peers[index].name.empty()) {
-        log_info("ESP-NOW: active pendant " << _paired_peers[index].name << " (" << mac_str(_paired_peers[index].mac) << ")");
-    } else {
-        log_info("ESP-NOW: active pendant " << mac_str(_paired_peers[index].mac));
-    }
+    log_info("ESP-NOW: active pendant " << mac_str(_paired_peers[index].mac));
     return true;
 }
 
@@ -329,44 +458,66 @@ bool ESPNowChannel::claimControlLease(int index) {
     return setActivePeer(index);
 }
 
-int ESPNowChannel::findConfigIndexForLmk(const uint8_t* lmk) const {
-    if (!lmk) {
-        return -1;
-    }
-    uint8_t derived[16];
-    for (size_t i = 0; i < _cfg_count; ++i) {
-        if (!_cfgs[i] || !_cfgs[i]->configured()) {
-            continue;
-        }
-        ESPNowCrypto::deriveLmk(_cfgs[i]->_pair_code.c_str(), derived);
-        if (memcmp(derived, lmk, 16) == 0) {
-            return (int)i;
-        }
-    }
-    return -1;
+void ESPNowChannel::clearPendingPairing(PendingPairing& pending) {
+    ESPNowCrypto::secureZero(pending.private_key, sizeof(pending.private_key));
+    ESPNowCrypto::secureZero(pending.peer_pubkey, sizeof(pending.peer_pubkey));
+    ESPNowCrypto::secureZero(pending.public_key, sizeof(pending.public_key));
+    memset(&pending, 0, sizeof(pending));
 }
 
-bool ESPNowChannel::matchConfiguredPeripheral(const uint8_t* discovery_pkt, uint8_t* lmk_out, size_t& cfg_index) const {
-    if (!discovery_pkt || !lmk_out) {
+bool ESPNowChannel::findPendingPairing(const uint8_t* mac, uint32_t pair_nonce, PendingPairing** out_pending) {
+    if (!mac || !out_pending) {
         return false;
     }
 
-    for (size_t i = 0; i < _cfg_count; ++i) {
-        if (!_cfgs[i] || !_cfgs[i]->configured()) {
+    PeerStateLock peer_lock(_peer_mutex);
+    uint32_t now = (uint32_t)millis();
+    for (auto& pending : _pending_pairings) {
+        if (!pending.active) {
             continue;
         }
-
-        ESPNowCrypto::deriveLmk(_cfgs[i]->_pair_code.c_str(), lmk_out);
-        if (ESPNowCrypto::verifyPairingAuthTag(lmk_out,
-                                               discovery_pkt,
-                                               offsetof(DiscoveryPkt, auth_tag),
-                                               discovery_pkt + offsetof(DiscoveryPkt, auth_tag))) {
-            cfg_index = i;
+        if ((uint32_t)(now - pending.last_ms) > PAIRING_HANDSHAKE_TIMEOUT_MS) {
+            clearPendingPairing(pending);
+            continue;
+        }
+        if (pending.pair_nonce == pair_nonce && mac_eq(pending.mac, mac)) {
+            *out_pending = &pending;
             return true;
         }
     }
-
     return false;
+}
+
+bool ESPNowChannel::reservePendingPairing(const uint8_t* mac, PendingPairing** out_pending) {
+    if (!mac || !out_pending) {
+        return false;
+    }
+
+    PeerStateLock peer_lock(_peer_mutex);
+    uint32_t now = (uint32_t)millis();
+    PendingPairing* oldest = &_pending_pairings[0];
+
+    for (auto& pending : _pending_pairings) {
+        if (pending.active && (uint32_t)(now - pending.last_ms) > PAIRING_HANDSHAKE_TIMEOUT_MS) {
+            clearPendingPairing(pending);
+        }
+        if (pending.active && mac_eq(pending.mac, mac)) {
+            clearPendingPairing(pending);
+            *out_pending = &pending;
+            return true;
+        }
+        if (!pending.active) {
+            *out_pending = &pending;
+            return true;
+        }
+        if ((int32_t)(pending.last_ms - oldest->last_ms) < 0) {
+            oldest = &pending;
+        }
+    }
+
+    clearPendingPairing(*oldest);
+    *out_pending = oldest;
+    return true;
 }
 
 bool ESPNowChannel::registerPeer(const uint8_t* mac, const uint8_t* lmk) {
@@ -380,6 +531,67 @@ bool ESPNowChannel::registerPeer(const uint8_t* mac, const uint8_t* lmk) {
     peer.ifidx    = WIFI_IF_STA;
 
     return esp_now_add_peer(&peer) == ESP_OK;
+}
+
+bool ESPNowChannel::completePairing(const uint8_t* pendant_mac, const uint8_t* lmk, const uint8_t* ack, size_t ack_len) {
+    if (!pendant_mac || !lmk || !ack || ack_len == 0) {
+        return false;
+    }
+
+    esp_now_del_peer(pendant_mac);
+    esp_now_peer_info_t peer = {};
+    memcpy(peer.peer_addr, pendant_mac, 6);
+    peer.encrypt = false;
+    peer.channel = 0;
+    peer.ifidx   = WIFI_IF_STA;
+    if (esp_now_add_peer(&peer) != ESP_OK) {
+        log_error("ESP-NOW: failed to add pendant peer");
+        return false;
+    }
+
+    int  paired_index = findPairedPeerIndex(pendant_mac);
+    bool new_peer = paired_index < 0;
+    if (new_peer) {
+        size_t paired_count = _paired_count.load(std::memory_order_acquire);
+        if (paired_count >= MAX_SERVER_PAIRINGS) {
+            esp_now_del_peer(pendant_mac);
+            log_error("ESP-NOW: pairing roster full, rejecting new pendant " << mac_str(pendant_mac));
+            return false;
+        }
+        paired_index = (int)paired_count;
+    } else if (peerConnected(paired_index)) {
+        esp_now_del_peer(pendant_mac);
+        log_error("ESP-NOW: rejecting re-pair attempt from active pendant " << mac_str(pendant_mac));
+        return false;
+    }
+
+    memcpy(_paired_peers[paired_index].mac, pendant_mac, 6);
+    memcpy(_paired_peers[paired_index].lmk, lmk, 16);
+    resetPeerRuntime(paired_index);
+
+    esp_now_send(pendant_mac, ack, ack_len);
+    if (!registerPeer(pendant_mac, lmk)) {
+        esp_now_del_peer(pendant_mac);
+        resetPeerRuntime(paired_index);
+        if (new_peer) {
+            memset(_paired_peers[paired_index].mac, 0, sizeof(_paired_peers[paired_index].mac));
+            memset(_paired_peers[paired_index].lmk, 0, sizeof(_paired_peers[paired_index].lmk));
+        }
+        log_error("ESP-NOW: failed to enable encrypted peer for " << mac_str(pendant_mac));
+        return false;
+    }
+    if (!ESPNowConfig::savePairing(pendant_mac, lmk)) {
+        log_error("ESP-NOW: failed to persist pairing for " << mac_str(pendant_mac));
+    }
+    if (new_peer) {
+        _paired_count.store((size_t)paired_index + 1, std::memory_order_release);
+    }
+    _paired.store(true, std::memory_order_release);
+    if (_active_peer_index.load(std::memory_order_acquire) < 0) {
+        setActivePeer(paired_index);
+    }
+    refreshReportInterval();
+    return true;
 }
 
 
@@ -487,6 +699,11 @@ void ESPNowChannel::poll() {
         handleDiscovery(_discovery_src, _discovery_buf, _discovery_len);
     }
 
+    if (_pair_confirm_pending.load(std::memory_order_acquire)) {
+        _pair_confirm_pending.store(false, std::memory_order_release);
+        handlePairConfirm(_pair_confirm_src, _pair_confirm_buf, _pair_confirm_len);
+    }
+
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
     for (size_t i = 0; i < paired_count; ++i) {
         auto& peer = _paired_peers[i];
@@ -545,17 +762,26 @@ void ESPNowChannel::onRecv(const uint8_t* src, const uint8_t* data, int len) {
     }
     uint8_t pkt_type = data[0];
 
-    int  paired_index = _instance->findPairedPeerIndex(src);
+    int  paired_index = _instance->findPairedPeerIndex(src, 0);
     bool from_peer    = paired_index >= 0;
 
     switch (pkt_type) {
         case PKT_DISCOVERY:
             if (!_instance->_discovery_pending.load(std::memory_order_acquire) &&
-                len == (int)sizeof(DiscoveryPkt) && src) {
+                len == (int)sizeof(DiscoveryV3Pkt) && src) {
                 memcpy(_instance->_discovery_buf, data, len);
                 memcpy(_instance->_discovery_src, src, 6);
                 _instance->_discovery_len = len;
                 _instance->_discovery_pending.store(true, std::memory_order_release);
+            }
+            break;
+        case PKT_PAIR_CONFIRM:
+            if (!_instance->_pair_confirm_pending.load(std::memory_order_acquire) &&
+                len == (int)sizeof(PairConfirmV3Pkt) && src) {
+                memcpy(_instance->_pair_confirm_buf, data, len);
+                memcpy(_instance->_pair_confirm_src, src, 6);
+                _instance->_pair_confirm_len = len;
+                _instance->_pair_confirm_pending.store(true, std::memory_order_release);
             }
             break;
         case PKT_DATA:
@@ -570,6 +796,14 @@ void ESPNowChannel::onRecv(const uint8_t* src, const uint8_t* data, int len) {
             break;
         case PKT_KEEPALIVE:
             if (_instance->_paired.load(std::memory_order_acquire) && from_peer) {
+                PeerStateLock peer_lock(_instance->_peer_mutex, 0);
+                if (!peer_lock.locked()) {
+                    break;
+                }
+                size_t paired_count = _instance->_paired_count.load(std::memory_order_acquire);
+                if (paired_index < 0 || paired_index >= (int)paired_count) {
+                    break;
+                }
                 auto& peer = _instance->_paired_peers[paired_index];
                 bool accepted = false;
                 bool authenticated = false;
@@ -578,9 +812,7 @@ void ESPNowChannel::onRecv(const uint8_t* src, const uint8_t* data, int len) {
                     memcpy(&advertised, data + 1, 4);
                     memcpy(&nonce,      data + 5, 4);
                     memcpy(&counter,    data + 9, 4);
-                    PeerStateLock peer_lock(_instance->_peer_mutex, 0);
-                    if (peer_lock.locked() &&
-                        advertised != 0 &&
+                    if (advertised != 0 &&
                         ESPNowCrypto::acceptReplay(peer.rx_nonce,
                                                    peer.rx_replay,
                                                    nonce,
@@ -605,7 +837,7 @@ void ESPNowChannel::onRecv(const uint8_t* src, const uint8_t* data, int len) {
 
                 if (accepted) {
                     if (authenticated) {
-                        _instance->notePeerAuthenticated(paired_index, false);
+                        _instance->notePeerAuthenticated(paired_index, false, 0);
                     }
                     peer.echo_pending.store(true, std::memory_order_release);
                 }
@@ -618,103 +850,172 @@ void ESPNowChannel::onRecv(const uint8_t* src, const uint8_t* data, int len) {
 
 
 void ESPNowChannel::handleDiscovery(const uint8_t* src_mac, const uint8_t* data, int len) {
-    if (len != (int)sizeof(DiscoveryPkt) || !src_mac) {
+    if (!pairingWindowActive()) {
+        return;
+    }
+    if (len != (int)sizeof(DiscoveryV3Pkt) || !src_mac) {
         return;
     }
 
-    DiscoveryPkt pkt;
+    DiscoveryV3Pkt pkt;
     memcpy(&pkt, data, sizeof(pkt));
-    if (!mac_eq(src_mac, pkt.mac)) {
-        log_info("ESP-NOW: DISCOVERY src/payload MAC mismatch");
-        return;
-    }
-
-    uint8_t lmk[16];
-    size_t  cfg_index = 0;
-    if (!matchConfiguredPeripheral(reinterpret_cast<const uint8_t*>(&pkt), lmk, cfg_index)) {
-        log_info("ESP-NOW: DISCOVERY authentication failed");
+    if (pkt.version != PAIRING_PROTO_V3 || pkt.mode != PAIRING_MODE_PAIR || !mac_eq(src_mac, pkt.mac)) {
+        log_info("ESP-NOW: DISCOVERY v3 src/payload mismatch");
         return;
     }
 
     uint32_t pair_nonce;
     memcpy(&pair_nonce, pkt.pair_nonce, 4);
-    if (pair_nonce == 0) {
+    if (pair_nonce == 0 || pkt.pubkey[0] != 0x04) {
         return;
     }
 
-    const uint8_t* pendant_mac = pkt.mac;
+    PendingPairing* pending = nullptr;
+    if (!reservePendingPairing(pkt.mac, &pending) || !pending) {
+        return;
+    }
 
-    esp_now_del_peer(pendant_mac);
+    uint8_t our_mac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, our_mac);
+    PairChallengeV3Pkt challenge = {};
+    challenge.type = PKT_PAIR_ACK;
+    challenge.version = PAIRING_PROTO_V3;
+    challenge.mode = PAIRING_MODE_PAIR;
+    memcpy(challenge.mac, our_mac, sizeof(challenge.mac));
+    challenge.channel = (uint8_t)WiFi.channel();
+    memcpy(challenge.pair_nonce, pkt.pair_nonce, sizeof(challenge.pair_nonce));
+    copyHostname(challenge.hostname);
+
+    if (!ESPNowCrypto::generateEcdhKeypair(pending->private_key, challenge.pubkey)) {
+        clearPendingPairing(*pending);
+        return;
+    }
+
+    memcpy(pending->mac, pkt.mac, sizeof(pending->mac));
+    memcpy(pending->peer_pubkey, pkt.pubkey, sizeof(pending->peer_pubkey));
+    memcpy(pending->public_key, challenge.pubkey, sizeof(pending->public_key));
+    pending->channel = pkt.channel;
+    pending->pair_nonce = pair_nonce;
+    pending->last_ms = (uint32_t)millis();
+    pending->active = true;
+
+    esp_now_del_peer(pkt.mac);
     esp_now_peer_info_t peer = {};
-    memcpy(peer.peer_addr, pendant_mac, 6);
+    memcpy(peer.peer_addr, pkt.mac, 6);
     peer.encrypt = false;
     peer.channel = 0;
     peer.ifidx   = WIFI_IF_STA;
-    if (esp_now_add_peer(&peer) != ESP_OK) {
-        log_error("ESP-NOW: failed to add pendant peer");
+    if (esp_now_add_peer(&peer) == ESP_OK) {
+        esp_now_send(pkt.mac, reinterpret_cast<const uint8_t*>(&challenge), sizeof(challenge));
+        log_info("ESP-NOW: discovery v3 challenge sent to " << mac_str(pkt.mac));
+    } else {
+        clearPendingPairing(*pending);
+        log_error("ESP-NOW: failed to add pendant peer for pairing challenge");
+    }
+
+    ESPNowCrypto::secureZero(&challenge, sizeof(challenge));
+}
+
+void ESPNowChannel::handlePairConfirm(const uint8_t* src_mac, const uint8_t* data, int len) {
+    if (!pairingWindowActive()) {
+        return;
+    }
+    if (len != (int)sizeof(PairConfirmV3Pkt) || !src_mac) {
         return;
     }
 
-    int  paired_index = findPairedPeerIndex(pendant_mac);
-    bool new_peer = paired_index < 0;
-    if (new_peer) {
-        size_t paired_count = _paired_count.load(std::memory_order_acquire);
-        if (paired_count >= MAX_SERVER_PAIRINGS) {
-            esp_now_del_peer(pendant_mac);
-            log_error("ESP-NOW: pairing roster full, rejecting new pendant " << mac_str(pendant_mac));
-            return;
+    PairConfirmV3Pkt pkt;
+    memcpy(&pkt, data, sizeof(pkt));
+    if (pkt.version != PAIRING_PROTO_V3 || pkt.mode != PAIRING_MODE_PAIR || !mac_eq(src_mac, pkt.mac)) {
+        return;
+    }
+
+    uint32_t pair_nonce;
+    memcpy(&pair_nonce, pkt.pair_nonce, 4);
+    PendingPairing* pending = nullptr;
+    if (!findPendingPairing(pkt.mac, pair_nonce, &pending) || !pending) {
+        return;
+    }
+
+    uint8_t shared_secret[ESPNowCrypto::ECDH_SHARED_SECRET_SIZE];
+    uint8_t window_lmk[16];
+    uint8_t final_lmk[16];
+    bool paired = false;
+    memset(shared_secret, 0, sizeof(shared_secret));
+    memset(window_lmk, 0, sizeof(window_lmk));
+    memset(final_lmk, 0, sizeof(final_lmk));
+
+    if (ESPNowCrypto::deriveEcdhSharedSecret(pending->private_key, pending->peer_pubkey, shared_secret)) {
+        DiscoveryV3Pkt discovery = {};
+        discovery.type = PKT_DISCOVERY;
+        discovery.version = PAIRING_PROTO_V3;
+        discovery.mode = PAIRING_MODE_PAIR;
+        memcpy(discovery.mac, pending->mac, sizeof(discovery.mac));
+        discovery.channel = pending->channel;
+        memcpy(discovery.pair_nonce, pkt.pair_nonce, sizeof(discovery.pair_nonce));
+        memcpy(discovery.pubkey, pending->peer_pubkey, sizeof(discovery.pubkey));
+
+        uint8_t our_mac[6];
+        esp_wifi_get_mac(WIFI_IF_STA, our_mac);
+        PairChallengeV3Pkt challenge = {};
+        challenge.type = PKT_PAIR_ACK;
+        challenge.version = PAIRING_PROTO_V3;
+        challenge.mode = PAIRING_MODE_PAIR;
+        memcpy(challenge.mac, our_mac, sizeof(challenge.mac));
+        challenge.channel = (uint8_t)WiFi.channel();
+        memcpy(challenge.pair_nonce, pkt.pair_nonce, sizeof(challenge.pair_nonce));
+        memcpy(challenge.pubkey, pending->public_key, sizeof(challenge.pubkey));
+        copyHostname(challenge.hostname);
+
+        PairResultV3Pkt result = {};
+        result.type = PKT_PAIR_ACK;
+        result.version = PAIRING_PROTO_V3;
+        result.mode = PAIRING_MODE_PAIR;
+        memcpy(result.mac, our_mac, sizeof(result.mac));
+        result.channel = challenge.channel;
+        memcpy(result.pair_nonce, pkt.pair_nonce, sizeof(result.pair_nonce));
+        copyHostname(result.hostname);
+
+        ESPNowCrypto::derivePairingWindowLmk(window_lmk);
+        ESPNowCrypto::derivePairingSessionLmk(window_lmk,
+                                              shared_secret,
+                                              reinterpret_cast<const uint8_t*>(&discovery),
+                                              sizeof(discovery),
+                                              reinterpret_cast<const uint8_t*>(&challenge),
+                                              sizeof(challenge),
+                                              final_lmk);
+        if (ESPNowCrypto::verifyPairingAuthTag(final_lmk,
+                                               reinterpret_cast<const uint8_t*>(&pkt),
+                                               offsetof(PairConfirmV3Pkt, auth_tag),
+                                               pkt.auth_tag)) {
+
+            ESPNowCrypto::pairingAuthTag(final_lmk,
+                                         reinterpret_cast<const uint8_t*>(&result),
+                                         offsetof(PairResultV3Pkt, auth_tag),
+                                         result.auth_tag);
+            paired = completePairing(pkt.mac,
+                                     final_lmk,
+                                     reinterpret_cast<const uint8_t*>(&result),
+                                     sizeof(result));
+            if (paired) {
+                _pairing_window_active.store(false, std::memory_order_release);
+                log_info("ESP-NOW: pairing v3 confirmed from " << mac_str(pkt.mac));
+            }
         }
-        paired_index = (int)paired_count;
-    } else if (peerConnected(paired_index)) {
-        esp_now_del_peer(pendant_mac);
-        log_error("ESP-NOW: rejecting re-pair attempt from active pendant " << mac_str(pendant_mac));
-        return;
-    }
-    memcpy(_paired_peers[paired_index].mac, pendant_mac, 6);
-    memcpy(_paired_peers[paired_index].lmk, lmk, 16);
-    _paired_peers[paired_index].report_interval_ms = _cfgs[cfg_index]->_report_interval_ms;
-    _paired_peers[paired_index].name = _cfgs[cfg_index]->displayName();
-    resetPeerRuntime(paired_index);
 
-    uint8_t  our_mac[6];
-    esp_wifi_get_mac(WIFI_IF_STA, our_mac);
-    uint8_t  ch = (uint8_t)WiFi.channel();
-    PairAckPkt ack = {};
-    ack.type = PKT_PAIR_ACK;
-    memcpy(ack.mac, our_mac, 6);
-    ack.channel = ch;
-    memcpy(ack.pair_nonce, pkt.pair_nonce, 4);
-    ESPNowCrypto::pairingAuthTag(lmk,
-                                 reinterpret_cast<const uint8_t*>(&ack),
-                                 offsetof(PairAckPkt, auth_tag),
-                                 ack.auth_tag);
+        ESPNowCrypto::secureZero(&discovery, sizeof(discovery));
+        ESPNowCrypto::secureZero(&challenge, sizeof(challenge));
+        ESPNowCrypto::secureZero(&result, sizeof(result));
+    }
 
-    esp_now_send(pendant_mac, reinterpret_cast<const uint8_t*>(&ack), sizeof(ack));
-    if (!registerPeer(pendant_mac, lmk)) {
-        esp_now_del_peer(pendant_mac);
-        resetPeerRuntime(paired_index);
-        if (new_peer) {
-            _paired_peers[paired_index].name.clear();
-            memset(_paired_peers[paired_index].mac, 0, sizeof(_paired_peers[paired_index].mac));
-            memset(_paired_peers[paired_index].lmk, 0, sizeof(_paired_peers[paired_index].lmk));
-            _paired_peers[paired_index].report_interval_ms = ESPNowConfig::DEFAULT_REPORT_INTERVAL_MS;
-        }
-        log_error("ESP-NOW: failed to enable encrypted peer for " << mac_str(pendant_mac));
-        return;
+    if (!paired) {
+        log_info("ESP-NOW: pairing v3 confirmation failed from " << mac_str(pkt.mac));
     }
-    if (!ESPNowConfig::savePairing(pendant_mac, lmk)) {
-        log_error("ESP-NOW: failed to persist pairing for " << mac_str(pendant_mac));
-    }
-    if (new_peer) {
-        _paired_count.store((size_t)paired_index + 1, std::memory_order_release);
-    }
-    _paired.store(true, std::memory_order_release);
-    if (_active_peer_index.load(std::memory_order_acquire) < 0) {
-        setActivePeer(paired_index);
-    }
-    refreshReportInterval();
 
-    log_info("ESP-NOW: discovery validated from " << mac_str(pendant_mac) << " — ACK sent");
+    ESPNowCrypto::secureZero(shared_secret, sizeof(shared_secret));
+    ESPNowCrypto::secureZero(window_lmk, sizeof(window_lmk));
+    ESPNowCrypto::secureZero(final_lmk, sizeof(final_lmk));
+    clearPendingPairing(*pending);
 }
 
 void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
@@ -724,6 +1025,11 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
 
     PeerStateLock peer_lock(_peer_mutex, 0);
     if (!peer_lock.locked()) {
+        return;
+    }
+
+    size_t paired_count = _paired_count.load(std::memory_order_acquire);
+    if (peer_index < 0 || peer_index >= (int)paired_count) {
         return;
     }
 
@@ -738,7 +1044,7 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
     if (!claimControlLease(peer_index)) {
         return;
     }
-    notePeerAuthenticated(peer_index, true);
+    notePeerAuthenticated(peer_index, true, 0);
 
     uint8_t seq         = data[9];
     uint8_t frag_idx    = data[10];
@@ -811,6 +1117,11 @@ void ESPNowChannel::handleRealtime(int peer_index, const uint8_t* data, int len)
         return;
     }
 
+    size_t paired_count = _paired_count.load(std::memory_order_acquire);
+    if (peer_index < 0 || peer_index >= (int)paired_count) {
+        return;
+    }
+
     auto& peer = _paired_peers[peer_index];
     uint32_t nonce, counter;
     memcpy(&nonce,   data + 1, 4);
@@ -821,7 +1132,7 @@ void ESPNowChannel::handleRealtime(int peer_index, const uint8_t* data, int len)
     if (!claimControlLease(peer_index)) {
         return;
     }
-    notePeerAuthenticated(peer_index, true);
+    notePeerAuthenticated(peer_index, true, 0);
     rxPush(data[1 + ART_TAG_SIZE]);
 }
 

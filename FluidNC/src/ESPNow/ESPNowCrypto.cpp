@@ -3,58 +3,151 @@
 #include "ESPNowCrypto.h"
 
 #include <esp_random.h>
+#include <mbedtls/ecdh.h>
+#include <mbedtls/ecp.h>
 #include <mbedtls/md.h>
-#include <mbedtls/pkcs5.h>
 #include <mbedtls/sha256.h>
 #include <string.h>
 
 namespace {
 
-constexpr uint32_t kPBKDF2Iterations = 5000;
 constexpr uint32_t kReplayRegenMs = 3000;
 constexpr uint32_t kReplayUnderflowLimit = 8;
-constexpr uint8_t kPairCodeKdfLabel[] = "fluiddial-espnow-v3";
 constexpr char kEspNowPmkLabel[] = "fluiddial-espnow-pmk-v1";
+constexpr char kPairingWindowLabel[] = "fluidnc-espnow-pairing-window-v1";
+constexpr char kPairingSessionLabel[] = "fluidnc-espnow-pairing-session-v1";
 
-char canonB32(char c) {
-    if (c >= 'a' && c <= 'z') {
-        c = (char)(c - 32);
+int espRandomBytes(void*, unsigned char* out, size_t len) {
+    while (len > 0) {
+        uint32_t word = esp_random();
+        size_t chunk = len < sizeof(word) ? len : sizeof(word);
+        memcpy(out, &word, chunk);
+        out += chunk;
+        len -= chunk;
     }
-    if (c == 'I' || c == 'L') {
-        return '1';
-    }
-    if (c == 'O') {
-        return '0';
-    }
-    return c;
+    return 0;
 }
 
 }  // namespace
 
 namespace ESPNowCrypto {
 
-void deriveLmk(const char* code, uint8_t out_lmk[16]) {
-    char canon[16];
-    size_t n = 0;
-    for (const char* p = code; *p && n < sizeof(canon) - 1; ++p) {
-        canon[n++] = canonB32(*p);
-    }
-    canon[n] = '\0';
-
-    mbedtls_md_context_t ctx;
-    mbedtls_md_init(&ctx);
-    mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1);
-    mbedtls_pkcs5_pbkdf2_hmac(&ctx,
-                              reinterpret_cast<const uint8_t*>(canon), n,
-                              kPairCodeKdfLabel, sizeof(kPairCodeKdfLabel) - 1,
-                              kPBKDF2Iterations, 16, out_lmk);
-    mbedtls_md_free(&ctx);
+void derivePairingWindowLmk(uint8_t out_lmk[16]) {
+    uint8_t hash[32];
+    mbedtls_sha256(reinterpret_cast<const uint8_t*>(kPairingWindowLabel), strlen(kPairingWindowLabel), hash, 0);
+    memcpy(out_lmk, hash, 16);
+    secureZero(hash, sizeof(hash));
 }
 
 void derivePmk(uint8_t out_pmk[16]) {
     uint8_t hash[32];
     mbedtls_sha256(reinterpret_cast<const uint8_t*>(kEspNowPmkLabel), strlen(kEspNowPmkLabel), hash, 0);
     memcpy(out_pmk, hash, 16);
+    secureZero(hash, sizeof(hash));
+}
+
+bool generateEcdhKeypair(uint8_t private_key[ECDH_PRIVATE_KEY_SIZE], uint8_t public_key[ECDH_PUBLIC_KEY_SIZE]) {
+    if (!private_key || !public_key) {
+        return false;
+    }
+
+    bool ok = false;
+    size_t public_len = 0;
+    mbedtls_ecp_group group;
+    mbedtls_mpi private_mpi;
+    mbedtls_ecp_point public_point;
+
+    mbedtls_ecp_group_init(&group);
+    mbedtls_mpi_init(&private_mpi);
+    mbedtls_ecp_point_init(&public_point);
+
+    if (mbedtls_ecp_group_load(&group, MBEDTLS_ECP_DP_SECP256R1) == 0 &&
+        mbedtls_ecdh_gen_public(&group, &private_mpi, &public_point, espRandomBytes, nullptr) == 0 &&
+        mbedtls_mpi_write_binary(&private_mpi, private_key, ECDH_PRIVATE_KEY_SIZE) == 0 &&
+        mbedtls_ecp_point_write_binary(&group,
+                                       &public_point,
+                                       MBEDTLS_ECP_PF_UNCOMPRESSED,
+                                       &public_len,
+                                       public_key,
+                                       ECDH_PUBLIC_KEY_SIZE) == 0 &&
+        public_len == ECDH_PUBLIC_KEY_SIZE) {
+        ok = true;
+    }
+
+    if (!ok) {
+        secureZero(private_key, ECDH_PRIVATE_KEY_SIZE);
+        secureZero(public_key, ECDH_PUBLIC_KEY_SIZE);
+    }
+    mbedtls_ecp_point_free(&public_point);
+    mbedtls_mpi_free(&private_mpi);
+    mbedtls_ecp_group_free(&group);
+    return ok;
+}
+
+bool deriveEcdhSharedSecret(const uint8_t private_key[ECDH_PRIVATE_KEY_SIZE],
+                            const uint8_t peer_public_key[ECDH_PUBLIC_KEY_SIZE],
+                            uint8_t out_secret[ECDH_SHARED_SECRET_SIZE]) {
+    if (!private_key || !peer_public_key || !out_secret || peer_public_key[0] != 0x04) {
+        return false;
+    }
+
+    bool ok = false;
+    mbedtls_ecp_group group;
+    mbedtls_mpi private_mpi;
+    mbedtls_mpi shared_mpi;
+    mbedtls_ecp_point peer_point;
+
+    mbedtls_ecp_group_init(&group);
+    mbedtls_mpi_init(&private_mpi);
+    mbedtls_mpi_init(&shared_mpi);
+    mbedtls_ecp_point_init(&peer_point);
+
+    if (mbedtls_ecp_group_load(&group, MBEDTLS_ECP_DP_SECP256R1) == 0 &&
+        mbedtls_mpi_read_binary(&private_mpi, private_key, ECDH_PRIVATE_KEY_SIZE) == 0 &&
+        mbedtls_ecp_point_read_binary(&group, &peer_point, peer_public_key, ECDH_PUBLIC_KEY_SIZE) == 0 &&
+        mbedtls_ecp_check_pubkey(&group, &peer_point) == 0 &&
+        mbedtls_ecdh_compute_shared(&group, &shared_mpi, &peer_point, &private_mpi, espRandomBytes, nullptr) == 0 &&
+        mbedtls_mpi_write_binary(&shared_mpi, out_secret, ECDH_SHARED_SECRET_SIZE) == 0) {
+        ok = true;
+    }
+
+    if (!ok) {
+        secureZero(out_secret, ECDH_SHARED_SECRET_SIZE);
+    }
+    mbedtls_ecp_point_free(&peer_point);
+    mbedtls_mpi_free(&shared_mpi);
+    mbedtls_mpi_free(&private_mpi);
+    mbedtls_ecp_group_free(&group);
+    return ok;
+}
+
+void derivePairingSessionLmk(const uint8_t pairing_window_lmk[16],
+                             const uint8_t shared_secret[ECDH_SHARED_SECRET_SIZE],
+                             const uint8_t* first_transcript,
+                             size_t first_len,
+                             const uint8_t* second_transcript,
+                             size_t second_len,
+                             uint8_t out_lmk[16]) {
+    uint8_t full[32];
+    mbedtls_md_context_t ctx;
+    const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+
+    mbedtls_md_init(&ctx);
+    mbedtls_md_setup(&ctx, info, 1);
+    mbedtls_md_hmac_starts(&ctx, pairing_window_lmk, 16);
+    mbedtls_md_hmac_update(&ctx, reinterpret_cast<const uint8_t*>(kPairingSessionLabel), strlen(kPairingSessionLabel));
+    mbedtls_md_hmac_update(&ctx, shared_secret, ECDH_SHARED_SECRET_SIZE);
+    if (first_transcript && first_len > 0) {
+        mbedtls_md_hmac_update(&ctx, first_transcript, first_len);
+    }
+    if (second_transcript && second_len > 0) {
+        mbedtls_md_hmac_update(&ctx, second_transcript, second_len);
+    }
+    mbedtls_md_hmac_finish(&ctx, full);
+    mbedtls_md_free(&ctx);
+
+    memcpy(out_lmk, full, 16);
+    secureZero(full, sizeof(full));
 }
 
 void pairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, uint8_t out[16]) {
@@ -70,12 +163,33 @@ void pairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, uint
     mbedtls_md_free(&ctx);
 
     memcpy(out, full, 16);
+    secureZero(full, sizeof(full));
 }
 
 bool verifyPairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, const uint8_t tag[16]) {
     uint8_t expected[16];
     pairingAuthTag(key, data, len, expected);
-    return memcmp(expected, tag, 16) == 0;
+    bool ok = constantTimeEquals(expected, tag, 16);
+    secureZero(expected, sizeof(expected));
+    return ok;
+}
+
+bool constantTimeEquals(const uint8_t* a, const uint8_t* b, size_t len) {
+    if (!a || !b) {
+        return false;
+    }
+    uint8_t diff = 0;
+    for (size_t i = 0; i < len; ++i) {
+        diff |= a[i] ^ b[i];
+    }
+    return diff == 0;
+}
+
+void secureZero(void* data, size_t len) {
+    volatile uint8_t* p = reinterpret_cast<volatile uint8_t*>(data);
+    while (p && len-- > 0) {
+        *p++ = 0;
+    }
 }
 
 uint32_t randomNonce() {

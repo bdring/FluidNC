@@ -74,8 +74,6 @@ namespace Machine {
         handler.section("user_outputs", _userOutputs);
         handler.section("user_inputs", _userInputs);
 
-        handler.sections("espnow", 0, ESPNowConfig::MAX_CONFIGS, false, _espnow);
-
         ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
@@ -288,9 +286,6 @@ namespace Machine {
     }
 
     MachineConfig::~MachineConfig() {
-        for (auto& espnow : _espnow) {
-            delete espnow;
-        }
         delete _axes;
 #if MAX_N_I2SO
         delete _i2so;

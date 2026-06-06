@@ -17,8 +17,12 @@
 static constexpr uint8_t PKT_DISCOVERY = 0x01;
 static constexpr uint8_t PKT_PAIR_ACK  = 0x02;
 static constexpr uint8_t PKT_DATA      = 0x03;
+static constexpr uint8_t PKT_PAIR_CONFIRM = 0x04;
 static constexpr uint8_t PKT_REALTIME  = 0x05;
 static constexpr uint8_t PKT_KEEPALIVE = 0x06;
+static constexpr uint8_t PAIRING_PROTO_V3 = 3;
+static constexpr uint8_t PAIRING_MODE_PAIR = 1;
+static constexpr size_t  ESPNOW_HOSTNAME_SIZE = 32;
 
 static constexpr uint8_t MAX_ESP_PAYLOAD = 250;
 static constexpr uint8_t ART_TAG_SIZE   = 8;   // anti-replay tag: nonce(4) + counter(4)
@@ -33,7 +37,7 @@ public:
 
     ESPNowChannel();
 
-    void init(ESPNowConfig* cfgs[], size_t cfg_count);
+    void init();
     void poll();  // drain recv ring buffer; called from ESPNowModule::poll()
 
     size_t write(uint8_t c) override;
@@ -42,6 +46,10 @@ public:
     Error  pollLine(char* line) override;
 
     static ESPNowChannel* instance() { return _instance; }
+    bool startPairingWindow(uint32_t window_ms);
+    bool listPairings(Channel& out) const;
+    bool removePairingIndex(size_t one_based_index, uint8_t removed_mac[6]);
+    void clearPairings();
 
 #if ESP_IDF_VERSION_MAJOR >= 5
     static void onRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len);
@@ -66,8 +74,6 @@ private:
     struct PairedPeer {
         uint8_t mac[6] = {};
         uint8_t lmk[16] = {};
-        uint32_t    report_interval_ms = ESPNowConfig::DEFAULT_REPORT_INTERVAL_MS;
-        std::string name;
 
         std::atomic<uint32_t> rx_nonce {0};
         std::atomic<uint32_t> tx_peer_nonce {0};
@@ -90,8 +96,17 @@ private:
         PairedPeer& operator=(PairedPeer&&) = delete;
     };
 
-    ESPNowConfig* _cfgs[ESPNowConfig::MAX_CONFIGS] = { nullptr };
-    size_t        _cfg_count = 0;
+    struct PendingPairing {
+        bool active = false;
+        uint8_t mac[6] = {};
+        uint8_t peer_pubkey[ESPNowCrypto::ECDH_PUBLIC_KEY_SIZE] = {};
+        uint8_t public_key[ESPNowCrypto::ECDH_PUBLIC_KEY_SIZE] = {};
+        uint8_t private_key[ESPNowCrypto::ECDH_PRIVATE_KEY_SIZE] = {};
+        uint8_t channel = 0;
+        uint32_t pair_nonce = 0;
+        uint32_t last_ms = 0;
+    };
+
     std::atomic<bool>   _paired {false};
     std::atomic<size_t> _paired_count {0};
     std::atomic<int>    _active_peer_index {-1};
@@ -114,25 +129,47 @@ private:
     void sendFragmentedToPeer(PairedPeer& peer, const uint8_t* data, size_t len);
 
     void handleDiscovery(const uint8_t* src_mac, const uint8_t* data, int len);
+    void handlePairConfirm(const uint8_t* src_mac, const uint8_t* data, int len);
     void handleData(int peer_index, const uint8_t* data, int len);
     void handleRealtime(int peer_index, const uint8_t* data, int len);
 
     bool registerPeer(const uint8_t* mac, const uint8_t* lmk);
-    int  findPairedPeerIndex(const uint8_t* mac) const;
+    bool completePairing(const uint8_t* pendant_mac,
+                         const uint8_t* lmk,
+                         const uint8_t* ack,
+                         size_t ack_len);
+    int  findPairedPeerIndex(const uint8_t* mac, TickType_t timeout = portMAX_DELAY) const;
     bool setActivePeer(int index);
     bool canSwitchActivePeer() const;
     bool peerConnected(int index) const;
     bool claimControlLease(int index);
     void resetPeerRuntime(int index);
-    void notePeerAuthenticated(int index, bool control_activity);
+    void notePeerAuthenticated(int index, bool control_activity, TickType_t timeout = portMAX_DELAY);
     void refreshReportInterval();
-    int  findConfigIndexForLmk(const uint8_t* lmk) const;
-    bool matchConfiguredPeripheral(const uint8_t* discovery_pkt, uint8_t* lmk_out, size_t& cfg_index) const;
+    bool reservePendingPairing(const uint8_t* mac, PendingPairing** out_pending);
+    bool findPendingPairing(const uint8_t* mac, uint32_t pair_nonce, PendingPairing** out_pending);
+    void clearPendingPairing(PendingPairing& pending);
+    bool pairingWindowActive();
+    bool removeRuntimePeer(const uint8_t* mac);
+
+    bool _initialized = false;
+    bool _registered = false;
 
     std::atomic<bool> _discovery_pending {false};
-    uint8_t           _discovery_buf[32] = {};
+    uint8_t           _discovery_buf[96] = {};
     uint8_t           _discovery_src[6]  = {};
     int               _discovery_len     = 0;
+
+    std::atomic<bool> _pair_confirm_pending {false};
+    uint8_t           _pair_confirm_buf[40] = {};
+    uint8_t           _pair_confirm_src[6]  = {};
+    int               _pair_confirm_len     = 0;
+
+    static constexpr size_t MAX_PENDING_PAIRINGS = 4;
+    static constexpr uint32_t PAIRING_HANDSHAKE_TIMEOUT_MS = 10000;
+    PendingPairing _pending_pairings[MAX_PENDING_PAIRINGS];
+    std::atomic<bool>     _pairing_window_active {false};
+    std::atomic<uint32_t> _pairing_window_until_ms {0};
 };
 
 extern ESPNowChannel espnowChannel;
