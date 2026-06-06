@@ -16,7 +16,7 @@
 #define ESPNOW_KEY_SECRET "secret"
 
 static constexpr size_t kStorageKeySize = 32;
-static constexpr uint8_t kStoredPairingVersion = 2;
+static constexpr uint8_t kStoredPairingVersion = 3;
 static constexpr uint8_t kStoredPairingTagLabel[] = "fluidnc-espnow-pairing-store-auth-v1";
 static constexpr uint8_t kStoredPairingWrapLabel[] = "fluidnc-espnow-pairing-store-wrap-v1";
 
@@ -136,7 +136,7 @@ static bool verifyStoredPairingTag(nvs_handle_t h, const StoredPairingList& list
     return ok;
 }
 
-static bool loadStoredPairings(nvs_handle_t h, StoredPairingList* out) {
+static bool loadStoredPairings(nvs_handle_t h, StoredPairingList* out, bool report_auth_failure = true) {
     size_t len = sizeof(*out);
     memset(out, 0, sizeof(*out));
     if (nvs_get_blob(h, ESPNOW_KEY_PAIRS, out, &len) != ESP_OK || len != sizeof(*out)) {
@@ -147,7 +147,9 @@ static bool loadStoredPairings(nvs_handle_t h, StoredPairingList* out) {
         return false;
     }
     if (!verifyStoredPairingTag(h, *out)) {
-        ESP_LOGE("espnow", "saved pairing authentication failed");
+        if (report_auth_failure) {
+            ESP_LOGE("espnow", "saved pairing authentication failed");
+        }
         memset(out, 0, sizeof(*out));
         return false;
     }
@@ -203,7 +205,7 @@ bool ESPNowConfig::savePairing(const uint8_t* peer_mac, const uint8_t* lmk) {
     }
 
     StoredPairingList list;
-    if (!loadStoredPairings(h, &list)) {
+    if (!loadStoredPairings(h, &list, false)) {
         initStoredPairings(&list);
     }
 

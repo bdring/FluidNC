@@ -18,6 +18,16 @@
 static constexpr uint32_t FRAG_REASSEMBLY_TIMEOUT_MS = 3000;
 static constexpr uint32_t PENDANT_IDLE_TIMEOUT_MS = 10000;
 static constexpr uint32_t PAIRING_WINDOW_MS = 60000;
+static constexpr uint32_t PAIRING_PACKET_INTERVAL_MS = 100;
+static constexpr uint32_t PAIRING_RESULT_RETRY_MS = 300;
+static constexpr uint32_t SEND_CALLBACK_TIMEOUT_MS = 1000;
+static constexpr size_t AUTH_KEEPALIVE_SIZE = 1 + 4 + ART_TAG_SIZE + 1;
+static constexpr uint8_t KEEPALIVE_SESSION_CONFIRMED = 0x01;
+static constexpr UBaseType_t RX_PACKET_QUEUE_DEPTH = 16;
+static constexpr UBaseType_t PAIRING_PACKET_QUEUE_DEPTH = 4;
+static constexpr UBaseType_t PAIR_CONFIRM_QUEUE_DEPTH = 2;
+static constexpr size_t MAX_RX_PACKETS_PER_POLL = 16;
+static constexpr size_t TX_FLUSH_THRESHOLD = 1024;
 
 static const char* mac_str(const uint8_t* mac);
 
@@ -115,46 +125,62 @@ static bool mac_eq(const uint8_t* a, const uint8_t* b) {
     return a && b && memcmp(a, b, 6) == 0;
 }
 
-struct __attribute__((packed)) DiscoveryV3Pkt {
+struct __attribute__((packed)) DiscoveryV4Pkt {
     uint8_t type;
     uint8_t version;
     uint8_t mode;
     uint8_t mac[6];
     uint8_t channel;
-    uint8_t pair_nonce[4];
+    uint8_t session_id[PAIRING_SESSION_ID_SIZE];
     uint8_t pubkey[ESPNowCrypto::ECDH_PUBLIC_KEY_SIZE];
 };
 
-struct __attribute__((packed)) PairChallengeV3Pkt {
+struct __attribute__((packed)) PairChallengeV4Pkt {
     uint8_t type;
     uint8_t version;
     uint8_t mode;
     uint8_t mac[6];
     uint8_t channel;
-    uint8_t pair_nonce[4];
+    uint8_t dial_channel;
+    uint8_t session_id[PAIRING_SESSION_ID_SIZE];
     uint8_t pubkey[ESPNowCrypto::ECDH_PUBLIC_KEY_SIZE];
     char hostname[ESPNOW_HOSTNAME_SIZE];
 };
 
-struct __attribute__((packed)) PairConfirmV3Pkt {
+struct __attribute__((packed)) PairConfirmV4Pkt {
     uint8_t type;
     uint8_t version;
     uint8_t mode;
     uint8_t mac[6];
-    uint8_t pair_nonce[4];
+    uint8_t session_id[PAIRING_SESSION_ID_SIZE];
     uint8_t auth_tag[PAIR_TAG_SIZE];
 };
 
-struct __attribute__((packed)) PairResultV3Pkt {
+struct __attribute__((packed)) PairResultV4Pkt {
     uint8_t type;
     uint8_t version;
     uint8_t mode;
     uint8_t mac[6];
     uint8_t channel;
-    uint8_t pair_nonce[4];
+    uint8_t session_id[PAIRING_SESSION_ID_SIZE];
     char hostname[ESPNOW_HOSTNAME_SIZE];
     uint8_t auth_tag[PAIR_TAG_SIZE];
 };
+
+struct __attribute__((packed)) PairCompleteV4Pkt {
+    uint8_t type;
+    uint8_t version;
+    uint8_t mode;
+    uint8_t mac[6];
+    uint8_t session_id[PAIRING_SESSION_ID_SIZE];
+    uint8_t auth_tag[PAIR_TAG_SIZE];
+};
+
+static_assert(sizeof(DiscoveryV4Pkt) == 91, "ESP-NOW v4 discovery layout changed");
+static_assert(sizeof(PairChallengeV4Pkt) == 124, "ESP-NOW v4 challenge layout changed");
+static_assert(sizeof(PairConfirmV4Pkt) == 41, "ESP-NOW v4 confirmation layout changed");
+static_assert(sizeof(PairResultV4Pkt) == 74, "ESP-NOW v4 result layout changed");
+static_assert(sizeof(PairCompleteV4Pkt) == 41, "ESP-NOW v4 completion layout changed");
 
 
 void ESPNowModule::init() {
@@ -180,14 +206,24 @@ void ESPNowModule::poll() {
 
 ESPNowChannel::ESPNowChannel() : Channel("espnow") {
     _peer_mutex = xSemaphoreCreateRecursiveMutex();
+    _packet_queue = xQueueCreate(RX_PACKET_QUEUE_DEPTH, sizeof(RxPacket));
+    _pairing_queue = xQueueCreate(PAIRING_PACKET_QUEUE_DEPTH, sizeof(RxPacket));
+    _pair_confirm_queue = xQueueCreate(PAIR_CONFIRM_QUEUE_DEPTH, sizeof(RxPacket));
     _instance = this;
     if (!_peer_mutex) {
         log_error("ESP-NOW: failed to create peer mutex");
+    }
+    if (!_packet_queue || !_pairing_queue || !_pair_confirm_queue) {
+        log_error("ESP-NOW: failed to create receive queues");
     }
 }
 
 void ESPNowChannel::init() {
     if (_initialized) {
+        return;
+    }
+    if (!_peer_mutex || !_packet_queue || !_pairing_queue || !_pair_confirm_queue) {
+        log_error("ESP-NOW: initialization blocked by missing synchronization resources");
         return;
     }
 
@@ -244,6 +280,13 @@ void ESPNowChannel::init() {
 }
 
 bool ESPNowChannel::startPairingWindow(uint32_t window_ms) {
+    clearPairingTransaction(true);
+    if (_pairing_queue) {
+        xQueueReset(_pairing_queue);
+    }
+    if (_pair_confirm_queue) {
+        xQueueReset(_pair_confirm_queue);
+    }
     _pairing_window_until_ms.store((uint32_t)millis() + window_ms, std::memory_order_release);
     _pairing_window_active.store(true, std::memory_order_release);
     log_info("ESP-NOW: pairing window opened");
@@ -257,6 +300,7 @@ bool ESPNowChannel::pairingWindowActive() {
     uint32_t until = _pairing_window_until_ms.load(std::memory_order_acquire);
     if ((int32_t)(until - (uint32_t)millis()) <= 0) {
         _pairing_window_active.store(false, std::memory_order_release);
+        clearPairingTransaction(true);
         return false;
     }
     return true;
@@ -283,7 +327,7 @@ bool ESPNowChannel::removeRuntimePeer(const uint8_t* mac) {
     }
 
     PeerStateLock peer_lock(_peer_mutex);
-    int index = findPairedPeerIndex(mac);
+    int index = findPairedPeerIndexLocked(mac);
     if (index < 0) {
         return false;
     }
@@ -295,13 +339,13 @@ bool ESPNowChannel::removeRuntimePeer(const uint8_t* mac) {
     for (size_t i = (size_t)index; i + 1 < paired_count; ++i) {
         memcpy(_paired_peers[i].mac, _paired_peers[i + 1].mac, sizeof(_paired_peers[i].mac));
         memcpy(_paired_peers[i].lmk, _paired_peers[i + 1].lmk, sizeof(_paired_peers[i].lmk));
-        resetPeerRuntime((int)i);
+        resetPeerRuntimeLocked((int)i);
     }
 
     size_t last = paired_count - 1;
     memset(_paired_peers[last].mac, 0, sizeof(_paired_peers[last].mac));
     ESPNowCrypto::secureZero(_paired_peers[last].lmk, sizeof(_paired_peers[last].lmk));
-    resetPeerRuntime((int)last);
+    resetPeerRuntimeLocked((int)last);
 
     _paired_count.store(last, std::memory_order_release);
     _paired.store(last > 0, std::memory_order_release);
@@ -322,13 +366,21 @@ bool ESPNowChannel::removePairingIndex(size_t one_based_index, uint8_t removed_m
 }
 
 void ESPNowChannel::clearPairings() {
+    clearPairingTransaction(true);
+    if (_pairing_queue) {
+        xQueueReset(_pairing_queue);
+    }
+    if (_pair_confirm_queue) {
+        xQueueReset(_pair_confirm_queue);
+    }
+
     PeerStateLock peer_lock(_peer_mutex);
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
     for (size_t i = 0; i < paired_count; ++i) {
         esp_now_del_peer(_paired_peers[i].mac);
         memset(_paired_peers[i].mac, 0, sizeof(_paired_peers[i].mac));
         ESPNowCrypto::secureZero(_paired_peers[i].lmk, sizeof(_paired_peers[i].lmk));
-        resetPeerRuntime((int)i);
+        resetPeerRuntimeLocked((int)i);
     }
     _paired_count.store(0, std::memory_order_release);
     _paired.store(false, std::memory_order_release);
@@ -343,6 +395,13 @@ int ESPNowChannel::findPairedPeerIndex(const uint8_t* mac, TickType_t timeout) c
     if (!peer_lock.locked() || !mac) {
         return -1;
     }
+    return findPairedPeerIndexLocked(mac);
+}
+
+int ESPNowChannel::findPairedPeerIndexLocked(const uint8_t* mac) const {
+    if (!mac) {
+        return -1;
+    }
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
     for (size_t i = 0; i < paired_count; ++i) {
         if (memcmp(_paired_peers[i].mac, mac, 6) == 0) {
@@ -354,19 +413,24 @@ int ESPNowChannel::findPairedPeerIndex(const uint8_t* mac, TickType_t timeout) c
 
 bool ESPNowChannel::peerConnected(int index) const {
     PeerStateLock peer_lock(_peer_mutex);
+    return peerConnectedLocked(index, (uint32_t)millis());
+}
+
+bool ESPNowChannel::peerConnectedLocked(int index, uint32_t now) const {
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
     if (index < 0 || index >= (int)paired_count) {
         return false;
     }
     const auto& peer = _paired_peers[index];
-    if (!peer.session_authenticated.load(std::memory_order_acquire)) {
+    if (peer.session_state.load(std::memory_order_acquire) !=
+        PeerSessionState::Connected) {
         return false;
     }
     uint32_t last_rx_ms = peer.last_rx_ms.load(std::memory_order_acquire);
     if (last_rx_ms == 0) {
         return false;
     }
-    return (uint32_t)(millis() - last_rx_ms) <= PENDANT_IDLE_TIMEOUT_MS;
+    return (uint32_t)(now - last_rx_ms) <= PENDANT_IDLE_TIMEOUT_MS;
 }
 
 void ESPNowChannel::refreshReportInterval() {
@@ -375,13 +439,17 @@ void ESPNowChannel::refreshReportInterval() {
 
 void ESPNowChannel::resetPeerRuntime(int index) {
     PeerStateLock peer_lock(_peer_mutex);
+    resetPeerRuntimeLocked(index);
+}
+
+void ESPNowChannel::resetPeerRuntimeLocked(int index) {
     if (index < 0 || index >= (int)MAX_SERVER_PAIRINGS) {
         return;
     }
 
     auto& peer = _paired_peers[index];
     peer.tx_peer_known.store(false, std::memory_order_release);
-    peer.session_authenticated.store(false, std::memory_order_release);
+    peer.session_state.store(PeerSessionState::Synchronizing, std::memory_order_release);
     peer.tx_peer_nonce.store(0, std::memory_order_release);
     peer.tx_counter.store(0, std::memory_order_release);
     peer.last_rx_ms.store(0, std::memory_order_release);
@@ -391,35 +459,33 @@ void ESPNowChannel::resetPeerRuntime(int index) {
     peer.rx_replay = {};
     memset(&peer.frag, 0, sizeof(peer.frag));
     peer.tx_seq = 0;
-    peer.was_connected = false;
 }
 
-void ESPNowChannel::notePeerAuthenticated(int index, bool control_activity, TickType_t timeout) {
-    PeerStateLock peer_lock(_peer_mutex, timeout);
-    if (!peer_lock.locked()) {
-        return;
-    }
+bool ESPNowChannel::notePeerAuthenticatedLocked(int index, bool control_activity, uint32_t now) {
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
     if (index < 0 || index >= (int)paired_count) {
-        return;
+        return false;
     }
 
     auto& peer = _paired_peers[index];
-    bool was_authenticated = peer.session_authenticated.load(std::memory_order_acquire);
-    uint32_t now = (uint32_t)millis();
+    bool became_connected =
+        peer.session_state.load(std::memory_order_acquire) !=
+        PeerSessionState::Connected;
 
-    peer.session_authenticated.store(true, std::memory_order_release);
+    peer.session_state.store(PeerSessionState::Connected, std::memory_order_release);
     peer.last_rx_ms.store(now, std::memory_order_release);
     if (control_activity) {
         peer.last_control_ms.store(now, std::memory_order_release);
     }
-    if (!was_authenticated) {
-        refreshReportInterval();
-    }
+    return became_connected;
 }
 
 bool ESPNowChannel::setActivePeer(int index) {
     PeerStateLock peer_lock(_peer_mutex);
+    return setActivePeerLocked(index);
+}
+
+bool ESPNowChannel::setActivePeerLocked(int index) {
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
     if (index < 0 || index >= (int)paired_count) {
         return false;
@@ -434,90 +500,65 @@ bool ESPNowChannel::setActivePeer(int index) {
     return true;
 }
 
-bool ESPNowChannel::canSwitchActivePeer() const {
-    PeerStateLock peer_lock(_peer_mutex);
+bool ESPNowChannel::canSwitchActivePeerLocked(uint32_t now) const {
     int active_peer_index = _active_peer_index.load(std::memory_order_acquire);
     if (active_peer_index < 0) {
         return true;
     }
-    if (!peerConnected(active_peer_index)) {
+    if (!peerConnectedLocked(active_peer_index, now)) {
         return true;
     }
     uint32_t last = _paired_peers[active_peer_index].last_control_ms.load(std::memory_order_acquire);
-    return last == 0 || (uint32_t)(millis() - last) > PENDANT_IDLE_TIMEOUT_MS;
+    return last == 0 || (uint32_t)(now - last) > PENDANT_IDLE_TIMEOUT_MS;
 }
 
-bool ESPNowChannel::claimControlLease(int index) {
-    PeerStateLock peer_lock(_peer_mutex);
+bool ESPNowChannel::claimControlLeaseLocked(int index, uint32_t now) {
     if (index == _active_peer_index.load(std::memory_order_acquire)) {
         return true;
     }
-    if (!canSwitchActivePeer()) {
+    if (!canSwitchActivePeerLocked(now)) {
         return false;
     }
-    return setActivePeer(index);
+    return setActivePeerLocked(index);
 }
 
-void ESPNowChannel::clearPendingPairing(PendingPairing& pending) {
-    ESPNowCrypto::secureZero(pending.private_key, sizeof(pending.private_key));
-    ESPNowCrypto::secureZero(pending.peer_pubkey, sizeof(pending.peer_pubkey));
-    ESPNowCrypto::secureZero(pending.public_key, sizeof(pending.public_key));
-    memset(&pending, 0, sizeof(pending));
+void ESPNowChannel::restorePairedPeerOrDelete(const uint8_t* mac) {
+    uint8_t lmk[16] = {};
+    bool found = false;
+    {
+        PeerStateLock peer_lock(_peer_mutex);
+        int index = findPairedPeerIndexLocked(mac);
+        if (index >= 0) {
+            memcpy(lmk, _paired_peers[index].lmk, sizeof(lmk));
+            found = true;
+        }
+    }
+
+    if (found) {
+        if (!registerPeer(mac, lmk)) {
+            log_error("ESP-NOW: failed to restore encrypted peer " << mac_str(mac));
+        }
+    } else {
+        esp_now_del_peer(mac);
+    }
+    ESPNowCrypto::secureZero(lmk, sizeof(lmk));
 }
 
-bool ESPNowChannel::findPendingPairing(const uint8_t* mac, uint32_t pair_nonce, PendingPairing** out_pending) {
-    if (!mac || !out_pending) {
-        return false;
+void ESPNowChannel::clearPairingTransaction(bool restore_peer) {
+    uint8_t mac[6] = {};
+    bool had_peer = _pairing.state != PairingState::Idle;
+    if (had_peer) {
+        memcpy(mac, _pairing.mac, sizeof(mac));
     }
-
-    PeerStateLock peer_lock(_peer_mutex);
-    uint32_t now = (uint32_t)millis();
-    for (auto& pending : _pending_pairings) {
-        if (!pending.active) {
-            continue;
-        }
-        if ((uint32_t)(now - pending.last_ms) > PAIRING_HANDSHAKE_TIMEOUT_MS) {
-            clearPendingPairing(pending);
-            continue;
-        }
-        if (pending.pair_nonce == pair_nonce && mac_eq(pending.mac, mac)) {
-            *out_pending = &pending;
-            return true;
-        }
+    _pairing_challenge_waiting.store(false, std::memory_order_release);
+    _pairing_result_waiting.store(false, std::memory_order_release);
+    ESPNowCrypto::secureZero(&_pairing, sizeof(_pairing));
+    _pairing.state = PairingState::Idle;
+    _pairing_send_done.store(false, std::memory_order_relaxed);
+    _pairing_send_ok.store(false, std::memory_order_relaxed);
+    if (restore_peer && had_peer) {
+        restorePairedPeerOrDelete(mac);
     }
-    return false;
-}
-
-bool ESPNowChannel::reservePendingPairing(const uint8_t* mac, PendingPairing** out_pending) {
-    if (!mac || !out_pending) {
-        return false;
-    }
-
-    PeerStateLock peer_lock(_peer_mutex);
-    uint32_t now = (uint32_t)millis();
-    PendingPairing* oldest = &_pending_pairings[0];
-
-    for (auto& pending : _pending_pairings) {
-        if (pending.active && (uint32_t)(now - pending.last_ms) > PAIRING_HANDSHAKE_TIMEOUT_MS) {
-            clearPendingPairing(pending);
-        }
-        if (pending.active && mac_eq(pending.mac, mac)) {
-            clearPendingPairing(pending);
-            *out_pending = &pending;
-            return true;
-        }
-        if (!pending.active) {
-            *out_pending = &pending;
-            return true;
-        }
-        if ((int32_t)(pending.last_ms - oldest->last_ms) < 0) {
-            oldest = &pending;
-        }
-    }
-
-    clearPendingPairing(*oldest);
-    *out_pending = oldest;
-    return true;
 }
 
 bool ESPNowChannel::registerPeer(const uint8_t* mac, const uint8_t* lmk) {
@@ -533,65 +574,133 @@ bool ESPNowChannel::registerPeer(const uint8_t* mac, const uint8_t* lmk) {
     return esp_now_add_peer(&peer) == ESP_OK;
 }
 
-bool ESPNowChannel::completePairing(const uint8_t* pendant_mac, const uint8_t* lmk, const uint8_t* ack, size_t ack_len) {
-    if (!pendant_mac || !lmk || !ack || ack_len == 0) {
-        return false;
-    }
-
-    esp_now_del_peer(pendant_mac);
-    esp_now_peer_info_t peer = {};
-    memcpy(peer.peer_addr, pendant_mac, 6);
-    peer.encrypt = false;
-    peer.channel = 0;
-    peer.ifidx   = WIFI_IF_STA;
-    if (esp_now_add_peer(&peer) != ESP_OK) {
-        log_error("ESP-NOW: failed to add pendant peer");
-        return false;
-    }
-
-    int  paired_index = findPairedPeerIndex(pendant_mac);
-    bool new_peer = paired_index < 0;
-    if (new_peer) {
+bool ESPNowChannel::activatePairing() {
+    int paired_index = -1;
+    bool new_peer = false;
+    bool activation_failed = false;
+    {
+        PeerStateLock peer_lock(_peer_mutex);
         size_t paired_count = _paired_count.load(std::memory_order_acquire);
-        if (paired_count >= MAX_SERVER_PAIRINGS) {
-            esp_now_del_peer(pendant_mac);
-            log_error("ESP-NOW: pairing roster full, rejecting new pendant " << mac_str(pendant_mac));
-            return false;
+        for (size_t i = 0; i < paired_count; ++i) {
+            if (memcmp(_paired_peers[i].mac, _pairing.mac, 6) == 0) {
+                paired_index = (int)i;
+                break;
+            }
         }
-        paired_index = (int)paired_count;
-    } else if (peerConnected(paired_index)) {
-        esp_now_del_peer(pendant_mac);
-        log_error("ESP-NOW: rejecting re-pair attempt from active pendant " << mac_str(pendant_mac));
-        return false;
-    }
 
-    memcpy(_paired_peers[paired_index].mac, pendant_mac, 6);
-    memcpy(_paired_peers[paired_index].lmk, lmk, 16);
-    resetPeerRuntime(paired_index);
-
-    esp_now_send(pendant_mac, ack, ack_len);
-    if (!registerPeer(pendant_mac, lmk)) {
-        esp_now_del_peer(pendant_mac);
-        resetPeerRuntime(paired_index);
+        new_peer = paired_index < 0;
         if (new_peer) {
-            memset(_paired_peers[paired_index].mac, 0, sizeof(_paired_peers[paired_index].mac));
-            memset(_paired_peers[paired_index].lmk, 0, sizeof(_paired_peers[paired_index].lmk));
+            if (paired_count >= MAX_SERVER_PAIRINGS) {
+                log_error("ESP-NOW: pairing roster filled before activation");
+                activation_failed = true;
+            } else {
+                paired_index = (int)paired_count;
+            }
         }
-        log_error("ESP-NOW: failed to enable encrypted peer for " << mac_str(pendant_mac));
+
+        if (!activation_failed &&
+            !registerPeer(_pairing.mac, _pairing.lmk)) {
+            log_error("ESP-NOW: failed to enable encrypted peer for " << mac_str(_pairing.mac));
+            activation_failed = true;
+        }
+
+        if (!activation_failed) {
+            memcpy(_paired_peers[paired_index].mac, _pairing.mac, 6);
+            memcpy(_paired_peers[paired_index].lmk, _pairing.lmk, 16);
+            resetPeerRuntimeLocked(paired_index);
+            if (new_peer) {
+                _paired_count.store((size_t)paired_index + 1, std::memory_order_release);
+            }
+            _paired.store(true, std::memory_order_release);
+        }
+    }
+
+    if (activation_failed) {
         return false;
     }
-    if (!ESPNowConfig::savePairing(pendant_mac, lmk)) {
-        log_error("ESP-NOW: failed to persist pairing for " << mac_str(pendant_mac));
+
+    if (!ESPNowConfig::savePairing(_pairing.mac, _pairing.lmk)) {
+        log_error("ESP-NOW: failed to persist pairing for " << mac_str(_pairing.mac));
     }
-    if (new_peer) {
-        _paired_count.store((size_t)paired_index + 1, std::memory_order_release);
-    }
-    _paired.store(true, std::memory_order_release);
     if (_active_peer_index.load(std::memory_order_acquire) < 0) {
         setActivePeer(paired_index);
     }
     refreshReportInterval();
+    log_info("ESP-NOW: pairing activated for " << mac_str(_pairing.mac));
     return true;
+}
+
+void ESPNowChannel::processPairingTransaction() {
+    if (_pairing.state == PairingState::Idle) {
+        return;
+    }
+
+    uint32_t now = (uint32_t)millis();
+    if (_pairing.state == PairingState::AwaitConfirm) {
+        if ((uint32_t)(now - _pairing.last_ms) > PAIRING_HANDSHAKE_TIMEOUT_MS) {
+            clearPairingTransaction(true);
+        }
+        return;
+    }
+
+    if (_pairing.state == PairingState::ReadyResult) {
+        if (_pairing_challenge_waiting.load(std::memory_order_acquire) &&
+            (uint32_t)(now - _pairing.last_ms) <= SEND_CALLBACK_TIMEOUT_MS) {
+            return;
+        }
+        _pairing_challenge_waiting.store(false, std::memory_order_release);
+        _pairing.state = PairingState::SendingResult;
+        _pairing.send_attempts = 1;
+        _pairing.last_ms = now;
+        _pairing_send_done.store(false, std::memory_order_relaxed);
+        _pairing_send_ok.store(false, std::memory_order_relaxed);
+        _pairing_result_waiting.store(true, std::memory_order_release);
+        if (esp_now_send(_pairing.mac, _pairing.result, _pairing.result_len) != ESP_OK) {
+            _pairing_send_done.store(true, std::memory_order_release);
+        }
+        return;
+    }
+
+    if (_pairing.state == PairingState::AwaitComplete) {
+        if ((uint32_t)(now - _pairing.started_ms) > PAIRING_HANDSHAKE_TIMEOUT_MS) {
+            clearPairingTransaction(true);
+            return;
+        }
+        if ((uint32_t)(now - _pairing.last_ms) >= PAIRING_RESULT_RETRY_MS) {
+            _pairing.last_ms = now;
+            esp_now_send(_pairing.mac, _pairing.result, _pairing.result_len);
+        }
+        return;
+    }
+
+    if (!_pairing_send_done.load(std::memory_order_acquire)) {
+        if ((uint32_t)(now - _pairing.last_ms) <= SEND_CALLBACK_TIMEOUT_MS) {
+            return;
+        }
+        _pairing_send_ok.store(false, std::memory_order_relaxed);
+        _pairing_send_done.store(true, std::memory_order_release);
+    }
+
+    if (!_pairing_send_ok.load(std::memory_order_acquire)) {
+        if (_pairing.send_attempts < 3) {
+            ++_pairing.send_attempts;
+            _pairing.last_ms = now;
+            _pairing_send_done.store(false, std::memory_order_relaxed);
+            _pairing_send_ok.store(false, std::memory_order_relaxed);
+            if (esp_now_send(_pairing.mac, _pairing.result, _pairing.result_len) != ESP_OK) {
+                _pairing_send_done.store(true, std::memory_order_release);
+            }
+            return;
+        }
+        log_error("ESP-NOW: pairing result delivery failed for " << mac_str(_pairing.mac));
+        clearPairingTransaction(true);
+        return;
+    }
+
+    _pairing_result_waiting.store(false, std::memory_order_release);
+    _pairing.state = PairingState::AwaitComplete;
+    _pairing.last_ms = now;
+    log_info("ESP-NOW: pairing result delivered; awaiting pendant completion");
 }
 
 
@@ -616,11 +725,19 @@ size_t ESPNowChannel::write(const uint8_t* buf, size_t size) {
         return size;
     }
 
-    _tx_buf.append(reinterpret_cast<const char*>(buf), size);
+    size_t offset = 0;
+    while (offset < size) {
+        size_t room = TX_FLUSH_THRESHOLD - _tx_buf.size();
+        size_t remaining = size - offset;
+        size_t chunk = room < remaining ? room : remaining;
+        _tx_buf.append(reinterpret_cast<const char*>(buf + offset), chunk);
+        offset += chunk;
 
-    if ((!_tx_buf.empty() && _tx_buf.back() == '\n') || _tx_buf.size() >= 1024) {
-        sendFragmented(reinterpret_cast<const uint8_t*>(_tx_buf.c_str()), _tx_buf.size());
-        _tx_buf.clear();
+        if ((!_tx_buf.empty() && _tx_buf.back() == '\n') ||
+            _tx_buf.size() == TX_FLUSH_THRESHOLD) {
+            sendFragmented(reinterpret_cast<const uint8_t*>(_tx_buf.data()), _tx_buf.size());
+            _tx_buf.clear();
+        }
     }
 
     return size;
@@ -628,8 +745,11 @@ size_t ESPNowChannel::write(const uint8_t* buf, size_t size) {
 
 void ESPNowChannel::sendFragmented(const uint8_t* data, size_t len) {
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
+    uint32_t now = (uint32_t)millis();
     for (size_t i = 0; i < paired_count; ++i) {
-        if (!peerConnected((int)i)) {
+        PeerStateLock peer_lock(_peer_mutex);
+        if (i >= _paired_count.load(std::memory_order_acquire) ||
+            !peerConnectedLocked((int)i, now)) {
             continue;
         }
         sendFragmentedToPeer(_paired_peers[i], data, len);
@@ -694,47 +814,89 @@ void ESPNowChannel::drainRxBuffer() {
 }
 
 void ESPNowChannel::poll() {
-    if (_discovery_pending.load(std::memory_order_acquire)) {
-        _discovery_pending.store(false, std::memory_order_release);
-        handleDiscovery(_discovery_src, _discovery_buf, _discovery_len);
+    processPairingTransaction();
+    uint32_t now = (uint32_t)millis();
+
+    RxPacket packet;
+    size_t processed = 0;
+    while (_packet_queue &&
+           processed < MAX_RX_PACKETS_PER_POLL &&
+           xQueueReceive(_packet_queue, &packet, 0) == pdTRUE) {
+        processPacket(packet);
+        ++processed;
     }
 
-    if (_pair_confirm_pending.load(std::memory_order_acquire)) {
-        _pair_confirm_pending.store(false, std::memory_order_release);
-        handlePairConfirm(_pair_confirm_src, _pair_confirm_buf, _pair_confirm_len);
+    // A confirmation consumes the ECDH state created by discovery, so it must
+    // run before another queued discovery can replace that state.
+    while (_pair_confirm_queue &&
+           xQueueReceive(_pair_confirm_queue, &packet, 0) == pdTRUE) {
+        processPacket(packet);
     }
+
+    // Pairing may perform ECDH. Process @ most 1 pairing packet per pass
+    if (_pairing_queue &&
+        (uint32_t)(now - _last_pairing_packet_ms) >= PAIRING_PACKET_INTERVAL_MS &&
+        xQueueReceive(_pairing_queue, &packet, 0) == pdTRUE) {
+        _last_pairing_packet_ms = now;
+        processPacket(packet);
+    }
+
+    now = (uint32_t)millis();
 
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
     for (size_t i = 0; i < paired_count; ++i) {
-        auto& peer = _paired_peers[i];
-        bool connected = peerConnected((int)i);
+        uint8_t reply[AUTH_KEEPALIVE_SIZE];
+        size_t reply_len = 0;
+        uint8_t peer_mac[6] = {};
+        bool refresh_interval = false;
 
-        if (peer.was_connected && !connected) {
-            resetPeerRuntime((int)i);
-            if (_active_peer_index.load(std::memory_order_acquire) == (int)i) {
-                _active_peer_index.store(-1, std::memory_order_release);
+        {
+            PeerStateLock peer_lock(_peer_mutex);
+            if (i >= _paired_count.load(std::memory_order_acquire)) {
+                break;
             }
+            auto& peer = _paired_peers[i];
+            bool timed_out =
+                peer.session_state.load(std::memory_order_acquire) ==
+                    PeerSessionState::Connected &&
+                !peerConnectedLocked((int)i, now);
+
+            if (timed_out) {
+                resetPeerRuntimeLocked((int)i);
+                if (_active_peer_index.load(std::memory_order_acquire) == (int)i) {
+                    _active_peer_index.store(-1, std::memory_order_release);
+                }
+                refresh_interval = true;
+            }
+
+            if (peer.echo_pending.exchange(false, std::memory_order_acq_rel)) {
+                uint32_t advertised = peer.rx_nonce.load(std::memory_order_acquire);
+                memcpy(peer_mac, peer.mac, sizeof(peer_mac));
+                reply[0] = PKT_KEEPALIVE;
+                memcpy(reply + 1, &advertised, 4);
+
+                if (!peer.tx_peer_known.load(std::memory_order_acquire)) {
+                    reply_len = 5;
+                } else if (ESPNowCrypto::stampAntiReplayTag(
+                               peer.tx_peer_known,
+                               peer.tx_peer_nonce,
+                               peer.tx_counter,
+                               reply + 5)) {
+                    reply[1 + 4 + ART_TAG_SIZE] =
+                        peer.session_state.load(std::memory_order_acquire) ==
+                                PeerSessionState::Connected
+                            ? KEEPALIVE_SESSION_CONFIRMED
+                            : 0;
+                    reply_len = sizeof(reply);
+                }
+            }
+        }
+
+        if (refresh_interval) {
             refreshReportInterval();
         }
-        peer.was_connected = connected;
-
-        if (!peer.echo_pending.exchange(false, std::memory_order_acq_rel)) {
-            continue;
-        }
-
-        uint32_t advertised = peer.rx_nonce.load(std::memory_order_acquire);
-        if (!peer.tx_peer_known.load(std::memory_order_acquire)) {
-            uint8_t reply[5];
-            reply[0] = PKT_KEEPALIVE;
-            memcpy(reply + 1, &advertised, 4);
-            esp_now_send(peer.mac, reply, sizeof(reply));
-        } else {
-            uint8_t reply[1 + 4 + ART_TAG_SIZE];
-            reply[0] = PKT_KEEPALIVE;
-            memcpy(reply + 1, &advertised, 4);
-            if (ESPNowCrypto::stampAntiReplayTag(peer.tx_peer_known, peer.tx_peer_nonce, peer.tx_counter, reply + 5)) {
-                esp_now_send(peer.mac, reply, sizeof(reply));
-            }
+        if (reply_len != 0) {
+            esp_now_send(peer_mac, reply, reply_len);
         }
     }
 
@@ -751,101 +913,107 @@ Error ESPNowChannel::pollLine(char* line) {
     return Channel::pollLine(line);
 }
 
+void ESPNowChannel::processPacket(const RxPacket& packet) {
+    if (packet.len == 0 || packet.len > MAX_ESP_PAYLOAD) {
+        return;
+    }
+
+    uint8_t pkt_type = packet.data[0];
+    if (pkt_type == PKT_DISCOVERY) {
+        handleDiscovery(packet.src, packet.data, packet.len);
+        return;
+    }
+    if (pkt_type == PKT_PAIR_CONFIRM) {
+        handlePairConfirm(packet.src, packet.data, packet.len);
+        return;
+    }
+    if (pkt_type == PKT_PAIR_COMPLETE) {
+        handlePairComplete(packet.src, packet.data, packet.len);
+        return;
+    }
+
+    if (!_paired.load(std::memory_order_acquire)) {
+        return;
+    }
+    int paired_index = findPairedPeerIndex(packet.src);
+    if (paired_index < 0) {
+        return;
+    }
+
+    switch (pkt_type) {
+        case PKT_DATA:
+            handleData(paired_index, packet.data, packet.len);
+            break;
+        case PKT_REALTIME:
+            handleRealtime(paired_index, packet.data, packet.len);
+            break;
+        case PKT_KEEPALIVE:
+            handleKeepalive(paired_index, packet.data, packet.len);
+            break;
+        default:
+            break;
+    }
+}
+
 #if ESP_IDF_VERSION_MAJOR >= 5
 void ESPNowChannel::onRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
     const uint8_t* src = info ? info->src_addr : nullptr;
 #else
 void ESPNowChannel::onRecv(const uint8_t* src, const uint8_t* data, int len) {
 #endif
-    if (!_instance || len < 1) {
+    if (!_instance || !src || !data || len < 1 || len > MAX_ESP_PAYLOAD) {
         return;
     }
     uint8_t pkt_type = data[0];
-
-    int  paired_index = _instance->findPairedPeerIndex(src, 0);
-    bool from_peer    = paired_index >= 0;
-
+    QueueHandle_t queue = nullptr;
     switch (pkt_type) {
         case PKT_DISCOVERY:
-            if (!_instance->_discovery_pending.load(std::memory_order_acquire) &&
-                len == (int)sizeof(DiscoveryV3Pkt) && src) {
-                memcpy(_instance->_discovery_buf, data, len);
-                memcpy(_instance->_discovery_src, src, 6);
-                _instance->_discovery_len = len;
-                _instance->_discovery_pending.store(true, std::memory_order_release);
+            if (len == (int)sizeof(DiscoveryV4Pkt) &&
+                _instance->_pairing_window_active.load(std::memory_order_acquire)) {
+                queue = _instance->_pairing_queue;
             }
             break;
         case PKT_PAIR_CONFIRM:
-            if (!_instance->_pair_confirm_pending.load(std::memory_order_acquire) &&
-                len == (int)sizeof(PairConfirmV3Pkt) && src) {
-                memcpy(_instance->_pair_confirm_buf, data, len);
-                memcpy(_instance->_pair_confirm_src, src, 6);
-                _instance->_pair_confirm_len = len;
-                _instance->_pair_confirm_pending.store(true, std::memory_order_release);
+            if (len == (int)sizeof(PairConfirmV4Pkt) &&
+                _instance->_pairing_window_active.load(std::memory_order_acquire)) {
+                queue = _instance->_pair_confirm_queue;
+            }
+            break;
+        case PKT_PAIR_COMPLETE:
+            if (len == (int)sizeof(PairCompleteV4Pkt) &&
+                _instance->_pairing_window_active.load(std::memory_order_acquire)) {
+                queue = _instance->_pair_confirm_queue;
             }
             break;
         case PKT_DATA:
-            if (_instance->_paired.load(std::memory_order_acquire) && from_peer) {
-                _instance->handleData(paired_index, data, len);
+            if (len >= FRAG_HDR_SIZE && _instance->_paired.load(std::memory_order_acquire)) {
+                queue = _instance->_packet_queue;
             }
             break;
         case PKT_REALTIME:
-            if (_instance->_paired.load(std::memory_order_acquire) && from_peer && len >= 1 + ART_TAG_SIZE + 1) {
-                _instance->handleRealtime(paired_index, data, len);
+            if (len == 1 + ART_TAG_SIZE + 1 && _instance->_paired.load(std::memory_order_acquire)) {
+                queue = _instance->_packet_queue;
             }
             break;
         case PKT_KEEPALIVE:
-            if (_instance->_paired.load(std::memory_order_acquire) && from_peer) {
-                PeerStateLock peer_lock(_instance->_peer_mutex, 0);
-                if (!peer_lock.locked()) {
-                    break;
-                }
-                size_t paired_count = _instance->_paired_count.load(std::memory_order_acquire);
-                if (paired_index < 0 || paired_index >= (int)paired_count) {
-                    break;
-                }
-                auto& peer = _instance->_paired_peers[paired_index];
-                bool accepted = false;
-                bool authenticated = false;
-                if (len >= 1 + 4 + ART_TAG_SIZE) {
-                    uint32_t advertised, nonce, counter;
-                    memcpy(&advertised, data + 1, 4);
-                    memcpy(&nonce,      data + 5, 4);
-                    memcpy(&counter,    data + 9, 4);
-                    if (advertised != 0 &&
-                        ESPNowCrypto::acceptReplay(peer.rx_nonce,
-                                                   peer.rx_replay,
-                                                   nonce,
-                                                   counter,
-                                                   (uint32_t)millis())) {
-                        peer.tx_peer_nonce.store(advertised, std::memory_order_release);
-                        peer.tx_peer_known.store(true, std::memory_order_release);
-                        accepted = true;
-                        authenticated = true;
-                    }
-                } else if (len >= 5 &&
-                           (!peer.tx_peer_known.load(std::memory_order_acquire) ||
-                            !peer.session_authenticated.load(std::memory_order_acquire))) {
-                    uint32_t advertised;
-                    memcpy(&advertised, data + 1, 4);
-                    if (advertised != 0) {
-                        peer.tx_peer_nonce.store(advertised, std::memory_order_release);
-                        peer.tx_peer_known.store(true, std::memory_order_release);
-                        accepted = true;
-                    }
-                }
-
-                if (accepted) {
-                    if (authenticated) {
-                        _instance->notePeerAuthenticated(paired_index, false, 0);
-                    }
-                    peer.echo_pending.store(true, std::memory_order_release);
-                }
+            if ((len == 5 || len == (int)AUTH_KEEPALIVE_SIZE) &&
+                _instance->_paired.load(std::memory_order_acquire)) {
+                queue = _instance->_packet_queue;
             }
             break;
         default:
             break;
     }
+
+    if (!queue) {
+        return;
+    }
+
+    RxPacket packet;
+    memcpy(packet.src, src, sizeof(packet.src));
+    packet.len = (uint16_t)len;
+    memcpy(packet.data, data, (size_t)len);
+    xQueueSend(queue, &packet, 0);
 }
 
 
@@ -853,51 +1021,111 @@ void ESPNowChannel::handleDiscovery(const uint8_t* src_mac, const uint8_t* data,
     if (!pairingWindowActive()) {
         return;
     }
-    if (len != (int)sizeof(DiscoveryV3Pkt) || !src_mac) {
+    if (len != (int)sizeof(DiscoveryV4Pkt) || !src_mac) {
         return;
     }
 
-    DiscoveryV3Pkt pkt;
+    DiscoveryV4Pkt pkt;
     memcpy(&pkt, data, sizeof(pkt));
-    if (pkt.version != PAIRING_PROTO_V3 || pkt.mode != PAIRING_MODE_PAIR || !mac_eq(src_mac, pkt.mac)) {
-        log_info("ESP-NOW: DISCOVERY v3 src/payload mismatch");
+    if (pkt.type != PKT_DISCOVERY ||
+        pkt.version != PAIRING_PROTO_V4 ||
+        pkt.mode != PAIRING_MODE_PAIR ||
+        !mac_eq(src_mac, pkt.mac)) {
         return;
     }
 
-    uint32_t pair_nonce;
-    memcpy(&pair_nonce, pkt.pair_nonce, 4);
-    if (pair_nonce == 0 || pkt.pubkey[0] != 0x04) {
+    static const uint8_t zero_session[PAIRING_SESSION_ID_SIZE] = {};
+    if (ESPNowCrypto::constantTimeEquals(
+            pkt.session_id, zero_session, sizeof(pkt.session_id)) ||
+        pkt.channel < 1 ||
+        pkt.channel > 14 ||
+        pkt.pubkey[0] != 0x04) {
         return;
     }
 
-    PendingPairing* pending = nullptr;
-    if (!reservePendingPairing(pkt.mac, &pending) || !pending) {
+    if (_pairing.state != PairingState::Idle) {
+        bool same_transaction =
+            mac_eq(_pairing.mac, pkt.mac) &&
+            ESPNowCrypto::constantTimeEquals(
+                _pairing.session_id, pkt.session_id, sizeof(pkt.session_id));
+        if (same_transaction && _pairing.state == PairingState::AwaitConfirm) {
+            _pairing.last_ms = (uint32_t)millis();
+            if (!_pairing_challenge_waiting.load(std::memory_order_acquire)) {
+                _pairing_challenge_waiting.store(true, std::memory_order_release);
+                if (esp_now_send(_pairing.mac, _pairing.challenge, _pairing.challenge_len) != ESP_OK) {
+                    _pairing_challenge_waiting.store(false, std::memory_order_release);
+                }
+            }
+        }
         return;
+    }
+
+    {
+        PeerStateLock peer_lock(_peer_mutex);
+        int existing_index = findPairedPeerIndexLocked(pkt.mac);
+        size_t paired_count = _paired_count.load(std::memory_order_acquire);
+        if (existing_index < 0 && paired_count >= MAX_SERVER_PAIRINGS) {
+            log_error("ESP-NOW: pairing roster full, rejecting new pendant " << mac_str(pkt.mac));
+            return;
+        }
+        if (existing_index >= 0 && peerConnectedLocked(existing_index, (uint32_t)millis())) {
+            log_error("ESP-NOW: rejecting re-pair attempt from active pendant " << mac_str(pkt.mac));
+            return;
+        }
     }
 
     uint8_t our_mac[6];
     esp_wifi_get_mac(WIFI_IF_STA, our_mac);
-    PairChallengeV3Pkt challenge = {};
-    challenge.type = PKT_PAIR_ACK;
-    challenge.version = PAIRING_PROTO_V3;
+    PairChallengeV4Pkt challenge = {};
+    challenge.type = PKT_PAIR_CHALLENGE;
+    challenge.version = PAIRING_PROTO_V4;
     challenge.mode = PAIRING_MODE_PAIR;
     memcpy(challenge.mac, our_mac, sizeof(challenge.mac));
     challenge.channel = (uint8_t)WiFi.channel();
-    memcpy(challenge.pair_nonce, pkt.pair_nonce, sizeof(challenge.pair_nonce));
+    challenge.dial_channel = pkt.channel;
+    memcpy(challenge.session_id, pkt.session_id, sizeof(challenge.session_id));
     copyHostname(challenge.hostname);
 
-    if (!ESPNowCrypto::generateEcdhKeypair(pending->private_key, challenge.pubkey)) {
-        clearPendingPairing(*pending);
+    uint8_t private_key[ESPNowCrypto::ECDH_PRIVATE_KEY_SIZE] = {};
+    if (challenge.channel < 1 || challenge.channel > 14 ||
+        !ESPNowCrypto::generateEcdhKeypair(private_key, challenge.pubkey)) {
+        ESPNowCrypto::secureZero(private_key, sizeof(private_key));
+        clearPairingTransaction(false);
         return;
     }
 
-    memcpy(pending->mac, pkt.mac, sizeof(pending->mac));
-    memcpy(pending->peer_pubkey, pkt.pubkey, sizeof(pending->peer_pubkey));
-    memcpy(pending->public_key, challenge.pubkey, sizeof(pending->public_key));
-    pending->channel = pkt.channel;
-    pending->pair_nonce = pair_nonce;
-    pending->last_ms = (uint32_t)millis();
-    pending->active = true;
+    uint8_t shared_secret[ESPNowCrypto::ECDH_SHARED_SECRET_SIZE] = {};
+    uint8_t window_lmk[16] = {};
+    bool derived =
+        ESPNowCrypto::deriveEcdhSharedSecret(
+            private_key, pkt.pubkey, shared_secret);
+    if (derived) {
+        ESPNowCrypto::derivePairingWindowLmk(window_lmk);
+        ESPNowCrypto::derivePairingSessionLmk(
+            window_lmk,
+            shared_secret,
+            reinterpret_cast<const uint8_t*>(&pkt),
+            sizeof(pkt),
+            reinterpret_cast<const uint8_t*>(&challenge),
+            sizeof(challenge),
+            _pairing.lmk);
+    }
+    ESPNowCrypto::secureZero(private_key, sizeof(private_key));
+    ESPNowCrypto::secureZero(shared_secret, sizeof(shared_secret));
+    ESPNowCrypto::secureZero(window_lmk, sizeof(window_lmk));
+    if (!derived) {
+        clearPairingTransaction(false);
+        return;
+    }
+
+    memcpy(_pairing.mac, pkt.mac, sizeof(_pairing.mac));
+    memcpy(_pairing.session_id, pkt.session_id, sizeof(_pairing.session_id));
+    memcpy(_pairing.challenge, &challenge, sizeof(challenge));
+    _pairing.challenge_len = sizeof(challenge);
+    _pairing.started_ms = (uint32_t)millis();
+    _pairing.last_ms = _pairing.started_ms;
+    _pairing.state = PairingState::AwaitConfirm;
+    memcpy(_pairing_callback_mac, pkt.mac, sizeof(_pairing_callback_mac));
 
     esp_now_del_peer(pkt.mac);
     esp_now_peer_info_t peer = {};
@@ -906,10 +1134,16 @@ void ESPNowChannel::handleDiscovery(const uint8_t* src_mac, const uint8_t* data,
     peer.channel = 0;
     peer.ifidx   = WIFI_IF_STA;
     if (esp_now_add_peer(&peer) == ESP_OK) {
-        esp_now_send(pkt.mac, reinterpret_cast<const uint8_t*>(&challenge), sizeof(challenge));
-        log_info("ESP-NOW: discovery v3 challenge sent to " << mac_str(pkt.mac));
+        _pairing_challenge_waiting.store(true, std::memory_order_release);
+        if (esp_now_send(pkt.mac, reinterpret_cast<const uint8_t*>(&challenge), sizeof(challenge)) == ESP_OK) {
+            log_info("ESP-NOW: discovery v4 challenge sent to " << mac_str(pkt.mac));
+        } else {
+            _pairing_challenge_waiting.store(false, std::memory_order_release);
+            clearPairingTransaction(true);
+            log_error("ESP-NOW: failed to queue pairing challenge");
+        }
     } else {
-        clearPendingPairing(*pending);
+        clearPairingTransaction(true);
         log_error("ESP-NOW: failed to add pendant peer for pairing challenge");
     }
 
@@ -920,106 +1154,184 @@ void ESPNowChannel::handlePairConfirm(const uint8_t* src_mac, const uint8_t* dat
     if (!pairingWindowActive()) {
         return;
     }
-    if (len != (int)sizeof(PairConfirmV3Pkt) || !src_mac) {
+    if (len != (int)sizeof(PairConfirmV4Pkt) || !src_mac) {
         return;
     }
 
-    PairConfirmV3Pkt pkt;
+    PairConfirmV4Pkt pkt;
     memcpy(&pkt, data, sizeof(pkt));
-    if (pkt.version != PAIRING_PROTO_V3 || pkt.mode != PAIRING_MODE_PAIR || !mac_eq(src_mac, pkt.mac)) {
+    if (pkt.type != PKT_PAIR_CONFIRM ||
+        pkt.version != PAIRING_PROTO_V4 ||
+        pkt.mode != PAIRING_MODE_PAIR ||
+        !mac_eq(src_mac, pkt.mac) ||
+        !mac_eq(_pairing.mac, pkt.mac) ||
+        !ESPNowCrypto::constantTimeEquals(
+            _pairing.session_id, pkt.session_id, sizeof(pkt.session_id))) {
         return;
     }
 
-    uint32_t pair_nonce;
-    memcpy(&pair_nonce, pkt.pair_nonce, 4);
-    PendingPairing* pending = nullptr;
-    if (!findPendingPairing(pkt.mac, pair_nonce, &pending) || !pending) {
+    if (_pairing.state == PairingState::SendingResult) {
+        return;
+    }
+    if (_pairing.state != PairingState::AwaitConfirm) {
         return;
     }
 
-    uint8_t shared_secret[ESPNowCrypto::ECDH_SHARED_SECRET_SIZE];
-    uint8_t window_lmk[16];
-    uint8_t final_lmk[16];
-    bool paired = false;
-    memset(shared_secret, 0, sizeof(shared_secret));
-    memset(window_lmk, 0, sizeof(window_lmk));
-    memset(final_lmk, 0, sizeof(final_lmk));
+    if (!ESPNowCrypto::verifyPairingAuthTag(
+            _pairing.lmk,
+            reinterpret_cast<const uint8_t*>(&pkt),
+            offsetof(PairConfirmV4Pkt, auth_tag),
+            pkt.auth_tag)) {
+        log_info("ESP-NOW: pairing v4 confirmation failed from " << mac_str(pkt.mac));
+        return;
+    }
 
-    if (ESPNowCrypto::deriveEcdhSharedSecret(pending->private_key, pending->peer_pubkey, shared_secret)) {
-        DiscoveryV3Pkt discovery = {};
-        discovery.type = PKT_DISCOVERY;
-        discovery.version = PAIRING_PROTO_V3;
-        discovery.mode = PAIRING_MODE_PAIR;
-        memcpy(discovery.mac, pending->mac, sizeof(discovery.mac));
-        discovery.channel = pending->channel;
-        memcpy(discovery.pair_nonce, pkt.pair_nonce, sizeof(discovery.pair_nonce));
-        memcpy(discovery.pubkey, pending->peer_pubkey, sizeof(discovery.pubkey));
+    uint8_t our_mac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, our_mac);
+    PairResultV4Pkt result = {};
+    result.type = PKT_PAIR_RESULT;
+    result.version = PAIRING_PROTO_V4;
+    result.mode = PAIRING_MODE_PAIR;
+    memcpy(result.mac, our_mac, sizeof(result.mac));
+    result.channel = (uint8_t)WiFi.channel();
+    memcpy(result.session_id, pkt.session_id, sizeof(result.session_id));
+    copyHostname(result.hostname);
+    ESPNowCrypto::pairingAuthTag(
+        _pairing.lmk,
+        reinterpret_cast<const uint8_t*>(&result),
+        offsetof(PairResultV4Pkt, auth_tag),
+        result.auth_tag);
 
-        uint8_t our_mac[6];
-        esp_wifi_get_mac(WIFI_IF_STA, our_mac);
-        PairChallengeV3Pkt challenge = {};
-        challenge.type = PKT_PAIR_ACK;
-        challenge.version = PAIRING_PROTO_V3;
-        challenge.mode = PAIRING_MODE_PAIR;
-        memcpy(challenge.mac, our_mac, sizeof(challenge.mac));
-        challenge.channel = (uint8_t)WiFi.channel();
-        memcpy(challenge.pair_nonce, pkt.pair_nonce, sizeof(challenge.pair_nonce));
-        memcpy(challenge.pubkey, pending->public_key, sizeof(challenge.pubkey));
-        copyHostname(challenge.hostname);
+    memcpy(_pairing.result, &result, sizeof(result));
+    _pairing.result_len = sizeof(result);
+    _pairing.last_ms = (uint32_t)millis();
+    _pairing.state = PairingState::ReadyResult;
+    ESPNowCrypto::secureZero(&result, sizeof(result));
+}
 
-        PairResultV3Pkt result = {};
-        result.type = PKT_PAIR_ACK;
-        result.version = PAIRING_PROTO_V3;
-        result.mode = PAIRING_MODE_PAIR;
-        memcpy(result.mac, our_mac, sizeof(result.mac));
-        result.channel = challenge.channel;
-        memcpy(result.pair_nonce, pkt.pair_nonce, sizeof(result.pair_nonce));
-        copyHostname(result.hostname);
+void ESPNowChannel::handlePairComplete(const uint8_t* src_mac, const uint8_t* data, int len) {
+    if (!pairingWindowActive() ||
+        _pairing.state != PairingState::AwaitComplete ||
+        len != (int)sizeof(PairCompleteV4Pkt) ||
+        !src_mac) {
+        return;
+    }
 
-        ESPNowCrypto::derivePairingWindowLmk(window_lmk);
-        ESPNowCrypto::derivePairingSessionLmk(window_lmk,
-                                              shared_secret,
-                                              reinterpret_cast<const uint8_t*>(&discovery),
-                                              sizeof(discovery),
-                                              reinterpret_cast<const uint8_t*>(&challenge),
-                                              sizeof(challenge),
-                                              final_lmk);
-        if (ESPNowCrypto::verifyPairingAuthTag(final_lmk,
-                                               reinterpret_cast<const uint8_t*>(&pkt),
-                                               offsetof(PairConfirmV3Pkt, auth_tag),
-                                               pkt.auth_tag)) {
+    PairCompleteV4Pkt pkt;
+    memcpy(&pkt, data, sizeof(pkt));
+    bool valid =
+        pkt.type == PKT_PAIR_COMPLETE &&
+        pkt.version == PAIRING_PROTO_V4 &&
+        pkt.mode == PAIRING_MODE_PAIR &&
+        mac_eq(src_mac, pkt.mac) &&
+        mac_eq(_pairing.mac, pkt.mac) &&
+        ESPNowCrypto::constantTimeEquals(
+            _pairing.session_id, pkt.session_id, sizeof(pkt.session_id)) &&
+        ESPNowCrypto::verifyPairingAuthTag(
+            _pairing.lmk,
+            reinterpret_cast<const uint8_t*>(&pkt),
+            offsetof(PairCompleteV4Pkt, auth_tag),
+            pkt.auth_tag);
+    ESPNowCrypto::secureZero(&pkt, sizeof(pkt));
+    if (!valid) {
+        return;
+    }
 
-            ESPNowCrypto::pairingAuthTag(final_lmk,
-                                         reinterpret_cast<const uint8_t*>(&result),
-                                         offsetof(PairResultV3Pkt, auth_tag),
-                                         result.auth_tag);
-            paired = completePairing(pkt.mac,
-                                     final_lmk,
-                                     reinterpret_cast<const uint8_t*>(&result),
-                                     sizeof(result));
-            if (paired) {
-                _pairing_window_active.store(false, std::memory_order_release);
-                log_info("ESP-NOW: pairing v3 confirmed from " << mac_str(pkt.mac));
+    if (!activatePairing()) {
+        clearPairingTransaction(true);
+        return;
+    }
+
+    _pairing_window_active.store(false, std::memory_order_release);
+    log_info("ESP-NOW: pairing v4 confirmed from " << mac_str(_pairing.mac));
+    clearPairingTransaction(false);
+}
+
+void ESPNowChannel::handleKeepalive(int peer_index, const uint8_t* data, int len) {
+    bool became_authenticated = false;
+    bool session_reset = false;
+
+    {
+        PeerStateLock peer_lock(_peer_mutex);
+        size_t paired_count = _paired_count.load(std::memory_order_acquire);
+        if (peer_index < 0 || peer_index >= (int)paired_count) {
+            return;
+        }
+
+        auto& peer = _paired_peers[peer_index];
+        bool accepted = false;
+        bool authenticated = false;
+
+        if (len == (int)AUTH_KEEPALIVE_SIZE) {
+            uint32_t advertised, nonce, counter;
+            memcpy(&advertised, data + 1, 4);
+            memcpy(&nonce, data + 5, 4);
+            memcpy(&counter, data + 9, 4);
+            if (advertised != 0 &&
+                ESPNowCrypto::acceptReplay(peer.rx_nonce,
+                                           peer.rx_replay,
+                                           nonce,
+                                           counter,
+                                           (uint32_t)millis())) {
+                peer.tx_peer_nonce.store(advertised, std::memory_order_release);
+                peer.tx_peer_known.store(true, std::memory_order_release);
+                accepted = true;
+                authenticated = true;
+            }
+        } else if (len == 5) {
+            uint32_t advertised;
+            memcpy(&advertised, data + 1, 4);
+            if (advertised != 0) {
+                bool new_session =
+                    !peer.tx_peer_known.load(std::memory_order_acquire) ||
+                    peer.tx_peer_nonce.load(std::memory_order_acquire) != advertised;
+                session_reset =
+                    new_session &&
+                    peer.session_state.load(std::memory_order_acquire) ==
+                    PeerSessionState::Connected;
+                peer.tx_peer_nonce.store(advertised, std::memory_order_release);
+                peer.tx_peer_known.store(true, std::memory_order_release);
+                if (new_session) {
+                    peer.session_state.store(
+                        PeerSessionState::Synchronizing, std::memory_order_release);
+                    peer.tx_counter.store(0, std::memory_order_release);
+                    peer.last_rx_ms.store(0, std::memory_order_release);
+                    peer.last_control_ms.store(0, std::memory_order_release);
+                    ESPNowCrypto::issueRxChallenge(peer.rx_nonce);
+                    peer.rx_replay = {};
+                }
+                accepted = true;
             }
         }
 
-        ESPNowCrypto::secureZero(&discovery, sizeof(discovery));
-        ESPNowCrypto::secureZero(&challenge, sizeof(challenge));
-        ESPNowCrypto::secureZero(&result, sizeof(result));
+        if (!accepted) {
+            return;
+        }
+
+        if (authenticated) {
+            became_authenticated =
+                notePeerAuthenticatedLocked(
+                    peer_index, false, (uint32_t)millis());
+        }
+        peer.echo_pending.store(true, std::memory_order_release);
     }
 
-    if (!paired) {
-        log_info("ESP-NOW: pairing v3 confirmation failed from " << mac_str(pkt.mac));
+    if (became_authenticated || session_reset) {
+        refreshReportInterval();
     }
-
-    ESPNowCrypto::secureZero(shared_secret, sizeof(shared_secret));
-    ESPNowCrypto::secureZero(window_lmk, sizeof(window_lmk));
-    ESPNowCrypto::secureZero(final_lmk, sizeof(final_lmk));
-    clearPendingPairing(*pending);
 }
 
 void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
     if (len < FRAG_HDR_SIZE) {
+        return;
+    }
+
+    uint8_t seq         = data[9];
+    uint8_t frag_idx    = data[10];
+    uint8_t total_frags = data[11];
+    size_t  payload_len = (size_t)(len - FRAG_HDR_SIZE);
+    if (total_frags == 0 || total_frags > MAX_FRAGS ||
+        frag_idx >= total_frags || payload_len > MAX_FRAG_DATA) {
         return;
     }
 
@@ -1041,21 +1353,12 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
     if (!ESPNowCrypto::acceptReplay(peer.rx_nonce, peer.rx_replay, nonce, counter, (uint32_t)millis())) {
         return;  // replay / stale ->> drop
     }
-    if (!claimControlLease(peer_index)) {
+    uint32_t now = (uint32_t)millis();
+    if (!claimControlLeaseLocked(peer_index, now)) {
         return;
     }
-    notePeerAuthenticated(peer_index, true, 0);
-
-    uint8_t seq         = data[9];
-    uint8_t frag_idx    = data[10];
-    uint8_t total_frags = data[11];
-    size_t  payload_len = (size_t)(len - FRAG_HDR_SIZE);
-
-    if (total_frags == 0 || total_frags > MAX_FRAGS || frag_idx >= total_frags) {
-        return;
-    }
-    if (payload_len > MAX_FRAG_DATA) {
-        payload_len = MAX_FRAG_DATA;
+    if (notePeerAuthenticatedLocked(peer_index, true, now)) {
+        refreshReportInterval();
     }
 
     // Expire stale reassembly window before accepting a new sequence
@@ -1129,11 +1432,31 @@ void ESPNowChannel::handleRealtime(int peer_index, const uint8_t* data, int len)
     if (!ESPNowCrypto::acceptReplay(peer.rx_nonce, peer.rx_replay, nonce, counter, (uint32_t)millis())) {
         return;  // replay / stale ->>> drop
     }
-    if (!claimControlLease(peer_index)) {
+    uint32_t now = (uint32_t)millis();
+    if (!claimControlLeaseLocked(peer_index, now)) {
         return;
     }
-    notePeerAuthenticated(peer_index, true, 0);
+    if (notePeerAuthenticatedLocked(peer_index, true, now)) {
+        refreshReportInterval();
+    }
     rxPush(data[1 + ART_TAG_SIZE]);
 }
 
-void ESPNowChannel::onSent(const uint8_t* /*mac*/, esp_now_send_status_t /*status*/) {}
+void ESPNowChannel::onSent(const uint8_t* mac, esp_now_send_status_t status) {
+    if (!_instance || !mac) {
+        return;
+    }
+
+    if (_instance->_pairing_challenge_waiting.load(std::memory_order_acquire) &&
+        memcmp(mac, _instance->_pairing_callback_mac, 6) == 0) {
+        _instance->_pairing_challenge_waiting.store(false, std::memory_order_release);
+        return;
+    }
+
+    if (_instance->_pairing_result_waiting.load(std::memory_order_acquire) &&
+        memcmp(mac, _instance->_pairing_callback_mac, 6) == 0) {
+        _instance->_pairing_send_ok.store(
+            status == ESP_NOW_SEND_SUCCESS, std::memory_order_relaxed);
+        _instance->_pairing_send_done.store(true, std::memory_order_release);
+    }
+}

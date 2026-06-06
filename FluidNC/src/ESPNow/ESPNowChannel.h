@@ -10,19 +10,23 @@
 #include <string>
 #include <atomic>
 #include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <freertos/semphr.h>
 #include <esp_idf_version.h>
 #include <esp_now.h>
 
 static constexpr uint8_t PKT_DISCOVERY = 0x01;
-static constexpr uint8_t PKT_PAIR_ACK  = 0x02;
+static constexpr uint8_t PKT_PAIR_CHALLENGE = 0x02;
 static constexpr uint8_t PKT_DATA      = 0x03;
 static constexpr uint8_t PKT_PAIR_CONFIRM = 0x04;
 static constexpr uint8_t PKT_REALTIME  = 0x05;
 static constexpr uint8_t PKT_KEEPALIVE = 0x06;
-static constexpr uint8_t PAIRING_PROTO_V3 = 3;
+static constexpr uint8_t PKT_PAIR_RESULT = 0x07;
+static constexpr uint8_t PKT_PAIR_COMPLETE = 0x08;
+static constexpr uint8_t PAIRING_PROTO_V4 = 4;
 static constexpr uint8_t PAIRING_MODE_PAIR = 1;
 static constexpr size_t  ESPNOW_HOSTNAME_SIZE = 32;
+static constexpr size_t  PAIRING_SESSION_ID_SIZE = 16;
 
 static constexpr uint8_t MAX_ESP_PAYLOAD = 250;
 static constexpr uint8_t ART_TAG_SIZE   = 8;   // anti-replay tag: nonce(4) + counter(4)
@@ -71,6 +75,11 @@ private:
         uint32_t start_ms;
     };
 
+    enum class PeerSessionState : uint8_t {
+        Synchronizing,
+        Connected,
+    };
+
     struct PairedPeer {
         uint8_t mac[6] = {};
         uint8_t lmk[16] = {};
@@ -78,7 +87,7 @@ private:
         std::atomic<uint32_t> rx_nonce {0};
         std::atomic<uint32_t> tx_peer_nonce {0};
         std::atomic<bool>     tx_peer_known {false};
-        std::atomic<bool>     session_authenticated {false};
+        std::atomic<PeerSessionState> session_state {PeerSessionState::Synchronizing};
         std::atomic<uint32_t> tx_counter {0};
         std::atomic<uint32_t> last_rx_ms {0};
         std::atomic<uint32_t> last_control_ms {0};
@@ -87,7 +96,6 @@ private:
         ESPNowCrypto::ReplayState rx_replay;
         FragBuf                  frag = {};
         uint8_t                  tx_seq = 0;
-        bool                     was_connected = false;
 
         PairedPeer() = default;
         PairedPeer(const PairedPeer&) = delete;
@@ -96,15 +104,32 @@ private:
         PairedPeer& operator=(PairedPeer&&) = delete;
     };
 
-    struct PendingPairing {
-        bool active = false;
+    enum class PairingState : uint8_t {
+        Idle,
+        AwaitConfirm,
+        ReadyResult,
+        SendingResult,
+        AwaitComplete,
+    };
+
+    struct PairingTransaction {
+        PairingState state = PairingState::Idle;
         uint8_t mac[6] = {};
-        uint8_t peer_pubkey[ESPNowCrypto::ECDH_PUBLIC_KEY_SIZE] = {};
-        uint8_t public_key[ESPNowCrypto::ECDH_PUBLIC_KEY_SIZE] = {};
-        uint8_t private_key[ESPNowCrypto::ECDH_PRIVATE_KEY_SIZE] = {};
-        uint8_t channel = 0;
-        uint32_t pair_nonce = 0;
+        uint8_t session_id[PAIRING_SESSION_ID_SIZE] = {};
+        uint8_t lmk[16] = {};
+        uint8_t challenge[MAX_ESP_PAYLOAD] = {};
+        uint16_t challenge_len = 0;
+        uint8_t result[MAX_ESP_PAYLOAD] = {};
+        uint16_t result_len = 0;
+        uint8_t send_attempts = 0;
+        uint32_t started_ms = 0;
         uint32_t last_ms = 0;
+    };
+
+    struct RxPacket {
+        uint8_t  src[6];
+        uint16_t len;
+        uint8_t  data[MAX_ESP_PAYLOAD];
     };
 
     std::atomic<bool>   _paired {false};
@@ -121,55 +146,57 @@ private:
     static uint8_t          _rx_buf[RX_BUF_SIZE];
     static std::atomic<int> _rx_head;
     static std::atomic<int> _rx_tail;
+    QueueHandle_t            _packet_queue = nullptr;
+    QueueHandle_t            _pairing_queue = nullptr;
+    QueueHandle_t            _pair_confirm_queue = nullptr;
 
     void rxPush(uint8_t byte);
     void drainRxBuffer();
+    void processPacket(const RxPacket& packet);
+    void processPairingTransaction();
+    void clearPairingTransaction(bool restore_peer);
 
     void sendFragmented(const uint8_t* data, size_t len);
     void sendFragmentedToPeer(PairedPeer& peer, const uint8_t* data, size_t len);
 
     void handleDiscovery(const uint8_t* src_mac, const uint8_t* data, int len);
     void handlePairConfirm(const uint8_t* src_mac, const uint8_t* data, int len);
+    void handlePairComplete(const uint8_t* src_mac, const uint8_t* data, int len);
     void handleData(int peer_index, const uint8_t* data, int len);
     void handleRealtime(int peer_index, const uint8_t* data, int len);
+    void handleKeepalive(int peer_index, const uint8_t* data, int len);
 
     bool registerPeer(const uint8_t* mac, const uint8_t* lmk);
-    bool completePairing(const uint8_t* pendant_mac,
-                         const uint8_t* lmk,
-                         const uint8_t* ack,
-                         size_t ack_len);
+    bool activatePairing();
     int  findPairedPeerIndex(const uint8_t* mac, TickType_t timeout = portMAX_DELAY) const;
+    int  findPairedPeerIndexLocked(const uint8_t* mac) const;
     bool setActivePeer(int index);
-    bool canSwitchActivePeer() const;
+    bool setActivePeerLocked(int index);
+    bool canSwitchActivePeerLocked(uint32_t now) const;
     bool peerConnected(int index) const;
-    bool claimControlLease(int index);
+    bool peerConnectedLocked(int index, uint32_t now) const;
+    bool claimControlLeaseLocked(int index, uint32_t now);
     void resetPeerRuntime(int index);
-    void notePeerAuthenticated(int index, bool control_activity, TickType_t timeout = portMAX_DELAY);
+    void resetPeerRuntimeLocked(int index);
+    bool notePeerAuthenticatedLocked(int index, bool control_activity, uint32_t now);
     void refreshReportInterval();
-    bool reservePendingPairing(const uint8_t* mac, PendingPairing** out_pending);
-    bool findPendingPairing(const uint8_t* mac, uint32_t pair_nonce, PendingPairing** out_pending);
-    void clearPendingPairing(PendingPairing& pending);
+    void restorePairedPeerOrDelete(const uint8_t* mac);
     bool pairingWindowActive();
     bool removeRuntimePeer(const uint8_t* mac);
 
     bool _initialized = false;
     bool _registered = false;
 
-    std::atomic<bool> _discovery_pending {false};
-    uint8_t           _discovery_buf[96] = {};
-    uint8_t           _discovery_src[6]  = {};
-    int               _discovery_len     = 0;
-
-    std::atomic<bool> _pair_confirm_pending {false};
-    uint8_t           _pair_confirm_buf[40] = {};
-    uint8_t           _pair_confirm_src[6]  = {};
-    int               _pair_confirm_len     = 0;
-
-    static constexpr size_t MAX_PENDING_PAIRINGS = 4;
     static constexpr uint32_t PAIRING_HANDSHAKE_TIMEOUT_MS = 10000;
-    PendingPairing _pending_pairings[MAX_PENDING_PAIRINGS];
+    PairingTransaction _pairing;
+    uint8_t             _pairing_callback_mac[6] = {};
+    std::atomic<bool>   _pairing_challenge_waiting {false};
+    std::atomic<bool>   _pairing_result_waiting {false};
+    std::atomic<bool>   _pairing_send_done {false};
+    std::atomic<bool>   _pairing_send_ok {false};
     std::atomic<bool>     _pairing_window_active {false};
     std::atomic<uint32_t> _pairing_window_until_ms {0};
+    uint32_t              _last_pairing_packet_ms = 0;
 };
 
 extern ESPNowChannel espnowChannel;
