@@ -71,6 +71,23 @@ static Error espnowPairCommand(const char* value, AuthenticationLevel, Channel& 
     return Error::Ok;
 }
 
+static Error espnowCancelCommand(const char* value, AuthenticationLevel, Channel& out) {
+    if (value && *value) {
+        return Error::InvalidValue;
+    }
+    espnowChannel.cancelPairingWindow();
+    log_info_to(out, "ESP-NOW pairing cancelled");
+    return Error::Ok;
+}
+
+static Error espnowListCommand(const char* value, AuthenticationLevel, Channel& out) {
+    if (value && *value) {
+        return Error::InvalidValue;
+    }
+    espnowChannel.listPairings(out);
+    return Error::Ok;
+}
+
 static Error espnowUnpairCommand(const char* value, AuthenticationLevel, Channel& out) {
     if (!value || !*value) {
         espnowChannel.listPairings(out);
@@ -188,6 +205,8 @@ void ESPNowModule::init() {
     if (!commands_registered) {
         commands_registered = true;
         new UserCommand("EP", "ESPNow/Pair", espnowPairCommand, anyState, WA);
+        new UserCommand("EC", "ESPNow/Cancel", espnowCancelCommand, anyState, WA);
+        new UserCommand("EL", "ESPNow/List", espnowListCommand, anyState, WA);
         new UserCommand("EU", "ESPNow/Unpair", espnowUnpairCommand, anyState, WA);
     }
 
@@ -304,6 +323,18 @@ bool ESPNowChannel::pairingWindowActive() {
         return false;
     }
     return true;
+}
+
+void ESPNowChannel::cancelPairingWindow() {
+    _pairing_window_active.store(false, std::memory_order_release);
+    _pairing_window_until_ms.store(0, std::memory_order_release);
+    clearPairingTransaction(true);
+    if (_pairing_queue) {
+        xQueueReset(_pairing_queue);
+    }
+    if (_pair_confirm_queue) {
+        xQueueReset(_pair_confirm_queue);
+    }
 }
 
 bool ESPNowChannel::listPairings(Channel& out) const {

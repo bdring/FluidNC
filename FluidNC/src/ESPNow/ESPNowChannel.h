@@ -51,6 +51,7 @@ public:
 
     static ESPNowChannel* instance() { return _instance; }
     bool startPairingWindow(uint32_t window_ms);
+    void cancelPairingWindow();
     bool listPairings(Channel& out) const;
     bool removePairingIndex(size_t one_based_index, uint8_t removed_mac[6]);
     void clearPairings();
