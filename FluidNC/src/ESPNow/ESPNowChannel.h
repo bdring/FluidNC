@@ -109,7 +109,6 @@ private:
         Idle,
         AwaitConfirm,
         ReadyResult,
-        SendingResult,
         AwaitComplete,
     };
 
@@ -192,9 +191,6 @@ private:
     PairingTransaction _pairing;
     uint8_t             _pairing_callback_mac[6] = {};
     std::atomic<bool>   _pairing_challenge_waiting {false};
-    std::atomic<bool>   _pairing_result_waiting {false};
-    std::atomic<bool>   _pairing_send_done {false};
-    std::atomic<bool>   _pairing_send_ok {false};
     std::atomic<bool>     _pairing_window_active {false};
     std::atomic<uint32_t> _pairing_window_until_ms {0};
     uint32_t              _last_pairing_packet_ms = 0;

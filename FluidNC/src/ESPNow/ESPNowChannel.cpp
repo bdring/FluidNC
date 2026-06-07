@@ -582,11 +582,8 @@ void ESPNowChannel::clearPairingTransaction(bool restore_peer) {
         memcpy(mac, _pairing.mac, sizeof(mac));
     }
     _pairing_challenge_waiting.store(false, std::memory_order_release);
-    _pairing_result_waiting.store(false, std::memory_order_release);
     ESPNowCrypto::secureZero(&_pairing, sizeof(_pairing));
     _pairing.state = PairingState::Idle;
-    _pairing_send_done.store(false, std::memory_order_relaxed);
-    _pairing_send_ok.store(false, std::memory_order_relaxed);
     if (restore_peer && had_peer) {
         restorePairedPeerOrDelete(mac);
     }
@@ -680,15 +677,21 @@ void ESPNowChannel::processPairingTransaction() {
             return;
         }
         _pairing_challenge_waiting.store(false, std::memory_order_release);
-        _pairing.state = PairingState::SendingResult;
-        _pairing.send_attempts = 1;
-        _pairing.last_ms = now;
-        _pairing_send_done.store(false, std::memory_order_relaxed);
-        _pairing_send_ok.store(false, std::memory_order_relaxed);
-        _pairing_result_waiting.store(true, std::memory_order_release);
-        if (esp_now_send(_pairing.mac, _pairing.result, _pairing.result_len) != ESP_OK) {
-            _pairing_send_done.store(true, std::memory_order_release);
+        if (_pairing.send_attempts > 0 &&
+            (uint32_t)(now - _pairing.last_ms) < PAIRING_RESULT_RETRY_MS) {
+            return;
         }
+        ++_pairing.send_attempts;
+        _pairing.last_ms = now;
+        if (esp_now_send(_pairing.mac, _pairing.result, _pairing.result_len) != ESP_OK) {
+            if (_pairing.send_attempts >= 3) {
+                log_error("ESP-NOW: failed to queue pairing result for " << mac_str(_pairing.mac));
+                clearPairingTransaction(true);
+            }
+            return;
+        }
+        _pairing.state = PairingState::AwaitComplete;
+        log_info("ESP-NOW: pairing result queued; awaiting pendant completion");
         return;
     }
 
@@ -703,35 +706,6 @@ void ESPNowChannel::processPairingTransaction() {
         }
         return;
     }
-
-    if (!_pairing_send_done.load(std::memory_order_acquire)) {
-        if ((uint32_t)(now - _pairing.last_ms) <= SEND_CALLBACK_TIMEOUT_MS) {
-            return;
-        }
-        _pairing_send_ok.store(false, std::memory_order_relaxed);
-        _pairing_send_done.store(true, std::memory_order_release);
-    }
-
-    if (!_pairing_send_ok.load(std::memory_order_acquire)) {
-        if (_pairing.send_attempts < 3) {
-            ++_pairing.send_attempts;
-            _pairing.last_ms = now;
-            _pairing_send_done.store(false, std::memory_order_relaxed);
-            _pairing_send_ok.store(false, std::memory_order_relaxed);
-            if (esp_now_send(_pairing.mac, _pairing.result, _pairing.result_len) != ESP_OK) {
-                _pairing_send_done.store(true, std::memory_order_release);
-            }
-            return;
-        }
-        log_error("ESP-NOW: pairing result delivery failed for " << mac_str(_pairing.mac));
-        clearPairingTransaction(true);
-        return;
-    }
-
-    _pairing_result_waiting.store(false, std::memory_order_release);
-    _pairing.state = PairingState::AwaitComplete;
-    _pairing.last_ms = now;
-    log_info("ESP-NOW: pairing result delivered; awaiting pendant completion");
 }
 
 
@@ -1201,9 +1175,6 @@ void ESPNowChannel::handlePairConfirm(const uint8_t* src_mac, const uint8_t* dat
         return;
     }
 
-    if (_pairing.state == PairingState::SendingResult) {
-        return;
-    }
     if (_pairing.state != PairingState::AwaitConfirm) {
         return;
     }
@@ -1484,10 +1455,5 @@ void ESPNowChannel::onSent(const uint8_t* mac, esp_now_send_status_t status) {
         return;
     }
 
-    if (_instance->_pairing_result_waiting.load(std::memory_order_acquire) &&
-        memcmp(mac, _instance->_pairing_callback_mac, 6) == 0) {
-        _instance->_pairing_send_ok.store(
-            status == ESP_NOW_SEND_SUCCESS, std::memory_order_relaxed);
-        _instance->_pairing_send_done.store(true, std::memory_order_release);
-    }
+    (void)status;
 }
