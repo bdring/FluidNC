@@ -59,6 +59,48 @@ void copyHostname(char out[ESPNOW_HOSTNAME_SIZE]) {
     strlcpy(out, hostname, ESPNOW_HOSTNAME_SIZE);
 }
 
+wifi_interface_t espnowInterface() {
+    wifi_mode_t mode = WiFi.getMode();
+    if (mode == WIFI_AP || mode == WIFI_AP_STA) {
+        return WIFI_IF_AP;
+    }
+    return WIFI_IF_STA;
+}
+
+const char* espnowInterfaceName() {
+    return espnowInterface() == WIFI_IF_AP ? "AP" : "STA";
+}
+
+bool espnowLocalMac(uint8_t mac[6]) {
+    return esp_wifi_get_mac(espnowInterface(), mac) == ESP_OK;
+}
+
+uint8_t espnowCurrentChannel() {
+    if (espnowInterface() == WIFI_IF_AP) {
+        wifi_config_t conf = {};
+        if (esp_wifi_get_config(WIFI_IF_AP, &conf) == ESP_OK &&
+            conf.ap.channel >= 1 &&
+            conf.ap.channel <= 14) {
+            return conf.ap.channel;
+        }
+    }
+
+    uint8_t channel = (uint8_t)WiFi.channel();
+    if (channel >= 1 && channel <= 14) {
+        return channel;
+    }
+
+    uint8_t primary = 0;
+    wifi_second_chan_t secondary = WIFI_SECOND_CHAN_NONE;
+    if (esp_wifi_get_channel(&primary, &secondary) == ESP_OK &&
+        primary >= 1 &&
+        primary <= 14) {
+        return primary;
+    }
+
+    return 0;
+}
+
 static Error espnowPairCommand(const char* value, AuthenticationLevel, Channel& out) {
     if (value && *value) {
         return Error::InvalidValue;
@@ -308,7 +350,16 @@ bool ESPNowChannel::startPairingWindow(uint32_t window_ms) {
     }
     _pairing_window_until_ms.store((uint32_t)millis() + window_ms, std::memory_order_release);
     _pairing_window_active.store(true, std::memory_order_release);
-    log_info("ESP-NOW: pairing window opened");
+    uint8_t local_mac[6] = {};
+    uint8_t channel = espnowCurrentChannel();
+    if (espnowLocalMac(local_mac)) {
+        log_info("ESP-NOW: pairing window opened on " << espnowInterfaceName()
+                                                       << " channel " << (int)channel
+                                                       << " MAC " << mac_str(local_mac));
+    } else {
+        log_info("ESP-NOW: pairing window opened on " << espnowInterfaceName()
+                                                       << " channel " << (int)channel);
+    }
     return true;
 }
 
@@ -597,7 +648,7 @@ bool ESPNowChannel::registerPeer(const uint8_t* mac, const uint8_t* lmk) {
     memcpy(peer.lmk, lmk, 16);
     peer.encrypt  = true;
     peer.channel  = 0;
-    peer.ifidx    = WIFI_IF_STA;
+    peer.ifidx    = espnowInterface();
 
     return esp_now_add_peer(&peer) == ESP_OK;
 }
@@ -1079,14 +1130,17 @@ void ESPNowChannel::handleDiscovery(const uint8_t* src_mac, const uint8_t* data,
         }
     }
 
-    uint8_t our_mac[6];
-    esp_wifi_get_mac(WIFI_IF_STA, our_mac);
+    uint8_t our_mac[6] = {};
+    if (!espnowLocalMac(our_mac)) {
+        log_error("ESP-NOW: failed to read " << espnowInterfaceName() << " MAC");
+        return;
+    }
     PairChallengeV4Pkt challenge = {};
     challenge.type = PKT_PAIR_CHALLENGE;
     challenge.version = PAIRING_PROTO_V4;
     challenge.mode = PAIRING_MODE_PAIR;
     memcpy(challenge.mac, our_mac, sizeof(challenge.mac));
-    challenge.channel = (uint8_t)WiFi.channel();
+    challenge.channel = espnowCurrentChannel();
     challenge.dial_channel = pkt.channel;
     memcpy(challenge.session_id, pkt.session_id, sizeof(challenge.session_id));
     copyHostname(challenge.hostname);
@@ -1137,7 +1191,7 @@ void ESPNowChannel::handleDiscovery(const uint8_t* src_mac, const uint8_t* data,
     memcpy(peer.peer_addr, pkt.mac, 6);
     peer.encrypt = false;
     peer.channel = 0;
-    peer.ifidx   = WIFI_IF_STA;
+    peer.ifidx   = espnowInterface();
     if (esp_now_add_peer(&peer) == ESP_OK) {
         _pairing_challenge_waiting.store(true, std::memory_order_release);
         if (esp_now_send(pkt.mac, reinterpret_cast<const uint8_t*>(&challenge), sizeof(challenge)) == ESP_OK) {
@@ -1188,14 +1242,18 @@ void ESPNowChannel::handlePairConfirm(const uint8_t* src_mac, const uint8_t* dat
         return;
     }
 
-    uint8_t our_mac[6];
-    esp_wifi_get_mac(WIFI_IF_STA, our_mac);
+    uint8_t our_mac[6] = {};
+    if (!espnowLocalMac(our_mac)) {
+        log_error("ESP-NOW: failed to read " << espnowInterfaceName() << " MAC");
+        clearPairingTransaction(true);
+        return;
+    }
     PairResultV4Pkt result = {};
     result.type = PKT_PAIR_RESULT;
     result.version = PAIRING_PROTO_V4;
     result.mode = PAIRING_MODE_PAIR;
     memcpy(result.mac, our_mac, sizeof(result.mac));
-    result.channel = (uint8_t)WiFi.channel();
+    result.channel = espnowCurrentChannel();
     memcpy(result.session_id, pkt.session_id, sizeof(result.session_id));
     copyHostname(result.hostname);
     ESPNowCrypto::pairingAuthTag(
