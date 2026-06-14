@@ -5,6 +5,7 @@
 
 #include "Channel.h"
 
+#include <array>
 #include <WiFi.h>
 #include <string>
 
@@ -22,17 +23,24 @@ namespace WebUI {
 
         static const int DISCONNECT_CHECK_COUNTS = 1000;
 
-        // Disconnect clients that repeatedly stall writes, so a dead peer can't
-        // block FluidNC's write path and trip the task watchdog.
-        static const int TX_STALL_LIMIT = 10;
-        static const int TX_IDLE_WAIT_MS = 50;
+        // Outgoing telnet bytes are buffered as whole lines in this ring,
+        // momentarilly full socket shall never truncates a line or drop an ack.
+        static constexpr size_t TX_QUEUE_SIZE       = 2304;
+        static constexpr size_t TX_CRITICAL_RESERVE = 256;
 
-        int32_t     _state        = 0;
-        int         _txStallCount = 0;
-        std::string _txLine;            // output accumulated until a full line
-        uint8_t     _txLastChar   = '\0';  // for \n -> \r\n across write() calls
+        int32_t     _state      = 0;
+        std::string _txLine;               // output accumulated until a full line
+        uint8_t     _txLastChar = '\0';    // for \n -> \r\n across write() calls
 
-        void sendBuffered(const uint8_t* data, size_t len, int sockfd, int wait_ms);
+        std::array<uint8_t, TX_QUEUE_SIZE> _txQueue {};
+        size_t                             _txHead = 0;
+        size_t                             _txTail = 0;
+
+        static bool isCriticalLine(const std::string& line);
+        size_t      queueFree() const;
+        bool        queueLine(const uint8_t* data, size_t len, size_t reserve);
+        void        flushQueue(int sockfd);
+        void        queueCompletedLine();
 
     public:
         TelnetClient(WiFiClient* wifiClient);

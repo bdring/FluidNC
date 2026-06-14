@@ -96,6 +96,7 @@ private:
 
         ESPNowCrypto::ReplayState rx_replay;
         FragBuf                  frag = {};
+        uint32_t                 motion_barrier_counter = 0;
         uint8_t                  tx_seq = 0;
 
         PairedPeer() = default;

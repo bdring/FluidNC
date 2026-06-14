@@ -6,6 +6,7 @@
 #include "../Serial.h"
 #include "../Logging.h"
 #include "../Settings.h"
+#include "../RealtimeCmd.h"
 
 #include <WiFi.h>
 #include <esp_now.h>
@@ -539,6 +540,7 @@ void ESPNowChannel::resetPeerRuntimeLocked(int index) {
     peer.echo_pending.store(false, std::memory_order_release);
     ESPNowCrypto::issueRxChallenge(peer.rx_nonce);
     peer.rx_replay = {};
+    peer.motion_barrier_counter = 0;
     memset(&peer.frag, 0, sizeof(peer.frag));
     peer.tx_seq = 0;
 }
@@ -1065,11 +1067,33 @@ void ESPNowChannel::onRecv(const uint8_t* src, const uint8_t* data, int len) {
         return;
     }
 
-    RxPacket packet;
+    RxPacket packet = {};
     memcpy(packet.src, src, sizeof(packet.src));
     packet.len = (uint16_t)len;
     memcpy(packet.data, data, (size_t)len);
-    xQueueSend(queue, &packet, 0);
+
+    bool safety_realtime = false;
+    if (pkt_type == PKT_REALTIME) {
+        Cmd command = static_cast<Cmd>(data[1 + ART_TAG_SIZE]);
+        safety_realtime =
+            command == Cmd::Reset ||
+            command == Cmd::FeedHold ||
+            command == Cmd::SafetyDoor ||
+            command == Cmd::JogCancel;
+    }
+
+    if (!safety_realtime) {
+        xQueueSend(queue, &packet, 0);
+        return;
+    }
+
+    // Safety controls shall not sit behind queued jog traffic. Send to front of queue!
+    if (xQueueSendToFront(queue, &packet, 0) != pdTRUE) {
+        RxPacket discarded;
+        if (xQueueReceive(queue, &discarded, 0) == pdTRUE) {
+            xQueueSendToFront(queue, &packet, 0);
+        }
+    }
 }
 
 
@@ -1359,6 +1383,7 @@ void ESPNowChannel::handleKeepalive(int peer_index, const uint8_t* data, int len
                     peer.last_control_ms.store(0, std::memory_order_release);
                     ESPNowCrypto::issueRxChallenge(peer.rx_nonce);
                     peer.rx_replay = {};
+                    peer.motion_barrier_counter = 0;
                 }
                 accepted = true;
             }
@@ -1395,7 +1420,7 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
         return;
     }
 
-    PeerStateLock peer_lock(_peer_mutex, 0);
+    PeerStateLock peer_lock(_peer_mutex);
     if (!peer_lock.locked()) {
         return;
     }
@@ -1412,6 +1437,9 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
     memcpy(&counter, data + 5, 4);
     if (!ESPNowCrypto::acceptReplay(peer.rx_nonce, peer.rx_replay, nonce, counter, (uint32_t)millis())) {
         return;  // replay / stale ->> drop
+    }
+    if (counter <= peer.motion_barrier_counter) {
+        return;
     }
     uint32_t now = (uint32_t)millis();
     if (!claimControlLeaseLocked(peer_index, now)) {
@@ -1475,7 +1503,7 @@ void ESPNowChannel::handleRealtime(int peer_index, const uint8_t* data, int len)
         return;
     }
 
-    PeerStateLock peer_lock(_peer_mutex, 0);
+    PeerStateLock peer_lock(_peer_mutex);
     if (!peer_lock.locked()) {
         return;
     }
@@ -1491,6 +1519,15 @@ void ESPNowChannel::handleRealtime(int peer_index, const uint8_t* data, int len)
     memcpy(&counter, data + 5, 4);
     if (!ESPNowCrypto::acceptReplay(peer.rx_nonce, peer.rx_replay, nonce, counter, (uint32_t)millis())) {
         return;  // replay / stale ->>> drop
+    }
+    Cmd command = static_cast<Cmd>(data[1 + ART_TAG_SIZE]);
+    if (command == Cmd::Reset ||
+        command == Cmd::FeedHold ||
+        command == Cmd::SafetyDoor ||
+        command == Cmd::JogCancel) {
+        if (counter > peer.motion_barrier_counter) {
+            peer.motion_barrier_counter = counter;
+        }
     }
     uint32_t now = (uint32_t)millis();
     if (!claimControlLeaseLocked(peer_index, now)) {
