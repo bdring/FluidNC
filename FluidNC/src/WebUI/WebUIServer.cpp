@@ -27,6 +27,7 @@
 #include <list>
 #include <algorithm>
 #include <memory>
+#include <mutex>
 
 #include "Mime.h"  // getContentType
 
@@ -40,6 +41,112 @@ namespace WebUI {
 }
 
 namespace {
+    static constexpr uint32_t WIFI_SCAN_MAX_MS_PER_CHANNEL = 1000;
+    static constexpr uint32_t WIFI_SCAN_TIMEOUT_MS         = WIFI_SCAN_MAX_MS_PER_CHANNEL * 20 + 1000;
+
+    struct WifiScanRequest {
+        AsyncWebServerRequestPtr request;
+        bool                     json_response;
+        uint32_t                 started_at;
+    };
+
+    std::mutex                       wifi_scan_mutex;
+    std::unique_ptr<WifiScanRequest> wifi_scan_request;
+
+    int32_t wifi_signal_percent(int32_t rssi) {
+        if (rssi <= -100) {
+            return 0;
+        }
+        if (rssi >= -50) {
+            return 100;
+        }
+        return 2 * (rssi + 100);
+    }
+
+    std::string wifi_scan_response(int16_t count, bool json_response) {
+        std::string response;
+        JSONencoder encoder([&response](const char* text) { response += text; });
+
+        encoder.begin();
+        if (json_response) {
+            encoder.member("cmd", "410");
+            encoder.member("status", "ok");
+            encoder.begin_array("data");
+        } else {
+            encoder.begin_array("AP_LIST");
+        }
+
+        for (int16_t index = 0; index < count; ++index) {
+            encoder.begin_object();
+            encoder.member("SSID", WiFi.SSID(index).c_str());
+            encoder.member("SIGNAL", wifi_signal_percent(WiFi.RSSI(index)));
+            encoder.member("IS_PROTECTED", WiFi.encryptionType(index) != WIFI_AUTH_OPEN);
+            encoder.end_object();
+        }
+
+        encoder.end_array();
+        encoder.end();
+        return response;
+    }
+
+    bool is_wifi_scan_command(const char* command, bool& json_response) {
+        String upper(command);
+        upper.trim();
+        upper.toUpperCase();
+        json_response = upper.indexOf("JSON=YES") >= 0;
+        return upper.startsWith("[ESP410]") || upper.startsWith("$ESP410") || upper.startsWith("[WIFI/LISTAPS]") ||
+               upper.startsWith("$WIFI/LISTAPS");
+    }
+
+    bool start_wifi_scan_request(AsyncWebServerRequestPtr&& request, bool json_response) {
+        std::lock_guard<std::mutex> lock(wifi_scan_mutex);
+        if (wifi_scan_request) {
+            return false;
+        }
+
+        if (WiFi.scanComplete() == WIFI_SCAN_FAILED) {
+            // async, hidden, passive, max milliseconds per channel
+            WiFi.scanNetworks(true, false, false, WIFI_SCAN_MAX_MS_PER_CHANNEL);
+        }
+
+        wifi_scan_request.reset(new WifiScanRequest { std::move(request), json_response, millis() });
+        return true;
+    }
+
+    void process_wifi_scan_request() {
+        AsyncWebServerRequestPtr request_ptr;
+        std::string              response_body;
+
+        {
+            std::lock_guard<std::mutex> lock(wifi_scan_mutex);
+            if (!wifi_scan_request) {
+                return;
+            }
+            if (wifi_scan_request->request.expired()) {
+                wifi_scan_request.reset();
+                return;
+            }
+
+            int16_t scan_count = WiFi.scanComplete();
+            if (scan_count == WIFI_SCAN_RUNNING && millis() - wifi_scan_request->started_at < WIFI_SCAN_TIMEOUT_MS) {
+                return;
+            }
+
+            response_body = wifi_scan_response(scan_count >= 0 ? scan_count : 0, wifi_scan_request->json_response);
+            if (scan_count >= 0) {
+                WiFi.scanDelete();
+            }
+            request_ptr = std::move(wifi_scan_request->request);
+            wifi_scan_request.reset();
+        }
+
+        if (auto request = request_ptr.lock()) {
+            AsyncWebServerResponse* response = request->beginResponse(200, "", response_body.c_str());
+            response->addHeader(asyncsrv::T_Cache_Control, asyncsrv::T_no_cache);
+            request->send(response);
+        }
+    }
+
     struct FileListChunkState {
         enum class Phase : uint8_t { Begin, FileEntries, Footer, End, Done };
 
@@ -675,11 +782,22 @@ namespace WebUI {
 
     void WebUI_Server::synchronousCommand(
         AsyncWebServerRequest* request, const char* cmd, bool silent, AuthenticationLevel auth_level, bool allowedInMotion) {
-        // Can we do this with async?
         if (http_block_during_motion->get() && inMotionState() && !allowedInMotion) {  // ESP800 is to allow a cached paged reload on webui3
             request->send(503, "text/plain", "Try again when not moving\n");
             return;
         }
+
+        bool json_response;
+        if (request->method() == HTTP_GET && is_wifi_scan_command(cmd, json_response)) {
+            AsyncWebServerRequestPtr request_ptr = request->pause();
+            if (!start_wifi_scan_request(std::move(request_ptr), json_response)) {
+                if (auto paused_request = request_ptr.lock()) {
+                    paused_request->send(503, "text/plain", "Wi-Fi scan already in progress\n");
+                }
+            }
+            return;
+        }
+
         char line[256];
         strncpy(line, cmd, 255);
         AsyncWebServerResponse* response;
@@ -1399,6 +1517,7 @@ namespace WebUI {
 
     void WebUI_Server::poll() {
         static uint32_t start_time = millis();
+        process_wifi_scan_request();
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();
         }
