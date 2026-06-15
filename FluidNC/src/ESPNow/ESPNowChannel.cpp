@@ -107,10 +107,10 @@ static Error espnowPairCommand(const char* value, AuthenticationLevel, Channel& 
         return Error::InvalidValue;
     }
     if (!espnowChannel.startPairingWindow(PAIRING_WINDOW_MS)) {
-        log_error_to(out, "ESP-NOW pairing is not available");
+        log_error_to(out, "ESP-NOW: pairing is not available");
         return Error::InvalidValue;
     }
-    log_info_to(out, "ESP-NOW pairing enabled for " << (PAIRING_WINDOW_MS / 1000) << " seconds");
+    log_info_to(out, "ESP-NOW: pairing enabled for " << (PAIRING_WINDOW_MS / 1000) << " seconds");
     return Error::Ok;
 }
 
@@ -119,7 +119,7 @@ static Error espnowCancelCommand(const char* value, AuthenticationLevel, Channel
         return Error::InvalidValue;
     }
     espnowChannel.cancelPairingWindow();
-    log_info_to(out, "ESP-NOW pairing cancelled");
+    log_info_to(out, "ESP-NOW: pairing cancelled");
     return Error::Ok;
 }
 
@@ -143,7 +143,7 @@ static Error espnowUnpairCommand(const char* value, AuthenticationLevel, Channel
     }
     if (parsed == 0) {
         espnowChannel.clearPairings();
-        log_info_to(out, "ESP-NOW whitelist cleared");
+        log_info_to(out, "ESP-NOW: whitelist cleared");
         return Error::Ok;
     }
 
@@ -151,7 +151,7 @@ static Error espnowUnpairCommand(const char* value, AuthenticationLevel, Channel
     if (!espnowChannel.removePairingIndex((size_t)parsed, removed_mac)) {
         return Error::InvalidValue;
     }
-    log_info_to(out, "ESP-NOW removed pendant " << mac_str(removed_mac));
+    log_info_to(out, "ESP-NOW: removed peripheral " << mac_str(removed_mac));
     return Error::Ok;
 }
 }
@@ -317,7 +317,7 @@ void ESPNowChannel::init() {
         resetPeerRuntime((int)new_index);
         if (registerPeer(_paired_peers[new_index].mac, _paired_peers[new_index].lmk)) {
             _paired_count.store(new_index + 1, std::memory_order_release);
-            log_info("ESP-NOW: loaded saved pairing, peer " << mac_str(_paired_peers[new_index].mac));
+            log_debug("ESP-NOW: loaded saved pairing for " << mac_str(_paired_peers[new_index].mac));
         } else {
             memset(_paired_peers[new_index].mac, 0, sizeof(_paired_peers[new_index].mac));
             memset(_paired_peers[new_index].lmk, 0, sizeof(_paired_peers[new_index].lmk));
@@ -354,12 +354,12 @@ bool ESPNowChannel::startPairingWindow(uint32_t window_ms) {
     uint8_t local_mac[6] = {};
     uint8_t channel = espnowCurrentChannel();
     if (espnowLocalMac(local_mac)) {
-        log_info("ESP-NOW: pairing window opened on " << espnowInterfaceName()
-                                                       << " channel " << (int)channel
-                                                       << " MAC " << mac_str(local_mac));
+        log_debug("ESP-NOW: pairing window opened on " << espnowInterfaceName()
+                                                        << " channel " << (int)channel
+                                                        << " MAC " << mac_str(local_mac));
     } else {
-        log_info("ESP-NOW: pairing window opened on " << espnowInterfaceName()
-                                                       << " channel " << (int)channel);
+        log_debug("ESP-NOW: pairing window opened on " << espnowInterfaceName()
+                                                        << " channel " << (int)channel);
     }
     return true;
 }
@@ -393,12 +393,12 @@ bool ESPNowChannel::listPairings(Channel& out) const {
     ESPNowPairingRecord records[ESPNowConfig::MAX_PAIRINGS];
     size_t count = ESPNowConfig::loadPairings(records, ESPNowConfig::MAX_PAIRINGS);
     if (count == 0) {
-        log_info_to(out, "ESP-NOW whitelist is empty");
+        log_info_to(out, "ESP-NOW: whitelist is empty");
         return true;
     }
 
     for (size_t i = 0; i < count; ++i) {
-        log_info_to(out, (i + 1) << ": " << mac_str(records[i].peer_mac));
+        log_info_to(out, "ESP-NOW: " << (i + 1) << ": " << mac_str(records[i].peer_mac));
     }
     ESPNowCrypto::secureZero(records, sizeof(records));
     return true;
@@ -561,6 +561,9 @@ bool ESPNowChannel::notePeerAuthenticatedLocked(int index, bool control_activity
     if (control_activity) {
         peer.last_control_ms.store(now, std::memory_order_release);
     }
+    if (became_connected) {
+        log_info("ESP-NOW: peripheral connected " << mac_str(peer.mac));
+    }
     return became_connected;
 }
 
@@ -580,7 +583,7 @@ bool ESPNowChannel::setActivePeerLocked(int index) {
 
     _active_peer_index.store(index, std::memory_order_release);
     refreshReportInterval();
-    log_info("ESP-NOW: active pendant " << mac_str(_paired_peers[index].mac));
+    log_debug("ESP-NOW: active peripheral " << mac_str(_paired_peers[index].mac));
     return true;
 }
 
@@ -707,7 +710,7 @@ bool ESPNowChannel::activatePairing() {
         setActivePeer(paired_index);
     }
     refreshReportInterval();
-    log_info("ESP-NOW: pairing activated for " << mac_str(_pairing.mac));
+    log_debug("ESP-NOW: pairing activated for " << mac_str(_pairing.mac));
     return true;
 }
 
@@ -744,7 +747,7 @@ void ESPNowChannel::processPairingTransaction() {
             return;
         }
         _pairing.state = PairingState::AwaitComplete;
-        log_info("ESP-NOW: pairing result queued; awaiting pendant completion");
+        log_debug("ESP-NOW: pairing result queued; awaiting peripheral completion");
         return;
     }
 
@@ -920,6 +923,7 @@ void ESPNowChannel::poll() {
                 !peerConnectedLocked((int)i, now);
 
             if (timed_out) {
+                log_info("ESP-NOW: peripheral disconnected " << mac_str(peer.mac));
                 resetPeerRuntimeLocked((int)i);
                 if (_active_peer_index.load(std::memory_order_acquire) == (int)i) {
                     _active_peer_index.store(-1, std::memory_order_release);
@@ -1145,11 +1149,11 @@ void ESPNowChannel::handleDiscovery(const uint8_t* src_mac, const uint8_t* data,
         int existing_index = findPairedPeerIndexLocked(pkt.mac);
         size_t paired_count = _paired_count.load(std::memory_order_acquire);
         if (existing_index < 0 && paired_count >= MAX_SERVER_PAIRINGS) {
-            log_error("ESP-NOW: pairing roster full, rejecting new pendant " << mac_str(pkt.mac));
+            log_error("ESP-NOW: pairing roster full, rejecting new peripheral " << mac_str(pkt.mac));
             return;
         }
         if (existing_index >= 0 && peerConnectedLocked(existing_index, (uint32_t)millis())) {
-            log_error("ESP-NOW: rejecting re-pair attempt from active pendant " << mac_str(pkt.mac));
+            log_error("ESP-NOW: rejecting re-pair attempt from active peripheral " << mac_str(pkt.mac));
             return;
         }
     }
@@ -1219,7 +1223,7 @@ void ESPNowChannel::handleDiscovery(const uint8_t* src_mac, const uint8_t* data,
     if (esp_now_add_peer(&peer) == ESP_OK) {
         _pairing_challenge_waiting.store(true, std::memory_order_release);
         if (esp_now_send(pkt.mac, reinterpret_cast<const uint8_t*>(&challenge), sizeof(challenge)) == ESP_OK) {
-            log_info("ESP-NOW: discovery v4 challenge sent to " << mac_str(pkt.mac));
+            log_debug("ESP-NOW: discovery v4 challenge sent to " << mac_str(pkt.mac));
         } else {
             _pairing_challenge_waiting.store(false, std::memory_order_release);
             clearPairingTransaction(true);
@@ -1227,7 +1231,7 @@ void ESPNowChannel::handleDiscovery(const uint8_t* src_mac, const uint8_t* data,
         }
     } else {
         clearPairingTransaction(true);
-        log_error("ESP-NOW: failed to add pendant peer for pairing challenge");
+        log_error("ESP-NOW: failed to add peripheral peer for pairing challenge");
     }
 
     ESPNowCrypto::secureZero(&challenge, sizeof(challenge));
@@ -1327,7 +1331,7 @@ void ESPNowChannel::handlePairComplete(const uint8_t* src_mac, const uint8_t* da
     }
 
     _pairing_window_active.store(false, std::memory_order_release);
-    log_info("ESP-NOW: pairing v4 confirmed from " << mac_str(_pairing.mac));
+    log_info("ESP-NOW: paired peripheral " << mac_str(_pairing.mac));
     clearPairingTransaction(false);
 }
 
