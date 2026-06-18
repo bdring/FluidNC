@@ -302,6 +302,10 @@ namespace WebUI {
             return WiFi.begin(ssid, password);
         }
 
+        bool setStaticIP(uint32_t ip, uint32_t dns, uint32_t gateway, uint32_t netmask) override {
+            return WiFi.config(ip, gateway, netmask, dns);
+        }
+
         void prepareStartAp(const char* apCountry) override {
             WiFi.enableSTA(false);
             if (apCountry && ESP_OK != esp_wifi_set_country_code(apCountry, true)) {

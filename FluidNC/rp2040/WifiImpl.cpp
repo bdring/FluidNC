@@ -120,6 +120,22 @@ namespace WebUI {
             return WiFi.begin(ssid, password);
         }
 
+        bool setStaticIP(uint32_t ip, uint32_t dns, uint32_t gateway, uint32_t netmask) override {
+            WiFi.config(ip, dns, gateway, netmask);
+
+            if (WiFi.localIP() != IPAddress(ip) ||
+                WiFi.gatewayIP() != IPAddress(gateway) ||
+                WiFi.subnetMask() != IPAddress(netmask)) {
+                return false;
+            }
+
+            if (IPAddress(dns).isSet() && WiFi.dnsIP(0) != IPAddress(dns)) {
+                return false;
+            }
+
+            return true;
+        }
+
         void prepareStartAp(const char* apCountry) override { applyCyw43Country(CYW43_ITF_AP, apCountry); }
 
         void onStaFallbackFailure() override {}

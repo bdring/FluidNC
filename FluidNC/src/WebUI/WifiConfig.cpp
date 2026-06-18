@@ -521,15 +521,15 @@ namespace WebUI {
             //password
             const char* password = _sta_password->get();
             int8_t      IP_mode  = _sta_mode->get();
-            int32_t     IP       = _sta_ip->get();
-            int32_t     GW       = _sta_gateway->get();
-            int32_t     MK       = _sta_netmask->get();
+            uint32_t    ip       = (uint32_t)_sta_ip->get();
+            uint32_t    gateway  = (uint32_t)_sta_gateway->get();
+            uint32_t    netmask  = (uint32_t)_sta_netmask->get();
             //if not DHCP
-            if (IP_mode != DHCP_MODE) {
-                IPAddress ip((uint32_t)IP), mask((uint32_t)MK), gateway((uint32_t)GW);
-                log_info("Using static STA config IP=" << IP_string(ip) << " GW=" << IP_string(gateway)
-                                                        << " MASK=" << IP_string(mask));
-                if (!WiFi.config(ip, gateway, mask)) {
+            if (IP_mode == STATIC_MODE) {
+                log_info("Using static STA config IP=" << IP_string(ip) << " GW=" << IP_string(gateway) << " MASK=" << IP_string(netmask));
+                // The arguments are ip, dns, gateway, netmask.  We use the gateway
+                // as the DNS forwarder.
+                if (!wifiImpl().setStaticIP((uint32_t)ip, (uint32_t)gateway, (uint32_t)gateway, (uint32_t)netmask)) {
                     log_error("Failed to apply static STA config");
                     return false;
                 }
