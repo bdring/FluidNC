@@ -233,6 +233,29 @@ void gpio_clear_event(int32_t gpio_num) {
     gpios_interest &= ~(1 << gpio_num);
 }
 
+void gpio_disarm(int32_t gpio_num) {
+    if (gpio_num < 0 || gpio_num >= MAX_GPIO_PINS) {
+        return;
+    }
+    gpios_interest &= ~(1 << gpio_num);
+}
+
+void gpio_rearm(int32_t gpio_num) {
+    if (gpio_num < 0 || gpio_num >= MAX_GPIO_PINS) {
+        return;
+    }
+    uint32_t mask = 1u << gpio_num;
+    if (!(gpios_interest & mask)) {
+        gpios_interest |= mask;
+        if (!(get_gpios() & mask)) {
+            auto arg = gpioArgs[gpio_num];
+            if (arg) {
+                protocol_send_event_from_ISR(&pinInactiveEvent, arg);
+            }
+        }
+    }
+}
+
 // Poll GPIO states and send events
 void poll_gpios() {
     uint32_t gpios_active = get_gpios();
