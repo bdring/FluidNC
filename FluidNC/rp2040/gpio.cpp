@@ -24,6 +24,8 @@ static GPIOCallback gpio_callbacks[MAX_GPIO_PINS] = { 0 };
 static uint32_t gpios_inverted = 0;    // GPIOs that are active low (inverted)
 static uint32_t gpios_interest = 0;    // GPIOs with event handlers
 static uint32_t gpios_current = 0;     // Current state of GPIOs
+static int32_t  gpio_next_event_ticks[MAX_GPIO_PINS] = { 0 };
+static int32_t  gpio_deltat_ticks[MAX_GPIO_PINS]     = { 0 };
 static void* gpioArgs[MAX_GPIO_PINS] = { nullptr };
 
 // GPIO interrupt handler
@@ -195,6 +197,8 @@ static inline uint32_t get_gpios() {
     return gpio_get_all() ^ gpios_inverted;
 }
 
+static void gpio_set_rate_limit(int32_t gpio_num, uint32_t ms);
+
 // Set up event tracking for a GPIO pin
 void gpio_set_event(int32_t gpio_num, void* arg, bool invert) {
     if (gpio_num < 0 || gpio_num >= MAX_GPIO_PINS) {
@@ -213,6 +217,9 @@ void gpio_set_event(int32_t gpio_num, void* arg, bool invert) {
         gpios_inverted &= ~(1 << gpio_num);
     }
     
+    // Rate-limit GPIO events from spurious chatter
+    gpio_set_rate_limit(gpio_num, 5);
+
     // Initialize current state to the opposite of actual state
     // so the first poll will detect and send the actual state
     bool active = gpio_read(gpio_num) ^ invert;
@@ -231,6 +238,10 @@ void gpio_clear_event(int32_t gpio_num) {
     
     gpioArgs[gpio_num] = nullptr;
     gpios_interest &= ~(1 << gpio_num);
+}
+
+static void gpio_set_rate_limit(int32_t gpio_num, uint32_t ms) {
+    gpio_deltat_ticks[gpio_num] = ms;
 }
 
 void gpio_disarm(int32_t gpio_num) {
@@ -256,6 +267,28 @@ void gpio_rearm(int32_t gpio_num) {
     }
 }
 
+static void gpio_send_event(int32_t gpio_num, bool active) {
+    auto    end_ticks  = gpio_next_event_ticks[gpio_num];
+    uint32_t this_ms   = to_ms_since_boot(get_absolute_time());
+    if (end_ticks == 0 || ((int32_t)(this_ms - end_ticks) > 0)) {
+        end_ticks = this_ms + uint32_t(gpio_deltat_ticks[gpio_num]);
+        if (end_ticks == 0) {
+            end_ticks = 1;
+        }
+        gpio_next_event_ticks[gpio_num] = int32_t(end_ticks);
+
+        if (gpioArgs[gpio_num]) {
+            const Event* event = active ? &pinActiveEvent : &pinInactiveEvent;
+            protocol_send_event_from_ISR(event, gpioArgs[gpio_num]);
+        }
+        if (active) {
+            gpios_current |= (1 << gpio_num);
+        } else {
+            gpios_current &= ~(1 << gpio_num);
+        }
+    }
+}
+
 // Poll GPIO states and send events
 void poll_gpios() {
     uint32_t gpios_active = get_gpios();
@@ -265,19 +298,7 @@ void poll_gpios() {
     for (int i = 0; i < MAX_GPIO_PINS; i++) {
         if (gpios_changed & (1 << i)) {
             bool active = (gpios_active & (1 << i)) != 0;
-            
-            // Send event if we have an arg (callback)
-            if (gpioArgs[i]) {
-                const Event* event = active ? &pinActiveEvent : &pinInactiveEvent;
-                protocol_send_event_from_ISR(event, gpioArgs[i]);
-            }
-            
-            // Update current state
-            if (active) {
-                gpios_current |= (1 << i);
-            } else {
-                gpios_current &= ~(1 << i);
-            }
+            gpio_send_event(i, active);
         }
     }
 }
