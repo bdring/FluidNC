@@ -3,12 +3,12 @@
 
 #pragma once
 
-#include "src/Config.h"
+#include "Config.h"
 
-#include "src/Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 
-#include "src/Channel.h"
-#include "src/Module.h"
+#include "Channel.h"
+#include "Module.h"
 namespace ATCs {
     class ATC : public Configuration::Configurable {
     protected:
@@ -30,8 +30,8 @@ namespace ATCs {
 
         virtual void init() = 0;
 
-        virtual void probe_notification();
-        virtual bool tool_change(uint8_t value, bool pre_select, bool set_tool) = 0;
+        virtual void probe_notification()                                      = 0;
+        virtual bool tool_change(tool_t value, bool pre_select, bool set_tool) = 0;
 
         ATC* _atc;
 
@@ -43,4 +43,3 @@ namespace ATCs {
 
     using ATCFactory = Configuration::GenericFactory<ATC>;
 }
-extern ATCs::ATC* atc;

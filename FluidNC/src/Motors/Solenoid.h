@@ -5,12 +5,12 @@
 namespace MotorDrivers {
     class Solenoid : public RcServo {
     protected:
-        int _timer_ms = 50;
+        int32_t _timer_ms = 50;
 
         void config_message() override;
         void update() override;
 
-        static constexpr uint8_t _update_rate_ms = 50;
+        static constexpr int _update_rate_ms = 50;
 
         float    _off_percent  = 0.0;
         float    _pull_percent = 100.0;

@@ -1,9 +1,6 @@
+#include "Config.h"
 #include "PinMapper.h"
 #include "Pins/GPIOPinDetail.h"
-
-#include "Assert.h"
-
-#include <esp32-hal-gpio.h>  // PULLUP, INPUT, OUTPUT
 #include "Driver/fluidnc_gpio.h"
 
 // Pin mapping lets you use non-GPIO pins as though they were GPIOs by
@@ -22,19 +19,28 @@
 // the operation through to the lower level gpio_mode(),
 // gpio_read() and gpio_write() routines.
 
+#ifndef OPEN_DRAIN
+// Bit mask values compatible with Arduino pinMode()
+#    define INPUT 0x01
+#    define OUTPUT 0x03
+#    define PULLUP 0x04
+#    define PULLDOWN 0x08
+#    define OPEN_DRAIN 0x10
+#endif
+
 namespace {
     class PinMap {
     public:
-        static const int BOUNDARY = Pins::GPIOPinDetail::nGPIOPins;
+        static const int BOUNDARY = MAX_N_GPIO;
 
     private:
-        static const int N_PIN_MAPPINGS = 256 - BOUNDARY;
+        static const int N_PIN_MAPPINGS = 127 - BOUNDARY;
 
     public:
         Pin* _mapping[N_PIN_MAPPINGS];
 
         PinMap() {
-            for (int i = 0; i < N_PIN_MAPPINGS; ++i) {
+            for (pinnum_t i = 0; i < N_PIN_MAPPINGS; ++i) {
                 _mapping[i] = nullptr;
             }
         }
@@ -65,8 +71,7 @@ PinMapper::PinMapper() : _mappedId(0) {}
 PinMapper::PinMapper(Pin& pin) {
     _mappedId = PinMap::instance().Claim(&pin);
 
-    // If you reach this assertion, you haven't been using the Pin class like you're supposed to.
-    Assert(_mappedId != 0, "Cannot claim pin. We've reached the limit of 255 mapped pins.");
+    Assert(_mappedId != 0, "Cannot claim pin. Too many mapped pins are used.");
 }
 
 // To aid return values and assignment
@@ -93,8 +98,14 @@ PinMapper::~PinMapper() {
     }
 }
 
-// Arduino compatibility functions, which basically forward the call to the mapper:
-void IRAM_ATTR digitalWrite(pinnum_t pin, uint8_t val) {
+// Arduino compatibility function which uses a mapped pin ID.  We need this
+// in order to use I2SO pins as CS pins for the TMCStepper library.
+
+// The first argument must be uint8_t to match the signature of the Arduino library,
+// otherwise this will not override the weak definition in the library.
+void IRAM_ATTR digitalWrite(uint8_t upin, uint8_t val) {
+    pinnum_t pin = upin;
+
     if (pin < PinMap::BOUNDARY) {
         gpio_write(pin, val);
         return;

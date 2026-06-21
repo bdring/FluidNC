@@ -5,17 +5,18 @@
 #undef CONFIG_LOG_MAXIMUM_LEVEL
 #define CONFIG_LOG_MAXIMUM_LEVEL CORE_DEBUG_LEVEL
 
-#include "vfs_api.h"
-#include "esp_vfs_fat.h"
-#include "diskio_impl.h"
-#include "diskio_sdmmc.h"
-#include "ff.h"
-#include "sdmmc_cmd.h"
-#include "driver/sdspi_host.h"
-#include "esp_error.hpp"
+#include <vfs_api.h>
+#include <esp_vfs_fat.h>
+#include <diskio_impl.h>
+#include <diskio_sdmmc.h>
+#include <ff.h>
+#include <soc/sdmmc_struct.h>
+#include <sdmmc_cmd.h>
+#include <driver/sdspi_host.h>
+#include <esp_error.hpp>
 
 #include "Driver/sdspi.h"
-#include "src/Config.h"
+#include "Config.h"
 
 #define CHECK_EXECUTE_RESULT(err, str)                                                                                                     \
     do {                                                                                                                                   \
@@ -25,7 +26,7 @@
         }                                                                                                                                  \
     } while (0)
 
-static esp_err_t mount_to_vfs_fat(int max_files, sdmmc_card_t* card, uint8_t pdrv, const char* base_path) {
+static esp_err_t mount_to_vfs_fat(uint32_t max_files, sdmmc_card_t* card, uint8_t pdrv, const char* base_path) {
     FATFS*    fs = NULL;
     esp_err_t err;
     ff_diskio_register_sdmmc(pdrv, card);
@@ -63,7 +64,12 @@ fail:
     return err;
 }
 
+// NOTE: SDSPI_HOST_DEFAULT is incomplete and will give a warning
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 sdmmc_host_t  host_config = SDSPI_HOST_DEFAULT();
+#pragma GCC diagnostic pop
+
 sdmmc_card_t* card        = NULL;
 const char*   base_path   = "/sd";
 
@@ -76,7 +82,7 @@ static void call_host_deinit(const sdmmc_host_t* host_config) {
 }
 
 // cppcheck-suppress unusedFunction
-bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
+bool sd_init_slot(uint32_t freq_hz, pinnum_t cs_pin, pinnum_t cd_pin, pinnum_t wp_pin) {
     esp_err_t err;
 
     esp_log_level_set("sdmmc_sd", ESP_LOG_NONE);
@@ -90,6 +96,7 @@ bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
 
     sdspi_device_config_t slot_config;
 
+    host_config.flags &= ~SDMMC_HOST_FLAG_DDR;
     host_config.max_freq_khz = freq_hz / 1000;
 
     err = host_config.init();
@@ -106,6 +113,9 @@ bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
     err = sdspi_host_init_device(&slot_config, &(host_config.slot));
     CHECK_EXECUTE_RESULT(err, "slot init failed");
 
+    SDMMC.clock.phase_dout = 1;
+    SDMMC.clock.phase_din  = 6;
+
     return true;
 
 cleanup:
@@ -117,7 +127,7 @@ cleanup:
 
 // adapted from vfs_fat_sdmmc.c:esp_vfs_fat_sdmmc_mount()
 // cppcheck-suppress unusedFunction
-std::error_code sd_mount(int max_files) {
+std::error_code sd_mount(uint32_t max_files) {
     log_verbose("Mount_sd");
     esp_err_t err;
 

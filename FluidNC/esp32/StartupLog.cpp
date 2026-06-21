@@ -1,8 +1,8 @@
 // Copyright (c) 2023 - Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/StartupLog.h"
-#include "src/Protocol.h"  // send_line()
+#include "StartupLog.h"
+#include "Protocol.h"  // send_line()
 #include <sstream>
 
 // The startup log is stored in RTC RAM that is preserved across
@@ -15,7 +15,7 @@ static RTC_NOINIT_ATTR char   _messages[_maxlen];
 static RTC_NOINIT_ATTR size_t _len;
 static bool                   _paniced;
 
-void StartupLog::init() {
+StartupLog::StartupLog() : Channel("Startup Log") {
     if (esp_reset_reason() == ESP_RST_PANIC) {
         _paniced = true;
     } else {

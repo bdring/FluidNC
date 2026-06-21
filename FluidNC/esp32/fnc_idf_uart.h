@@ -6,6 +6,14 @@
 
 #pragma once
 
+// clang-format off
+#include <esp_idf_version.h>
+
+#if ESP_IDF_VERSION_MAJOR >= 5
+
+#include "fnc_idf_uart_idfbuild.h"
+#else
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,20 +29,20 @@ extern "C" {
 #include "hal/uart_types.h"
 
 // Valid UART port number
-#define UART_NUM_0 (0) /*!< UART port 0 */
-#define UART_NUM_1 (1) /*!< UART port 1 */
+#define UART_NUM_0             (0) /*!< UART port 0 */
+#define UART_NUM_1             (1) /*!< UART port 1 */
 #if SOC_UART_NUM > 2
-#    define UART_NUM_2 (2) /*!< UART port 2 */
+#define UART_NUM_2             (2) /*!< UART port 2 */
 #endif
-#define UART_NUM_MAX (SOC_UART_NUM) /*!< UART port max */
+#define UART_NUM_MAX           (SOC_UART_NUM) /*!< UART port max */
 
 /* @brief When calling `uart_set_pin`, instead of GPIO number, `UART_PIN_NO_CHANGE`
  *        can be provided to keep the currently allocated pin.
  */
-#define UART_PIN_NO_CHANGE (-1)
+#define UART_PIN_NO_CHANGE      (-1)
 
-#define UART_FIFO_LEN SOC_UART_FIFO_LEN        ///< Length of the UART HW FIFO
-#define UART_BITRATE_MAX SOC_UART_BITRATE_MAX  ///< Maximum configurable bitrate
+#define UART_FIFO_LEN           SOC_UART_FIFO_LEN       ///< Length of the UART HW FIFO
+#define UART_BITRATE_MAX        SOC_UART_BITRATE_MAX    ///< Maximum configurable bitrate
 
 typedef void (*uart_data_callback_t)(uart_port_t uart_num, uint8_t* rx_buf, int* len);
 
@@ -44,46 +52,6 @@ typedef void (*uart_data_callback_t)(uart_port_t uart_num, uint8_t* rx_buf, int*
  * @param uart_data_callback callback function
  */
 void fnc_uart_set_data_callback(uart_port_t uart_num, uart_data_callback_t uart_data_callback);
-
-#if 0
-/**
- * @brief UART interrupt configuration parameters for uart_intr_config function
- */
-typedef struct {
-    uint32_t intr_enable_mask; /*!< UART interrupt enable mask, choose from UART_XXXX_INT_ENA_M under UART_INT_ENA_REG(i), connect with bit-or operator*/
-    uint8_t rx_timeout_thresh;        /*!< UART timeout interrupt threshold (unit: time of sending one byte)*/
-    uint8_t txfifo_empty_intr_thresh; /*!< UART TX empty interrupt threshold.*/
-    uint8_t rxfifo_full_thresh;       /*!< UART RX full interrupt threshold.*/
-} uart_intr_config_t;
-
-/**
- * @brief UART event types used in the ring buffer
- */
-typedef enum {
-    UART_DATA,        /*!< UART data event*/
-    UART_BREAK,       /*!< UART break event*/
-    UART_BUFFER_FULL, /*!< UART RX buffer full event*/
-    UART_FIFO_OVF,    /*!< UART FIFO overflow event*/
-    UART_FRAME_ERR,   /*!< UART RX frame error event*/
-    UART_PARITY_ERR,  /*!< UART RX parity event*/
-    UART_DATA_BREAK,  /*!< UART TX data and break event*/
-    UART_PATTERN_DET, /*!< UART pattern detected */
-    UART_EVENT_MAX,   /*!< UART event max index*/
-} uart_event_type_t;
-
-/**
- * @brief Event structure used in UART event queue
- */
-typedef struct {
-    uart_event_type_t type;         /*!< UART event type */
-    size_t            size;         /*!< UART data size for UART_DATA event*/
-    bool              timeout_flag; /*!< UART data read timeout flag for UART_DATA event (no new data received during configured RX TOUT)*/
-    /*!< If the event is caused by FIFO-full interrupt, then there will be no event with the timeout flag before the next byte coming.*/
-} uart_event_t;
-
-typedef intr_handle_t uart_isr_handle_t;
-
-#endif
 
 /**
  * @brief Install UART driver and set the UART to the default configuration.
@@ -107,8 +75,7 @@ typedef intr_handle_t uart_isr_handle_t;
  *     - ESP_OK   Success
  *     - ESP_FAIL Parameter error
  */
-esp_err_t fnc_uart_driver_install(
-    uart_port_t uart_num, int rx_buffer_size, int tx_buffer_size, int queue_size, QueueHandle_t* uart_queue, int intr_alloc_flags);
+esp_err_t fnc_uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_buffer_size, int queue_size, QueueHandle_t* uart_queue, int intr_alloc_flags);
 
 /**
  * @brief Uninstall UART driver.
@@ -268,7 +235,7 @@ esp_err_t fnc_uart_set_hw_flow_ctrl(uart_port_t uart_num, uart_hw_flowcontrol_t 
  *     - ESP_OK   Success
  *     - ESP_FAIL Parameter error
  */
-esp_err_t fnc_uart_set_sw_flow_ctrl(uart_port_t uart_num, bool enable, uint8_t rx_thresh_xon, uint8_t rx_thresh_xoff);
+ esp_err_t fnc_uart_set_sw_flow_ctrl(uart_port_t uart_num, bool enable,  uint8_t rx_thresh_xon,  uint8_t rx_thresh_xoff);
 
 /**
  * @brief Get the UART hardware flow control configuration.
@@ -381,7 +348,7 @@ esp_err_t fnc_uart_enable_tx_intr(uart_port_t uart_num, int enable, int thresh);
  *     - ESP_OK   Success
  *     - ESP_FAIL Parameter error
  */
-esp_err_t fnc_uart_isr_register(uart_port_t uart_num, void (*fn)(void*), void* arg, int intr_alloc_flags, uart_isr_handle_t* handle);
+esp_err_t fnc_uart_isr_register(uart_port_t uart_num, void (*fn)(void*), void * arg, int intr_alloc_flags,  uart_isr_handle_t *handle);
 
 /**
  * @brief Free UART interrupt handler registered by uart_isr_register. Must be called on the same core as
@@ -473,7 +440,7 @@ esp_err_t fnc_uart_set_tx_idle_num(uart_port_t uart_num, uint16_t idle_num);
  *     - ESP_OK   Success
  *     - ESP_FAIL Parameter error
  */
-esp_err_t fnc_uart_param_config(uart_port_t uart_num, const uart_config_t* uart_config);
+esp_err_t fnc_uart_param_config(uart_port_t uart_num, const uart_config_t *uart_config);
 
 /**
  * @brief Configure UART interrupts.
@@ -485,7 +452,7 @@ esp_err_t fnc_uart_param_config(uart_port_t uart_num, const uart_config_t* uart_
  *     - ESP_OK   Success
  *     - ESP_FAIL Parameter error
  */
-esp_err_t fnc_uart_intr_config(uart_port_t uart_num, const uart_intr_config_t* intr_conf);
+esp_err_t fnc_uart_intr_config(uart_port_t uart_num, const uart_intr_config_t *intr_conf);
 
 /**
  * @brief Wait until UART TX FIFO is empty.
@@ -642,8 +609,7 @@ esp_err_t fnc_uart_disable_pattern_det_intr(uart_port_t uart_num);
  *     - ESP_OK Success
  *     - ESP_FAIL Parameter error
  */
-esp_err_t fnc_uart_enable_pattern_det_intr(uart_port_t uart_num, char pattern_chr, uint8_t chr_num, int chr_tout, int post_idle, int pre_idle)
-    __attribute__((deprecated));
+esp_err_t fnc_uart_enable_pattern_det_intr(uart_port_t uart_num, char pattern_chr, uint8_t chr_num, int chr_tout, int post_idle, int pre_idle) __attribute__((deprecated));
 #endif
 
 /**
@@ -665,8 +631,7 @@ esp_err_t fnc_uart_enable_pattern_det_intr(uart_port_t uart_num, char pattern_ch
  *     - ESP_OK Success
  *     - ESP_FAIL Parameter error
  */
-esp_err_t fnc_uart_enable_pattern_det_baud_intr(
-    uart_port_t uart_num, char pattern_chr, uint8_t chr_num, int chr_tout, int post_idle, int pre_idle);
+esp_err_t fnc_uart_enable_pattern_det_baud_intr(uart_port_t uart_num, char pattern_chr, uint8_t chr_num, int chr_tout, int post_idle, int pre_idle);
 
 /**
  * @brief Return the nearest detected pattern position in buffer.
@@ -884,4 +849,6 @@ void fnc_uart_set_always_rx_timeout(uart_port_t uart_num, bool always_rx_timeout
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

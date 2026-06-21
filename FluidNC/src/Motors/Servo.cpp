@@ -16,7 +16,7 @@
 */
 
 #include "Servo.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 
 #include <atomic>
 
@@ -26,7 +26,7 @@ namespace MotorDrivers {
         servo->update();
     }
 
-    void Servo::schedule_update(Servo* object, int interval) {
+    void Servo::schedule_update(Servo* object, uint32_t interval) {
         auto timer = xTimerCreate("",
                                   interval,
                                   true,  // auto reload

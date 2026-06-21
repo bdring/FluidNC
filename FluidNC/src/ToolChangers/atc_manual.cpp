@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "atc_manual.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 #include <cstdio>
 #include <iostream>
 
@@ -29,7 +29,7 @@
      -- Set TLO
      -- Returns to position before command
 
-  Posible New Persistant values (might want a save_ATC_values: config item. default false)
+  Possible New Persistent values (might want a save_ATC_values: config item. default false)
      -- TLO
      -- Tool number
 
@@ -49,7 +49,7 @@ namespace ATCs {
 
     void Manual_ATC::probe_notification() {}
 
-    bool Manual_ATC::tool_change(uint8_t new_tool, bool pre_select, bool set_tool) {
+    bool Manual_ATC::tool_change(tool_t new_tool, bool pre_select, bool set_tool) {
         bool spindle_was_on = false;  // used to restore the spindle state
         bool was_inch_mode  = false;  // allows use to restore inch mode if req'd
 

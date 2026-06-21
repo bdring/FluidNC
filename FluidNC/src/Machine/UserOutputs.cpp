@@ -3,8 +3,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "UserOutputs.h"
-#include "../Config.h"      // log_*
-#include <esp32-hal-cpu.h>  // getApbFrequency()
+#include "Config.h"  // log_*
 
 namespace Machine {
     UserOutputs::UserOutputs() {
@@ -23,11 +22,8 @@ namespace Machine {
                 log_info("User Digital Output: " << i << " on Pin:" << pin.name());
             }
         }
-        // determine the highest resolution (number of precision bits) allowed by frequency
-        uint32_t apb_frequency = getApbFrequency();
 
         for (int i = 0; i < MaxUserAnalogPin; ++i) {
-            uint8_t resolution_bits;
             Pin&    pin = _analogOutput[i];
             if (pin.defined()) {
                 pin.setAttr(Pin::Attr::PWM, _analogFrequency[i]);

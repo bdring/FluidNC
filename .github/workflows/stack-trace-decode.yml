@@ -1,0 +1,88 @@
+name: Decode Stack Trace
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack_trace:
+        description: "Paste the full Backtrace line"
+        required: true
+        type: string
+      elf_url:
+        description: "ELF URL (esp32-wifi-firmware.elf)"
+        required: true
+        default: "https://github.com/bdring/FluidNC/releases/download/v4.0.2-pre3/esp32-wifi-firmware.elf"
+        type: string
+      toolchain_target:
+        description: "Target toolchain (esp32 or esp32s3)"
+        required: true
+        default: "esp32"
+        type: choice
+        options:
+          - esp32
+          - esp32s3
+      toolchain_url:
+        description: "Optional: override toolchain tarball URL"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  decode:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download ELF
+        run: |
+          curl -L -o firmware.elf "${{ inputs.elf_url }}"
+          ls -lh firmware.elf
+
+      - name: Install toolchain (addr2line)
+        run: |
+          if [ -n "${{ inputs.toolchain_url }}" ]; then
+            TOOLCHAIN_URL="${{ inputs.toolchain_url }}"
+          else
+            if [ "${{ inputs.toolchain_target }}" = "esp32s3" ]; then
+              TOOLCHAIN_URL="https://github.com/espressif/esp-idf/releases/download/v5.1/xtensa-esp32s3-elf-13.2.0_20230928-linux-amd64.tar.xz"
+              ADDR2LINE_NAME="xtensa-esp32s3-elf-addr2line"
+            else
+              TOOLCHAIN_URL="https://github.com/espressif/esp-idf/releases/download/v5.1/xtensa-esp32-elf-13.2.0_20230928-linux-amd64.tar.xz"
+              ADDR2LINE_NAME="xtensa-esp32-elf-addr2line"
+            fi
+          fi
+          echo "ADDR2LINE_NAME=${ADDR2LINE_NAME:-xtensa-esp32-elf-addr2line}" >> $GITHUB_ENV
+          curl -L -o toolchain.tar.xz "$TOOLCHAIN_URL"
+          mkdir -p toolchain
+          tar -xf toolchain.tar.xz -C toolchain
+          echo "TOOLCHAIN_BIN=$(find toolchain -type d -name 'bin' | head -n 1)" >> $GITHUB_ENV
+
+      - name: Decode backtrace
+        env:
+          STACK_TRACE: ${{ inputs.stack_trace }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess, textwrap
+          stack = os.environ.get('STACK_TRACE', '')
+          addrs = re.findall(r'0x[0-9a-fA-F]{8}', stack)
+          if not addrs:
+            raise SystemExit('No addresses found in stack trace.')
+          addr2line_name = os.environ.get('ADDR2LINE_NAME', 'xtensa-esp32-elf-addr2line')
+          addr2line = os.path.join(os.environ['TOOLCHAIN_BIN'], addr2line_name)
+          cmd = [addr2line, '-e', 'firmware.elf', '-f', '-C', *addrs]
+          print('Command:', ' '.join(cmd))
+          out = subprocess.check_output(cmd, text=True)
+          with open('decoded.txt', 'w', encoding='utf-8') as f:
+            f.write(out)
+          print('\nDecoded output:\n')
+          print(out)
+          PY
+
+      - name: Upload decoded output
+        uses: actions/upload-artifact@v4
+        with:
+          name: decoded-stack-trace
+          path: decoded.txt

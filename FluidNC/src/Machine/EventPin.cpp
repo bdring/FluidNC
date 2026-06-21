@@ -1,27 +1,17 @@
 #include "EventPin.h"
-#include "src/Report.h"
+#include "Report.h"
 
-#include "src/Protocol.h"  // protocol_send_event
-
-void InputPin::init() {
-    if (undefined()) {
-        return;
-    }
-    report(_legend);
-    registerEvent(this);
-    setAttr(Pin::Attr::Input);
-    update(read());
-}
-
-void InputPin::trigger(bool active) {
-    update(active);
-    log_debug(_legend << " " << active);
-    report_recompute_pin_string();
-}
+#include "Protocol.h"  // protocol_send_event
 
 void EventPin::trigger(bool active) {
     InputPin::trigger(active);
     if (active) {
-        protocol_send_event(_event, this);
+        if (state_is(State::Starting)) {
+            if (_alarm != ExecAlarm::None) {
+                send_alarm(_alarm);
+            }
+        } else {
+            protocol_send_event(_event, this);
+        }
     }
 }

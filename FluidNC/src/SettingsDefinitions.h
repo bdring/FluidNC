@@ -17,3 +17,4 @@ extern EnumSetting* message_level;
 extern EnumSetting* gcode_echo;
 
 void make_proxies();
+void make_coordinates();

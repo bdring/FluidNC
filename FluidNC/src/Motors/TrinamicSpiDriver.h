@@ -4,8 +4,8 @@
 #pragma once
 
 #include "TrinamicBase.h"
-#include "../Pin.h"
-#include "../PinMapper.h"
+#include "Pin.h"
+#include "PinMapper.h"
 
 #include <cstdint>
 
@@ -26,7 +26,7 @@ namespace MotorDrivers {
         // Configuration handlers:
         void afterParse() override {
             if (!_spi_setup_done) {
-                if (daisy_chain_cs_id == 255) {
+                if (daisy_chain_cs_id == INVALID_PINNUM) {
                     // Either it is not a daisy chain or this is the first daisy-chained TMC in the config file
                     Assert(_cs_pin.defined(), "TMC cs_pin: pin must be configured");
                     if (_spi_index != -1) {
@@ -82,7 +82,7 @@ namespace MotorDrivers {
 
         void config_message() override;
 
-        uint8_t setupSPI();
+        pinnum_t setupSPI();
 
         bool    reportTest(uint8_t result);
         uint8_t toffValue();

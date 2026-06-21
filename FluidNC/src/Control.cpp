@@ -7,7 +7,7 @@
 #include "Machine/Macros.h"  // macro0Event
 
 Control::Control() {
-    // The SafetyDoor pin must be defined first because it is checked explicity in safety_door_ajar()
+    // The SafetyDoor pin must be defined first because it is checked explicitly in safety_door_ajar()
     _pins.push_back(new ControlPin(&safetyDoorEvent, "safety_door_pin", 'D'));
     _pins.push_back(new ControlPin(&rtResetEvent, "reset_pin", 'R'));
     _pins.push_back(new ControlPin(&feedHoldEvent, "feed_hold_pin", 'H'));
@@ -29,7 +29,7 @@ void Control::init() {
 
 void Control::group(Configuration::HandlerBase& handler) {
     for (auto pin : _pins) {
-        handler.item(pin->legend().c_str(), *pin);
+        handler.item(pin->legend(), *pin);
     }
 }
 
@@ -60,20 +60,6 @@ bool Control::stuck() {
         }
     }
     return false;
-}
-
-bool Control::startup_check() {
-    bool ret = false;
-    for (auto pin : _pins) {
-        if (pin->get()) {
-            delay_ms(1000);
-            if (pin->get()) {
-                log_error(pin->legend() << " is active at startup");
-                ret = true;
-            }
-        }
-    }
-    return ret;
 }
 
 // Returns if safety door is ajar(T) or closed(F), based on pin state.

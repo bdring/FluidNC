@@ -35,11 +35,10 @@
 
 #include "Solenoid.h"
 
-#include "../Machine/MachineConfig.h"
-#include "../System.h"      // mpos_to_steps() etc
+#include "Machine/MachineConfig.h"
+#include "System.h"         // motor_pos_to_steps() etc
 #include "Driver/PwmPin.h"  // pwmInit(), etc.
-#include "../Pin.h"
-#include "../Limits.h"  // limitsMaxPosition
+#include "Pin.h"
 
 namespace MotorDrivers {
 
@@ -50,7 +49,7 @@ namespace MotorDrivers {
             return;  // We cannot continue without the output pin
         }
 
-        _axis_index = axis_index();
+        _axis = axis_index();
 
         _output_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
 
@@ -82,7 +81,7 @@ namespace MotorDrivers {
             return;
         }
 
-        float mpos = steps_to_mpos(get_axis_motor_steps(_axis_index), _axis_index);  // get the axis machine position in mm
+        float mpos = steps_to_motor_pos(get_axis_steps(_axis), _axis);  // get the axis machine position in mm
 
         _dir_invert ? is_solenoid_on = (mpos < 0.0) : is_solenoid_on = (mpos > 0.0);
 

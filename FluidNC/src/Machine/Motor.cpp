@@ -4,13 +4,13 @@
 
 #include "Motor.h"
 
-#include "../Config.h"
-#include "../Motors/MotorDriver.h"
-#include "../Motors/NullMotor.h"
+#include "Config.h"
+#include "Motors/MotorDriver.h"
+#include "Motors/NullMotor.h"
 #include "Axes.h"
 
 namespace Machine {
-    Motor::Motor(int axis, int motorNum) :
+    Motor::Motor(axis_t axis, motor_t motorNum) :
         _axis(axis), _motorNum(motorNum), _negLimitPin(axis, motorNum, -1, _hardLimits), _posLimitPin(axis, motorNum, 1, _hardLimits),
         _allLimitPin(axis, motorNum, 0, _hardLimits) {}
 
@@ -59,7 +59,7 @@ namespace Machine {
     }
 
     // Used for CoreXY when one limit switch should stop multiple motors
-    void Motor::limitOtherAxis(int axis) {
+    void Motor::limitOtherAxis(axis_t axis) {
         _negLimitPin.setExtraMotorLimit(axis, _motorNum);
         _posLimitPin.setExtraMotorLimit(axis, _motorNum);
         _allLimitPin.setExtraMotorLimit(axis, _motorNum);
@@ -67,6 +67,18 @@ namespace Machine {
 
     bool Motor::isReal() {
         return _driver->isReal();
+    }
+
+    bool Motor::can_home() {
+        return (_driver->can_self_home() || hasSwitches());
+    }
+
+    // Use true to check positive and false to check negative homing directions
+    bool Motor::supports_homing_dir(bool positive) {
+        if (_driver->can_self_home() || _allLimitPin.defined()) {
+            return true;
+        }
+        return positive ? _posLimitPin.defined() : _negLimitPin.defined();
     }
 
     Motor::~Motor() {

@@ -5,7 +5,7 @@
 #    include <Arduino.h>
 #    include "unity.h"
 
-#    include <src/Assert.h>
+#    include <src/Assertion.h>
 #    include "TestFactory.h"
 
 #    define TEST_CLASS_NAME(testCase, testName) testCase##_##testName##_Test
@@ -24,7 +24,7 @@
             static void runWrap() {                                                                                                        \
                 try {                                                                                                                      \
                     runDetail();                                                                                                           \
-                } catch (AssertionFailed & ex) { TEST_FAIL_MESSAGE(ex.stackTrace.c_str()); } catch (...) {                                 \
+                } catch (std::runtime_error & ex) { TEST_FAIL_MESSAGE(ex.stackTrace.c_str()); } catch (...) {                              \
                     TEST_FAIL_MESSAGE("Failed for unknown reason.");                                                                       \
                 }                                                                                                                          \
             }                                                                                                                              \
@@ -64,7 +64,7 @@ inline void PrintSerial(const char* format, ...) {
 
 #elif defined _WIN32 || defined _WIN64
 
-#    include "../src/Assert.h"
+#    include "src/Assertion.h"
 
 // Use 'Assert(...)' please.
 
@@ -100,7 +100,7 @@ inline void PrintSerial(const char* format, ...) {
 
 #else
 
-#    include <src/Assert.h>
+#    include <src/Assertion.h>
 #    include "TestFactory.h"
 
 #    define TEST_CLASS_NAME(testCase, testName) testCase##_##testName##_Test

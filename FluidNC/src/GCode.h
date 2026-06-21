@@ -53,7 +53,7 @@ enum class ModalGroup : uint8_t {
 // Command actions for within execution-type modal groups (motion, stopping, non-modal). Used
 // internally by the parser to know which command to execute.
 // NOTE: Some macro values are assigned specific values to make g-code state reporting and parsing
-// compile a litte smaller. Necessary due to being completely out of flash on the 328p. Although not
+// compile a little smaller. Necessary due to being completely out of flash on the 328p. Although not
 // ideal, just be careful with values that state 'do not alter' and check both report.c and gcode.c
 // to see how they are used, if you need to alter them.
 
@@ -223,7 +223,9 @@ enum class GCodeWord : uint8_t {
     C = 17,
     O = 18,
     D = 19,  // For debugging
-
+    U = 20,
+    V = 21,
+    W = 22,
 };
 
 // GCode parser position updating flags
@@ -243,11 +245,9 @@ enum CoordIndex : uint16_t {
     G57,
     G58,
     G59,
-    // To support 9 work coordinate systems it would be necessary to define
-    // the following 3 and modify GCode.cpp to support G59.1, G59.2, G59.3
-    // G59_1,
-    // G59_2,
-    // G59_3,
+    G59_1,
+    G59_2,
+    G59_3,
     NWCSystems,
     G28 = NWCSystems,  // Home0
     G30,               // Home1

@@ -1,7 +1,7 @@
 #include "ledc.h"
-#include "../soc/ledc_struct.h"
-#include "../Arduino.h"
-#include "../Capture.h"
+#include "soc/ledc_struct.h"
+#include "Arduino.h"
+#include "Capture.h"
 
 #include <sstream>
 

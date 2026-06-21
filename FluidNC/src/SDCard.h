@@ -3,21 +3,6 @@
 
 #pragma once
 
-/*
- * Connect the SD card to the following pins:
- *
- * SD Card | ESP32
- *    D2       -
- *    D3       SS
- *    CMD      MOSI
- *    VSS      GND
- *    VDD      3.3V
- *    CLK      SCK
- *    VSS      GND
- *    D0       MISO
- *    D1       -
- */
-
 #include "Configuration/Configurable.h"
 #include "WebUI/Authentication.h"
 #include "Pin.h"
@@ -46,7 +31,7 @@ private:
 
 public:
     SDCard();
-    SDCard(const SDCard&) = delete;
+    SDCard(const SDCard&)            = delete;
     SDCard& operator=(const SDCard&) = delete;
 
     void afterParse() override;

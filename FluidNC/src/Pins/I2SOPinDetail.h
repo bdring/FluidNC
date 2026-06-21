@@ -2,8 +2,9 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
-#ifdef ESP32
 
+#include "Config.h"
+#if MAX_N_I2SO
 #    include "PinDetail.h"
 
 namespace Pins {
@@ -22,15 +23,13 @@ namespace Pins {
         PinCapabilities capabilities() const override;
 
         // I/O:
-        void          write(int high) override;
-        void          synchronousWrite(int high) override;
-        int           read() override;
+        void          write(bool high) override;
+        void          synchronousWrite(bool high) override;
+        bool          read() override;
         void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
 
         bool canStep() override { return true; }
-
-        std::string toString() override;
 
         ~I2SOPinDetail() override { _claimed[_index] = false; }
     };

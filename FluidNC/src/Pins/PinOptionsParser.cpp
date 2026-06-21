@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "PinOptionsParser.h"
-#include "../string_util.h"
+#include "string_util.h"
 
 #include <cstring>
 #include <cctype>
@@ -45,9 +45,9 @@ namespace Pins {
     }
 
     // cppcheck-suppress unusedFunction
-    int PinOption::iValue() const {
+    int32_t PinOption::iValue() const {
         // Parse to integer
-        int num;
+        int32_t num;
         auto [ptr, ec] = std::from_chars(_value.data(), _value.data() + _value.length(), num);
         return num;
     }

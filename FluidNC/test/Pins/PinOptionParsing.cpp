@@ -1,6 +1,6 @@
-#include "../TestFramework.h"
+#include "TestFramework.h"
 
-#include "src/Pins/PinOptionsParser.h"
+#include "Pins/PinOptionsParser.h"
 #include <cstdio>
 #include <cstring>
 

@@ -4,12 +4,16 @@
 
 #pragma once
 
-#include "src/Configuration/Configurable.h"
-#include "src/lineedit.h"
-#include "src/Module.h"
-#include "src/Settings.h"
+#include <sdkconfig.h>
 
-#include <BluetoothSerial.h>
+#ifdef CONFIG_BT_ENABLED  // BT enabled in SDKConfig
+
+#    include "Configuration/Configurable.h"
+#    include "lineedit.h"
+#    include "Module.h"
+#    include "Settings.h"
+
+#    include <BluetoothSerial.h>
 
 const char* const DEFAULT_BT_NAME = "FluidNC";
 
@@ -85,3 +89,5 @@ namespace WebUI {
         }
     };
 }
+
+#endif

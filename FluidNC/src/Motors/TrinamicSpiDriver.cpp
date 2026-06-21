@@ -6,7 +6,8 @@
 */
 
 #include "TrinamicSpiDriver.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
+#include <cstdint>       // MUST be before TMCStepper.h
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <atomic>
 
@@ -19,14 +20,14 @@ namespace MotorDrivers {
         TrinamicBase::init();
     }
 
-    uint8_t TrinamicSpiDriver::setupSPI() {
+    pinnum_t TrinamicSpiDriver::setupSPI() {
         _has_errors = false;
 
         auto spiConfig = config->_spi;
-        Assert(spiConfig && spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
+        Assert(spiConfig && spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver");
 
-        uint8_t cs_id;
-        if (daisy_chain_cs_id != 255) {
+        pinnum_t cs_id;
+        if (daisy_chain_cs_id != INVALID_PINNUM) {
             cs_id = daisy_chain_cs_id;
         } else {
             _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);

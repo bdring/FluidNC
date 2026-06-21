@@ -45,7 +45,7 @@ namespace Spindles {
 
     protected:
         void set_enable(bool enable_pin) override;
-        void set_direction(bool Clockwise);
+        void set_direction(bool Clockwise) override;
 
         Pin _forward_pin;
         Pin _reverse_pin;

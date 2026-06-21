@@ -13,9 +13,8 @@
 */
 
 #include "10vSpindle.h"
-
-#include "../System.h"  // sys.spindle_speed
-#include "../GCode.h"   // gc_state.modal
+#include "System.h"  // sys.spindle_speed
+#include "GCode.h"   // gc_state.modal
 
 namespace Spindles {
     void _10v::init() {
@@ -49,7 +48,7 @@ namespace Spindles {
         init_atc();
         config_message();
 
-        is_reversable = true;  // these VFDs are always reversable
+        is_reversable = true;  // these VFDs are always reversible
     }
 
     // prints the startup message of the spindle config
@@ -67,7 +66,7 @@ namespace Spindles {
     }
 
     void IRAM_ATTR _10v::set_enable(bool enable) {
-        if (_disable_with_zero_speed && sys.spindle_speed == 0) {
+        if (_disable_with_zero_speed && sys.spindle_speed() == 0) {
             enable = false;
         }
 
