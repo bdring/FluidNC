@@ -76,6 +76,27 @@ bool espnowLocalMac(uint8_t mac[6]) {
     return esp_wifi_get_mac(espnowInterface(), mac) == ESP_OK;
 }
 
+bool espnowRealtimeIsSafety(Cmd command) {
+    return command == Cmd::Reset ||
+           command == Cmd::FeedHold ||
+           command == Cmd::SafetyDoor ||
+           command == Cmd::JogCancel;
+}
+
+bool espnowRealtimeClaimsControl(Cmd command) {
+    if (command == Cmd::None ||
+        command == Cmd::StatusReport ||
+        command == Cmd::DebugReport ||
+        espnowRealtimeIsSafety(command)) {
+        return false;
+    }
+    return true;
+}
+
+bool lineStartsWith(const char* line, const char* prefix) {
+    return strncmp(line, prefix, strlen(prefix)) == 0;
+}
+
 uint8_t espnowCurrentChannel() {
     if (espnowInterface() == WIFI_IF_AP) {
         wifi_config_t conf = {};
@@ -567,6 +588,35 @@ bool ESPNowChannel::notePeerAuthenticatedLocked(int index, bool control_activity
     return became_connected;
 }
 
+bool ESPNowChannel::dataMessageClaimsControl(const PairedPeer& peer) const {
+    char line[8] = {};
+    size_t line_len = 0;
+    bool started = false;
+
+    for (uint8_t frag = 0; frag < peer.frag.total && frag < MAX_FRAGS; ++frag) {
+        for (uint16_t i = 0; i < peer.frag.sizes[frag]; ++i) {
+            char c = (char)peer.frag.data[frag][i];
+            if (!started) {
+                if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+                    continue;
+                }
+                started = true;
+            }
+            if (c == '\r' || c == '\n') {
+                return lineStartsWith(line, "$J=");
+            }
+            if (line_len + 1 < sizeof(line)) {
+                line[line_len++] = c;
+            }
+            if (line_len >= 3) {
+                return lineStartsWith(line, "$J=");
+            }
+        }
+    }
+
+    return lineStartsWith(line, "$J=");
+}
+
 bool ESPNowChannel::setActivePeer(int index) {
     PeerStateLock peer_lock(_peer_mutex);
     return setActivePeerLocked(index);
@@ -600,8 +650,15 @@ bool ESPNowChannel::canSwitchActivePeerLocked(uint32_t now) const {
 }
 
 bool ESPNowChannel::claimControlLeaseLocked(int index, uint32_t now) {
+    return claimControlLeaseLocked(index, now, false);
+}
+
+bool ESPNowChannel::claimControlLeaseLocked(int index, uint32_t now, bool force) {
     if (index == _active_peer_index.load(std::memory_order_acquire)) {
         return true;
+    }
+    if (force) {
+        return setActivePeerLocked(index);
     }
     if (!canSwitchActivePeerLocked(now)) {
         return false;
@@ -1079,11 +1136,7 @@ void ESPNowChannel::onRecv(const uint8_t* src, const uint8_t* data, int len) {
     bool safety_realtime = false;
     if (pkt_type == PKT_REALTIME) {
         Cmd command = static_cast<Cmd>(data[1 + ART_TAG_SIZE]);
-        safety_realtime =
-            command == Cmd::Reset ||
-            command == Cmd::FeedHold ||
-            command == Cmd::SafetyDoor ||
-            command == Cmd::JogCancel;
+        safety_realtime = espnowRealtimeIsSafety(command);
     }
 
     if (!safety_realtime) {
@@ -1446,10 +1499,7 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
         return;
     }
     uint32_t now = (uint32_t)millis();
-    if (!claimControlLeaseLocked(peer_index, now)) {
-        return;
-    }
-    if (notePeerAuthenticatedLocked(peer_index, true, now)) {
+    if (notePeerAuthenticatedLocked(peer_index, false, now)) {
         refreshReportInterval();
     }
 
@@ -1484,6 +1534,15 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
     uint8_t full_mask = (uint8_t)((1u << total_frags) - 1u);
     if ((peer.frag.received & full_mask) != full_mask) {
         return;
+    }
+
+    bool claims_control = dataMessageClaimsControl(peer);
+    if (claims_control && !claimControlLeaseLocked(peer_index, now, true)) {
+        return;
+    }
+    if (claims_control &&
+        notePeerAuthenticatedLocked(peer_index, true, now)) {
+        refreshReportInterval();
     }
 
     // Reassembly complete — push bytes -> ring buffer
@@ -1525,19 +1584,17 @@ void ESPNowChannel::handleRealtime(int peer_index, const uint8_t* data, int len)
         return;  // replay / stale ->>> drop
     }
     Cmd command = static_cast<Cmd>(data[1 + ART_TAG_SIZE]);
-    if (command == Cmd::Reset ||
-        command == Cmd::FeedHold ||
-        command == Cmd::SafetyDoor ||
-        command == Cmd::JogCancel) {
+    if (espnowRealtimeIsSafety(command)) {
         if (counter > peer.motion_barrier_counter) {
             peer.motion_barrier_counter = counter;
         }
     }
     uint32_t now = (uint32_t)millis();
-    if (!claimControlLeaseLocked(peer_index, now)) {
+    bool claims_control = espnowRealtimeClaimsControl(command);
+    if (claims_control && !claimControlLeaseLocked(peer_index, now)) {
         return;
     }
-    if (notePeerAuthenticatedLocked(peer_index, true, now)) {
+    if (notePeerAuthenticatedLocked(peer_index, claims_control, now)) {
         refreshReportInterval();
     }
     rxPush(data[1 + ART_TAG_SIZE]);

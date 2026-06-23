@@ -177,9 +177,11 @@ private:
     bool peerConnected(int index) const;
     bool peerConnectedLocked(int index, uint32_t now) const;
     bool claimControlLeaseLocked(int index, uint32_t now);
+    bool claimControlLeaseLocked(int index, uint32_t now, bool force);
     void resetPeerRuntime(int index);
     void resetPeerRuntimeLocked(int index);
     bool notePeerAuthenticatedLocked(int index, bool control_activity, uint32_t now);
+    bool dataMessageClaimsControl(const PairedPeer& peer) const;
     void refreshReportInterval();
     void restorePairedPeerOrDelete(const uint8_t* mac);
     bool pairingWindowActive();
