@@ -48,6 +48,7 @@ public:
     size_t write(const uint8_t* buf, size_t size) override;
     int    available() override;
     Error  pollLine(char* line) override;
+    void   flushRx() override;
 
     static ESPNowChannel* instance() { return _instance; }
     bool startPairingWindow(uint32_t window_ms);

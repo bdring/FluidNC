@@ -27,10 +27,6 @@ void execute_realtime_command(Cmd command, Channel& channel) {
             break;
         case Cmd::JogCancel:
             if (state_is(State::Jog)) {  // Block all other states from invoking motion cancel.
-                // A realtime jog cancel is a stream barrier. Discard any
-                // partially assembled or already-buffered commands from the
-                // issuing channel so stale jog input cannot execute afterward.
-                channel.flushRx();
                 protocol_send_event(&motionCancelEvent);
             }
             break;

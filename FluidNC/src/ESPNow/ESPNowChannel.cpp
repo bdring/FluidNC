@@ -1032,6 +1032,17 @@ Error ESPNowChannel::pollLine(char* line) {
     return Channel::pollLine(line);
 }
 
+void ESPNowChannel::flushRx() {
+    _rx_tail.store(_rx_head.load(std::memory_order_acquire), std::memory_order_release);
+    Channel::flushRx();
+
+    PeerStateLock peer_lock(_peer_mutex);
+    size_t paired_count = _paired_count.load(std::memory_order_acquire);
+    for (size_t i = 0; i < paired_count; ++i) {
+        memset(&_paired_peers[i].frag, 0, sizeof(_paired_peers[i].frag));
+    }
+}
+
 void ESPNowChannel::processPacket(const RxPacket& packet) {
     if (packet.len == 0 || packet.len > MAX_ESP_PAYLOAD) {
         return;
@@ -1587,6 +1598,9 @@ void ESPNowChannel::handleRealtime(int peer_index, const uint8_t* data, int len)
     if (espnowRealtimeIsSafety(command)) {
         if (counter > peer.motion_barrier_counter) {
             peer.motion_barrier_counter = counter;
+        }
+        if (command == Cmd::JogCancel) {
+            flushRx();
         }
     }
     uint32_t now = (uint32_t)millis();
