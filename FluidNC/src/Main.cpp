@@ -102,15 +102,19 @@ void setup() {
         }
 #    endif
 
+#    if SUPPORT_PIN_EXTENDERS
         // We have to initialize the extenders first, before pins are used
         if (config->_extenders) {
             config->_extenders->init();
         }
+#    endif
 
+#    if SUPPORT_LISTENERS
         auto listeners = Listeners::SysListenerFactory::objects();
         for (auto l : listeners) {
             l->init();
         }
+#    endif
 
         Stepping::init();  // Configure stepper interrupt timers
 
