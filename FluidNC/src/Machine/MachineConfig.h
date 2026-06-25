@@ -11,7 +11,7 @@
 #include "Configuration/Configurable.h"
 #include "CoolantControl.h"
 #include "Kinematics/Kinematics.h"
-#ifndef DISABLE_PIN_EXTENDERS
+#if SUPPORT_PIN_EXTENDERS
 #include "Extenders/Extenders.h"
 #endif
 #include "Control.h"
@@ -24,7 +24,7 @@
 #include "UartChannel.h"
 #include "Driver/Console.h"
 #include "Module.h"
-#ifndef DISABLE_SYS_LISTENERS
+#if SUPPORT_LISTENERS
 #include "Listeners/SysListener.h"
 #endif
 #include "Axes.h"
@@ -89,7 +89,7 @@ namespace Machine {
 
         //        Listeners::SysListenerList _sysListeners;
         //        Spindles::SpindleList      _spindles;
-#ifndef DISABLE_PIN_EXTENDERS
+#if SUPPORT_PIN_EXTENDERS
         Extenders::Extenders* _extenders = nullptr;
 #endif
 

@@ -67,7 +67,7 @@ namespace Machine {
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
         handler.section("macros", _macros);
-#ifndef DISABLE_PIN_EXTENDERS
+#if SUPPORT_PIN_EXTENDERS
         handler.section("extenders", _extenders);
 #endif
         handler.section("start", _start);
@@ -79,7 +79,7 @@ namespace Machine {
         ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
-#ifndef DISABLE_SYS_LISTENERS
+#if SUPPORT_LISTENERS
         Listeners::SysListenerFactory::factory(handler);
 #endif
 

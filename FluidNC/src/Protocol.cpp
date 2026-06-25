@@ -366,7 +366,7 @@ static void protocol_do_start_homing() {
 }
 
 static void protocol_do_soft_restart() {
-#ifndef DISABLE_SYS_LISTENERS
+#if SUPPORT_LISTENERS
     auto listeners = Listeners::SysListenerFactory::objects();
     for (auto l : listeners) {
         l->beforeVariableReset();
@@ -399,7 +399,7 @@ static void protocol_do_soft_restart() {
     report_init_message(allChannels);
     mc_init();
 
-#ifndef DISABLE_SYS_LISTENERS
+#if SUPPORT_LISTENERS
     for (auto l : listeners) {
         l->afterVariableReset();
     }
