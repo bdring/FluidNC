@@ -8,7 +8,9 @@
 // For the POSIX Arduino-Emulator core, Arduino.h must come before WiFi.h
 // so WiFi symbols are visible without arduino:: qualification.
 #include <Arduino.h>
+#include <array>
 #include <WiFi.h>
+#include <string>
 
 namespace WebUI {
     class TelnetClient : public Channel {
@@ -26,6 +28,25 @@ namespace WebUI {
 
         std::atomic<bool> _disconnected { false };
         int32_t           _empty_reads = 0;
+
+        // Outgoing telnet bytes are buffered as whole lines in this ring,
+        // momentarilly full socket shall never truncates a line or drop an ack.
+        static constexpr size_t TX_QUEUE_SIZE       = 2304;
+        static constexpr size_t TX_CRITICAL_RESERVE = 256;
+
+        int32_t     _state = 0;
+        std::string _txLine;             // output accumulated until a full line
+        uint8_t     _txLastChar = '\0';  // for \n -> \r\n across write() calls
+
+        std::array<uint8_t, TX_QUEUE_SIZE> _txQueue {};
+        size_t                             _txHead = 0;
+        size_t                             _txTail = 0;
+
+        static bool isCriticalLine(const std::string& line);
+        size_t      queueFree() const;
+        bool        queueLine(const uint8_t* data, size_t len, size_t reserve);
+        void        flushQueue(int sockfd);
+        void        queueCompletedLine();
 
     public:
         TelnetClient(WiFiClient* wifiClient);

@@ -2,10 +2,20 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "TelnetClient.h"
-#include "Serial.h"
+#include "TelnetServer.h"
+
+#include <WiFi.h>
+#include <lwip/sockets.h>  // ::send(), MSG_DONTWAIT
+#include <errno.h>
 
 namespace WebUI {
-    TelnetClient::TelnetClient(WiFiClient* wifiClient) : Channel("telnet"), _wifiClient(wifiClient) {}
+    TelnetClient::TelnetClient(WiFiClient* wifiClient) : Channel("telnet"), _wifiClient(wifiClient) {
+        int sockfd = _wifiClient->fd();
+        if (sockfd >= 0) {
+            int one = 1;
+            ::setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+        }
+    }
 
     void TelnetClient::handle() {}
 
@@ -26,36 +36,90 @@ namespace WebUI {
         return write(&data, 1);
     }
 
+    // Prevent dropping of critical command ack
+    bool TelnetClient::isCriticalLine(const std::string& line) {
+        return line == "ok\r\n" || line.rfind("error:", 0) == 0 || line.rfind("ALARM:", 0) == 0 || line.rfind("[MSG:ERR:", 0) == 0;
+    }
+
+    size_t TelnetClient::queueFree() const {
+        size_t used = (_txHead + TX_QUEUE_SIZE - _txTail) % TX_QUEUE_SIZE;
+        return TX_QUEUE_SIZE - used - 1;
+    }
+
+    bool TelnetClient::queueLine(const uint8_t* data, size_t len, size_t reserve) {
+        if (len + reserve > queueFree()) {
+            return false;
+        }
+        for (size_t i = 0; i < len; ++i) {
+            _txQueue[_txHead] = data[i];
+            _txHead           = (_txHead + 1) % TX_QUEUE_SIZE;
+        }
+        return true;
+    }
+
+    // Non-blocking drain of the queue. Bytes that can't be sent now stay queued
+    // and go out on the next write().
+    void TelnetClient::flushQueue(int sockfd) {
+        while (_txTail != _txHead) {
+            size_t contiguous = _txHead > _txTail ? _txHead - _txTail : TX_QUEUE_SIZE - _txTail;
+            int    sent       = ::send(sockfd, _txQueue.data() + _txTail, contiguous, MSG_DONTWAIT);
+            if (sent > 0) {
+                _txTail = (_txTail + (size_t)sent) % TX_QUEUE_SIZE;
+                continue;
+            }
+            if (sent < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                return;  // send buffer full — keep the rest queued for next time
+            }
+            _wifiClient->stop();  // hard error / peer gone
+            closeOnDisconnect();
+            return;
+        }
+    }
+
+    void TelnetClient::queueCompletedLine() {
+        const auto* data = reinterpret_cast<const uint8_t*>(_txLine.data());
+        size_t      len  = _txLine.size();
+
+        if (isCriticalLine(_txLine)) {
+            if (!queueLine(data, len, 0)) {
+                _wifiClient->stop();
+                closeOnDisconnect();
+            }
+        } else {
+            queueLine(data, len, TX_CRITICAL_RESERVE);
+        }
+    }
+
     size_t TelnetClient::write(const uint8_t* buffer, size_t length) {
-        if (_disconnected.load()) {
-            return 0;
+        if (_state == -1 || buffer == nullptr || length == 0) {
+            return length;
+        }
+        int sockfd = _wifiClient->fd();
+        if (sockfd < 0) {
+            closeOnDisconnect();
+            return length;
         }
 
-        // Replace \n with \r\n
-        size_t  rem      = length;
-        uint8_t lastchar = '\0';
-        size_t  j        = 0;
-        while (rem) {
-            const int bufsize = 128;
-            uint8_t   modbuf[bufsize];
-            // bufsize-1 in case the last character is \n
-            size_t k = 0;
-            while (rem && k < (bufsize - 1)) {
-                uint8_t c = buffer[j++];
-                if (c == '\n' && lastchar != '\r') {
-                    modbuf[k++] = '\r';
-                }
-                lastchar    = c;
-                modbuf[k++] = c;
-                --rem;
+        // Accumulate \r\n-normalized output AND queue each complete line. A single
+        // write() may carry more than one line. Handle boundaries as they come.
+        for (size_t i = 0; i < length; i++) {
+            uint8_t c = buffer[i];
+            if (c == '\n' && _txLastChar != '\r') {
+                _txLine.push_back('\r');
             }
-            if (k) {
-                auto nWritten = _wifiClient->write(modbuf, k);
-                if (nWritten == 0) {
-                    closeOnDisconnect();
+            _txLastChar = c;
+            _txLine.push_back((char)c);
+            if (c == '\n') {
+                queueCompletedLine();
+                _txLine.clear();
+                _txLastChar = '\0';
+                if (_state == -1) {
+                    return length;
                 }
             }
         }
+
+        flushQueue(sockfd);
         return length;
     }
 

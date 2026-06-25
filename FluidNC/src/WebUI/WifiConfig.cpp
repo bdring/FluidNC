@@ -3,8 +3,6 @@
 
 #include "Settings.h"
 #include "Machine/MachineConfig.h"
-#include <sstream>
-#include <iomanip>
 
 #include "Channel.h"         // Channel
 #include "Error.h"           // Error

@@ -391,7 +391,7 @@ static void protocol_do_start_homing() {
 
 static void protocol_do_soft_restart() {
 #if SUPPORT_LISTENERS
-    uto listeners = Listeners::SysListenerFactory::objects();
+    auto listeners = Listeners::SysListenerFactory::objects();
     for (auto l : listeners) {
         l->beforeVariableReset();
     }

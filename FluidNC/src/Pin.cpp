@@ -5,6 +5,7 @@
 #include "Pin.h"
 
 // Pins:
+#include "Platform.h"
 #include "Config.h"
 #include "Pins/PinOptionsParser.h"
 #include "Pins/GPIOPinDetail.h"
@@ -12,16 +13,17 @@
 #include "Pins/I2SOPinDetail.h"
 #include "Pins/ChannelPinDetail.h"
 #ifdef ENABLE_WS_CHANNEL_PINS
-#include "Pins/WSChannelPinDetail.h"
+#    include "Pins/WSChannelPinDetail.h"
 #endif
 #include "Pins/ErrorPinDetail.h"
 #include "string_util.h"
 #include "Machine/MachineConfig.h"  // config
 #include <string_view>
 #include <charconv>
-#include "Pins/ExtPinDetail.h"
+#if SUPPORT_PIN_EXTENDERS
+#    include "Pins/ExtPinDetail.h"
+#endif
 #include "Pins/SimPinDetail.h"
-#include "Platform.h"
 
 static constexpr bool verbose_debugging = false;
 

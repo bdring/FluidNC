@@ -13,7 +13,6 @@
 #include "Configuration/JsonGenerator.h"
 #include "Report.h"  // git_info
 #include "Driver/SysStats.h"
-
 #include "Module.h"
 
 namespace WebUI {

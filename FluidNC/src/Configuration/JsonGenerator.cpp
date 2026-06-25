@@ -10,8 +10,6 @@
 #include <cstring>
 #include <cstdio>
 #include <atomic>
-#include <sstream>
-#include <iomanip>
 
 namespace Configuration {
     JsonGenerator::JsonGenerator(JSONencoder& encoder) : _encoder(encoder) {
@@ -84,9 +82,7 @@ namespace Configuration {
         } else if (value < -999999.999f) {
             value = -999999.999f;
         }
-        std::ostringstream fstr;
-        fstr << std::fixed << std::setprecision(3) << value;
-        _encoder.begin_webui(_currentPath, "R", fstr.str());
+        _encoder.begin_webui(_currentPath, "R", formatFloat(value, 3));
         _encoder.end_object();
         leave();
     }
