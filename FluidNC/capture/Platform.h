@@ -14,6 +14,8 @@
 #    define unlikely(x) (x)
 #endif
 
+#define HOSTED 1
+
 // #define MAX_N_GPIO 40  // Same as ESP32
 #define MAX_N_GPIO 49  // Same as ESP32-S3
 

@@ -39,7 +39,7 @@ const int BAUD_RATE = 115200;
 void platform_preinit();
 
 inline bool should_exit() {
-	return false;
+    return false;
 }
 
 #define LAST_ERROR getLastSSLError

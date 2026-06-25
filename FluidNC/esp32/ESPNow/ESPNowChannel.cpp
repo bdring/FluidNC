@@ -2,11 +2,11 @@
 
 #include "ESPNowChannel.h"
 #include "ESPNowCrypto.h"
-#include "../Module.h"
-#include "../Serial.h"
-#include "../Logging.h"
-#include "../Settings.h"
-#include "../RealtimeCmd.h"
+#include "Module.h"
+#include "Serial.h"
+#include "Logging.h"
+#include "Settings.h"
+#include "RealtimeCmd.h"
 
 #include <WiFi.h>
 #include <esp_now.h>
@@ -16,165 +16,155 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-static constexpr uint32_t FRAG_REASSEMBLY_TIMEOUT_MS = 3000;
-static constexpr uint32_t PENDANT_IDLE_TIMEOUT_MS = 10000;
-static constexpr uint32_t PAIRING_WINDOW_MS = 60000;
-static constexpr uint32_t PAIRING_PACKET_INTERVAL_MS = 100;
-static constexpr uint32_t PAIRING_RESULT_RETRY_MS = 300;
-static constexpr uint32_t SEND_CALLBACK_TIMEOUT_MS = 1000;
-static constexpr size_t AUTH_KEEPALIVE_SIZE = 1 + 4 + ART_TAG_SIZE + 1;
-static constexpr uint8_t KEEPALIVE_SESSION_CONFIRMED = 0x01;
-static constexpr UBaseType_t RX_PACKET_QUEUE_DEPTH = 16;
-static constexpr UBaseType_t PAIRING_PACKET_QUEUE_DEPTH = 4;
-static constexpr UBaseType_t PAIR_CONFIRM_QUEUE_DEPTH = 2;
-static constexpr size_t MAX_RX_PACKETS_PER_POLL = 16;
-static constexpr size_t TX_FLUSH_THRESHOLD = 1024;
+static constexpr uint32_t    FRAG_REASSEMBLY_TIMEOUT_MS  = 3000;
+static constexpr uint32_t    PENDANT_IDLE_TIMEOUT_MS     = 10000;
+static constexpr uint32_t    PAIRING_WINDOW_MS           = 60000;
+static constexpr uint32_t    PAIRING_PACKET_INTERVAL_MS  = 100;
+static constexpr uint32_t    PAIRING_RESULT_RETRY_MS     = 300;
+static constexpr uint32_t    SEND_CALLBACK_TIMEOUT_MS    = 1000;
+static constexpr size_t      AUTH_KEEPALIVE_SIZE         = 1 + 4 + ART_TAG_SIZE + 1;
+static constexpr uint8_t     KEEPALIVE_SESSION_CONFIRMED = 0x01;
+static constexpr UBaseType_t RX_PACKET_QUEUE_DEPTH       = 16;
+static constexpr UBaseType_t PAIRING_PACKET_QUEUE_DEPTH  = 4;
+static constexpr UBaseType_t PAIR_CONFIRM_QUEUE_DEPTH    = 2;
+static constexpr size_t      MAX_RX_PACKETS_PER_POLL     = 16;
+static constexpr size_t      TX_FLUSH_THRESHOLD          = 1024;
 
 static const char* mac_str(const uint8_t* mac);
 
 namespace {
-class PeerStateLock {
-public:
-    explicit PeerStateLock(SemaphoreHandle_t mutex, TickType_t timeout = portMAX_DELAY) : _mutex(mutex) {
-        _locked = !_mutex || xSemaphoreTakeRecursive(_mutex, timeout) == pdTRUE;
-    }
-
-    ~PeerStateLock() {
-        if (_locked && _mutex) {
-            xSemaphoreGiveRecursive(_mutex);
+    class PeerStateLock {
+    public:
+        explicit PeerStateLock(SemaphoreHandle_t mutex, TickType_t timeout = portMAX_DELAY) : _mutex(mutex) {
+            _locked = !_mutex || xSemaphoreTakeRecursive(_mutex, timeout) == pdTRUE;
         }
-    }
 
-    bool locked() const { return _locked; }
-
-private:
-    SemaphoreHandle_t _mutex;
-    bool              _locked = false;
-};
-
-void copyHostname(char out[ESPNOW_HOSTNAME_SIZE]) {
-    const char* hostname = WiFi.getHostname();
-    if (!hostname || !*hostname) {
-        hostname = "fluidnc";
-    }
-    strlcpy(out, hostname, ESPNOW_HOSTNAME_SIZE);
-}
-
-wifi_interface_t espnowInterface() {
-    wifi_mode_t mode = WiFi.getMode();
-    if (mode == WIFI_AP || mode == WIFI_AP_STA) {
-        return WIFI_IF_AP;
-    }
-    return WIFI_IF_STA;
-}
-
-const char* espnowInterfaceName() {
-    return espnowInterface() == WIFI_IF_AP ? "AP" : "STA";
-}
-
-bool espnowLocalMac(uint8_t mac[6]) {
-    return esp_wifi_get_mac(espnowInterface(), mac) == ESP_OK;
-}
-
-bool espnowRealtimeIsSafety(Cmd command) {
-    return command == Cmd::Reset ||
-           command == Cmd::FeedHold ||
-           command == Cmd::SafetyDoor ||
-           command == Cmd::JogCancel;
-}
-
-bool espnowRealtimeClaimsControl(Cmd command) {
-    if (command == Cmd::None ||
-        command == Cmd::StatusReport ||
-        command == Cmd::DebugReport ||
-        espnowRealtimeIsSafety(command)) {
-        return false;
-    }
-    return true;
-}
-
-bool lineStartsWith(const char* line, const char* prefix) {
-    return strncmp(line, prefix, strlen(prefix)) == 0;
-}
-
-uint8_t espnowCurrentChannel() {
-    if (espnowInterface() == WIFI_IF_AP) {
-        wifi_config_t conf = {};
-        if (esp_wifi_get_config(WIFI_IF_AP, &conf) == ESP_OK &&
-            conf.ap.channel >= 1 &&
-            conf.ap.channel <= 14) {
-            return conf.ap.channel;
+        ~PeerStateLock() {
+            if (_locked && _mutex) {
+                xSemaphoreGiveRecursive(_mutex);
+            }
         }
+
+        bool locked() const { return _locked; }
+
+    private:
+        SemaphoreHandle_t _mutex;
+        bool              _locked = false;
+    };
+
+    void copyHostname(char out[ESPNOW_HOSTNAME_SIZE]) {
+        const char* hostname = WiFi.getHostname();
+        if (!hostname || !*hostname) {
+            hostname = "fluidnc";
+        }
+        strlcpy(out, hostname, ESPNOW_HOSTNAME_SIZE);
     }
 
-    uint8_t channel = (uint8_t)WiFi.channel();
-    if (channel >= 1 && channel <= 14) {
-        return channel;
+    wifi_interface_t espnowInterface() {
+        wifi_mode_t mode = WiFi.getMode();
+        if (mode == WIFI_AP || mode == WIFI_AP_STA) {
+            return WIFI_IF_AP;
+        }
+        return WIFI_IF_STA;
     }
 
-    uint8_t primary = 0;
-    wifi_second_chan_t secondary = WIFI_SECOND_CHAN_NONE;
-    if (esp_wifi_get_channel(&primary, &secondary) == ESP_OK &&
-        primary >= 1 &&
-        primary <= 14) {
-        return primary;
+    const char* espnowInterfaceName() {
+        return espnowInterface() == WIFI_IF_AP ? "AP" : "STA";
     }
 
-    return 0;
-}
-
-static Error espnowPairCommand(const char* value, AuthenticationLevel, Channel& out) {
-    if (value && *value) {
-        return Error::InvalidValue;
+    bool espnowLocalMac(uint8_t mac[6]) {
+        return esp_wifi_get_mac(espnowInterface(), mac) == ESP_OK;
     }
-    if (!espnowChannel.startPairingWindow(PAIRING_WINDOW_MS)) {
-        log_error_to(out, "ESP-NOW: pairing is not available");
-        return Error::InvalidValue;
-    }
-    log_info_to(out, "ESP-NOW: pairing enabled for " << (PAIRING_WINDOW_MS / 1000) << " seconds");
-    return Error::Ok;
-}
 
-static Error espnowCancelCommand(const char* value, AuthenticationLevel, Channel& out) {
-    if (value && *value) {
-        return Error::InvalidValue;
+    bool espnowRealtimeIsSafety(Cmd command) {
+        return command == Cmd::Reset || command == Cmd::FeedHold || command == Cmd::SafetyDoor || command == Cmd::JogCancel;
     }
-    espnowChannel.cancelPairingWindow();
-    log_info_to(out, "ESP-NOW: pairing cancelled");
-    return Error::Ok;
-}
 
-static Error espnowListCommand(const char* value, AuthenticationLevel, Channel& out) {
-    if (value && *value) {
-        return Error::InvalidValue;
+    bool espnowRealtimeClaimsControl(Cmd command) {
+        if (command == Cmd::None || command == Cmd::StatusReport || command == Cmd::DebugReport || espnowRealtimeIsSafety(command)) {
+            return false;
+        }
+        return true;
     }
-    espnowChannel.listPairings(out);
-    return Error::Ok;
-}
 
-static Error espnowUnpairCommand(const char* value, AuthenticationLevel, Channel& out) {
-    if (!value || !*value) {
+    bool lineStartsWith(const char* line, const char* prefix) {
+        return strncmp(line, prefix, strlen(prefix)) == 0;
+    }
+
+    uint8_t espnowCurrentChannel() {
+        if (espnowInterface() == WIFI_IF_AP) {
+            wifi_config_t conf = {};
+            if (esp_wifi_get_config(WIFI_IF_AP, &conf) == ESP_OK && conf.ap.channel >= 1 && conf.ap.channel <= 14) {
+                return conf.ap.channel;
+            }
+        }
+
+        uint8_t channel = (uint8_t)WiFi.channel();
+        if (channel >= 1 && channel <= 14) {
+            return channel;
+        }
+
+        uint8_t            primary   = 0;
+        wifi_second_chan_t secondary = WIFI_SECOND_CHAN_NONE;
+        if (esp_wifi_get_channel(&primary, &secondary) == ESP_OK && primary >= 1 && primary <= 14) {
+            return primary;
+        }
+
+        return 0;
+    }
+
+    static Error espnowPairCommand(const char* value, AuthenticationLevel, Channel& out) {
+        if (value && *value) {
+            return Error::InvalidValue;
+        }
+        if (!espnowChannel.startPairingWindow(PAIRING_WINDOW_MS)) {
+            log_error_to(out, "ESP-NOW: pairing is not available");
+            return Error::InvalidValue;
+        }
+        log_info_to(out, "ESP-NOW: pairing enabled for " << (PAIRING_WINDOW_MS / 1000) << " seconds");
+        return Error::Ok;
+    }
+
+    static Error espnowCancelCommand(const char* value, AuthenticationLevel, Channel& out) {
+        if (value && *value) {
+            return Error::InvalidValue;
+        }
+        espnowChannel.cancelPairingWindow();
+        log_info_to(out, "ESP-NOW: pairing cancelled");
+        return Error::Ok;
+    }
+
+    static Error espnowListCommand(const char* value, AuthenticationLevel, Channel& out) {
+        if (value && *value) {
+            return Error::InvalidValue;
+        }
         espnowChannel.listPairings(out);
         return Error::Ok;
     }
 
-    int parsed = atoi(value);
-    if (parsed < 0 || parsed > (int)ESPNowConfig::MAX_PAIRINGS) {
-        return Error::NumberRange;
-    }
-    if (parsed == 0) {
-        espnowChannel.clearPairings();
-        log_info_to(out, "ESP-NOW: whitelist cleared");
+    static Error espnowUnpairCommand(const char* value, AuthenticationLevel, Channel& out) {
+        if (!value || !*value) {
+            espnowChannel.listPairings(out);
+            return Error::Ok;
+        }
+
+        int parsed = atoi(value);
+        if (parsed < 0 || parsed > (int)ESPNowConfig::MAX_PAIRINGS) {
+            return Error::NumberRange;
+        }
+        if (parsed == 0) {
+            espnowChannel.clearPairings();
+            log_info_to(out, "ESP-NOW: whitelist cleared");
+            return Error::Ok;
+        }
+
+        uint8_t removed_mac[6] = {};
+        if (!espnowChannel.removePairingIndex((size_t)parsed, removed_mac)) {
+            return Error::InvalidValue;
+        }
+        log_info_to(out, "ESP-NOW: removed peripheral " << mac_str(removed_mac));
         return Error::Ok;
     }
-
-    uint8_t removed_mac[6] = {};
-    if (!espnowChannel.removePairingIndex((size_t)parsed, removed_mac)) {
-        return Error::InvalidValue;
-    }
-    log_info_to(out, "ESP-NOW: removed peripheral " << mac_str(removed_mac));
-    return Error::Ok;
-}
 }
 
 class ESPNowModule : public Module {
