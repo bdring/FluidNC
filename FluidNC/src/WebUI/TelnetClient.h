@@ -45,7 +45,7 @@ namespace WebUI {
         static bool isCriticalLine(const std::string& line);
         size_t      queueFree() const;
         bool        queueLine(const uint8_t* data, size_t len, size_t reserve);
-        void        flushQueue(int sockfd);
+        void        flushQueue();
         void        queueCompletedLine();
 
     public:

@@ -1,20 +1,20 @@
 // Copyright 2022 Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+#include "Platform.h"
 #include "TelnetClient.h"
 #include "TelnetServer.h"
 
 #include <WiFi.h>
-#include <lwip/sockets.h>  // ::send(), MSG_DONTWAIT
-#include <errno.h>
 
 namespace WebUI {
     TelnetClient::TelnetClient(WiFiClient* wifiClient) : Channel("telnet"), _wifiClient(wifiClient) {
-        int sockfd = _wifiClient->fd();
-        if (sockfd >= 0) {
-            int one = 1;
-            ::setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
-        }
+#if !HOSTED
+        _wifiClient->setNoDelay(true);
+#endif
+#ifdef __FLUIDNC_RP2040_H__
+        _wifiClient->setSync(false);
+#endif
     }
 
     void TelnetClient::handle() {}
@@ -59,19 +59,23 @@ namespace WebUI {
 
     // Non-blocking drain of the queue. Bytes that can't be sent now stay queued
     // and go out on the next write().
-    void TelnetClient::flushQueue(int sockfd) {
+    void TelnetClient::flushQueue() {
         while (_txTail != _txHead) {
             size_t contiguous = _txHead > _txTail ? _txHead - _txTail : TX_QUEUE_SIZE - _txTail;
-            int    sent       = ::send(sockfd, _txQueue.data() + _txTail, contiguous, MSG_DONTWAIT);
+            size_t canSend    = _wifiClient->availableForWrite();
+            size_t toSend     = contiguous < canSend ? contiguous : canSend;
+            if (toSend == 0) {
+                return;  // nothing can be sent right now
+            }
+            size_t sent = _wifiClient->write(_txQueue.data() + _txTail, toSend);
             if (sent > 0) {
-                _txTail = (_txTail + (size_t)sent) % TX_QUEUE_SIZE;
+                _txTail = (_txTail + sent) % TX_QUEUE_SIZE;
                 continue;
             }
-            if (sent < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                return;  // send buffer full — keep the rest queued for next time
+            if (!_wifiClient->connected()) {
+                _wifiClient->stop();  // hard error / peer gone
+                closeOnDisconnect();
             }
-            _wifiClient->stop();  // hard error / peer gone
-            closeOnDisconnect();
             return;
         }
     }
@@ -94,8 +98,7 @@ namespace WebUI {
         if (_state == -1 || buffer == nullptr || length == 0) {
             return length;
         }
-        int sockfd = _wifiClient->fd();
-        if (sockfd < 0) {
+        if (_wifiClient->connected()) {
             closeOnDisconnect();
             return length;
         }
@@ -119,7 +122,7 @@ namespace WebUI {
             }
         }
 
-        flushQueue(sockfd);
+        flushQueue();
         return length;
     }
 
