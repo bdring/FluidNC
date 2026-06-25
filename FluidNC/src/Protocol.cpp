@@ -366,10 +366,12 @@ static void protocol_do_start_homing() {
 }
 
 static void protocol_do_soft_restart() {
+#ifndef DISABLE_SYS_LISTENERS
     auto listeners = Listeners::SysListenerFactory::objects();
     for (auto l : listeners) {
         l->beforeVariableReset();
     }
+#endif
 
     // Reset primary systems.
     system_reset();
@@ -397,9 +399,11 @@ static void protocol_do_soft_restart() {
     report_init_message(allChannels);
     mc_init();
 
+#ifndef DISABLE_SYS_LISTENERS
     for (auto l : listeners) {
         l->afterVariableReset();
     }
+#endif
 
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.

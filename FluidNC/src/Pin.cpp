@@ -16,7 +16,9 @@
 #include "Machine/MachineConfig.h"  // config
 #include <string_view>
 #include <charconv>
+#ifndef DISABLE_PIN_EXTENDERS
 #include "Pins/ExtPinDetail.h"
+#endif
 
 static constexpr bool verbose_debugging = false;
 
@@ -94,6 +96,7 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         return nullptr;
     }
 
+#ifndef DISABLE_PIN_EXTENDERS
     if (string_util::starts_with_ignore_case(pin_type, "pinext")) {
         if (pin_type.length() == 7 && isdigit(pin_type[6])) {
             auto deviceId     = pin_type[6] - '0';
@@ -103,6 +106,7 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
             return "Incorrect pin extender specification. Expected 'pinext[0-9].[port number]'.";
         }
     }
+#endif
 
     if (pinImplementation == nullptr) {
         log_error("Unknown pin type:" << pin_type);

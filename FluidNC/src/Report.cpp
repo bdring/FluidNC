@@ -32,8 +32,6 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdarg>
-#include <sstream>
-#include <iomanip>
 
 volatile bool protocol_pin_changed = false;
 
@@ -73,8 +71,8 @@ static const int axesStringLen  = coordStringLen * MAX_N_AXIS;
 
 // Sends the axis values to the output channel
 static std::string report_util_axis_values(const float* axis_value) {
-    std::ostringstream msg;
-    auto               n_axis = Axes::_numberAxis;
+    std::string msg;
+    auto        n_axis = Axes::_numberAxis;
     for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         uint8_t decimals;
         float   value = axis_value[axis];
@@ -92,12 +90,12 @@ static std::string report_util_axis_values(const float* axis_value) {
             // to use ABC as linear axes in mm.
             decimals = 3;
         }
-        msg << std::fixed << std::setprecision(decimals) << value;
+        msg += formatFloat(value, decimals);
         if (axis < (n_axis - 1)) {
-            msg << ",";
+            msg += ",";
         }
     }
-    return msg.str();
+    return msg;
 }
 
 std::map<Message, const char*> MessageText = {
@@ -221,119 +219,118 @@ void report_ngc_parameters(Channel& channel) {
 
 // Print current gcode parser mode state
 void report_gcode_modes(Channel& channel) {
-    std::ostringstream msg;
+    std::string msg;
     switch (gc_state.modal.motion) {
         case Motion::None:
-            msg << "G80";
+            msg += "G80";
             break;
         case Motion::Seek:
-            msg << "G0";
+            msg += "G0";
             break;
         case Motion::Linear:
-            msg << "G1";
+            msg += "G1";
             break;
         case Motion::CwArc:
-            msg << "G2";
+            msg += "G2";
             break;
         case Motion::CcwArc:
-            msg << "G3";
+            msg += "G3";
             break;
         case Motion::ProbeToward:
-            msg << "G38.2";
+            msg += "G38.2";
             break;
         case Motion::ProbeTowardNoError:
-            msg << "G38.3";
+            msg += "G38.3";
             break;
         case Motion::ProbeAway:
-            msg << "G38.4";
+            msg += "G38.4";
             break;
         case Motion::ProbeAwayNoError:
-            msg << "G38.5";
+            msg += "G38.5";
             break;
     }
 
     if (gc_state.modal.coord_select < CoordIndex::G59_1) {
         // G54 .. G59
-        msg << " G" << (gc_state.modal.coord_select + 54);
+        msg += " G" + std::to_string(gc_state.modal.coord_select + 54);
     } else {
         // G59.1 .. G59.3
-        msg << " G59." << (gc_state.modal.coord_select - CoordIndex::G59);
+        msg += " G59." + std::to_string(gc_state.modal.coord_select - CoordIndex::G59);
     }
 
     switch (gc_state.modal.plane_select) {
         case Plane::XY:
-            msg << " G17";
+            msg += " G17";
             break;
         case Plane::ZX:
-            msg << " G18";
+            msg += " G18";
             break;
         case Plane::YZ:
-            msg << " G19";
+            msg += " G19";
             break;
     }
 
     switch (gc_state.modal.units) {
         case Units::Inches:
-            msg << " G20";
+            msg += " G20";
             break;
         case Units::Mm:
-            msg << " G21";
+            msg += " G21";
             break;
     }
 
     switch (gc_state.modal.distance) {
         case Distance::Absolute:
-            msg << " G90";
+            msg += " G90";
             break;
         case Distance::Incremental:
-            msg << " G91";
+            msg += " G91";
             break;
     }
 
 #if 0
     switch (gc_state.modal.arc_distance) {
-        case ArcDistance::Absolute: msg << " G90.1"; break;
-        case ArcDistance::Incremental: msg << " G91.1"; break;
+        case ArcDistance::Absolute: msg += " G90.1"; break;
+        case ArcDistance::Incremental: msg += " G91.1"; break;
     }
 #endif
 
     switch (gc_state.modal.feed_rate) {
         case FeedRate::UnitsPerMin:
-            msg << " G94";
+            msg += " G94";
             break;
         case FeedRate::InverseTime:
-            msg << " G93";
+            msg += " G93";
             break;
     }
 
     //report_util_gcode_modes_M();
     switch (gc_state.modal.program_flow) {
         case ProgramFlow::Running:
-            msg << "";
             break;
         case ProgramFlow::Paused:
-            msg << " M0";
+            msg += " M0";
             break;
         case ProgramFlow::OptionalStop:
-            msg << " M1";
+            msg += " M1";
             break;
         case ProgramFlow::CompletedM2:
-            msg << " M2";
+            msg += " M2";
             break;
         case ProgramFlow::CompletedM30:
-            msg << " M30";
+            msg += " M30";
             break;
     }
 
     switch (gc_state.modal.spindle) {
         case SpindleState::Cw:
-            msg << " M3";
+            msg += " M3";
             break;
         case SpindleState::Ccw:
-            msg << " M4";
+            msg += " M4";
             break;
         case SpindleState::Disable:
-            msg << " M5";
+            msg += " M5";
             break;
         default:
             break;
@@ -342,26 +339,26 @@ void report_gcode_modes(Channel& channel) {
     //report_util_gcode_modes_M();  // optional M7 and M8 should have been dealt with by here
     auto coolant = gc_state.modal.coolant;
     if (!coolant.Mist && !coolant.Flood) {
-        msg << " M9";
+        msg += " M9";
     } else {
         // Note: Multiple coolant states may be active at the same time.
         if (coolant.Mist) {
-            msg << " M7";
+            msg += " M7";
         }
         if (coolant.Flood) {
-            msg << " M8";
+            msg += " M8";
         }
     }
 
     if (config->_enableParkingOverrideControl && sys.override_ctrl() == Override::ParkingMotion) {
-        msg << " M56";
+        msg += " M56";
     }
 
-    msg << " T" << gc_state.selected_tool;
+    msg += " T" + std::to_string(gc_state.selected_tool);
     uint8_t digits = config->_reportInches ? 1 : 0;
-    msg << " F" << std::fixed << std::setprecision(digits) << gc_state.feed_rate;
-    msg << " S" << uint32_t(gc_state.spindle_speed);
-    log_stream(channel, "[GC:" << msg.str())
+    msg += " F" + formatFloat(gc_state.feed_rate, digits);
+    msg += " S" + std::to_string(uint32_t(gc_state.spindle_speed));
+    log_stream(channel, "[GC:" << msg)
 }
 
 // Prints build info line

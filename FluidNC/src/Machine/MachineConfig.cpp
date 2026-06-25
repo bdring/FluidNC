@@ -67,7 +67,9 @@ namespace Machine {
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
         handler.section("macros", _macros);
+#ifndef DISABLE_PIN_EXTENDERS
         handler.section("extenders", _extenders);
+#endif
         handler.section("start", _start);
         handler.section("parking", _parking);
 
@@ -77,7 +79,9 @@ namespace Machine {
         ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
+#ifndef DISABLE_SYS_LISTENERS
         Listeners::SysListenerFactory::factory(handler);
+#endif
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);

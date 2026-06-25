@@ -4,7 +4,7 @@
 #pragma once
 
 #include <vector>
-#include <sstream>
+#include <string>
 
 #include "Pin.h"
 #include "Report.h"    // report_gcode_modes()
@@ -83,14 +83,13 @@ namespace Configuration {
             if (value.size() == 0) {
                 send_item(name, "None");
             } else {
-                std::ostringstream s;
-                s.precision(2);
+                std::string s;
                 const char* separator = "";
                 for (speedEntry n : value) {
-                    s << separator << n.speed << "=" << std::fixed << n.percent << "%";
+                    s += separator + std::to_string(n.speed) + "=" + formatFloat(n.percent, 2) + "%";
                     separator = " ";
                 }
-                send_item(name, s.str());
+                send_item(name, s);
             }
         }
 
@@ -98,15 +97,13 @@ namespace Configuration {
             if (value.size() == 0) {
                 send_item(name, "None");
             } else {
-                std::ostringstream s;
-                s.precision(3);
-                s << std::fixed;
+                std::string s;
                 const char* separator = "";
                 for (float n : value) {
-                    s << separator << n;
+                    s += separator + formatFloat(n, 3);
                     separator = " ";
                 }
-                send_item(name, s.str());
+                send_item(name, s);
             }
         }
 
