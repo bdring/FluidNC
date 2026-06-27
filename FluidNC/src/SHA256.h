@@ -11,9 +11,9 @@ struct SHA256_CTX {
 #ifdef WITH_MBEDTLS
     mbedtls_md_context_t ctx;
 #else
-    uint32_t state[8];
-    uint64_t bitlen;
-    uint8_t data[64];
+    uint32_t     state[8];
+    uint64_t     bitlen;
+    uint8_t      data[64];
     unsigned int datalen;
 #endif
 };

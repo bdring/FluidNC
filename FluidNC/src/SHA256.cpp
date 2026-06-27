@@ -1,3 +1,4 @@
+#include "Platform.h"
 #include "SHA256.h"
 
 #ifdef WITH_MBEDTLS
@@ -5,6 +6,7 @@
 #else
 #    include <cstring>
 
+// clang-format off
 static const uint32_t k[64] = {
     0x428a2f98u, 0x71374491u, 0xb5c0fbcfu, 0xe9b5dba5u,
     0x3956c25bu, 0x59f111f1u, 0x923f82a4u, 0xab1c5ed5u,
@@ -23,6 +25,7 @@ static const uint32_t k[64] = {
     0x748f82eeu, 0x78a5636fu, 0x84c87814u, 0x8cc70208u,
     0x90befffau, 0xa4506cebu, 0xbef9a3f7u, 0xc67178f2u
 };
+// clang-format on
 
 static inline uint32_t rotr(uint32_t x, uint32_t n) {
     return (x >> n) | (x << (32 - n));
