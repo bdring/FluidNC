@@ -20,8 +20,13 @@ Strict vs permissive mode:
     where casing style shouldn't block a merge. See fluidnc_validate_core.py
     for exactly which identifiers this covers.
 
+    Separately, deprecated-feature usage (e.g. extenders:/rgbled: sections,
+    pinext-syntax pin values) is always reported as a WARNING regardless of
+    --permissive -- deprecation is a different concern from casing
+    strictness and surfaces either way.
+
 Exit codes:
-    0  valid (no errors; warnings, if any in --permissive mode, don't affect this)
+    0  valid (no errors; deprecation warnings can appear in either mode and don't affect this)
     1  schema violations found
     2  file not found / YAML parse error / schema load error / dependency install failed
 
@@ -52,18 +57,24 @@ _AUTO_INSTALL = not any(flag in sys.argv for flag in ("--no-auto-install", "--of
 
 def _pip_install(packages: list[str]) -> bool:
     """Try a plain pip install; on an externally-managed-environment error,
-    retry with --break-system-packages. Returns True on success."""
+    retry with --break-system-packages. Returns True on success. Any other
+    failure (network error, bad package name, permissions, etc.) is reported
+    as-is rather than masked by an unconditional retry."""
     base_cmd = [sys.executable, "-m", "pip", "install", "--quiet"] + packages
     result = subprocess.run(base_cmd, capture_output=True, text=True)
     if result.returncode == 0:
         return True
-    # Common on modern Debian/Ubuntu/Homebrew Pythons (PEP 668)
-    if "externally-managed-environment" in (result.stderr or "") or result.returncode != 0:
+    # Only retry with --break-system-packages for the specific PEP 668
+    # "externally-managed-environment" case (common on modern
+    # Debian/Ubuntu/Homebrew Pythons) -- not for any other failure reason.
+    if "externally-managed-environment" in (result.stderr or ""):
         retry_cmd = base_cmd + ["--break-system-packages"]
         result2 = subprocess.run(retry_cmd, capture_output=True, text=True)
         if result2.returncode == 0:
             return True
         print(result2.stderr or result.stderr, file=sys.stderr)
+        return False
+    print(result.stderr, file=sys.stderr)
     return False
 
 
@@ -97,7 +108,7 @@ _ensure_import("jsonschema", "jsonschema")
 # fluidnc_validate_core.py must ship alongside this script (same directory).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
-    from fluidnc_validate_core import load_schema, validate_document
+    from fluidnc_validate_core import validate_document
 except ImportError:
     print("error: fluidnc_validate_core.py not found next to this script. "
           "It must be shipped alongside validate_fluidnc_config.py.", file=sys.stderr)
@@ -181,7 +192,7 @@ def main() -> int:
     mode_note = " (permissive mode)" if args.permissive else ""
 
     if warnings:
-        print(f"{len(warnings)} normalization warning(s){mode_note}:\n")
+        print(f"{len(warnings)} warning(s){mode_note}:\n")
         for w in warnings:
             path = " -> ".join(str(p) for p in w["path"]) or "(root)"
             print(f"  [{path}]")

@@ -47,6 +47,11 @@ case-insensitive identifiers before validating -- normalizations are then
 reported as non-blocking "warnings" instead. See fluidnc_validate_core.py
 for exactly which identifiers this covers.
 
+Separately, deprecated-feature usage (e.g. extenders:/rgbled: sections,
+pinext-syntax pin values) is always reported as a "warnings" entry
+regardless of permissive -- "warnings" is not empty only in permissive
+mode; a strictly-valid-but-deprecated config will have warnings too.
+
 Scope, mirrored from fluidnc-config-schema.json's own description: this checks
 structural/type/range/enum correctness only. It does NOT check YAML-syntax-level
 rules (indentation consistency, tabs, etc. — see the companion markdown spec §0)
@@ -117,12 +122,16 @@ def validate_fluidnc_config(yaml_text: str, permissive: bool = False) -> dict:
 
     Pass the full text of a config.yaml file as a string (e.g. content you just
     generated). Returns:
-        {"valid": true, "errors": [], "warnings": []}                      on success
+        {"valid": true, "errors": [], "warnings": []}                      on success, nothing deprecated used
+        {"valid": true, "errors": [], "warnings": [...]}                   on success, but using a deprecated feature -- check "warnings"
         {"valid": false, "errors": [{"path":[...],"message":"..."}], "warnings":[...]}  on schema violations
         {"valid": false, "yaml_parse_error": "..."}                        if the text isn't valid YAML
 
     Call this after generating or editing a FluidNC config, and fix any
-    reported errors before presenting the result to the user.
+    reported errors before presenting the result to the user. Also check
+    "warnings" even when valid is true -- deprecated-feature usage (e.g.
+    extenders:/rgbled: sections, pinext-syntax pins) is reported there
+    regardless of the permissive setting below.
 
     permissive: FluidNC's real parser matches most identifiers (spindle
     types, motor driver types, kinematics types, several enum values)
