@@ -591,7 +591,9 @@ Advanced/rare feature (companion-controller / remote-IO style setups); most conf
 
 ## 10. Spindle sections
 
-FluidNC allows **one or more** spindle definitions, each named by its driver-type key (not by a generic `spindle:` wrapper key). At least one is expected for a functioning machine; if none is specified, FluidNC synthesizes a default `NoSpindle:`.
+> **⚠️ Common, confirmed AI-generation mistake — read this before writing a spindle section.** Three different AI assistants (Claude, GitHub Copilot, and Gemini), independently and in separate incidents, have all generated a wrapper key around spindle content that **does not exist** — variously `spindle:`, `Spindle:`, and `spindles:` (singular and plural), sometimes with a nested `type:` field, sometimes with the type name as a nested key underneath the invented wrapper. All of these are wrong, in any casing, singular or plural, with or without a `type:` field. **There is no wrapper of any kind.** This is an unusually strong and convergent mistake — it happens because a wrapper is how nearly every other config format (and FluidNC's own maintainers, in hindsight) would design this, since FluidNC's spindle-type-name-as-literal-top-level-key convention predates multi-spindle support and was never redesigned once multiple spindles became possible. Knowing *why* the mistake is tempting does not make it correct: **a spindle type name (`PWM`, `Relay`, `ModbusVFD`, etc.) is placed directly at the document root, as its own top-level key, exactly like `axes:` or `control:` — never nested inside anything else.** If you are about to write `spindle:`, `Spindle:`, or `spindles:` anywhere in a config, stop — that key does not exist in any form, and doing so will fail schema validation.
+
+FluidNC allows **one or more** spindle definitions, each named by its driver-type key (not by a generic `spindle:`/`spindles:` wrapper key of any casing — see the warning above). At least one is expected for a functioning machine; if none is specified, FluidNC synthesizes a default `NoSpindle:`.
 
 ### 10.1 Speed Map (used by every spindle type except `NoSpindle:`)
 

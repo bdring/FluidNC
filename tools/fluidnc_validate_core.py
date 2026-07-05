@@ -91,9 +91,20 @@ def _resolve_ref(schema, ref_schema):
     return _def(schema, ref[len("#/$defs/"):])
 
 
-def _canonical_key_match(key: str, canonical_names):
+def _canonical_key_match(key, canonical_names):
     """Return the canonical name if key case-insensitively matches one of
-    canonical_names but isn't already an exact match; else None."""
+    canonical_names but isn't already an exact match; else None.
+
+    Defensively handles non-string keys: YAML 1.1 (which PyYAML follows)
+    parses bare on/off/yes/no/true/false/y/n as booleans even when used as a
+    mapping KEY, not just a value -- e.g. a GitHub Actions workflow file's
+    `on:` key parses to the Python bool True, not the string "on". A
+    document like that should never reach this function in practice (see
+    the CI workflow's own path filtering), but this function must not crash
+    if it ever does -- a non-string key simply can't case-insensitively
+    match a canonical (string) name, so there's nothing to normalize."""
+    if not isinstance(key, str):
+        return None
     if key in canonical_names:
         return None
     for name in canonical_names:
@@ -192,6 +203,8 @@ def normalize_permissive(doc, schema):
     #    "spindle type" case).
     numbered_prefixes_present = set()
     for k in list(doc.keys()) if isinstance(doc, dict) else []:
+        if not isinstance(k, str):
+            continue
         for prefix, pattern in _NUMBERED_SECTION_PATTERNS.items():
             if pattern.match(k):
                 numbered_prefixes_present.add(k)
@@ -201,6 +214,8 @@ def normalize_permissive(doc, schema):
     #     rare in practice but cheap to handle.
     if isinstance(doc, dict):
         for k in list(doc.keys()):
+            if not isinstance(k, str):
+                continue
             for prefix, pattern in _NUMBERED_SECTION_PATTERNS.items():
                 m = pattern.match(k)
                 if m and not k.startswith(prefix):
@@ -310,7 +325,7 @@ def normalize_permissive(doc, schema):
     usb_host_def = _resolve_ref(schema, usb_host_ref) if usb_host_ref else None
 
     for k, node in list(doc.items()) if isinstance(doc, dict) else []:
-        if not isinstance(node, dict):
+        if not isinstance(k, str) or not isinstance(node, dict):
             continue
         if _NUMBERED_SECTION_PATTERNS["uart_channel"].match(k):
             normalize_keys(node, [k], _props_of(uart_channel_def), "field")
@@ -405,6 +420,107 @@ def load_schema(schema_path: Path) -> dict:
         return json.load(f)
 
 
+def _stringify_keys(node):
+    """
+    Recursively convert every dict key to a string, returning a new
+    structure (input is not mutated).
+
+    This exists because YAML (1.1, which PyYAML follows) parses certain
+    bare words as booleans/null even when used as a mapping KEY, not just a
+    value -- most notably `on`/`off`/`yes`/`no`/`true`/`false`/`y`/`n`
+    (classic example: a GitHub Actions workflow's `on:` key parses to the
+    Python bool True). JSON itself has no such concept -- object keys are
+    always strings -- and the `jsonschema` package was built against that
+    assumption: its patternProperties matching does a regex match directly
+    against each key, which raises an uncaught TypeError if the key isn't a
+    string, before our own validation or normalization code ever runs.
+
+    Called unconditionally, on every document, before anything else in
+    validate_document() -- not just as a defensive measure for obviously
+    wrong input like a workflow file (which shouldn't reach this function at
+    all if callers filter their inputs correctly), but because a config.yaml
+    a user actually intends could plausibly contain a bare `on:`/`off:` key
+    by mistake, and this validator should report that clearly (as an
+    unrecognized top-level key, which is what it becomes once stringified)
+    rather than crash.
+    """
+    if isinstance(node, dict):
+        return {str(k): _stringify_keys(v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_stringify_keys(v) for v in node]
+    return node
+
+
+def check_common_mistakes(doc):
+    """
+    Detect specific, confirmed AI-generation mistakes and return sharp,
+    didactic error messages for them -- distinct from (and IN ADDITION TO)
+    whatever generic schema-violation message jsonschema itself produces for
+    the same key, since a generic "'spindles' does not match any of the
+    regexes: ..." message does not explain what to do about it.
+
+    Currently checks for exactly one confirmed pattern: a top-level
+    'spindle'/'spindles' wrapper key (any casing, singular or plural) around
+    spindle content. Ground truth: three different AI assistants (Claude,
+    GitHub Copilot, and Gemini), independently, have each invented some
+    version of this wrapper -- it does not exist in any form. See spec §10
+    for the full writeup of why this is such a strong, convergent mistake.
+
+    Returns a list of error dicts, same shape as jsonschema-derived errors
+    ({"path": [...], "message": "..."}). Always runs, regardless of
+    strict/permissive mode -- this is a structural impossibility, not a
+    casing-leniency question.
+    """
+    errors = []
+    if not isinstance(doc, dict):
+        return errors
+
+    for key, value in doc.items():
+        if not isinstance(key, str) or key.lower() not in ("spindle", "spindles"):
+            continue
+
+        suggestion = ""
+        if isinstance(value, dict):
+            nested_keys = list(value.keys())
+            if "type" in value and isinstance(value.get("type"), str):
+                spindle_type = value["type"]
+                suggestion = (
+                    f" It looks like you wrote a 'type: {spindle_type}' field -- instead, "
+                    f"move '{key}' out entirely and rename it to the type name itself, e.g. "
+                    f"a top-level 'Relay:' key (capitalized to match the canonical spelling), "
+                    f"with the rest of {value!r}'s fields (minus 'type') moved directly under it."
+                )
+            elif nested_keys:
+                inner_key = nested_keys[0]
+                suggestion = (
+                    f" It looks like '{inner_key}:' is nested inside '{key}:' -- instead, move "
+                    f"'{inner_key}:' up to be its own top-level key, at the same level as "
+                    f"'axes:'/'control:'/etc., and delete the '{key}:' wrapper entirely."
+                )
+        elif isinstance(value, list):
+            suggestion = (
+                f" It looks like '{key}:' holds a list -- FluidNC has no such list. Take "
+                f"each list item's spindle type name (from a 'type:' field, if present) and "
+                f"turn it into its own top-level key instead, e.g. a top-level 'Relay:' key, "
+                f"with that item's other fields moved directly under it. Delete the "
+                f"'{key}:' wrapper entirely."
+            )
+
+        errors.append({
+            "path": [key],
+            "message": (
+                f"'{key}' is not a valid key -- FluidNC has no spindle wrapper of any kind "
+                f"(not 'spindle:', 'Spindle:', or 'spindles:', singular or plural). This is a "
+                f"confirmed, recurring AI-generation mistake (see spec §10) -- a spindle type "
+                f"name (PWM, Relay, ModbusVFD, etc.) must be its own top-level key, exactly "
+                f"like 'axes:' or 'control:', never nested inside anything else."
+                + suggestion
+            ),
+        })
+
+    return errors
+
+
 def validate_document(doc, schema: dict, permissive: bool = False) -> dict:
     """
     Validate a parsed FluidNC config document against schema.
@@ -419,6 +535,9 @@ def validate_document(doc, schema: dict, permissive: bool = False) -> dict:
 
     if doc is None:
         doc = {}
+    doc = _stringify_keys(doc)
+
+    mistake_errors = check_common_mistakes(doc)
 
     warnings = []
     if permissive:
@@ -428,8 +547,9 @@ def validate_document(doc, schema: dict, permissive: bool = False) -> dict:
 
     validator = Draft202012Validator(schema)
     errors = sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path))
+    all_errors = mistake_errors + [{"path": list(e.absolute_path), "message": e.message} for e in errors]
     return {
-        "valid": len(errors) == 0,
-        "errors": [{"path": list(e.absolute_path), "message": e.message} for e in errors],
+        "valid": len(all_errors) == 0,
+        "errors": all_errors,
         "warnings": warnings,
     }
