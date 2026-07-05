@@ -234,6 +234,17 @@
       "description": "DO NOT USE. Pin-extender pin string (spec \u00a73.5). Provisional feature, may be removed. Included only for recognizing existing configs, not for generation.",
       "pattern": "^pinext[0-9]\\.[0-9]+(:(high|low|pu|pd|ds[0-3]))*$"
     },
+    "pinAny": {
+      "description": "Any pin field accepts either a real pin (see 'pin') or, for recognizing existing configs only, a deprecated pinext pin string (see 'pinDeprecated'). Every pin-typed field in this schema references this combined definition rather than 'pin' directly, so that pinext-using configs can actually validate (with the pinext value correctly flagged deprecated) instead of being unconditionally rejected -- 'pin' alone excludes pinext syntax by design (spec \u00a73.5), so referencing only 'pin' everywhere would have made this schema's own claim of 'recognizing' deprecated pinext configs false in practice.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/pin"
+        },
+        {
+          "$ref": "#/$defs/pinDeprecated"
+        }
+      ]
+    },
     "boolean": {
       "type": "boolean",
       "description": "spec \u00a72/\u00a70.7: NOT a validated two-value type in the real parser \u2014 only the literal token 'true' (case-insensitive) is recognized; anything else (including typos) silently becomes false with no error. Always emit exactly true or false."
@@ -269,15 +280,15 @@
       "additionalProperties": false,
       "properties": {
         "step_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "disable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -291,33 +302,33 @@
       "additionalProperties": false,
       "properties": {
         "step_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "disable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "ms1_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "ms2_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "ms3_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "reset_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Sets state at boot only, no active runtime behavior.",
@@ -334,21 +345,21 @@
       "additionalProperties": false,
       "properties": {
         "step_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "disable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "cs_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Independent SPI mode: each driver needs its own. Daisy chain: only define on spi_index:1 motor.",
@@ -480,21 +491,21 @@
       "additionalProperties": false,
       "properties": {
         "step_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "disable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "cs_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Independent SPI mode: each driver needs its own. Daisy chain: only define on spi_index:1 motor.",
@@ -632,15 +643,15 @@
       "additionalProperties": false,
       "properties": {
         "step_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "disable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "uart_num": {
@@ -654,7 +665,7 @@
         "cs_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Rarely used; present on TrinamicUartDriver base.",
@@ -755,15 +766,15 @@
       "additionalProperties": false,
       "properties": {
         "step_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "disable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "uart_num": {
@@ -780,7 +791,7 @@
         "cs_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Rarely used; present on TrinamicUartDriver base.",
@@ -889,19 +900,19 @@
       "additionalProperties": false,
       "properties": {
         "step_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "disable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "cs_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "spi_index": {
@@ -964,7 +975,7 @@
       "additionalProperties": false,
       "properties": {
         "output_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "pwm_hz": {
@@ -1002,7 +1013,7 @@
       "additionalProperties": false,
       "properties": {
         "output_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "pwm_hz": {
@@ -1060,7 +1071,7 @@
       "properties": {
         "uart_num": {
           "type": "integer",
-          "description": "Baud should match servo's programmed baud (1000000 recommended), mode \"N81\" (quote it)."
+          "description": "Baud should match servo's programmed baud (1000000 recommended), mode \"8N1\" (quote it)."
         },
         "id": {
           "type": "integer",
@@ -1098,17 +1109,17 @@
       "description": "spec \u00a75.4. Exactly one driver-type key must be present (never zero, never more than one).",
       "properties": {
         "limit_neg_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "limit_pos_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "limit_all_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Mutually exclusive with limit_neg_pin/limit_pos_pin -- never combine.",
@@ -1375,11 +1386,11 @@
       "additionalProperties": false,
       "properties": {
         "shared_stepper_disable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "shared_stepper_reset_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "homing_runs": {
@@ -1470,7 +1481,7 @@
         "miso_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Must be a native GPIO with input capability.",
@@ -1479,7 +1490,7 @@
         "mosi_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Must be a native GPIO with output capability.",
@@ -1488,7 +1499,7 @@
         "sck_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Must be a native GPIO with output capability.",
@@ -1506,7 +1517,7 @@
         "cs_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Required (non-NO_PIN) for SD to function.",
@@ -1515,7 +1526,7 @@
         "card_detect_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Optional, cosmetic only (shown in startup log).",
@@ -1538,47 +1549,47 @@
       "additionalProperties": false,
       "properties": {
         "safety_door_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "reset_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "feed_hold_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "cycle_start_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "macro0_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "macro1_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "macro2_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "macro3_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "fault_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "estop_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "homing_button_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -1594,7 +1605,7 @@
         "mist_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Controlled by M7 / M9.",
@@ -1603,7 +1614,7 @@
         "flood_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Controlled by M8 / M9.",
@@ -1629,7 +1640,7 @@
         "pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "The touch probe input (EventPin).",
@@ -1638,7 +1649,7 @@
         "toolsetter_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "A separate fixed toolsetter input, if present (EventPin).",
@@ -1696,19 +1707,19 @@
       "additionalProperties": false,
       "properties": {
         "txd_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "rxd_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "rts_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "cts_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "baud": {
@@ -1775,11 +1786,11 @@
       "additionalProperties": false,
       "properties": {
         "sda_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "scl_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "frequency": {
@@ -2007,18 +2018,18 @@
         "direction_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "M4 only works if this is a real pin.",
           "default": "NO_PIN"
         },
         "output_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "enable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -2086,11 +2097,11 @@
           "default": 0
         },
         "forward_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "reverse_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "pwm_hz": {
@@ -2100,15 +2111,15 @@
           "default": 5000
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "output_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "enable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -2178,17 +2189,17 @@
         "output_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "ONLY gpio.25 or gpio.26 are functional."
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "enable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -2262,15 +2273,15 @@
           "default": 5000
         },
         "output_cw_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "output_ccw_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "enable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -2345,11 +2356,11 @@
           "default": 5000
         },
         "output_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "enable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -2417,15 +2428,15 @@
           "default": 0
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "output_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "enable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -2493,15 +2504,15 @@
           "default": 0
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "output_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "enable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -2585,15 +2596,15 @@
           "default": 5000
         },
         "direction_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "output_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "enable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -2648,13 +2659,13 @@
           "default": false
         },
         "enable_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "arc_ok_pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Input/event pin -- torch reports arc-established/arc-lost here.",
@@ -2935,19 +2946,19 @@
       "additionalProperties": false,
       "properties": {
         "analog0_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "analog1_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "analog2_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "analog3_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "analog0_hz": {
@@ -2975,35 +2986,35 @@
           "default": 5000
         },
         "digital0_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital1_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital2_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital3_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital4_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital5_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital6_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital7_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -3017,51 +3028,51 @@
       "additionalProperties": false,
       "properties": {
         "digital0_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital1_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital2_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital3_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital4_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital5_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital6_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "digital7_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "analog0_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "analog1_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "analog2_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "analog3_pin": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -3216,19 +3227,19 @@
           "description": "Which top-level i2cN: bus this expander is on."
         },
         "interrupt0": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "interrupt1": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "interrupt2": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
         "interrupt3": {
-          "$ref": "#/$defs/pin",
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         }
       }
@@ -3323,7 +3334,7 @@
         "pin": {
           "allOf": [
             {
-              "$ref": "#/$defs/pin"
+              "$ref": "#/$defs/pinAny"
             }
           ],
           "description": "Data pin to the LED/LED strip.",

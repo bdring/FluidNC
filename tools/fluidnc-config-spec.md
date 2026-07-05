@@ -210,14 +210,14 @@ axes:
 
 ### 5.2 Axis letter blocks
 
-- Valid axis letter keys: `x`, `y`, `z`, `a`, `b`, `c` — **must be defined in that order** (cannot skip ahead; must define x, y before z, etc.). Minimum 3 axes must exist (undefined trailing axes up to a defined one become virtual/no-output axes — but always explicitly define at least x, y, z).
+- Valid axis letter keys: `x`, `y`, `z`, `a`, `b`, `c`. As established in §0.13, these can be defined **in any order in the file** — matching is by name, not textual position. The real pitfall is different: whichever axis has the *highest index* actually defined in the file determines how many axes exist, and any lower-indexed axis you didn't explicitly define gets silently created with all-default values rather than being absent. So defining `z:` without `x:`/`y:` still gives you 3 axes — `x`/`y` just end up configured however the defaults happen to be, not the way you intended. Minimum 3 axes must exist; always explicitly define at least `x`, `y`, `z`.
 - `x`, `y`, `z` are linear axes and report in inches under G20. `a`, `b`, `c` are treated as rotary/universal-unit axes and never scale for inches, even if used as a physical linear axis.
 
 ```yaml
 axes:
   x:
     steps_per_mm: 80.000              # Float, 0.001-100000.000, default 80.000
-    max_rate_mm_per_min: 1000.000     # Float, 0.001-100000.000, default 1000.000
+    max_rate_mm_per_min: 1000.000     # Float, 0.001-250000.0, default 1000.000
     acceleration_mm_per_sec2: 25.000  # Float, 0.001-100000.000, default 25.000
     max_travel_mm: 1000.000           # Float, 0.1-10000000.0, default 1000.000
     soft_limits: false                # Boolean, default false
@@ -460,7 +460,7 @@ solenoid:
 Class chain: `Servo → Dynamixel2`. **Corrections: `id` default is 255, not 1; `count_min`/`count_max` defaults are 1024/3072, not 0/4095; and a `timer_ms` field was missing entirely.**
 ```yaml
 dynamixel2:
-  uart_num: 1            # Integer — references top-level uartN: section; baud should match servo's programmed baud (1000000 recommended), mode "N81" (quote it, see §2)
+  uart_num: 1            # Integer — references top-level uartN: section; baud should match servo's programmed baud (1000000 recommended), mode "8N1" (quote it, see §2)
   id: 255                 # Integer, default 255 — must be set to a real, unique servo ID per device on the bus; 255 is Dynamixel's broadcast address and not a usable per-device value
   count_min: 1024           # Integer, default 1024 — servo raw count at the low end of axis mpos range
   count_max: 3072             # Integer, default 3072 — servo raw count at the high end of axis mpos range
@@ -884,9 +884,7 @@ PWM:
   tool_num: 0
   speed_map: "0=0.000% 1000=100.000%"
   off_on_alarm: true
-
 ```
-*(Note the trailing blank line — required by §0.6.)*
 
 ### 12.2 TMC2209 UART daisy config fragment (illustrates §5.4.6 + §9 interaction)
 
