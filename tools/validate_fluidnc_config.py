@@ -20,8 +20,13 @@ Strict vs permissive mode:
     where casing style shouldn't block a merge. See fluidnc_validate_core.py
     for exactly which identifiers this covers.
 
+    Separately, deprecated-feature usage (e.g. extenders:/rgbled: sections,
+    pinext-syntax pin values) is always reported as a WARNING regardless of
+    --permissive -- deprecation is a different concern from casing
+    strictness and surfaces either way.
+
 Exit codes:
-    0  valid (no errors; warnings, if any in --permissive mode, don't affect this)
+    0  valid (no errors; deprecation warnings can appear in either mode and don't affect this)
     1  schema violations found
     2  file not found / YAML parse error / schema load error / dependency install failed
 
@@ -187,7 +192,7 @@ def main() -> int:
     mode_note = " (permissive mode)" if args.permissive else ""
 
     if warnings:
-        print(f"{len(warnings)} normalization warning(s){mode_note}:\n")
+        print(f"{len(warnings)} warning(s){mode_note}:\n")
         for w in warnings:
             path = " -> ".join(str(p) for p in w["path"]) or "(root)"
             print(f"  [{path}]")

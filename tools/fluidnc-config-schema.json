@@ -28,13 +28,13 @@
       "additionalProperties": false,
       "properties": {
         "bck_pin": {
-          "$ref": "#/$defs/pin"
+          "$ref": "#/$defs/pinAny"
         },
         "data_pin": {
-          "$ref": "#/$defs/pin"
+          "$ref": "#/$defs/pinAny"
         },
         "ws_pin": {
-          "$ref": "#/$defs/pin"
+          "$ref": "#/$defs/pinAny"
         },
         "min_pulse_us": {
           "type": "integer",
@@ -235,7 +235,7 @@
       "pattern": "^pinext[0-9]\\.[0-9]+(:(high|low|pu|pd|ds[0-3]))*$"
     },
     "pinAny": {
-      "description": "Any pin field accepts either a real pin (see 'pin') or, for recognizing existing configs only, a deprecated pinext pin string (see 'pinDeprecated'). Every pin-typed field in this schema references this combined definition rather than 'pin' directly, so that pinext-using configs can actually validate (with the pinext value correctly flagged deprecated) instead of being unconditionally rejected -- 'pin' alone excludes pinext syntax by design (spec \u00a73.5), so referencing only 'pin' everywhere would have made this schema's own claim of 'recognizing' deprecated pinext configs false in practice.",
+      "description": "Any pin field accepts either a real pin (see 'pin') or, for recognizing existing configs only, a deprecated pinext pin string (see 'pinDeprecated'). Every pin-typed field in this schema references this combined definition rather than 'pin' directly, so a pinext-using config validates structurally instead of being unconditionally rejected. Note that the JSON Schema 'deprecated' keyword on 'pinDeprecated' is only an annotation -- it does not by itself cause any tool to emit a warning. The companion Python validator (fluidnc_validate_core.py's scan_deprecated()) is what actually reads this annotation and turns a pinext-syntax value into a reported warning; a bare jsonschema-library validation against this schema alone will accept a pinext value with no diagnostic at all, since 'deprecated' has no validation effect in JSON Schema.",
       "oneOf": [
         {
           "$ref": "#/$defs/pin"
