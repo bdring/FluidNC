@@ -352,7 +352,7 @@ namespace WebUI {
         explicit HttpCommandModule(const char* name) : Module(name) {}
 
         void init() override {
-            new UserCommand("HC", "HTTP/Command", http_command_handler, http_state_check, WG);
+            new UserCommand("HCMD", "HTTP/Command", http_command_handler, http_state_check, WG);
             new UserCommand("HSL", "HTTP/Settings/Load", http_settings_load_handler, anyState, WA);
             HttpCommand::load_tokens();
             log_info("HTTP command registered");
@@ -368,10 +368,10 @@ namespace WebUI {
 
     Error HttpCommand::execute(const char* value, AuthenticationLevel auth_level, Channel& out) {
         // Check for command substitution (@commandname)
-        std::string command_value = value;
-        if (value && value[0] == '@') {
-            std::string command_name = value + 1;
-            auto        it           = _commands.find(command_name);
+        std::string_view command_value = value ? value : std::string_view();
+        if (!command_value.empty() && command_value[0] == '@') {
+            std::string command_name(command_value.substr(1));
+            auto        it = _commands.find(command_name);
             if (it != _commands.end()) {
                 command_value = it->second;
                 log_debug("HTTP: Substituting command @" << command_name);
@@ -384,7 +384,7 @@ namespace WebUI {
         // Parse command first so we can check fail_on_error
         std::string url;
         std::string json_options;
-        if (!parse_command(command_value.c_str(), url, json_options)) {
+        if (!parse_command(command_value, url, json_options)) {
             log_error_to(out, "HTTP: Invalid command format. Use: $HTTP/COMMAND=url or $HTTP/COMMAND=url{json}");
             return Error::InvalidStatement;  // Syntax errors always fail
         }
@@ -449,67 +449,66 @@ namespace WebUI {
     // Command parsing
     // ============================================================================
 
-    bool HttpCommand::parse_command(const char* value, std::string& url, std::string& json_options) {
+    bool HttpCommand::parse_command(std::string_view value, std::string& url, std::string& json_options) {
         // Format: url{json} or url
         // Note: ${...} is a token substitution pattern, NOT JSON start
-        if (!value || *value == '\0') {
+        if (value.empty()) {
             return false;
         }
 
         // Find the start of JSON options (if any)
         // Skip ${...} patterns - JSON starts with { that is NOT preceded by $
-        const char* json_start = nullptr;
-        const char* p          = value;
-        while (*p) {
-            if (*p == '{') {
-                // Check if this is a token pattern (preceded by $)
-                if (p > value && *(p - 1) == '$') {
-                    // This is ${...}, skip to the closing }
-                    p++;
-                    while (*p && *p != '}') {
-                        p++;
-                    }
-                    if (*p == '}') {
-                        p++;
-                    }
-                    continue;
+    std::string_view data = value;
+    size_t           json_pos = std::string_view::npos;
+    size_t           pos      = 0;
+    while (pos < data.size()) {
+        if (data[pos] == '{') {
+            // Check if this is a token pattern (preceded by $)
+            if (pos > 0 && data[pos - 1] == '$') {
+                // This is ${...}, skip to the closing }
+                pos++;
+                while (pos < data.size() && data[pos] != '}') {
+                    pos++;
                 }
-                // This is the start of JSON options
-                json_start = p;
-                break;
-            }
-            p++;
-        }
-
-        if (json_start) {
-            // URL is everything before the '{'
-            url = std::string(value, json_start - value);
-
-            // JSON is everything from '{' to matching '}'
-            int brace_count = 1;
-            p               = json_start + 1;
-
-            while (*p && brace_count > 0) {
-                if (*p == '{') {
-                    brace_count++;
-                } else if (*p == '}') {
-                    brace_count--;
+                if (pos < data.size() && data[pos] == '}') {
+                    pos++;
                 }
-                p++;
+                continue;
             }
-
-            if (brace_count != 0) {
-                return false;  // Unbalanced braces
-            }
-
-            json_options = std::string(json_start, p - json_start);
-        } else {
-            url = value;
-            json_options.clear();
+            // This is the start of JSON options
+            json_pos = pos;
+            break;
         }
-
-        return !url.empty();
+        pos++;
     }
+
+    if (json_pos != std::string_view::npos) {
+        // URL is everything before the '{'
+        url.assign(data.substr(0, json_pos));
+
+        // JSON is everything from '{' to matching '}'
+        int  brace_count = 1;
+        pos              = json_pos + 1;
+        while (pos < data.size() && brace_count > 0) {
+            if (data[pos] == '{') {
+                brace_count++;
+            } else if (data[pos] == '}') {
+                brace_count--;
+            }
+            pos++;
+        }
+
+        if (brace_count != 0) {
+            return false;  // Unbalanced braces
+        }
+
+        json_options.assign(data.substr(json_pos, pos - json_pos));
+    } else {
+        url.assign(data);
+    }
+
+    return !url.empty();
+}
 
     // ============================================================================
     // JSON parsing using streaming parser
