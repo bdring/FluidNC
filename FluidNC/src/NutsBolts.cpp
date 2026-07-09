@@ -77,36 +77,6 @@ float convert_delta_vector_to_unit_vector(float* v) {
     return magnitude;
 }
 
-const float secPerMinSq = 60.0 * 60.0;  // Seconds Per Minute Squared, for acceleration conversion
-
-float limit_acceleration_by_axis_maximum(float* unit_vec) {
-    float limit_value = SOME_LARGE_VALUE;
-    auto  n_axis      = Axes::_numberAxis;
-    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-        auto axisSetting = Axes::_axis[axis];
-        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[axis]));
-        }
-    }
-    // The acceleration setting is stored and displayed in units of mm/sec^2,
-    // but used in units of mm/min^2.  It suffices to perform the conversion once on
-    // exit, since the limit computation above is independent of units - it simply
-    // finds the smallest value.
-    return limit_value * secPerMinSq;
-}
-
-float limit_rate_by_axis_maximum(float* unit_vec) {
-    float limit_value = SOME_LARGE_VALUE;
-    auto  n_axis      = Axes::_numberAxis;
-    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
-        auto axisSetting = Axes::_axis[axis];
-        if (unit_vec[axis] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, fabsf(axisSetting->_maxRate / unit_vec[axis]));
-        }
-    }
-    return limit_value;
-}
-
 bool char_is_numeric(char value) {
     return value >= '0' && value <= '9';
 }

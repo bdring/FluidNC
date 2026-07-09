@@ -44,8 +44,10 @@ struct plan_block_t {
     float entry_speed_sqr;      // The current planned entry speed at block junction in (mm/min)^2
     float max_entry_speed_sqr;  // Maximum allowable entry speed based on the minimum of junction limit and
     //   neighboring nominal speeds with overrides in (mm/min)^2
-    float acceleration;  // Axis-limit adjusted line acceleration in (mm/min^2). Does not change.
-    float millimeters;   // The remaining distance for this block to be executed in (mm).
+    float acceleration;      // Effective line acceleration used by the planner in (mm/min^2).
+    float max_acceleration;  // Axis-limit adjusted line acceleration in (mm/min^2). Does not change.
+    float jerk;              // Axis-limit adjusted line jerk in (mm/min^3). Does not change.
+    float millimeters;       // The remaining distance for this block to be executed in (mm).
     // NOTE: This value may be altered by stepper algorithm during execution.
 
     // Stored rate limiting data used by planner when changes occur.

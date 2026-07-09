@@ -698,6 +698,7 @@ static void protocol_do_initiate_cycle() {
     // log_debug("protocol_do_initiate_cycle " << state_name());
     // Start cycle only if queued motions exist in planner buffer and the motion is not canceled.
     sys.step_control = {};  // Restore step control to normal operation
+    plan_update_velocity_profile_parameters();
     plan_block_t* pb;
     if ((pb = plan_get_current_block()) && !sys.suspend().bit.motionCancel) {
         auto suspend  = sys.suspend();
