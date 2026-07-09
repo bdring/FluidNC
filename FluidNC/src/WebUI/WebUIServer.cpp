@@ -114,7 +114,24 @@ namespace {
         state.encoder.member("name", name);
         state.encoder.member("shortname", name);
         state.encoder.member("size", size);
-        state.encoder.member("datetime", "");
+        // Get last write time and format as ISO 8601 string
+        std::string datetime;
+        try {
+            auto ftime = dir_entry.last_write_time();
+            auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                ftime - std::filesystem::file_time_type::clock::now()
+                + std::chrono::system_clock::now()
+            );
+            std::time_t cftime = std::chrono::system_clock::to_time_t(sctp);
+            char buf[32];
+            if (std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&cftime))) {
+                datetime = buf;
+            }
+        } catch (...) {
+            datetime = "";
+        }
+        state.encoder.member("datetime", datetime.c_str());
+
         state.encoder.end_object();
         advance_file_iterator(state);
     }
