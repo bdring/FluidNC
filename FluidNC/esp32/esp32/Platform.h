@@ -59,11 +59,6 @@ inline bool should_exit() {
 
 #define USE_ARDUINO_I2C_DRIVER 0
 
-#if ESP_IDF_VERSION_MAJOR >= 5
-// Compatibility for older compilers versions.
-#    define memory_order_seq_cst seq_cst
-#endif
-
 inline BaseType_t xTaskCreateAffinitySet(TaskFunction_t      pvTaskCode,
                                          const char* const   pcName,
                                          const uint32_t      usStackDepth,

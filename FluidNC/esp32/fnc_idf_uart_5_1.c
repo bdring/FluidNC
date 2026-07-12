@@ -1,9 +1,13 @@
+// clang-format off
+#include <esp_idf_version.h>
+
+#if ESP_IDF_VERSION_MAJOR == 5 && ESP_IDF_VERSION_MINOR == 1
+
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-// clang-format off
 #include <string.h>
 #include <sys/param.h>
 #include "esp_types.h"
@@ -16,29 +20,19 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/ringbuf.h"
+#include "esp_private/critical_section.h"
 #include "hal/uart_hal.h"
 #include "hal/gpio_hal.h"
+#include "hal/clk_tree_ll.h"
 #include "soc/uart_periph.h"
-#include "soc/rtc_cntl_reg.h"
-#include "driver/uart.h"
-#include "fnc_idf_uart.h"
+#include "fnc_idf_uart_5_1.h"
 #include "driver/gpio.h"
-#include "driver/uart_select.h"
-#include "driver/periph_ctrl.h"
+#include "fnc_idf_uart_select_5_1.h"
+#include "esp_private/periph_ctrl.h"
+#include "esp_clk_tree.h"
 #include "sdkconfig.h"
 #include "esp_rom_gpio.h"
-
-#if CONFIG_IDF_TARGET_ESP32
-#include "esp32/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32S2
-#include "esp32s2/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32S3
-#include "esp32s3/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32C3
-#include "esp32c3/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32H2
-#include "esp32h2/clk.h"
-#endif
+#include "clk_ctrl_os.h"
 
 #ifdef CONFIG_UART_ISR_IN_IRAM
 #define UART_ISR_ATTR     IRAM_ATTR
@@ -77,12 +71,12 @@ static const char *UART_TAG = "fnc_uart";
 #endif
 
 
-#define UART_ENTER_CRITICAL_SAFE(mux)   portENTER_CRITICAL_SAFE(mux)
-#define UART_EXIT_CRITICAL_SAFE(mux)    portEXIT_CRITICAL_SAFE(mux)
-#define UART_ENTER_CRITICAL_ISR(mux)    portENTER_CRITICAL_ISR(mux)
-#define UART_EXIT_CRITICAL_ISR(mux)     portEXIT_CRITICAL_ISR(mux)
-#define UART_ENTER_CRITICAL(mux)    portENTER_CRITICAL(mux)
-#define UART_EXIT_CRITICAL(mux)     portEXIT_CRITICAL(mux)
+#define UART_ENTER_CRITICAL_SAFE(spinlock)   esp_os_enter_critical_safe(spinlock)
+#define UART_EXIT_CRITICAL_SAFE(spinlock)    esp_os_exit_critical_safe(spinlock)
+#define UART_ENTER_CRITICAL_ISR(spinlock)    esp_os_enter_critical_isr(spinlock)
+#define UART_EXIT_CRITICAL_ISR(spinlock)     esp_os_exit_critical_isr(spinlock)
+#define UART_ENTER_CRITICAL(spinlock)        esp_os_enter_critical(spinlock)
+#define UART_EXIT_CRITICAL(spinlock)         esp_os_exit_critical(spinlock)
 
 
 // Check actual UART mode set
@@ -90,13 +84,9 @@ static const char *UART_TAG = "fnc_uart";
 
 #define UART_CONTEX_INIT_DEF(uart_num) {\
     .hal.dev = UART_LL_GET_HW(uart_num),\
-    .spinlock = portMUX_INITIALIZER_UNLOCKED,\
+    INIT_CRIT_SECTION_LOCK_IN_STRUCT(spinlock)\
     .hw_enabled = false,\
 }
-
-#if SOC_UART_SUPPORT_RTC_CLK
-#define RTC_ENABLED(uart_num)    (BIT(uart_num))
-#endif
 
 typedef struct {
     uart_event_type_t type;        /*!< UART TX data type */
@@ -118,12 +108,15 @@ typedef struct {
     uart_port_t uart_num;               /*!< UART port number*/
     int event_queue_size;               /*!< UART event queue size*/
     intr_handle_t intr_handle;          /*!< UART interrupt handle*/
-    uart_mode_t uart_mode;              /*!< UART controller actual mode set by uart_set_mode() */
+    uart_mode_t uart_mode;              /*!< UART controller actual mode set by fnc_uart_set_mode() */
     bool coll_det_flg;                  /*!< UART collision detection flag */
     bool rx_always_timeout_flg;         /*!< UART always detect rx timeout flag */
     int rx_buffered_len;                /*!< UART cached data length */
     int rx_buf_size;                    /*!< RX ring buffer size */
     bool rx_buffer_full_flg;            /*!< RX ring buffer full flag. */
+    uint32_t rx_cur_remain;             /*!< Data number that waiting to be read out in ring buffer item*/
+    uint8_t *rx_ptr;                    /*!< pointer to the current data in ring buffer*/
+    uint8_t *rx_head_ptr;               /*!< pointer to the head of RX item*/
     uint8_t rx_data_buf[SOC_UART_FIFO_LEN]; /*!< Data buffer to stash FIFO data*/
     uint8_t rx_stash_len;               /*!< stashed data length.(When using flow control, after reading out FIFO data, if we fail to push to buffer, we can just stash them.) */
     uint32_t rx_int_usr_mask;           /*!< RX interrupt status. Valid at any time, regardless of RX buffer status. */
@@ -164,7 +157,7 @@ typedef struct {
 
 typedef struct {
     uart_hal_context_t hal;        /*!< UART hal context*/
-    portMUX_TYPE spinlock;
+    DECLARE_CRIT_SECTION_LOCK_IN_STRUCT(spinlock)
     bool hw_enabled;
 } uart_context_t;
 
@@ -180,43 +173,14 @@ static uart_context_t uart_context[UART_NUM_MAX] = {
 
 static portMUX_TYPE uart_selectlock = portMUX_INITIALIZER_UNLOCKED;
 
-#if SOC_UART_SUPPORT_RTC_CLK
-
-static uint8_t rtc_enabled = 0;
-static portMUX_TYPE rtc_num_spinlock = portMUX_INITIALIZER_UNLOCKED;
-
-static void rtc_clk_enable(uart_port_t uart_num)
-{
-    portENTER_CRITICAL(&rtc_num_spinlock);
-    if (!(rtc_enabled & RTC_ENABLED(uart_num))) {
-        rtc_enabled |= RTC_ENABLED(uart_num);
-    }
-    SET_PERI_REG_MASK(RTC_CNTL_CLK_CONF_REG, RTC_CNTL_DIG_CLK8M_EN_M);
-    portEXIT_CRITICAL(&rtc_num_spinlock);
-}
-
-static void rtc_clk_disable(uart_port_t uart_num)
-{
-    assert(rtc_enabled & RTC_ENABLED(uart_num));
-
-    portENTER_CRITICAL(&rtc_num_spinlock);
-    rtc_enabled &= ~RTC_ENABLED(uart_num);
-    if (rtc_enabled == 0) {
-        CLEAR_PERI_REG_MASK(RTC_CNTL_CLK_CONF_REG, RTC_CNTL_DIG_CLK8M_EN_M);
-    }
-    portEXIT_CRITICAL(&rtc_num_spinlock);
-}
-#endif
-
 static void fnc_uart_module_enable(uart_port_t uart_num)
 {
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
     if (uart_context[uart_num].hw_enabled != true) {
         periph_module_enable(uart_periph_signal[uart_num].module);
         if (uart_num != CONFIG_ESP_CONSOLE_UART_NUM) {
-            // Workaround for ESP32C3: enable core reset
-            // before enabling uart module clock
-            // to prevent uart output garbage value.
+            // Workaround for ESP32C3/S3: enable core reset before enabling uart module clock to prevent uart output
+            // garbage value.
 #if SOC_UART_REQUIRE_CORE_RESET
             uart_hal_set_reset_core(&(uart_context[uart_num].hal), true);
             periph_module_reset(uart_periph_signal[uart_num].module);
@@ -240,6 +204,11 @@ static void fnc_uart_module_disable(uart_port_t uart_num)
         uart_context[uart_num].hw_enabled = false;
     }
     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
+}
+
+esp_err_t fnc_uart_get_sclk_freq(uart_sclk_t sclk, uint32_t *out_freq_hz)
+{
+    return esp_clk_tree_src_get_freq_hz((soc_module_clk_t)sclk, ESP_CLK_TREE_SRC_FREQ_PRECISION_CACHED, out_freq_hz);
 }
 
 esp_err_t fnc_uart_set_word_length(uart_port_t uart_num, uart_word_length_t data_bit)
@@ -299,8 +268,15 @@ esp_err_t fnc_uart_get_parity(uart_port_t uart_num, uart_parity_t *parity_mode)
 esp_err_t fnc_uart_set_baudrate(uart_port_t uart_num, uint32_t baud_rate)
 {
     ESP_RETURN_ON_FALSE((uart_num < UART_NUM_MAX), ESP_FAIL, UART_TAG, "uart_num error");
+
+    uart_sclk_t src_clk;
+    uint32_t sclk_freq;
+
+    uart_hal_get_sclk(&(uart_context[uart_num].hal), &src_clk);
+    ESP_RETURN_ON_ERROR(fnc_uart_get_sclk_freq(src_clk, &sclk_freq), UART_TAG, "Invalid src_clk");
+
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
-    uart_hal_set_baudrate(&(uart_context[uart_num].hal), baud_rate);
+    uart_hal_set_baudrate(&(uart_context[uart_num].hal), baud_rate, sclk_freq);
     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
     return ESP_OK;
 }
@@ -308,8 +284,15 @@ esp_err_t fnc_uart_set_baudrate(uart_port_t uart_num, uint32_t baud_rate)
 esp_err_t fnc_uart_get_baudrate(uart_port_t uart_num, uint32_t *baudrate)
 {
     ESP_RETURN_ON_FALSE((uart_num < UART_NUM_MAX), ESP_FAIL, UART_TAG, "uart_num error");
+
+    uart_sclk_t src_clk;
+    uint32_t sclk_freq;
+
+    uart_hal_get_sclk(&(uart_context[uart_num].hal), &src_clk);
+    ESP_RETURN_ON_ERROR(fnc_uart_get_sclk_freq(src_clk, &sclk_freq), UART_TAG, "Invalid src_clk");
+
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
-    uart_hal_get_baudrate(&(uart_context[uart_num].hal), baudrate);
+    uart_hal_get_baudrate(&(uart_context[uart_num].hal), baudrate, sclk_freq);
     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
     return ESP_OK;
 }
@@ -415,6 +398,166 @@ esp_err_t fnc_uart_disable_intr_mask(uart_port_t uart_num, uint32_t disable_mask
     return ESP_OK;
 }
 
+static esp_err_t fnc_uart_pattern_link_free(uart_port_t uart_num)
+{
+    int *pdata = NULL;
+    UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
+    if (p_uart_obj[uart_num]->rx_pattern_pos.data != NULL) {
+        pdata = p_uart_obj[uart_num]->rx_pattern_pos.data;
+        p_uart_obj[uart_num]->rx_pattern_pos.data = NULL;
+        p_uart_obj[uart_num]->rx_pattern_pos.wr = 0;
+        p_uart_obj[uart_num]->rx_pattern_pos.rd = 0;
+    }
+    UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
+    free(pdata);
+    return ESP_OK;
+}
+
+static esp_err_t UART_ISR_ATTR fnc_uart_pattern_enqueue(uart_port_t uart_num, int pos)
+{
+    esp_err_t ret = ESP_OK;
+    uart_pat_rb_t *p_pos = &p_uart_obj[uart_num]->rx_pattern_pos;
+    int next = p_pos->wr + 1;
+    if (next >= p_pos->len) {
+        next = 0;
+    }
+    if (next == p_pos->rd) {
+#ifndef CONFIG_UART_ISR_IN_IRAM     //Only log if ISR is not in IRAM
+        ESP_EARLY_LOGW(UART_TAG, "Fail to enqueue pattern position, pattern queue is full.");
+#endif
+        ret = ESP_FAIL;
+    } else {
+        p_pos->data[p_pos->wr] = pos;
+        p_pos->wr = next;
+        ret = ESP_OK;
+    }
+    return ret;
+}
+
+static esp_err_t fnc_uart_pattern_dequeue(uart_port_t uart_num)
+{
+    if (p_uart_obj[uart_num]->rx_pattern_pos.data == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    } else {
+        esp_err_t ret = ESP_OK;
+        uart_pat_rb_t *p_pos = &p_uart_obj[uart_num]->rx_pattern_pos;
+        if (p_pos->rd == p_pos->wr) {
+            ret = ESP_FAIL;
+        } else {
+            p_pos->rd++;
+        }
+        if (p_pos->rd >= p_pos->len) {
+            p_pos->rd = 0;
+        }
+        return ret;
+    }
+}
+
+static esp_err_t fnc_uart_pattern_queue_update(uart_port_t uart_num, int diff_len)
+{
+    uart_pat_rb_t *p_pos = &p_uart_obj[uart_num]->rx_pattern_pos;
+    int rd = p_pos->rd;
+    while (rd != p_pos->wr) {
+        p_pos->data[rd] -= diff_len;
+        int rd_rec = rd;
+        rd ++;
+        if (rd >= p_pos->len) {
+            rd = 0;
+        }
+        if (p_pos->data[rd_rec] < 0) {
+            p_pos->rd = rd;
+        }
+    }
+    return ESP_OK;
+}
+
+int fnc_uart_pattern_pop_pos(uart_port_t uart_num)
+{
+    ESP_RETURN_ON_FALSE((p_uart_obj[uart_num]), (-1), UART_TAG, "uart driver error");
+    UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
+    uart_pat_rb_t *pat_pos = &p_uart_obj[uart_num]->rx_pattern_pos;
+    int pos = -1;
+    if (pat_pos != NULL && pat_pos->rd != pat_pos->wr) {
+        pos = pat_pos->data[pat_pos->rd];
+        fnc_uart_pattern_dequeue(uart_num);
+    }
+    UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
+    return pos;
+}
+
+int fnc_uart_pattern_get_pos(uart_port_t uart_num)
+{
+    ESP_RETURN_ON_FALSE((p_uart_obj[uart_num]), (-1), UART_TAG, "uart driver error");
+    UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
+    uart_pat_rb_t *pat_pos = &p_uart_obj[uart_num]->rx_pattern_pos;
+    int pos = -1;
+    if (pat_pos != NULL && pat_pos->rd != pat_pos->wr) {
+        pos = pat_pos->data[pat_pos->rd];
+    }
+    UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
+    return pos;
+}
+
+esp_err_t fnc_uart_pattern_queue_reset(uart_port_t uart_num, int queue_length)
+{
+    ESP_RETURN_ON_FALSE((uart_num < UART_NUM_MAX), ESP_FAIL, UART_TAG, "uart_num error");
+    ESP_RETURN_ON_FALSE((p_uart_obj[uart_num]), ESP_ERR_INVALID_STATE, UART_TAG, "uart driver error");
+
+    int *pdata = (int *) malloc(queue_length * sizeof(int));
+    if (pdata == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+    UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
+    int *ptmp = p_uart_obj[uart_num]->rx_pattern_pos.data;
+    p_uart_obj[uart_num]->rx_pattern_pos.data = pdata;
+    p_uart_obj[uart_num]->rx_pattern_pos.len = queue_length;
+    p_uart_obj[uart_num]->rx_pattern_pos.rd = 0;
+    p_uart_obj[uart_num]->rx_pattern_pos.wr = 0;
+    UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
+    free(ptmp);
+    return ESP_OK;
+}
+
+esp_err_t fnc_uart_enable_pattern_det_baud_intr(uart_port_t uart_num, char pattern_chr, uint8_t chr_num, int chr_tout, int post_idle, int pre_idle)
+{
+    ESP_RETURN_ON_FALSE(uart_num < UART_NUM_MAX, ESP_FAIL, UART_TAG, "uart_num error");
+    ESP_RETURN_ON_FALSE(chr_tout >= 0 && chr_tout <= UART_RX_GAP_TOUT_V, ESP_FAIL, UART_TAG, "uart pattern set error\n");
+    ESP_RETURN_ON_FALSE(post_idle >= 0 && post_idle <= UART_POST_IDLE_NUM_V, ESP_FAIL, UART_TAG, "uart pattern set error\n");
+    ESP_RETURN_ON_FALSE(pre_idle >= 0 && pre_idle <= UART_PRE_IDLE_NUM_V, ESP_FAIL, UART_TAG, "uart pattern set error\n");
+    uart_at_cmd_t at_cmd = {0};
+    at_cmd.cmd_char = pattern_chr;
+    at_cmd.char_num = chr_num;
+
+#if CONFIG_IDF_TARGET_ESP32
+    uint32_t apb_clk_freq = 0;
+    uint32_t uart_baud = 0;
+    uint32_t uart_div = 0;
+    fnc_uart_get_baudrate(uart_num, &uart_baud);
+    esp_clk_tree_src_get_freq_hz((soc_module_clk_t)UART_SCLK_APB, ESP_CLK_TREE_SRC_FREQ_PRECISION_EXACT, &apb_clk_freq);
+    uart_div = apb_clk_freq / uart_baud;
+
+    at_cmd.gap_tout = chr_tout * uart_div;
+    at_cmd.pre_idle = pre_idle * uart_div;
+    at_cmd.post_idle = post_idle * uart_div;
+#else
+    at_cmd.gap_tout = chr_tout;
+    at_cmd.pre_idle = pre_idle;
+    at_cmd.post_idle = post_idle;
+#endif
+    uart_hal_clr_intsts_mask(&(uart_context[uart_num].hal), UART_INTR_CMD_CHAR_DET);
+    UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
+    uart_hal_set_at_cmd_char(&(uart_context[uart_num].hal), &at_cmd);
+    uart_hal_ena_intr_mask(&(uart_context[uart_num].hal), UART_INTR_CMD_CHAR_DET);
+    UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
+    return ESP_OK;
+}
+
+
+esp_err_t fnc_uart_disable_pattern_det_intr(uart_port_t uart_num)
+{
+    return fnc_uart_disable_intr_mask(uart_num, UART_INTR_CMD_CHAR_DET);
+}
+
 esp_err_t fnc_uart_enable_rx_intr(uart_port_t uart_num)
 {
     return fnc_uart_enable_intr_mask(uart_num, UART_INTR_RXFIFO_FULL | UART_INTR_RXFIFO_TOUT);
@@ -434,47 +577,12 @@ esp_err_t fnc_uart_enable_tx_intr(uart_port_t uart_num, int enable, int thresh)
 {
     ESP_RETURN_ON_FALSE((uart_num < UART_NUM_MAX), ESP_FAIL, UART_TAG, "uart_num error");
     ESP_RETURN_ON_FALSE((thresh < SOC_UART_FIFO_LEN), ESP_FAIL, UART_TAG, "empty intr threshold error");
-    if (enable == 0) {
-        UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
-        uart_hal_disable_intr_mask(&(uart_context[uart_num].hal), UART_INTR_TXFIFO_EMPTY);
-        UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
-    } else {
-        uart_hal_clr_intsts_mask(&(uart_context[uart_num].hal), UART_INTR_TXFIFO_EMPTY);
-        UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
-        uart_hal_set_txfifo_empty_thr(&(uart_context[uart_num].hal), thresh);
-        uart_hal_ena_intr_mask(&(uart_context[uart_num].hal), UART_INTR_TXFIFO_EMPTY);
-        UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
-    }
-    return ESP_OK;
-}
-
-esp_err_t fnc_uart_isr_register(uart_port_t uart_num, void (*fn)(void *), void *arg, int intr_alloc_flags,  uart_isr_handle_t *handle)
-{
-    int ret;
-    uart_isr_handle_t rethandle;
-    ESP_RETURN_ON_FALSE((uart_num < UART_NUM_MAX), ESP_FAIL, UART_TAG, "uart_num error");
-    ret = esp_intr_alloc(uart_periph_signal[uart_num].irq, intr_alloc_flags, fn, arg, &rethandle);
-    if (ret == ESP_OK) {
-        p_uart_obj[uart_num]->intr_handle = rethandle;
-
-        if (handle != NULL) {
-            *handle = rethandle;
-        }
-    }
-    return ret;
-}
-
-esp_err_t fnc_uart_isr_free(uart_port_t uart_num)
-{
-    esp_err_t ret;
-    ESP_RETURN_ON_FALSE((uart_num < UART_NUM_MAX), ESP_FAIL, UART_TAG, "uart_num error");
-    ESP_RETURN_ON_FALSE((p_uart_obj[uart_num]), ESP_FAIL, UART_TAG, "uart driver error");
-    ESP_RETURN_ON_FALSE((p_uart_obj[uart_num]->intr_handle != NULL), ESP_ERR_INVALID_ARG, UART_TAG, "uart driver error");
+    uart_hal_clr_intsts_mask(&(uart_context[uart_num].hal), UART_INTR_TXFIFO_EMPTY);
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
-    ret = esp_intr_free(p_uart_obj[uart_num]->intr_handle);
-    p_uart_obj[uart_num]->intr_handle = NULL;
+    uart_hal_set_txfifo_empty_thr(&(uart_context[uart_num].hal), thresh);
+    uart_hal_ena_intr_mask(&(uart_context[uart_num].hal), UART_INTR_TXFIFO_EMPTY);
     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
-    return ret;
+    return ESP_OK;
 }
 
 static bool fnc_uart_try_set_iomux_pin(uart_port_t uart_num, int io_num, uint32_t idx)
@@ -579,15 +687,19 @@ esp_err_t fnc_uart_param_config(uart_port_t uart_num, const uart_config_t *uart_
     ESP_RETURN_ON_FALSE((uart_config->flow_ctrl < UART_HW_FLOWCTRL_MAX), ESP_FAIL, UART_TAG, "hw_flowctrl mode error");
     ESP_RETURN_ON_FALSE((uart_config->data_bits < UART_DATA_BITS_MAX), ESP_FAIL, UART_TAG, "data bit error");
     fnc_uart_module_enable(uart_num);
+    uart_sclk_t clk_src = (uart_config->source_clk) ? uart_config->source_clk : UART_SCLK_DEFAULT; // if no specifying the clock source (soc_module_clk_t starts from 1), then just use the default clock
 #if SOC_UART_SUPPORT_RTC_CLK
-    if (uart_config->source_clk == UART_SCLK_RTC) {
-        rtc_clk_enable(uart_num);
+    if (clk_src == UART_SCLK_RTC) {
+        periph_rtc_dig_clk8m_enable();
     }
 #endif
+    uint32_t sclk_freq;
+    ESP_RETURN_ON_ERROR(fnc_uart_get_sclk_freq(clk_src, &sclk_freq), UART_TAG, "Invalid src_clk");
+
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
     uart_hal_init(&(uart_context[uart_num].hal), uart_num);
-    uart_hal_set_sclk(&(uart_context[uart_num].hal), uart_config->source_clk);
-    uart_hal_set_baudrate(&(uart_context[uart_num].hal), uart_config->baud_rate);
+    uart_hal_set_sclk(&(uart_context[uart_num].hal), clk_src);
+    uart_hal_set_baudrate(&(uart_context[uart_num].hal), uart_config->baud_rate, sclk_freq);
     uart_hal_set_parity(&(uart_context[uart_num].hal), uart_config->parity);
     uart_hal_set_data_bit_num(&(uart_context[uart_num].hal), uart_config->data_bits);
     uart_hal_set_stop_bits(&(uart_context[uart_num].hal), uart_config->stop_bits);
@@ -821,16 +933,14 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void *param)
                             UART_ENTER_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
                             if (rx_fifo_len < pat_num) {
                                 //some of the characters are read out in last interrupt
-                                // uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
+                                fnc_uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
                             } else {
-#if 0
-                            uart_pattern_enqueue(uart_num,
-                                                 pat_idx <= -1 ?
-                                                     //can not find the pattern in buffer,
-                                                     p_uart->rx_buffered_len + p_uart->rx_stash_len :
-                                                     // find the pattern in buffer
-                                                     p_uart->rx_buffered_len + pat_idx);
-#endif
+                                fnc_uart_pattern_enqueue(uart_num,
+                                                         pat_idx <= -1 ?
+                                                         //can not find the pattern in buffer,
+                                                         p_uart->rx_buffered_len + p_uart->rx_stash_len :
+                                                         // find the pattern in buffer
+                                                         p_uart->rx_buffered_len + pat_idx);
                             }
                             UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
                             if ((p_uart->event_queue != NULL) &&
@@ -846,10 +956,10 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void *param)
                         if (uart_intr_status & UART_INTR_CMD_CHAR_DET) {
                             if (rx_fifo_len < pat_num) {
                                 //some of the characters are read out in last interrupt
-                                // uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
+                                fnc_uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
                             } else if (pat_idx >= 0) {
                                 // find the pattern in stash buffer.
-                                // uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len + pat_idx);
+                                fnc_uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len + pat_idx);
                             }
                         }
                         p_uart->rx_buffered_len += p_uart->rx_stash_len;
@@ -983,9 +1093,9 @@ esp_err_t fnc_uart_wait_tx_done(uart_port_t uart_num, TickType_t ticks_to_wait)
     ESP_RETURN_ON_FALSE((uart_num < UART_NUM_MAX), ESP_FAIL, UART_TAG, "uart_num error");
     ESP_RETURN_ON_FALSE((p_uart_obj[uart_num]), ESP_FAIL, UART_TAG, "uart driver error");
     BaseType_t res;
-    portTickType ticks_start = xTaskGetTickCount();
+    TickType_t ticks_start = xTaskGetTickCount();
     //Take tx_mux
-    res = xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (portTickType)ticks_to_wait);
+    res = xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (TickType_t)ticks_to_wait);
     if (res == pdFALSE) {
         return ESP_ERR_TIMEOUT;
     }
@@ -1027,7 +1137,7 @@ esp_err_t fnc_uart_wait_tx_done(uart_port_t uart_num, TickType_t ticks_to_wait)
         ticks_to_wait = ticks_to_wait - (ticks_end - ticks_start);
     }
     //take 2nd tx_done_sem, wait given from ISR
-    res = xSemaphoreTake(p_uart_obj[uart_num]->tx_done_sem, (portTickType)ticks_to_wait);
+    res = xSemaphoreTake(p_uart_obj[uart_num]->tx_done_sem, (TickType_t)ticks_to_wait);
     if (res == pdFALSE) {
         // The TX_DONE interrupt will be disabled in ISR
         xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
@@ -1046,7 +1156,7 @@ int fnc_uart_tx_chars(uart_port_t uart_num, const char *buffer, uint32_t len)
         return 0;
     }
     int tx_len = 0;
-    xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (portTickType)portMAX_DELAY);
+    xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (TickType_t)portMAX_DELAY);
     tx_len = (int)fnc_uart_enable_tx_write_fifo(uart_num, (const uint8_t *) buffer, len);
     xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
     return tx_len;
@@ -1060,7 +1170,7 @@ static int fnc_uart_tx_all(uart_port_t uart_num, const char *src, size_t size, b
     size_t original_size = size;
 
     //lock for uart_tx
-    xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (portTickType)portMAX_DELAY);
+    xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (TickType_t)portMAX_DELAY);
     p_uart_obj[uart_num]->coll_det_flg = false;
     if (p_uart_obj[uart_num]->tx_buf_size > 0) {
         size_t max_size = xRingbufferGetMaxItemSize(p_uart_obj[uart_num]->tx_ring_buf);
@@ -1084,7 +1194,7 @@ static int fnc_uart_tx_all(uart_port_t uart_num, const char *src, size_t size, b
     } else {
         while (size) {
             //semaphore for tx_fifo available
-            if (pdTRUE == xSemaphoreTake(p_uart_obj[uart_num]->tx_fifo_sem, (portTickType)portMAX_DELAY)) {
+            if (pdTRUE == xSemaphoreTake(p_uart_obj[uart_num]->tx_fifo_sem, (TickType_t)portMAX_DELAY)) {
                 uint32_t sent = fnc_uart_enable_tx_write_fifo(uart_num, (const uint8_t *) src, size);
                 if (sent < size) {
                     p_uart_obj[uart_num]->tx_waiting_fifo = true;
@@ -1100,7 +1210,7 @@ static int fnc_uart_tx_all(uart_port_t uart_num, const char *src, size_t size, b
             uart_hal_tx_break(&(uart_context[uart_num].hal), brk_len);
             uart_hal_ena_intr_mask(&(uart_context[uart_num].hal), UART_INTR_TX_BRK_DONE);
             UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
-            xSemaphoreTake(p_uart_obj[uart_num]->tx_brk_sem, (portTickType)portMAX_DELAY);
+            xSemaphoreTake(p_uart_obj[uart_num]->tx_brk_sem, (TickType_t)portMAX_DELAY);
         }
         xSemaphoreGive(p_uart_obj[uart_num]->tx_fifo_sem);
     }
@@ -1150,35 +1260,53 @@ int fnc_uart_read_bytes(uart_port_t uart_num, void *buf, uint32_t length, TickTy
     ESP_RETURN_ON_FALSE((buf), (-1), UART_TAG, "uart data null");
     ESP_RETURN_ON_FALSE((p_uart_obj[uart_num]), (-1), UART_TAG, "uart driver error");
     uint8_t *data = NULL;
-    size_t size = 0;
+    size_t size;
     size_t copy_len = 0;
-    if (xSemaphoreTake(p_uart_obj[uart_num]->rx_mux, (portTickType)ticks_to_wait) != pdTRUE) {
+    int len_tmp;
+    if (xSemaphoreTake(p_uart_obj[uart_num]->rx_mux, (TickType_t)ticks_to_wait) != pdTRUE) {
         return -1;
     }
     while (length) {
-        data = (uint8_t *) xRingbufferReceiveUpTo(p_uart_obj[uart_num]->rx_ring_buf, &size, (portTickType) ticks_to_wait, length);
-        if (!data) {
-            // When using dual cores, `rx_buffer_full_flg` may read and write on different cores at same time,
-            // which may lose synchronization. So we also need to call `uart_check_buf_full` once when ringbuffer is empty
-            // to solve the possible asynchronous issues.
-            if (fnc_uart_check_buf_full(uart_num)) {
-                // This condition will never be true if `uart_read_bytes`
-                // and `uart_rx_intr_handler_default` are scheduled on the same core.
-                continue;
+        if (p_uart_obj[uart_num]->rx_cur_remain == 0) {
+            data = (uint8_t *) xRingbufferReceive(p_uart_obj[uart_num]->rx_ring_buf, &size, (TickType_t) ticks_to_wait);
+            if (data) {
+                p_uart_obj[uart_num]->rx_head_ptr = data;
+                p_uart_obj[uart_num]->rx_ptr = data;
+                p_uart_obj[uart_num]->rx_cur_remain = size;
             } else {
-                // Timeout while not fetched all requested length
-                break;
+                //When using dual cores, `rx_buffer_full_flg` may read and write on different cores at same time,
+                //which may lose synchronization. So we also need to call `fnc_uart_check_buf_full` once when ringbuffer is empty
+                //to solve the possible asynchronous issues.
+                if (fnc_uart_check_buf_full(uart_num)) {
+                    //This condition will never be true if `fnc_uart_read_bytes`
+                    //and `fnc_uart_rx_intr_handler_default` are scheduled on the same core.
+                    continue;
+                } else {
+                    xSemaphoreGive(p_uart_obj[uart_num]->rx_mux);
+                    return copy_len;
+                }
             }
         }
-        memcpy((uint8_t *)buf + copy_len, data, size);
+        if (p_uart_obj[uart_num]->rx_cur_remain > length) {
+            len_tmp = length;
+        } else {
+            len_tmp = p_uart_obj[uart_num]->rx_cur_remain;
+        }
+        memcpy((uint8_t *)buf + copy_len, p_uart_obj[uart_num]->rx_ptr, len_tmp);
         UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
-        p_uart_obj[uart_num]->rx_buffered_len -= size;
-        // uart_pattern_queue_update(uart_num, size);
+        p_uart_obj[uart_num]->rx_buffered_len -= len_tmp;
+        fnc_uart_pattern_queue_update(uart_num, len_tmp);
+        p_uart_obj[uart_num]->rx_ptr += len_tmp;
         UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
-        copy_len += size;
-        length -= size;
-        vRingbufferReturnItem(p_uart_obj[uart_num]->rx_ring_buf, data);
-        fnc_uart_check_buf_full(uart_num);
+        p_uart_obj[uart_num]->rx_cur_remain -= len_tmp;
+        copy_len += len_tmp;
+        length -= len_tmp;
+        if (p_uart_obj[uart_num]->rx_cur_remain == 0) {
+            vRingbufferReturnItem(p_uart_obj[uart_num]->rx_ring_buf, p_uart_obj[uart_num]->rx_head_ptr);
+            p_uart_obj[uart_num]->rx_head_ptr = NULL;
+            p_uart_obj[uart_num]->rx_ptr = NULL;
+            fnc_uart_check_buf_full(uart_num);
+        }
     }
 
     xSemaphoreGive(p_uart_obj[uart_num]->rx_mux);
@@ -1215,20 +1343,30 @@ esp_err_t fnc_uart_flush_input(uart_port_t uart_num)
     size_t size;
 
     //rx sem protect the ring buffer read related functions
-    xSemaphoreTake(p_uart->rx_mux, (portTickType)portMAX_DELAY);
+    xSemaphoreTake(p_uart->rx_mux, (TickType_t)portMAX_DELAY);
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
     uart_hal_disable_intr_mask(&(uart_context[uart_num].hal), UART_INTR_RXFIFO_FULL | UART_INTR_RXFIFO_TOUT);
     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
     while (true) {
-        data = (uint8_t*) xRingbufferReceive(p_uart->rx_ring_buf, &size, (portTickType) 0);
-        if (data == NULL) {
+        if (p_uart->rx_head_ptr) {
+            vRingbufferReturnItem(p_uart->rx_ring_buf, p_uart->rx_head_ptr);
+            UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
+            p_uart_obj[uart_num]->rx_buffered_len -= p_uart->rx_cur_remain;
+            fnc_uart_pattern_queue_update(uart_num, p_uart->rx_cur_remain);
+            UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
+            p_uart->rx_ptr = NULL;
+            p_uart->rx_cur_remain = 0;
+            p_uart->rx_head_ptr = NULL;
+        }
+        data = (uint8_t*) xRingbufferReceive(p_uart->rx_ring_buf, &size, (TickType_t) 0);
+        if(data == NULL) {
             bool error = false;
             UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
-            if (p_uart_obj[uart_num]->rx_buffered_len != 0) {
+            if( p_uart_obj[uart_num]->rx_buffered_len != 0 ) {
                 p_uart_obj[uart_num]->rx_buffered_len = 0;
                 error = true;
             }
-            // We also need to clear the `rx_buffer_full_flg` here.
+            //We also need to clear the `rx_buffer_full_flg` here.
             p_uart_obj[uart_num]->rx_buffer_full_flg = false;
             UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
             if (error) {
@@ -1239,7 +1377,7 @@ esp_err_t fnc_uart_flush_input(uart_port_t uart_num)
         }
         UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
         p_uart_obj[uart_num]->rx_buffered_len -= size;
-        // uart_pattern_queue_update(uart_num, size);
+        fnc_uart_pattern_queue_update(uart_num, size);
         UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
         vRingbufferReturnItem(p_uart->rx_ring_buf, data);
         if (p_uart_obj[uart_num]->rx_buffer_full_flg) {
@@ -1252,6 +1390,9 @@ esp_err_t fnc_uart_flush_input(uart_port_t uart_num)
             }
         }
     }
+    p_uart->rx_ptr = NULL;
+    p_uart->rx_cur_remain = 0;
+    p_uart->rx_head_ptr = NULL;
     uart_hal_rxfifo_rst(&(uart_context[uart_num].hal));
     /* Only re-enable UART_INTR_RXFIFO_TOUT or UART_INTR_RXFIFO_FULL if they
      * were explicitly enabled by the user. */
@@ -1302,7 +1443,7 @@ static void fnc_uart_free_driver_obj(uart_obj_t *uart_obj)
     free(uart_obj);
 }
 
-static uart_obj_t *fnc_uart_alloc_driver_obj(int event_queue_size, int tx_buffer_size, int rx_buffer_size)
+static uart_obj_t *uart_alloc_driver_obj(int event_queue_size, int tx_buffer_size, int rx_buffer_size)
 {
     uart_obj_t *uart_obj = heap_caps_calloc(1, sizeof(uart_obj_t), UART_MALLOC_CAPS);
     if (!uart_obj) {
@@ -1393,7 +1534,7 @@ err:
 
 esp_err_t fnc_uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_buffer_size, int event_queue_size, QueueHandle_t *uart_queue, int intr_alloc_flags)
 {
-    esp_err_t r;
+    esp_err_t ret;
 #ifdef CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
     ESP_RETURN_ON_FALSE((uart_num != CONFIG_ESP_CONSOLE_UART_NUM), ESP_FAIL, UART_TAG, "UART used by GDB-stubs! Please disable GDB in menuconfig.");
 #endif // CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
@@ -1413,7 +1554,7 @@ esp_err_t fnc_uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int 
 #endif
 
     if (p_uart_obj[uart_num] == NULL) {
-        p_uart_obj[uart_num] = fnc_uart_alloc_driver_obj(event_queue_size, tx_buffer_size, rx_buffer_size);
+        p_uart_obj[uart_num] = uart_alloc_driver_obj(event_queue_size, tx_buffer_size, rx_buffer_size);
         if (p_uart_obj[uart_num] == NULL) {
             ESP_LOGE(UART_TAG, "UART driver malloc error");
             return ESP_FAIL;
@@ -1432,11 +1573,14 @@ esp_err_t fnc_uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int 
         p_uart_obj[uart_num]->rx_buffered_len = 0;
         p_uart_obj[uart_num]->rx_buffer_full_flg = false;
         p_uart_obj[uart_num]->tx_waiting_fifo = false;
+        p_uart_obj[uart_num]->rx_ptr = NULL;
+        p_uart_obj[uart_num]->rx_cur_remain = 0;
         p_uart_obj[uart_num]->rx_int_usr_mask = UART_INTR_RXFIFO_FULL | UART_INTR_RXFIFO_TOUT;
+        p_uart_obj[uart_num]->rx_head_ptr = NULL;
         p_uart_obj[uart_num]->tx_buf_size = tx_buffer_size;
         p_uart_obj[uart_num]->uart_select_notif_callback = NULL;
         xSemaphoreGive(p_uart_obj[uart_num]->tx_fifo_sem);
-        // uart_pattern_queue_reset(uart_num, UART_PATTERN_DET_QLEN_DEFAULT);
+        fnc_uart_pattern_queue_reset(uart_num, UART_PATTERN_DET_QLEN_DEFAULT);
         if (uart_queue) {
             *uart_queue = p_uart_obj[uart_num]->event_queue;
             ESP_LOGI(UART_TAG, "queue free spaces: %d", uxQueueSpacesAvailable(p_uart_obj[uart_num]->event_queue));
@@ -1455,19 +1599,20 @@ esp_err_t fnc_uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int 
     fnc_uart_module_enable(uart_num);
     uart_hal_disable_intr_mask(&(uart_context[uart_num].hal), UART_LL_INTR_MASK);
     uart_hal_clr_intsts_mask(&(uart_context[uart_num].hal), UART_LL_INTR_MASK);
-    r = fnc_uart_isr_register(uart_num, fnc_uart_rx_intr_handler_default, p_uart_obj[uart_num], intr_alloc_flags, &p_uart_obj[uart_num]->intr_handle);
-    if (r != ESP_OK) {
-        goto err;
-    }
-    r = fnc_uart_intr_config(uart_num, &uart_intr);
-    if (r != ESP_OK) {
-        goto err;
-    }
-    return r;
+
+    ret = esp_intr_alloc(uart_periph_signal[uart_num].irq, intr_alloc_flags,
+                       fnc_uart_rx_intr_handler_default, p_uart_obj[uart_num],
+                       &p_uart_obj[uart_num]->intr_handle);
+    ESP_GOTO_ON_ERROR(ret, err, UART_TAG, "Could not allocate an interrupt for UART");
+
+    ret = fnc_uart_intr_config(uart_num, &uart_intr);
+    ESP_GOTO_ON_ERROR(ret, err, UART_TAG, "Could not configure the interrupt for UART");
+
+    return ret;
 
 err:
     fnc_uart_driver_delete(uart_num);
-    return r;
+    return ret;
 }
 
 //Make sure no other tasks are still using UART before you call this function
@@ -1480,8 +1625,8 @@ esp_err_t fnc_uart_driver_delete(uart_port_t uart_num)
     }
     esp_intr_free(p_uart_obj[uart_num]->intr_handle);
     fnc_uart_disable_rx_intr(uart_num);
-    // uart_pattern_link_free(uart_num);
     fnc_uart_disable_tx_intr(uart_num);
+    fnc_uart_pattern_link_free(uart_num);
     fnc_uart_free_driver_obj(p_uart_obj[uart_num]);
     p_uart_obj[uart_num] = NULL;
 
@@ -1489,7 +1634,7 @@ esp_err_t fnc_uart_driver_delete(uart_port_t uart_num)
     uart_sclk_t sclk = 0;
     uart_hal_get_sclk(&(uart_context[uart_num].hal), &sclk);
     if (sclk == UART_SCLK_RTC) {
-        rtc_clk_disable(uart_num);
+        periph_rtc_dig_clk8m_disable();
     }
 #endif
     fnc_uart_module_disable(uart_num);
@@ -1546,7 +1691,7 @@ esp_err_t fnc_uart_set_rx_full_threshold(uart_port_t uart_num, int threshold)
     ESP_RETURN_ON_FALSE((threshold < UART_RXFIFO_FULL_THRHD_V) && (threshold > 0), ESP_ERR_INVALID_ARG, UART_TAG,
                         "rx fifo full threshold value error");
     if (p_uart_obj[uart_num] == NULL) {
-        ESP_LOGE(UART_TAG, "call uart_driver_install API first");
+        ESP_LOGE(UART_TAG, "call fnc_uart_driver_install API first");
         return ESP_ERR_INVALID_STATE;
     }
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
@@ -1563,7 +1708,7 @@ esp_err_t fnc_uart_set_tx_empty_threshold(uart_port_t uart_num, int threshold)
     ESP_RETURN_ON_FALSE((threshold < UART_TXFIFO_EMPTY_THRHD_V) && (threshold > 0), ESP_ERR_INVALID_ARG, UART_TAG,
                         "tx fifo empty threshold value error");
     if (p_uart_obj[uart_num] == NULL) {
-        ESP_LOGE(UART_TAG, "call uart_driver_install API first");
+        ESP_LOGE(UART_TAG, "call fnc_uart_driver_install API first");
         return ESP_ERR_INVALID_STATE;
     }
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
@@ -1648,3 +1793,5 @@ void fnc_uart_set_data_callback(uart_port_t uart_num, uart_data_callback_t uart_
         p_uart_obj[uart_num]->uart_data_callback = (uart_data_callback_t)uart_data_callback;
     }
 }
+#endif
+

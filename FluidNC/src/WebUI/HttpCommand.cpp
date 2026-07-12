@@ -77,6 +77,7 @@
 #include "Module.h"
 #include "FluidPath.h"
 #include "FileStream.h"
+#include "NetSettings.h"
 
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -413,9 +414,9 @@ namespace WebUI {
         int      status_code    = 0;
         uint32_t bytes_received = 0;
 
-        // Check WiFi connection (runtime error - respects fail_on_error)
-        if (WiFi.status() != WL_CONNECTED) {
-            log_error_to(out, "HTTP: WiFi not connected");
+        // Check network connection (runtime error - respects fail_on_error)
+        if (!networkConnected()) {
+            log_error_to(out, "HTTP: Network not connected");
             if (request.fail_on_error) {
                 return Error::MessageFailed;
             }

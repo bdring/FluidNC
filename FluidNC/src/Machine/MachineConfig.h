@@ -18,6 +18,9 @@
 #include "Probe.h"
 #include "Parking.h"
 #include "SDCard.h"
+#if MAX_N_ETH
+#    include "Machine/EthPhy.h"
+#endif
 #include "Spindles/Spindle.h"
 #include "Stepping.h"
 #include "Stepper.h"
@@ -83,6 +86,9 @@ namespace Machine {
         UserOutputs*    _userOutputs = nullptr;
         UserInputs*     _userInputs  = nullptr;
         SDCard*         _sdCard      = nullptr;
+#if MAX_N_ETH
+        EthPhy* _ethernet = nullptr;
+#endif
         Macros*         _macros      = nullptr;
         Start*          _start       = nullptr;
         Parking*        _parking     = nullptr;

@@ -47,12 +47,6 @@ inline void platform_preinit() {
 #endif
 }
 
-#if ESP_IDF_VERSION_MAJOR >= 5
-// Compatibility for older compilers versions.
-#    define memory_order_seq_cst seq_cst
-#endif
-
-
 inline bool should_exit() {
     return false;
 }

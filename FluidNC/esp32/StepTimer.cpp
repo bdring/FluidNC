@@ -83,7 +83,7 @@ uint32_t stepTimerInit(bool (*callback)(void)) {
 #else
 #    include <esp_attr.h>
 #    include <esp_compiler.h>
-#    include "esp_intr_types.h"
+// #    include "esp_intr_types.h"
 #    include "soc/timer_periph.h"
 
 #    define IRAM IRAM_ATTR

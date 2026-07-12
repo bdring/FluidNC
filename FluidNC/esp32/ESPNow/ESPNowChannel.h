@@ -62,7 +62,14 @@ public:
 #else
     static void onRecv(const uint8_t* mac_addr, const uint8_t* data, int len);
 #endif
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
+    // esp_now_send_cb_t was changed to take a wifi_tx_info_t (aka
+    // esp_now_send_info_t) instead of a bare destination MAC address.
+    static void onSent(const esp_now_send_info_t* tx_info, esp_now_send_status_t status);
+#else
     static void onSent(const uint8_t* mac, esp_now_send_status_t status);
+#endif
+    static void handleSent(const uint8_t* mac, esp_now_send_status_t status);
 
 private:
     static ESPNowChannel* _instance;

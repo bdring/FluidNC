@@ -242,6 +242,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
 
             protocol_send_event_from_ISR(&cycleStopEvent);
             awake = false;
+            // XXX this is probably redundant because stop_stepping()
             Stepping::unstep();
             return false;  // Nothing to do but exit.
         }

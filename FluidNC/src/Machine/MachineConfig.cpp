@@ -48,7 +48,7 @@ namespace Machine {
         // We currently support only one I2S bus
         handler.section("i2so", _i2so);
 #endif
-#if MAX_N_I2SO
+#if MAX_N_I2C
         handler.sections("i2c", 0, MAX_N_I2C, false, _i2c);
 #endif
 #if MAX_N_SPI
@@ -58,6 +58,10 @@ namespace Machine {
 
 #if MAX_N_SDCARD
         handler.section("sdcard", _sdCard);
+#endif
+
+#if MAX_N_ETH
+        handler.section("ethernet", _ethernet);
 #endif
 
         handler.section("kinematics", _kinematics);
@@ -299,6 +303,9 @@ namespace Machine {
         delete _probe;
 #if MAX_N_SDCARD
         delete _sdCard;
+#endif
+#if MAX_N_ETH
+        delete _ethernet;
 #endif
 #if MAX_N_SDCARD
         delete _spi;

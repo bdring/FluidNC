@@ -22,8 +22,23 @@
 // see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 // <http://www.gnu.org/licenses/>.
 
+#ifdef __FLUIDNC
+# include "../../fluidnc_vfs_ops.h"
+#endif
+
 #ifndef _GLIBCXX_USE_CXX11_ABI
 # define _GLIBCXX_USE_CXX11_ABI 1
+#endif
+// NEED_DO_COPY_FILE / NEED_DO_SPACE enable the FluidNC-specific bodies of
+// do_copy_file()/do_space() in ops-common.h. These used to be defined only
+// inside the #ifndef _GLIBCXX_USE_CXX11_ABI block above, which happened to
+// work on the old gcc 12.2.0 toolchain (where that macro wasn't predefined),
+// but gcc 14.2.0's c++config.h predefines _GLIBCXX_USE_CXX11_ABI, so that
+// guard silently stopped firing and both fell back to the stock libstdc++.a
+// implementations (no VFS support -> ENOSYS "Function not implemented").
+// Gate directly on __FLUIDNC instead so this doesn't depend on ABI-macro
+// predefinition behavior that varies by toolchain.
+#ifdef __FLUIDNC
 # define NEED_DO_COPY_FILE
 # define NEED_DO_SPACE
 #endif

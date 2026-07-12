@@ -20,6 +20,7 @@
 #include <string>
 #include <cstring>
 #include "WifiImpl.h"
+#include "NetSettings.h"
 #include <time.h>
 
 namespace WebUI {
@@ -75,26 +76,11 @@ namespace WebUI {
         const char* getStringValue() { return "********"; }
     };
 
-    class HostnameSetting : public StringSetting {
-    public:
-        HostnameSetting(const char* description, const char* grblName, const char* name, const char* defVal) :
-            StringSetting(description, WEBSET, WA, grblName, name, defVal, MIN_HOSTNAME_LENGTH, MAX_HOSTNAME_LENGTH) {
-            load();
-        }
-        Error setStringValue(std::string_view s) {
-            // Hostname strings may contain only letters, digits and -
-            for (auto const& c : s) {
-                if (c == ' ' || !(isdigit(c) || isalpha(c) || c == '-')) {
-                    return Error::InvalidValue;
-                }
-            }
-            return StringSetting::setStringValue(s);
-        }
-    };
+    // HostnameSetting and the shared _hostname setting object now live in
+    // NetSettings.h/.cpp so that EthConfig can use the same setting.
 
     static EnumSetting*     _mode;
     static StringSetting*   _sta_ssid;
-    static HostnameSetting* _hostname;
     static IntSetting*      _ap_channel;
     static IPaddrSetting*   _ap_ip;
     static PasswordSetting* _ap_password;
@@ -684,7 +670,7 @@ namespace WebUI {
 
         void init() {
             _sta_ssid    = new StringSetting("Station SSID", WEBSET, WA, "ESP100", "Sta/SSID", "", MIN_SSID_LENGTH, MAX_SSID_LENGTH);
-            _hostname    = new HostnameSetting("Hostname", "ESP112", "Hostname", "fluidnc");
+            // _hostname is created earlier by NetSettingsModule (see NetSettings.cpp)
             _ap_channel  = new IntSetting("AP Channel", WEBSET, WA, "ESP108", "AP/Channel", 1, 1, 14);
             _ap_ip       = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", "192.168.0.1");
             _ap_password = new PasswordSetting("AP Password", "ESP106", "AP/Password", "12345678");
@@ -719,6 +705,11 @@ namespace WebUI {
 
             //stop active services
             // wifi_services.end();
+
+            if (networkType() != NetworkTypeWiFi) {
+                log_info("WiFi is disabled ($network/type is Ethernet)");
+                return;
+            }
 
             switch (_mode->get()) {
                 case WiFiOff:

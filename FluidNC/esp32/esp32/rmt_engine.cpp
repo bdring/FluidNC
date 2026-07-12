@@ -7,7 +7,12 @@
 #include "Driver/step_engine.h"
 #include "Driver/fluidnc_gpio.h"
 #include "Driver/StepTimer.h"
+// This uses the legacy RMT driver (driver/rmt.h), which is deprecated in
+// favor of driver/rmt_tx.h / driver/rmt_rx.h but is still shipped and
+// functional. Direct register pokes in set_step_pin() below need the
+// RMT register struct from soc/rmt_struct.h as well.
 #include <driver/rmt.h>
+#include <soc/rmt_struct.h>
 #include <esp32-hal-gpio.h>
 #include <esp_attr.h>  // IRAM_ATTR
 
@@ -40,10 +45,10 @@ static uint32_t init_step_pin(pinnum_t step_pin, bool step_inverted) {
                                .mem_block_num = 2,
                                .flags         = 0,
                                .tx_config     = {
-                                       .carrier_freq_hz      = 0,
-                                       .carrier_level        = RMT_CARRIER_LEVEL_LOW,
-                                       .idle_level           = step_inverted ? RMT_IDLE_LEVEL_HIGH : RMT_IDLE_LEVEL_LOW,
-                                       .carrier_duty_percent = 50,
+                                   .carrier_freq_hz      = 0,
+                                   .carrier_level        = RMT_CARRIER_LEVEL_LOW,
+                                   .idle_level           = step_inverted ? RMT_IDLE_LEVEL_HIGH : RMT_IDLE_LEVEL_LOW,
+                                   .carrier_duty_percent = 50,
 #if SOC_RMT_SUPPORT_TX_LOOP_COUNT
                                    .loop_count = 1,
 #endif
@@ -60,8 +65,14 @@ static uint32_t init_step_pin(pinnum_t step_pin, bool step_inverted) {
 
     rmtItem[0].level0 = rmtConfig.tx_config.idle_level;
     rmtItem[0].level1 = !rmtConfig.tx_config.idle_level;
+
+    // rmt_config() and rmt_fill_tx_items() are the real (if deprecated)
+    // legacy-driver implementations declared in driver/rmt.h; they take
+    // care of clock/gpio/idle-level setup and loading the item memory,
+    // so there is no need to hand-roll the rmt_ll_* register pokes here.
     rmt_config(&rmtConfig);
     rmt_fill_tx_items(rmtConfig.channel, &rmtItem[0], rmtConfig.mem_block_num, 0);
+
     return (int)rmt_chan_num;
 }
 
@@ -85,9 +96,11 @@ static void IRAM_ATTR set_step_pin(pinnum_t pin, bool level) {
     RMT.conf_ch[pin].conf1.tx_start   = 1;
 #endif
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-    RMT.chnconf0[pin].mem_rd_rst_n = 1;
-    RMT.chnconf0[pin].mem_rd_rst_n = 0;
-    RMT.chnconf0[pin].tx_start_n   = 1;
+    // Field names in rmt_chnconf0_reg_t were renamed (mem_rd_rst_n ->
+    // mem_rd_rst_chn, tx_start_n -> tx_start_chn) in newer IDF soc headers.
+    RMT.chnconf0[pin].mem_rd_rst_chn = 1;
+    RMT.chnconf0[pin].mem_rd_rst_chn = 0;
+    RMT.chnconf0[pin].tx_start_chn   = 1;
 #endif
 }
 

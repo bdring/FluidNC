@@ -9,6 +9,7 @@
 #include "WebUIServer.h"
 
 #include "Driver/fluidnc_mdns.h"
+#include "NetSettings.h"
 
 #include <WiFi.h>
 // #include <StreamString.h>
@@ -282,7 +283,7 @@ namespace WebUI {
 
         _setupdone = false;
 
-        if (WiFi.getMode() == WIFI_OFF || !http_enable->get()) {
+        if (!networkEnabled() || !http_enable->get()) {
             return;
         }
 

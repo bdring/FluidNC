@@ -2044,11 +2044,28 @@ struct fs::filesystem_error::_Impl
   : what(make_what(what_arg, nullptr, nullptr))
   { }
 
+  // p->u8string() returns std::u8string when _GLIBCXX_USE_CHAR8_T is
+  // defined and std::string otherwise; normalize to std::string here
+  // regardless, since char8_t and char have the same representation
+  // for UTF-8 text.
+  static std::string
+  to_string(const path* p)
+  {
+    if (!p)
+      return std::string{};
+#ifdef _GLIBCXX_USE_CHAR8_T
+    const std::u8string u8 = p->u8string();
+    return std::string(reinterpret_cast<const char*>(u8.data()), u8.size());
+#else
+    return p->u8string();
+#endif
+  }
+
   static std::string
   make_what(string_view s, const path* p1, const path* p2)
   {
-    const std::string pstr1 = p1 ? p1->u8string() : std::string{};
-    const std::string pstr2 = p2 ? p2->u8string() : std::string{};
+    const std::string pstr1 = to_string(p1);
+    const std::string pstr2 = to_string(p2);
     const size_t len = 18 + s.length()
       + (pstr1.length() ? pstr1.length() + 3 : 0)
       + (pstr2.length() ? pstr2.length() + 3 : 0);

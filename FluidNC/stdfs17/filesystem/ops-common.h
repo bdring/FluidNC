@@ -698,6 +698,28 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
       }
     else
       ec = std::__last_system_error();
+#elif defined __FLUIDNC
+    // ESP-IDF has no statvfs(); ask the relevant VFS driver directly for
+    // its total/used byte counts.  pathname looks like "/mount/rest/of/path",
+    // so the mount name is the first path component.
+    const char* start = pathname;
+    if (*start == '/')
+      ++start;
+    const char* end = start;
+    while (*end && *end != '/')
+      ++end;
+    std::string_view mount(start, static_cast<size_t>(end - start));
+
+    uint64_t total, used;
+    if (fluidnc_vfs_stats(mount, total, used))
+      {
+	capacity  = static_cast<uintmax_t>(total);
+	free      = static_cast<uintmax_t>(total - used);
+	available = static_cast<uintmax_t>(total - used);
+	ec.clear();
+      }
+    else
+      ec.assign(errno, std::generic_category());
 #else
     ec = std::make_error_code(std::errc::function_not_supported);
 #endif

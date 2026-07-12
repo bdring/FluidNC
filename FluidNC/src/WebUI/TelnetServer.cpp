@@ -3,6 +3,7 @@
 #include "Machine/MachineConfig.h"
 #include "TelnetClient.h"
 #include "TelnetServer.h"
+#include "NetSettings.h"
 
 #include "Report.h"  // report_init_message()
 
@@ -14,7 +15,7 @@ namespace WebUI {
     uint16_t TelnetServer::_port = 0;
 
     void TelnetServer::init() {
-        if (WiFi.getMode() == WIFI_OFF) {
+        if (!networkEnabled()) {
             return;
         }
 

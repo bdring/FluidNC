@@ -19,11 +19,16 @@
 
 #include "Driver/delay_usecs.h"  // delay_us()
 
+#include <esp_idf_version.h>
 #include <esp_attr.h>  // IRAM_ATTR
 
 #include <freertos/FreeRTOS.h>
 
-#include <driver/periph_ctrl.h>
+#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+#    include <esp_private/periph_ctrl.h>
+#else
+#    include <driver/periph_ctrl.h>
+#endif
 #include <rom/lldesc.h>
 #include <soc/i2s_struct.h>
 #include <soc/gpio_periph.h>
@@ -158,11 +163,13 @@ void i2s_out_delay() {
 
 void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
     uint32_t bit = 1 << pin;
+    uint32_t port_data = i2s_out_port_data;
     if (val) {
-        i2s_out_port_data |= bit;
+        port_data |= bit;
     } else {
-        i2s_out_port_data &= ~bit;
+        port_data &= ~bit;
     }
+    i2s_out_port_data = port_data;
 
     if (!timer_running) {
         // Direct write to the I2S FIFO in case the pulse timer is not running
@@ -241,14 +248,23 @@ void i2s_out_init(i2s_out_init_t* init_param) {
     i2s_ll_enable_lcd(&I2S0, false);
     i2s_ll_enable_camera(&I2S0, false);
 #ifdef SOC_I2S_SUPPORTS_PDM_TX
+#    if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+    i2s_ll_tx_enable_std(&I2S0);
+#    else
     i2s_ll_tx_enable_pdm(&I2S0, false);
+#    endif
 #endif
 
     i2s_ll_enable_dma(&I2S0, false);
 
+#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+    i2s_ll_tx_select_std_slot(&I2S0, I2S_STD_SLOT_BOTH, false);
+    i2s_ll_tx_set_sample_bit(&I2S0, 32, 16);
+#else
     i2s_ll_tx_set_chan_mod(&I2S0, I2S_CHANNEL_FMT_RIGHT_LEFT);  // Overridden by i2s_out_start
-
     i2s_ll_tx_set_sample_bit(&I2S0, I2S_BITS_PER_SAMPLE_32BIT, I2S_BITS_PER_SAMPLE_16BIT);
+#endif
+
     i2s_ll_tx_enable_mono_mode(&I2S0, false);
 
     i2s_ll_enable_dma(&I2S0, false);  // FIFO is not connected to DMA
@@ -263,7 +279,11 @@ void i2s_out_init(i2s_out_init_t* init_param) {
     i2s_ll_tx_set_slave_mod(&I2S0, false);  // Master
     i2s_ll_tx_force_enable_fifo_mod(&I2S0, true);
 #ifdef SOC_I2S_SUPPORTS_PDM_TX
+#    if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+    i2s_ll_tx_enable_std(&I2S0);
+#    else
     i2s_ll_tx_enable_pdm(&I2S0, false);
+#    endif
 #endif
 
     // I2S_COMM_FORMAT_I2S_LSB
@@ -271,31 +291,39 @@ void i2s_out_init(i2s_out_init_t* init_param) {
     i2s_ll_tx_enable_msb_shift(&I2S0, false);  // Do not use the Philips standard to avoid bit-shifting
 
 #ifdef CONFIG_IDF_TARGET_ESP32
-    i2s_ll_tx_clk_set_src(&I2S0, I2S_CLK_D2CLK);
-#endif
-    // N + b/a = 0
-    //    i2s_ll_mclk_div_t first_div = { 2, 3, 47 };  // { N, b, a }
-    //    i2s_ll_tx_set_clk(&I2S0, &first_div);
-
-    i2s_ll_mclk_div_t div = { 5, 0, 0 };
+    uint16_t integ = 5, denom = 0, numer = 0;
     switch (i2s_frame_us) {
         case 1:
-            div.mclk_div = 2;  // Fractional divisor 2.5, i.e. 2 + 16/32
-            div.a        = 32;
-            div.b        = 16;
+            integ = 2;  // Fractional divisor 2.5, i.e. 2 + 16/32
+            denom = 32;
+            numer = 16;
             break;
         case 2:
-            div.mclk_div = 5;
+            integ = 5;
             break;
 
         case 4:
         default:
-            div.mclk_div = 10;
+            integ = 10;
             break;
     }
-    i2s_ll_tx_set_clk(&I2S0, &div);
+        // i2s_ll_mclk_div_t was renamed to the shared hal_utils_clk_div_t
+        // (same integer/denominator/numerator layout) in newer IDF hal headers.
+#    if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+    hal_utils_clk_div_t div = { integ, denom, numer };
+#    else
+    i2s_ll_mclk_div_t div = { integ, denom, numer };
+#    endif
 
+#    if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+    i2s_ll_tx_clk_set_src(&I2S0, I2S_CLK_SRC_DEFAULT);
+    i2s_ll_tx_set_mclk(&I2S0, &div);
+#    else
+    i2s_ll_tx_clk_set_src(&I2S0, I2S_CLK_D2CLK);
+    i2s_ll_tx_set_clk(&I2S0, &div);
+#    endif
     i2s_ll_tx_set_bck_div_num(&I2S0, 2);
+#endif
 
     // Remember GPIO pin numbers
     i2s_out_ws_pin      = init_param->ws_pin;

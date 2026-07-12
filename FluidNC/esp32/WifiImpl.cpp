@@ -2,33 +2,34 @@
 
 #if defined(ESP32) && __has_include(<esp_wifi.h>) && __has_include(<esp_ota_ops.h>) && __has_include(<esp_idf_version.h>)
 
-#include "../src/Settings.h"
-#include "../src/JSONEncoder.h"
-#include "../src/Channel.h"
-#include "../src/Logging.h"
-#include "Driver/Console.h"
-#include "../src/Main.h"
+#    include "../src/Settings.h"
+#    include "../src/JSONEncoder.h"
+#    include "../src/Channel.h"
+#    include "../src/Logging.h"
+#    include "Driver/Console.h"
+#    include "../src/Main.h"
 
-#include <WiFi.h>
-#include <esp_wifi.h>
-#include <esp_ota_ops.h>
-#include <esp_idf_version.h>
-#include <cstring>
-
-#if ESP_IDF_VERSION_MAJOR >= 5
+#    include <WiFi.h>
 #    include <esp_wifi.h>
+#    include <esp_ota_ops.h>
+#    include <esp_idf_version.h>
+#    include <cstring>
 
-#    define tcpip_adapter_sta_list_t wifi_sta_list_t
-#    define tcpip_adapter_get_sta_list(station, list) esp_wifi_ap_get_sta_list(list)
-#    define SYSTEM_EVENT_STA_GOT_IP IP_EVENT_STA_GOT_IP
-#    define WIFI_EVENT_STA_DISCONNECTED WIFI_EVENT_STA_DISCONNECTED
-#    define WIFI_EVENT_STA_START WIFI_EVENT_STA_START
-#    define WIFI_EVENT_STA_STOP WIFI_EVENT_STA_STOP
-#    define WIFI_EVENT_STA_CONNECTED WIFI_EVENT_STA_CONNECTED
-#    define GetIPAddr(x) "0.0.0.0"
-#else
-#    define GetIPAddr(x) IP_string(IPAddress(x.ip.addr))
-#endif
+#    if ESP_IDF_VERSION_MAJOR >= 5
+#        include <esp_wifi.h>
+#        include "esp_wifi_ap_get_sta_list.h"
+
+#        define tcpip_adapter_sta_list_t wifi_sta_list_t
+#        define tcpip_adapter_get_sta_list(station, list) esp_wifi_ap_get_sta_list(list)
+#        define SYSTEM_EVENT_STA_GOT_IP IP_EVENT_STA_GOT_IP
+#        define WIFI_EVENT_STA_DISCONNECTED WIFI_EVENT_STA_DISCONNECTED
+#        define WIFI_EVENT_STA_START WIFI_EVENT_STA_START
+#        define WIFI_EVENT_STA_STOP WIFI_EVENT_STA_STOP
+#        define WIFI_EVENT_STA_CONNECTED WIFI_EVENT_STA_CONNECTED
+#        define GetIPAddr(x) "0.0.0.0"
+#    else
+#        define GetIPAddr(x) IP_string(IPAddress(x.ip.addr))
+#    endif
 
 namespace WebUI {
     static const enum_opt_t esp32PsModeOptions = {
@@ -93,7 +94,7 @@ namespace WebUI {
         const enum_opt_t* psModeOptions() const override { return &esp32PsModeOptions; }
         int               psModeDefault() const override { return WIFI_PS_NONE; }
 
-        bool              allowRssiRead() const override { return true; }
+        bool allowRssiRead() const override { return true; }
 
         void addWifiStatsPrefix(JSONencoder& j) const override {
             j.id_value_object("Sleep mode", WiFi.getSleep() ? "Modem" : "None");
@@ -164,7 +165,7 @@ namespace WebUI {
             j.id_value_object("Authentication", mode);
             j.id_value_object("Max Connections", conf.ap.max_connection);
 
-#if defined(IDFBUILD)
+#    if defined(IDFBUILD)
             wifi_sta_list_t          station;
             tcpip_adapter_sta_list_t tcpip_sta_list;
             esp_wifi_ap_get_sta_list(&station);
@@ -174,20 +175,30 @@ namespace WebUI {
             for (int i = 0; i < station.num; i++) {
                 j.id_value_object("", std::string("") + mac2str(tcpip_sta_list.sta[i].mac) + " " + GetIPAddr(tcpip_sta_list.sta[i]));
             }
-#else
-            wifi_sta_list_t      station;
+#    else
+            wifi_sta_list_t station;
+            size_t          num_stations;
+#        if ESP_IDF_VERSION_MAJOR < 5
             esp_netif_sta_list_t netif_sta_list;
             esp_wifi_ap_get_sta_list(&station);
             esp_netif_get_sta_list(&station, &netif_sta_list);
+            num_stations = station.num;
 
-            j.id_value_object("Connected channels", station.num);
-
-            for (size_t i = 0; i < station.num; i++) {
-                j.id_value_object("",
-                                  std::string("") + mac2str(netif_sta_list.sta[i].mac) + " " +
-                                      IP_string(IPAddress(netif_sta_list.sta[i].ip.addr)));
+#        else
+            wifi_sta_mac_ip_list_t netif_sta_list;
+            if (esp_wifi_ap_get_sta_list(&station) == ESP_OK) {
+                if (esp_wifi_ap_get_sta_list_with_ip(&station, &netif_sta_list) == ESP_OK) {
+                    num_stations = netif_sta_list.num;
+                }
             }
-#endif
+#        endif
+            j.id_value_object("Connected channels", num_stations);
+
+            for (size_t i = 0; i < num_stations; i++) {
+                j.id_value_object(
+                    "", std::string("") + mac2str(netif_sta_list.sta[i].mac) + " " + IP_string(IPAddress(netif_sta_list.sta[i].ip.addr)));
+            }
+#    endif
         }
 
         void addStatusPrefix(Channel& out) const override {
@@ -231,8 +242,7 @@ namespace WebUI {
             log_stream(out, "Visible: " << (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
             log_stream(out,
                        "Radio country set: " << country.cc[0] << country.cc[1] << " (channels " << country.schan << "-"
-                                             << (country.schan + country.nchan - 1) << ", max power " << country.max_tx_power
-                                             << "dBm)");
+                                             << (country.schan + country.nchan - 1) << ", max power " << country.max_tx_power << "dBm)");
 
             const char* mode;
             switch (conf.ap.authmode) {
@@ -258,7 +268,7 @@ namespace WebUI {
             log_stream(out, "Authentication: " << mode);
             log_stream(out, "Max Connections: " << conf.ap.max_connection);
 
-#if defined(IDFBUILD)
+#    if defined(IDFBUILD)
             wifi_sta_list_t          station;
             tcpip_adapter_sta_list_t tcpip_sta_list;
             esp_wifi_ap_get_sta_list(&station);
@@ -268,17 +278,30 @@ namespace WebUI {
             for (int i = 0; i < station.num; i++) {
                 log_stream(out, mac2str(tcpip_sta_list.sta[i].mac) << " " << GetIPAddr(tcpip_sta_list.sta[i]));
             }
-#else
-            wifi_sta_list_t      station;
+#    else
+            wifi_sta_list_t station;
+            size_t          num_stations = 0;
+
+#        if ESP_IDF_VERSION_MAJOR < 5
             esp_netif_sta_list_t netif_sta_list;
             esp_wifi_ap_get_sta_list(&station);
             esp_netif_get_sta_list(&station, &netif_sta_list);
-            log_stream(out, "Connected channels: " << station.num);
+            num_stations = station.num;
+#        else
+            wifi_sta_mac_ip_list_t netif_sta_list;
+            if (esp_wifi_ap_get_sta_list(&station) == ESP_OK) {
+                if (esp_wifi_ap_get_sta_list_with_ip(&station, &netif_sta_list) == ESP_OK) {
+                    num_stations = netif_sta_list.num;
+                }
+            }
+#        endif
 
-            for (size_t i = 0; i < station.num; i++) {
+            log_stream(out, "Connected channels: " << num_stations);
+
+            for (size_t i = 0; i < num_stations; i++) {
                 log_stream(out, mac2str(netif_sta_list.sta[i].mac) << " " << IP_string(IPAddress(netif_sta_list.sta[i].ip.addr)));
             }
-#endif
+#    endif
         }
 
         void prepareStartSta(int staMinSecurity, bool fastScan, const char* apCountry) override {
@@ -370,9 +393,7 @@ namespace WebUI {
             WiFi.scanNetworks(true);
         }
 
-        void initNTP() override {
-            configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-        }
+        void initNTP() override { configTime(0, 0, "pool.ntp.org", "time.nist.gov"); }
 
         void poll() override {
             if (WiFi.getMode() == WIFI_AP_STA) {

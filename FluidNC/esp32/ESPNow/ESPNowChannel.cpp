@@ -1604,7 +1604,20 @@ void ESPNowChannel::handleRealtime(int peer_index, const uint8_t* data, int len)
     rxPush(data[1 + ART_TAG_SIZE]);
 }
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
+void ESPNowChannel::onSent(const esp_now_send_info_t* tx_info, esp_now_send_status_t status) {
+    if (!tx_info) {
+        return;
+    }
+    handleSent(tx_info->des_addr, status);
+}
+#else
 void ESPNowChannel::onSent(const uint8_t* mac, esp_now_send_status_t status) {
+    handleSent(mac, status);
+}
+#endif
+
+void ESPNowChannel::handleSent(const uint8_t* mac, esp_now_send_status_t status) {
     if (!_instance || !mac) {
         return;
     }
