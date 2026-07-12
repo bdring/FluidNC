@@ -50,7 +50,8 @@ namespace Machine {
 
         uint32_t _phy_addr = 1;
 
-        uint32_t _spi_freq_mhz = 20;
+        // Matches SDCard's _frequency_hz naming/units (Hz, not MHz).
+        uint32_t _frequency_hz = 20000000;
 
         bool config_ok = false;
 
@@ -60,7 +61,7 @@ namespace Machine {
             handler.item("rst_pin", _rst);
             handler.item("phy_type", _phy_type, phyTypes);
             handler.item("phy_addr", _phy_addr, 0, 31);
-            handler.item("spi_freq_mhz", _spi_freq_mhz, 1, 80);
+            handler.item("frequency_hz", _frequency_hz, 1000000, 80000000);
         }
 
         void validate() override;

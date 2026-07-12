@@ -88,7 +88,7 @@ namespace Machine {
                             int(sckPin),
                             int(mosiPin),
                             int(misoPin),
-                            uint8_t(_spi_freq_mhz));
+                            uint8_t(_frequency_hz / 1000000));
         if (!ok) {
             log_error("Ethernet PHY init failed");
             return false;
