@@ -3,6 +3,10 @@
 #include <cstdint>
 
 namespace MotorDrivers {
+    constexpr float tmc2209EffectiveRSense(float configured, float default_value) {
+        return configured == 0.0f ? default_value : configured;
+    }
+
     struct TMC2209UartEndpoint {
         int32_t uart_num;
         uint8_t addr;

@@ -17,6 +17,13 @@ TEST(TMC2209SharedAddress, CompatibleUartSettingsAreAccepted) {
     EXPECT_EQ(first.mismatch(second), nullptr);
 }
 
+TEST(TMC2209SharedAddress, ImplicitAndExplicitDefaultRSenseAreEquivalent) {
+    constexpr float default_r_sense = 0.11f;
+    EXPECT_FLOAT_EQ(MotorDrivers::tmc2209EffectiveRSense(0.0f, default_r_sense),
+                    MotorDrivers::tmc2209EffectiveRSense(default_r_sense, default_r_sense));
+    EXPECT_FLOAT_EQ(MotorDrivers::tmc2209EffectiveRSense(0.15f, default_r_sense), 0.15f);
+}
+
 TEST(TMC2209SharedAddress, SingleDriverRetainsStrictReadbackByDefault) {
     EXPECT_TRUE(MotorDrivers::tmc2209RequiresReadback(false));
 }

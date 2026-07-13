@@ -19,8 +19,18 @@ namespace MotorDrivers {
     }
 
     TMC2209UartSettings TMC2209Driver::uartSettings() const {
-        return { _r_sense,       _run_current,      _hold_current,   _homing_current, _microsteps,    _run_mode,
-                 _homing_mode,   _stallguard,       _toff_disable,   _toff_stealthchop, _toff_coolstep, _use_enable };
+        return { tmc2209EffectiveRSense(_r_sense, TMC2209_RSENSE_DEFAULT),
+                 _run_current,
+                 _hold_current,
+                 _homing_current,
+                 _microsteps,
+                 _run_mode,
+                 _homing_mode,
+                 _stallguard,
+                 _toff_disable,
+                 _toff_stealthchop,
+                 _toff_coolstep,
+                 _use_enable };
     }
 
     void TMC2209Driver::validate() {
