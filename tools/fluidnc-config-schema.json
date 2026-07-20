@@ -1,0 +1,3371 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/fluidnc-config.schema.json",
+  "title": "FluidNC config.yaml",
+  "description": "JSON Schema for FluidNC's config.yaml, derived from the companion markdown specification 'FluidNC config.yaml Formal Specification (for LLM Generation)'. This schema validates the PARSED (YAML-to-JSON) representation of a config file, not the raw YAML text -- YAML-syntax rules from spec \u00a70 (indentation, whitespace, no trailing-newline requirement, etc.) are not and cannot be expressed here; validate the YAML syntax separately and only feed the parsed document to this schema. IMPORTANT DESIGN NOTE ON additionalProperties: sections that were confirmed byte-for-byte against the FluidNC C++ source (see the markdown doc's 'Ground truth' notes per section) use additionalProperties: false, since any other key is a real mistake worth catching. Do not relax this to mirror the real parser's leniency (spec \u00a70.7, unknown keys are logged and ignored, not rejected) -- for LLM-generation guidance, catching an unrecognized key here is more useful than silently accepting it the way the real firmware does. Board-specific pin legality (which GPIO numbers exist/are usable on a given board) is intentionally NOT validated -- pin identifiers are checked only for correct syntax (spec \u00a73), matching the stated design goal of both the markdown doc and this schema. Sections/fields marked deprecated:true (extenders/pinextender/pinext pins) should not be used when generating new configs; they are included only to recognize them in existing configs. CASING NOTE: ground truth (Parser::is(), strncasecmp-based) confirms FluidNC matches essentially every key name, type-selector name (spindle types, motor driver types, kinematics types), and enum value case-INsensitively -- e.g. 'pwm'/'PWM', 'm6_macro'/'M6_macro', 'z'/'Z' are all equivalent to the real firmware. This schema deliberately does NOT replicate that leniency (JSON Schema property/enum matching is inherently case-sensitive, and doing so would balloon every property set) -- it enforces the single canonical casing shown in the companion markdown spec, on the theory that guiding an LLM toward one consistent, readable form is more valuable than accepting every casing variant the real parser happens to tolerate.",
+  "type": "object",
+  "properties": {
+    "board": {
+      "type": "string",
+      "description": "Free-form descriptive string, informational only, not validated against a board list."
+    },
+    "name": {
+      "type": "string",
+      "description": "Free-form descriptive string."
+    },
+    "meta": {
+      "description": "Free-form notes, e.g. a build date/description. Deliberately UNCONSTRAINED (no type restriction) -- real configs write unquoted dates or leave it blank, which YAML parses as a native date or null rather than a string; rejecting those would penalize harmless real-world usage for a field that's purely informational."
+    },
+    "stepping": {
+      "$ref": "#/$defs/steppingSection"
+    },
+    "i2so": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a73.6. Required if any i2so.N pin is used anywhere in the file. Singular (only one I2S bus supported).",
+      "additionalProperties": false,
+      "properties": {
+        "bck_pin": {
+          "$ref": "#/$defs/pinAny"
+        },
+        "data_pin": {
+          "$ref": "#/$defs/pinAny"
+        },
+        "ws_pin": {
+          "$ref": "#/$defs/pinAny"
+        },
+        "min_pulse_us": {
+          "type": "integer",
+          "enum": [
+            1,
+            2,
+            4
+          ],
+          "default": 2
+        }
+      }
+    },
+    "spi": {
+      "$ref": "#/$defs/spiSection"
+    },
+    "sdcard": {
+      "$ref": "#/$defs/sdcardSection"
+    },
+    "kinematics": {
+      "$ref": "#/$defs/kinematicsSection"
+    },
+    "axes": {
+      "$ref": "#/$defs/axesSection"
+    },
+    "control": {
+      "$ref": "#/$defs/controlSection"
+    },
+    "coolant": {
+      "$ref": "#/$defs/coolantSection"
+    },
+    "probe": {
+      "$ref": "#/$defs/probeSection"
+    },
+    "macros": {
+      "$ref": "#/$defs/macrosSection"
+    },
+    "extenders": {
+      "$ref": "#/$defs/extendersSection"
+    },
+    "start": {
+      "$ref": "#/$defs/startSection"
+    },
+    "parking": {
+      "$ref": "#/$defs/parkingSection"
+    },
+    "user_outputs": {
+      "$ref": "#/$defs/userOutputsSection"
+    },
+    "user_inputs": {
+      "$ref": "#/$defs/userInputsSection"
+    },
+    "oled": {
+      "$ref": "#/$defs/oledSection"
+    },
+    "status_outputs": {
+      "$ref": "#/$defs/statusOutputsSection"
+    },
+    "atc_manual": {
+      "$ref": "#/$defs/atc_manual"
+    },
+    "arc_tolerance_mm": {
+      "type": "number",
+      "minimum": 0.001,
+      "maximum": 1.0,
+      "default": 0.002
+    },
+    "junction_deviation_mm": {
+      "type": "number",
+      "minimum": 0.01,
+      "maximum": 1.0,
+      "default": 0.01
+    },
+    "verbose_errors": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/boolean"
+        }
+      ],
+      "default": true
+    },
+    "report_inches": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/boolean"
+        }
+      ],
+      "default": false
+    },
+    "enable_parking_override_control": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/boolean"
+        }
+      ],
+      "default": false,
+      "description": "Gates M56 support."
+    },
+    "use_line_numbers": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/boolean"
+        }
+      ],
+      "default": false
+    },
+    "planner_blocks": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 120,
+      "default": 16
+    },
+    "PWM": {
+      "$ref": "#/$defs/spindle_PWM"
+    },
+    "10V": {
+      "$ref": "#/$defs/spindle_10V"
+    },
+    "DAC": {
+      "$ref": "#/$defs/spindle_DAC"
+    },
+    "HBridge": {
+      "$ref": "#/$defs/spindle_HBridge"
+    },
+    "Laser": {
+      "$ref": "#/$defs/spindle_Laser"
+    },
+    "Relay": {
+      "$ref": "#/$defs/spindle_Relay"
+    },
+    "OnOff": {
+      "$ref": "#/$defs/spindle_OnOff"
+    },
+    "BESC": {
+      "$ref": "#/$defs/spindle_BESC"
+    },
+    "PlasmaSpindle": {
+      "$ref": "#/$defs/spindle_PlasmaSpindle"
+    },
+    "NoSpindle": {
+      "$ref": "#/$defs/spindle_NoSpindle"
+    },
+    "ModbusVFD": {
+      "$ref": "#/$defs/spindle_ModbusVFD"
+    },
+    "Huanyang": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    },
+    "H2A": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    },
+    "YL620": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    },
+    "DeltaMS300": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    },
+    "FolinnBD600": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    },
+    "H100": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    },
+    "MollomG70": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    },
+    "NowForever": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    },
+    "SiemensV20": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    },
+    "DanfossVLT2800": {
+      "$ref": "#/$defs/spindle_VFD_named"
+    }
+  },
+  "patternProperties": {
+    "^uart[0-9]+$": {
+      "$ref": "#/$defs/uartSection"
+    },
+    "^uart_channel[0-9]+$": {
+      "$ref": "#/$defs/uartChannelSection"
+    },
+    "^i2c[0-9]+$": {
+      "$ref": "#/$defs/i2cSection"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "pin": {
+      "type": "string",
+      "description": "FluidNC pin string (spec \u00a73). Grammar: pin_type[.pin_number](:attribute)*. pin_type is one of gpio, i2so, uart_channelN (advanced/rare), no_pin/NO_PIN, void. pinextN is deprecated (see pinDeprecated) and intentionally NOT matched here. Attributes (any order, colon-chained): :high/:low (active state, default high), :pu/:pd (pull-up/down, input pins only), :ds0-:ds3 (drive strength, gpio output pins only). Matching is case-insensitive in the real firmware; this pattern accepts common casings (gpio/GPIO/Gpio, i2so/I2SO) but canonical lowercase is recommended for readability.",
+      "pattern": "^(NO_PIN|no_pin|[Vv][Oo][Ii][Dd]|[Gg][Pp][Ii][Oo]\\.[0-9]+|[Ii]2[Ss][Oo]\\.[0-9]+|uart_channel[0-9]+\\.[0-9]+)(:(high|low|pu|pd|ds[0-3]))*$"
+    },
+    "pinDeprecated": {
+      "type": "string",
+      "deprecated": true,
+      "description": "DO NOT USE. Pin-extender pin string (spec \u00a73.5). Provisional feature, may be removed. Included only for recognizing existing configs, not for generation.",
+      "pattern": "^pinext[0-9]\\.[0-9]+(:(high|low|pu|pd|ds[0-3]))*$"
+    },
+    "pinAny": {
+      "description": "Any pin field accepts either a real pin (see 'pin') or, for recognizing existing configs only, a deprecated pinext pin string (see 'pinDeprecated'). Every pin-typed field in this schema references this combined definition rather than 'pin' directly, so a pinext-using config validates structurally instead of being unconditionally rejected. Note that the JSON Schema 'deprecated' keyword on 'pinDeprecated' is only an annotation -- it does not by itself cause any tool to emit a warning. The companion Python validator (fluidnc_validate_core.py's scan_deprecated()) is what actually reads this annotation and turns a pinext-syntax value into a reported warning; a bare jsonschema-library validation against this schema alone will accept a pinext value with no diagnostic at all, since 'deprecated' has no validation effect in JSON Schema.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/pin"
+        },
+        {
+          "$ref": "#/$defs/pinDeprecated"
+        }
+      ]
+    },
+    "boolean": {
+      "type": "boolean",
+      "description": "spec \u00a72/\u00a70.7: NOT a validated two-value type in the real parser \u2014 only the literal token 'true' (case-insensitive) is recognized; anything else (including typos) silently becomes false with no error. Always emit exactly true or false."
+    },
+    "uartData": {
+      "type": "string",
+      "description": "spec \u00a72: 3-char mode string, data-bits(5-8) + parity(N/E/O) + stop-bits(1-2), e.g. \"8N1\". ALWAYS quote this value in YAML \u2014 unquoted 8E1 is ambiguous with scientific-notation 80.",
+      "pattern": "^[5-8][NnEeOo][12]$"
+    },
+    "speedMap": {
+      "type": "string",
+      "description": "spec \u00a710.1: piecewise-linear GCode-S-word -> device-percent mapping. Ground truth Parser::speedEntryValue(). Grammar: entry(' '+entry)* where entry := s_value=percent%. s_value is a non-negative integer (no decimals/negatives); percent is a float; the trailing %% is conventional but not actually enforced by the parser. S-values should be monotonically increasing.",
+      "pattern": "^[0-9]+=[0-9]+(\\.[0-9]+)?%?(\\s+[0-9]+=[0-9]+(\\.[0-9]+)?%?)*$"
+    },
+    "floatArray": {
+      "type": "string",
+      "description": "spec \u00a717: whitespace-separated floats, NO brackets, NO commas (ground truth Parser::floatArray()). e.g. \"0.0 0.0 0.0 0.0 0.0 0.0\". Count should match the number of defined axes; the parser does not enforce a specific count and silently discards the whole array on any parse failure rather than erroring the file load.",
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?(\\s+-?[0-9]+(\\.[0-9]+)?)*$"
+    },
+    "macroLine": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "spec \u00a711: a single physical line of GCode/$ commands. Multiple commands are separated by '&' (config-macro-only syntax, not valid in .nc files or general GCode). Empty string or a bare 'macroN:' key with no value (parses as YAML null) both mean 'do nothing'; both forms appear in real configs."
+    },
+    "motor_standard_stepper": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.1. Base field set inherited by every other driver type below.",
+      "additionalProperties": false,
+      "properties": {
+        "step_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "disable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "motor_stepstick": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.2. DRV8825/A4988/TB67S249FTG family, and ALSO the correct type for a TMC2209 run in standalone mode (no UART wiring) -- use this, not tmc_2209, when the chip's UART is not actually connected.",
+      "additionalProperties": false,
+      "properties": {
+        "step_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "disable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "ms1_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "ms2_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "ms3_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "reset_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Sets state at boot only, no active runtime behavior.",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "motor_tmc_2130": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.3. Class chain: StandardStepper -> TrinamicBase -> TrinamicSpiDriver -> TMC2130Driver. homing_amps does NOT exist on this type.",
+      "additionalProperties": false,
+      "properties": {
+        "step_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "disable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "cs_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Independent SPI mode: each driver needs its own. Daisy chain: only define on spi_index:1 motor.",
+          "default": "NO_PIN"
+        },
+        "spi_index": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 127,
+          "default": -1,
+          "description": "-1 = independent mode. Daisy chain: 1,2,3... in chain order."
+        },
+        "r_sense_ohms": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "No real firmware default (raw default 0 is non-functional) -- always set explicitly. ~0.11 typical for TMC2130, ~0.075 typical for TMC5160."
+        },
+        "run_amps": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 10.0,
+          "default": 0.5
+        },
+        "hold_amps": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 10.0,
+          "default": 0.5
+        },
+        "microsteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256,
+          "default": 16
+        },
+        "stallguard": {
+          "type": "integer",
+          "minimum": -64,
+          "maximum": 63,
+          "default": 0,
+          "description": "SPI-driver range. NOTE: tmc_2209's stallguard range is 0-255, different -- see motor_tmc_2209."
+        },
+        "stallguard_debug": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "toff_disable": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15,
+          "default": 0
+        },
+        "toff_stealthchop": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 15,
+          "default": 5
+        },
+        "toff_coolstep": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 15,
+          "default": 3
+        },
+        "run_mode": {
+          "type": "string",
+          "enum": [
+            "StealthChop",
+            "CoolStep",
+            "StallGuard"
+          ],
+          "default": "StealthChop",
+          "description": "Canonical spelling is StallGuard (capital G); case-insensitive at runtime."
+        },
+        "homing_mode": {
+          "type": "string",
+          "enum": [
+            "StealthChop",
+            "CoolStep",
+            "StallGuard"
+          ],
+          "default": "StealthChop"
+        },
+        "use_enable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "diag0_error": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "diag0_otpw": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "diag0_int_pushpull": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        }
+      }
+    },
+    "motor_tmc_5160": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.5. Identical to tmc_2130 plus tpfd.",
+      "additionalProperties": false,
+      "properties": {
+        "step_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "disable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "cs_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Independent SPI mode: each driver needs its own. Daisy chain: only define on spi_index:1 motor.",
+          "default": "NO_PIN"
+        },
+        "spi_index": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 127,
+          "default": -1,
+          "description": "-1 = independent mode. Daisy chain: 1,2,3... in chain order."
+        },
+        "r_sense_ohms": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "No real firmware default (raw default 0 is non-functional) -- always set explicitly. ~0.11 typical for TMC2130, ~0.075 typical for TMC5160."
+        },
+        "run_amps": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 10.0,
+          "default": 0.5
+        },
+        "hold_amps": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 10.0,
+          "default": 0.5
+        },
+        "microsteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256,
+          "default": 16
+        },
+        "stallguard": {
+          "type": "integer",
+          "minimum": -64,
+          "maximum": 63,
+          "default": 0,
+          "description": "SPI-driver range. NOTE: tmc_2209's stallguard range is 0-255, different -- see motor_tmc_2209."
+        },
+        "stallguard_debug": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "toff_disable": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15,
+          "default": 0
+        },
+        "toff_stealthchop": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 15,
+          "default": 5
+        },
+        "toff_coolstep": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 15,
+          "default": 3
+        },
+        "run_mode": {
+          "type": "string",
+          "enum": [
+            "StealthChop",
+            "CoolStep",
+            "StallGuard"
+          ],
+          "default": "StealthChop",
+          "description": "Canonical spelling is StallGuard (capital G); case-insensitive at runtime."
+        },
+        "homing_mode": {
+          "type": "string",
+          "enum": [
+            "StealthChop",
+            "CoolStep",
+            "StallGuard"
+          ],
+          "default": "StealthChop"
+        },
+        "use_enable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "diag0_error": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "diag0_otpw": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "diag0_int_pushpull": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "tpfd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15,
+          "default": 4
+        }
+      }
+    },
+    "motor_tmc_2208": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.4. NOT individually addressable over UART -- in a daisy chain, only the LAST motor/axis defined in the file actually determines the applied register values. There is NO nested uart: sub-block; use uart_num + a top-level uartN: section. diag0_* do NOT exist here (SPI-driver-only fields, TrinamicSpiDriver-specific) -- but toff_disable/toff_stealthchop DO exist (inherited via TrinamicBase, shared with SPI drivers).",
+      "additionalProperties": false,
+      "properties": {
+        "step_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "disable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "uart_num": {
+          "type": "integer",
+          "description": "References a top-level uartN: section, spec \u00a79."
+        },
+        "addr": {
+          "type": "integer",
+          "description": "TMC2208: present but not functionally meaningful (chip has no address pins). TMC2209: 0-3, hardware-set via MS1/MS2 address pins."
+        },
+        "cs_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Rarely used; present on TrinamicUartDriver base.",
+          "default": "NO_PIN"
+        },
+        "r_sense_ohms": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "No real firmware default -- always set explicitly."
+        },
+        "run_amps": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 10.0,
+          "default": 0.5
+        },
+        "hold_amps": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 10.0,
+          "default": 0.5
+        },
+        "microsteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256,
+          "default": 16
+        },
+        "toff_disable": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15,
+          "default": 0,
+          "description": "CORRECTED: this IS present on UART drivers too (inherited via TrinamicBase), contrary to an earlier pass of this schema/doc."
+        },
+        "toff_stealthchop": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 15,
+          "default": 5,
+          "description": "CORRECTED: this IS present on UART drivers too (inherited via TrinamicBase)."
+        },
+        "run_mode": {
+          "type": "string",
+          "enum": [
+            "StealthChop",
+            "CoolStep",
+            "StallGuard"
+          ],
+          "default": "StealthChop"
+        },
+        "homing_mode": {
+          "type": "string",
+          "enum": [
+            "StealthChop",
+            "CoolStep",
+            "StallGuard"
+          ],
+          "default": "StealthChop"
+        },
+        "stallguard_debug": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "toff_coolstep": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 15,
+          "default": 3
+        },
+        "use_enable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "stallguard": {
+          "type": "integer",
+          "minimum": -64,
+          "maximum": 63,
+          "default": 0
+        }
+      }
+    },
+    "motor_tmc_2209": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.6. Only use when the chip's UART is actually wired -- otherwise use stepstick. Individually addressable via addr: 0-3 (hardware MS1/MS2 pins), up to 4 independently readable chips per UART bus. Selectorless drivers may share an address only when every member explicitly enables shared_address_write_only and has identical UART-controlled settings. homing_amps is TMC2209-SPECIFIC (does not exist on 2130/2208/5160); if left at its default of 0 it is silently set equal to run_amps at parse time. stallguard range here is 0-255, NOT -64 to 63 like every SPI driver type.",
+      "additionalProperties": false,
+      "properties": {
+        "step_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "disable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "uart_num": {
+          "type": "integer",
+          "description": "References a top-level uartN: section, spec \u00a79."
+        },
+        "addr": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "default": 0,
+          "description": "Hardware-set via MS1/MS2 address pins on the chip."
+        },
+        "cs_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Rarely used; present on TrinamicUartDriver base.",
+          "default": "NO_PIN"
+        },
+        "r_sense_ohms": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "No real firmware default -- always set explicitly."
+        },
+        "run_amps": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 10.0,
+          "default": 0.5
+        },
+        "hold_amps": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 10.0,
+          "default": 0.5
+        },
+        "microsteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256,
+          "default": 16
+        },
+        "toff_disable": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15,
+          "default": 0,
+          "description": "CORRECTED: this IS present on UART drivers too (inherited via TrinamicBase), contrary to an earlier pass of this schema/doc."
+        },
+        "toff_stealthchop": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 15,
+          "default": 5,
+          "description": "CORRECTED: this IS present on UART drivers too (inherited via TrinamicBase)."
+        },
+        "run_mode": {
+          "type": "string",
+          "enum": [
+            "StealthChop",
+            "CoolStep",
+            "StallGuard"
+          ],
+          "default": "StealthChop"
+        },
+        "homing_mode": {
+          "type": "string",
+          "enum": [
+            "StealthChop",
+            "CoolStep",
+            "StallGuard"
+          ],
+          "default": "StealthChop"
+        },
+        "stallguard_debug": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "toff_coolstep": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 15,
+          "default": 3
+        },
+        "use_enable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "shared_address_write_only": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false,
+          "description": "Explicitly permits selectorless TMC2209s with the same uart_num and addr to receive identical writes. Every group member must enable it, use cs_pin: NO_PIN, and have identical UART-controlled settings. UART readback and stallguard_debug are unavailable."
+        },
+        "homing_amps": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 10.0,
+          "default": 0.0,
+          "description": "If left at 0, silently set equal to run_amps at parse time (TMC2209Driver::afterParse())."
+        },
+        "stallguard": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "NOT -64 to 63 -- TMC2209 differs from every SPI driver type here."
+        }
+      }
+    },
+    "motor_tmc_raw_register": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.7. Used identically by tmc_5160Pro, tmc_2160Pro, and tmc_2160 (no 'Pro' suffix) -- all three names register the EXACT SAME driver class in source; pick whichever name best documents the physical chip. Raw register values, not semantic fields -- do not invent values beyond the shown defaults. tpfd exists in source but is commented out (inactive).",
+      "additionalProperties": false,
+      "properties": {
+        "step_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "disable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "cs_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "spi_index": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 127,
+          "default": -1
+        },
+        "use_enable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "CHOPCONF": {
+          "type": "integer",
+          "default": 322994520,
+          "description": "Raw 32-bit register value, consult TMC5160 datasheet."
+        },
+        "COOLCONF": {
+          "type": "integer",
+          "default": 0,
+          "description": "Raw register value."
+        },
+        "THIGH": {
+          "type": "integer",
+          "default": 0,
+          "description": "Raw register value."
+        },
+        "TCOOLTHRS": {
+          "type": "integer",
+          "default": 0,
+          "description": "Raw register value."
+        },
+        "GCONF": {
+          "type": "integer",
+          "default": 4,
+          "description": "Raw register value."
+        },
+        "PWMCONF": {
+          "type": "integer",
+          "default": 3289120798,
+          "description": "Raw register value."
+        },
+        "IHOLD_IRUN": {
+          "type": "integer",
+          "default": 7948,
+          "description": "Raw register value."
+        }
+      }
+    },
+    "motor_rc_servo": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.8. Hobby RC servo used as a virtual linear/rotary axis.",
+      "additionalProperties": false,
+      "properties": {
+        "output_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "pwm_hz": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 200,
+          "default": 50
+        },
+        "min_pulse_us": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 2500,
+          "default": 1000
+        },
+        "max_pulse_us": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 2500,
+          "default": 2000
+        },
+        "timer_ms": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 250,
+          "default": 20
+        }
+      }
+    },
+    "motor_solenoid": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.9. On/off (or two-level pull/hold) actuator used as a virtual axis.",
+      "additionalProperties": false,
+      "properties": {
+        "output_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "pwm_hz": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 100000,
+          "default": 1000
+        },
+        "off_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 0.0
+        },
+        "pull_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 100.0
+        },
+        "hold_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 75.0
+        },
+        "pull_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3000,
+          "default": 500
+        },
+        "direction_invert": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false,
+          "description": "Inverts which side of mpos 0.0 is 'active'."
+        },
+        "timer_ms": {
+          "type": "integer",
+          "default": 50
+        }
+      }
+    },
+    "motor_dynamixel2": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.10. Robotis Protocol 2 servo. Default id (255) is Dynamixel's broadcast address and NOT a usable per-device value -- always set id explicitly.",
+      "additionalProperties": false,
+      "properties": {
+        "uart_num": {
+          "type": "integer",
+          "description": "Baud should match servo's programmed baud (1000000 recommended), mode \"8N1\" (quote it)."
+        },
+        "id": {
+          "type": "integer",
+          "default": 255,
+          "description": "255 is the broadcast address, not usable per-device -- must be set explicitly."
+        },
+        "count_min": {
+          "type": "integer",
+          "default": 1024
+        },
+        "count_max": {
+          "type": "integer",
+          "default": 3072
+        },
+        "timer_ms": {
+          "type": "integer",
+          "default": 50
+        }
+      }
+    },
+    "motor_null_motor": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.11. Explicitly declares this motor slot unused. Takes no sub-keys. Also the automatic fallback when no driver-type key is given at all.",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "motorBlock": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4. Exactly one driver-type key must be present (never zero, never more than one).",
+      "properties": {
+        "limit_neg_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "limit_pos_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "limit_all_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Mutually exclusive with limit_neg_pin/limit_pos_pin -- never combine.",
+          "default": "NO_PIN"
+        },
+        "hard_limits": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "pulloff_mm": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 100000.0,
+          "default": 1.0
+        },
+        "standard_stepper": {
+          "$ref": "#/$defs/motor_standard_stepper"
+        },
+        "stepstick": {
+          "$ref": "#/$defs/motor_stepstick"
+        },
+        "tmc_2130": {
+          "$ref": "#/$defs/motor_tmc_2130"
+        },
+        "tmc_2208": {
+          "$ref": "#/$defs/motor_tmc_2208"
+        },
+        "tmc_5160": {
+          "$ref": "#/$defs/motor_tmc_5160"
+        },
+        "tmc_2209": {
+          "$ref": "#/$defs/motor_tmc_2209"
+        },
+        "tmc_5160Pro": {
+          "$ref": "#/$defs/motor_tmc_raw_register"
+        },
+        "tmc_2160Pro": {
+          "$ref": "#/$defs/motor_tmc_raw_register"
+        },
+        "tmc_2160": {
+          "$ref": "#/$defs/motor_tmc_raw_register"
+        },
+        "rc_servo": {
+          "$ref": "#/$defs/motor_rc_servo"
+        },
+        "solenoid": {
+          "$ref": "#/$defs/motor_solenoid"
+        },
+        "dynamixel2": {
+          "$ref": "#/$defs/motor_dynamixel2"
+        },
+        "null_motor": {
+          "$ref": "#/$defs/motor_null_motor"
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "standard_stepper"
+          ]
+        },
+        {
+          "required": [
+            "stepstick"
+          ]
+        },
+        {
+          "required": [
+            "tmc_2130"
+          ]
+        },
+        {
+          "required": [
+            "tmc_2208"
+          ]
+        },
+        {
+          "required": [
+            "tmc_5160"
+          ]
+        },
+        {
+          "required": [
+            "tmc_2209"
+          ]
+        },
+        {
+          "required": [
+            "tmc_5160Pro"
+          ]
+        },
+        {
+          "required": [
+            "tmc_2160Pro"
+          ]
+        },
+        {
+          "required": [
+            "tmc_2160"
+          ]
+        },
+        {
+          "required": [
+            "rc_servo"
+          ]
+        },
+        {
+          "required": [
+            "solenoid"
+          ]
+        },
+        {
+          "required": [
+            "dynamixel2"
+          ]
+        },
+        {
+          "required": [
+            "null_motor"
+          ]
+        }
+      ]
+    },
+    "homingBlock": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.3. Ground truth Homing::group().",
+      "additionalProperties": false,
+      "properties": {
+        "cycle": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 6,
+          "default": 0,
+          "description": "-1 (set_mpos_only) = axis does not physically move, mpos is just assigned. 0 (ACTUAL DEFAULT, not -1) = individually homeable via $H<axis> but excluded from group $H. 1+ = homes as part of $H; axes sharing a cycle number home simultaneously (NOT allowed for CoreXY). Upper bound is board-dependent (MAX_N_AXIS, typically 6)."
+        },
+        "allow_single_axis": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "positive_direction": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "mpos_mm": {
+          "type": "number",
+          "default": 0.0,
+          "description": "Unbounded -- no min/max enforced by the parser."
+        },
+        "seek_mm_per_min": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 100000.0,
+          "default": 200.0
+        },
+        "feed_mm_per_min": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 100000.0,
+          "default": 50.0
+        },
+        "settle_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 250
+        },
+        "seek_scaler": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 100.0,
+          "default": 1.1
+        },
+        "feed_scaler": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 100.0,
+          "default": 1.1
+        }
+      }
+    },
+    "axisLetter": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.2. One of x, y, z, a, b, c.",
+      "additionalProperties": false,
+      "properties": {
+        "steps_per_mm": {
+          "type": "number",
+          "minimum": 0.001,
+          "maximum": 100000.0,
+          "default": 80.0
+        },
+        "max_rate_mm_per_min": {
+          "type": "number",
+          "minimum": 0.001,
+          "maximum": 250000.0,
+          "default": 1000.0
+        },
+        "acceleration_mm_per_sec2": {
+          "type": "number",
+          "minimum": 0.001,
+          "maximum": 100000.0,
+          "default": 25.0
+        },
+        "max_travel_mm": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 10000000.0,
+          "default": 1000.0,
+          "description": "Measured from the pulled-off homing switch position, not an arbitrary datum."
+        },
+        "soft_limits": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false,
+          "description": "Requires homing to be meaningful/safe."
+        },
+        "idle_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "homing": {
+          "$ref": "#/$defs/homingBlock"
+        },
+        "motor0": {
+          "$ref": "#/$defs/motorBlock"
+        },
+        "motor1": {
+          "$ref": "#/$defs/motorBlock"
+        }
+      }
+    },
+    "axesSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.1/\u00a75.2. Axis letters can appear in any order (name-matched, not positional) but any gap below the highest-defined axis is silently defaulted -- always define x, y, z explicitly. Minimum 3 axes.",
+      "additionalProperties": false,
+      "properties": {
+        "shared_stepper_disable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "shared_stepper_reset_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "homing_runs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "default": 2
+        },
+        "x": {
+          "$ref": "#/$defs/axisLetter"
+        },
+        "y": {
+          "$ref": "#/$defs/axisLetter"
+        },
+        "z": {
+          "$ref": "#/$defs/axisLetter"
+        },
+        "a": {
+          "$ref": "#/$defs/axisLetter"
+        },
+        "b": {
+          "$ref": "#/$defs/axisLetter"
+        },
+        "c": {
+          "$ref": "#/$defs/axisLetter"
+        }
+      }
+    },
+    "steppingSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a74. Top-level, singular. Ground truth Stepping::group().",
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": [
+            "Timed",
+            "RMT",
+            "I2S_STATIC",
+            "I2S_STREAM"
+          ],
+          "description": "Default is board-dependent (DEFAULT_STEPPING_ENGINE), not a fixed literal. RMT only compiled in when board supports it; I2S_STATIC/I2S_STREAM only when MAX_N_I2SO is set (and are functionally identical to each other). Do not mix i2so.N pins with engine: Timed or engine: RMT."
+        },
+        "idle_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000,
+          "default": 255,
+          "description": "255 is BOTH the real firmware default AND the Grbl 'always enabled' magic value -- an unconfigured stepping: section already leaves motors permanently enabled."
+        },
+        "pulse_us": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30,
+          "default": 4
+        },
+        "dir_delay_us": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 0
+        },
+        "disable_delay_us": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "default": 0
+        },
+        "segments": {
+          "type": "integer",
+          "minimum": 6,
+          "maximum": 20,
+          "default": 12
+        }
+      }
+    },
+    "spiSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a76. Required together with sdcard: -- one without the other leaves the SD card non-functional.",
+      "additionalProperties": false,
+      "properties": {
+        "miso_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Must be a native GPIO with input capability.",
+          "default": "NO_PIN"
+        },
+        "mosi_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Must be a native GPIO with output capability.",
+          "default": "NO_PIN"
+        },
+        "sck_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Must be a native GPIO with output capability.",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "sdcardSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "cs_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Required (non-NO_PIN) for SD to function.",
+          "default": "NO_PIN"
+        },
+        "card_detect_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Optional, cosmetic only (shown in startup log).",
+          "default": "NO_PIN"
+        },
+        "frequency_hz": {
+          "type": "integer",
+          "minimum": 400000,
+          "maximum": 20000000,
+          "default": 8000000
+        }
+      }
+    },
+    "controlSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a77. All fields Pin (input), gpio only. Every control input must read inactive at boot. NOTE: estop_pin and fault_pin are wired to the IDENTICAL internal event in source -- not functionally distinct despite the different names.",
+      "additionalProperties": false,
+      "properties": {
+        "safety_door_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "reset_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "feed_hold_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "cycle_start_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "macro0_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "macro1_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "macro2_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "macro3_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "fault_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "estop_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "homing_button_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "coolantSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a78. Ground truth CoolantControl::group().",
+      "additionalProperties": false,
+      "properties": {
+        "mist_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Controlled by M7 / M9.",
+          "default": "NO_PIN"
+        },
+        "flood_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Controlled by M8 / M9.",
+          "default": "NO_PIN"
+        },
+        "delay_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000,
+          "default": 0,
+          "description": "Only delays turn-ON, never delays M9 (off)."
+        }
+      }
+    },
+    "probeSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a78.1. Ground truth Probe::group(). The feature is considered present only if at least one of pin/toolsetter_pin is actually defined -- an all-default block is equivalent to omitting the section.",
+      "additionalProperties": false,
+      "properties": {
+        "pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "The touch probe input (EventPin).",
+          "default": "NO_PIN"
+        },
+        "toolsetter_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "A separate fixed toolsetter input, if present (EventPin).",
+          "default": "NO_PIN"
+        },
+        "check_mode_start": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true,
+          "description": "Governs G38.2/G38.4 check mode: false sets reported position to the probe's target after the cycle; true (default) sets it back to the move's start position."
+        },
+        "hard_stop": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "probe_hard_limit": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        }
+      }
+    },
+    "uart_usb_host": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Ground truth Uart.cpp comment + UartFactory::factory() dispatch mechanism confirms this is a real, registered nested type -- selects USB host mode (e.g. for a USB pendant) instead of hardware UART pins on that uartN: bus. When present, none of the plain txd_pin/rxd_pin/etc fields apply. CAVEAT: the concrete usb_host implementation class was not found in the source snapshot checked for this schema (only its factory dispatch point and one real-world example config were) -- only 'baud' is confirmed; if other fields exist they are not yet documented here. Re-verify against a current checkout if this matters.",
+      "additionalProperties": true,
+      "properties": {
+        "baud": {
+          "type": "integer",
+          "minimum": 2400,
+          "maximum": 10000000,
+          "description": "Confirmed from a real example config (1000000 for a USB pendant)."
+        }
+      }
+    },
+    "uartSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a79. May appear anywhere in the file relative to whatever references it via uart_num. Two mutually-exclusive forms: either the plain hardware-UART fields below, OR a single nested usb_host: key (factory-dispatched, see uart_usb_host) selecting USB host mode -- when usb_host: is present, the plain fields are not used.",
+      "additionalProperties": false,
+      "properties": {
+        "txd_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "rxd_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "rts_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "cts_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "baud": {
+          "type": "integer",
+          "minimum": 2400,
+          "maximum": 10000000,
+          "default": 115200,
+          "description": "Must match the device's programmed/expected baud."
+        },
+        "mode": {
+          "$ref": "#/$defs/uartData"
+        },
+        "passthrough_baud": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000,
+          "default": 0,
+          "description": "0 means not configured."
+        },
+        "passthrough_mode": {
+          "$ref": "#/$defs/uartData"
+        },
+        "usb_host": {
+          "$ref": "#/$defs/uart_usb_host"
+        }
+      }
+    },
+    "uartChannelSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a79.1. Advanced/rare (companion-controller / remote-IO setups). Wraps a physical uartN: bus with logging/reporting and makes it addressable via uart_channelN.M pin strings. NOTE: uartio.yaml in the official example_configs/ uses an 'all_messages: false' key here that is NOT a valid config item (confirmed) -- that example file is stale. Correctly rejecting it is intended behavior, not a schema bug.",
+      "additionalProperties": false,
+      "properties": {
+        "uart_num": {
+          "type": "integer",
+          "description": "References the underlying uartN: physical bus."
+        },
+        "report_interval_ms": {
+          "type": "integer",
+          "default": 0
+        },
+        "message_level": {
+          "type": "string",
+          "enum": [
+            "None",
+            "Error",
+            "Warn",
+            "Info",
+            "Debug",
+            "Verbose"
+          ],
+          "default": "None"
+        }
+      }
+    },
+    "i2cSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a718. Ground truth I2CBus::group(). Needed only for extenders: (deprecated) or other I2C peripherals.",
+      "additionalProperties": false,
+      "properties": {
+        "sda_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "scl_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "frequency": {
+          "type": "integer",
+          "default": 100000,
+          "description": "Standard I2C is 100000 (100kHz)."
+        }
+      }
+    },
+    "kinematics_Cartesian": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a713.1. Default kinematics if the whole kinematics: section is omitted. No config fields.",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "kinematics_CoreXY": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a713.2. No config fields. Cannot combine two axes into one homing.cycle group (see homingBlock description).",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "kinematics_midtbot": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a713.3. Note lowercase registration name. No config fields. Fixed internal X-axis scale factor of 2.0, not exposed.",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "kinematics_parallel_delta": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a713.4. Note lowercase registration name.",
+      "additionalProperties": false,
+      "properties": {
+        "crank_mm": {
+          "type": "number",
+          "minimum": 50.0,
+          "maximum": 500.0,
+          "default": 70.0
+        },
+        "base_triangle_mm": {
+          "type": "number",
+          "minimum": 20.0,
+          "maximum": 500.0,
+          "default": 179.437
+        },
+        "linkage_mm": {
+          "type": "number",
+          "minimum": 20.0,
+          "maximum": 500.0,
+          "default": 133.5
+        },
+        "end_effector_triangle_mm": {
+          "type": "number",
+          "minimum": 20.0,
+          "maximum": 500.0,
+          "default": 86.603
+        },
+        "kinematic_segment_len_mm": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 20.0,
+          "default": 1.0
+        },
+        "use_servos": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "up_degrees": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 0,
+          "default": -30.0
+        }
+      }
+    },
+    "kinematics_WallPlotter": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a713.5.",
+      "additionalProperties": false,
+      "properties": {
+        "left_axis": {
+          "type": "integer",
+          "default": 0,
+          "description": "Which axis number drives the left cord (0=X, 1=Y, 2=Z...)."
+        },
+        "left_anchor_x": {
+          "type": "number",
+          "default": -100
+        },
+        "left_anchor_y": {
+          "type": "number",
+          "default": 100
+        },
+        "right_axis": {
+          "type": "integer",
+          "default": 1
+        },
+        "right_anchor_x": {
+          "type": "number",
+          "default": 100
+        },
+        "right_anchor_y": {
+          "type": "number",
+          "default": 100
+        },
+        "segment_length": {
+          "type": "number",
+          "default": 10,
+          "description": "Max length of line segments used to approximate curved motion."
+        }
+      }
+    },
+    "kinematicsSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a713. If omitted entirely, defaults to Cartesian. Exactly one nested type key selects the implementation.",
+      "properties": {
+        "Cartesian": {
+          "$ref": "#/$defs/kinematics_Cartesian"
+        },
+        "CoreXY": {
+          "$ref": "#/$defs/kinematics_CoreXY"
+        },
+        "midtbot": {
+          "$ref": "#/$defs/kinematics_midtbot"
+        },
+        "parallel_delta": {
+          "$ref": "#/$defs/kinematics_parallel_delta"
+        },
+        "WallPlotter": {
+          "$ref": "#/$defs/kinematics_WallPlotter"
+        }
+      },
+      "additionalProperties": false,
+      "maxProperties": 1
+    },
+    "spindle_PWM": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.3. Chain: Spindle -> OnOff -> PWM.",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
+        "pwm_hz": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000000,
+          "default": 5000
+        },
+        "direction_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "M4 only works if this is a real pin.",
+          "default": "NO_PIN"
+        },
+        "output_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "enable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "spindle_10V": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.4. Chain: Spindle -> OnOff -> PWM -> _10v. Adds forward_pin/reverse_pin on top of every PWM field.",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
+        "forward_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "reverse_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "pwm_hz": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000000,
+          "default": 5000
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "output_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "enable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "spindle_DAC": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.5. Chain: Spindle -> OnOff -> Dac (NOT via PWM -- no pwm_hz). Genuinely ESP32-specific (onboard DAC peripheral); expect unavailable on RP2040 builds. output_pin is restricted to gpio.25 or gpio.26 only (enforced at init, not by the parser).",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
+        "output_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "ONLY gpio.25 or gpio.26 are functional."
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "enable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "spindle_HBridge": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.6. Chain: Spindle -> HBridge directly (no OnOff, so no direction_pin -- direction is inherent in which output is driven).",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
+        "pwm_hz": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000000,
+          "default": 5000
+        },
+        "output_cw_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "output_ccw_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "enable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "spindle_Laser": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.7. Chain: Spindle -> OnOff -> Laser via groupCommon only -- explicitly NO direction_pin. pwm_hz range is narrower than plain PWM (1000-100000).",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true,
+          "description": "Strongly recommended true for lasers, unlike the false default elsewhere."
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
+        "pwm_hz": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 100000,
+          "default": 5000
+        },
+        "output_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "enable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "spindle_Relay": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.8. Chain: Spindle -> OnOff, no further subclassing. Relay and OnOff register the IDENTICAL class under two names -- functionally indistinguishable. NOT a minimal field set -- carries the same fields as PWM minus pwm_hz, including speed_map (used only to decide the S-value on/off threshold).",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "output_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "enable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "spindle_OnOff": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.8. Chain: Spindle -> OnOff, no further subclassing. Relay and OnOff register the IDENTICAL class under two names -- functionally indistinguishable. NOT a minimal field set -- carries the same fields as PWM minus pwm_hz, including speed_map (used only to decide the S-value on/off threshold).",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "output_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "enable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "spindle_BESC": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.9. Chain: Spindle -> OnOff -> PWM -> BESC. Adds min_pulse_us/max_pulse_us on top of every PWM field.",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
+        "min_pulse_us": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 3000
+        },
+        "max_pulse_us": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 3000
+        },
+        "pwm_hz": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000000,
+          "default": 5000
+        },
+        "direction_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "output_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "enable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "spindle_PlasmaSpindle": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.10. Chain: Spindle -> PlasmaSpindle directly. NO output_pin. Adds arc_ok_pin and arc_wait_ms. use_delay_settings() is false here -- NO spinup_ms/spindown_ms.",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "enable_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "arc_ok_pin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pinAny"
+            }
+          ],
+          "description": "Input/event pin -- torch reports arc-established/arc-lost here.",
+          "default": "NO_PIN"
+        },
+        "arc_wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3000,
+          "default": 0
+        }
+      }
+    },
+    "spindle_NoSpindle": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a710.11. Takes no fields. Auto-created by default if no spindle section exists at all.",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "spindle_VFD_named": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a714.2. Fixed built-in protocol for a specific VFD brand/model; no extra fields beyond \u00a714.1 common set. Used for: Huanyang, H2A, YL620, DeltaMS300, FolinnBD600, H100, MollomG70, NowForever, SiemensV20, DanfossVLT2800.",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "uart_num": {
+          "type": "integer",
+          "description": "References a top-level uartN: section (spec \u00a79). Preferred/current form."
+        },
+        "modbus_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 247,
+          "default": 1,
+          "description": "RS485/Modbus slave address of the VFD."
+        },
+        "debug": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 2
+        },
+        "poll_ms": {
+          "type": "integer",
+          "minimum": 250,
+          "maximum": 20000,
+          "default": 250
+        },
+        "retries": {
+          "type": "integer",
+          "default": 5
+        }
+      }
+    },
+    "spindle_ModbusVFD": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a714.3. Generic/user-defined Modbus VFD with explicit command strings. Command-token grammar is VFD-protocol-specific and not simply inferable -- treat as opaque strings sourced from the VFD's own Modbus register documentation.",
+      "additionalProperties": false,
+      "properties": {
+        "tool_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0,
+          "description": "Marks the START of this spindle's tool range; see \u00a710.12 for multi-spindle rules."
+        },
+        "speed_map": {
+          "$ref": "#/$defs/speedMap"
+        },
+        "off_on_alarm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "atc": {
+          "type": "string",
+          "description": "Names an ATC block (spec \u00a717), e.g. atc_manual."
+        },
+        "m6_macro": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "s0_with_disable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "disable_with_s0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "uart_num": {
+          "type": "integer",
+          "description": "References a top-level uartN: section (spec \u00a79). Preferred/current form."
+        },
+        "modbus_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 247,
+          "default": 1,
+          "description": "RS485/Modbus slave address of the VFD."
+        },
+        "debug": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 2
+        },
+        "poll_ms": {
+          "type": "integer",
+          "minimum": 250,
+          "maximum": 20000,
+          "default": 250
+        },
+        "retries": {
+          "type": "integer",
+          "default": 5
+        },
+        "model": {
+          "type": "string",
+          "description": "Descriptive only."
+        },
+        "min_RPM": {
+          "type": "integer"
+        },
+        "max_RPM": {
+          "type": "integer"
+        },
+        "cw_cmd": {
+          "type": "string",
+          "description": "Raw Modbus command token for clockwise-run."
+        },
+        "ccw_cmd": {
+          "type": "string",
+          "description": "Raw Modbus command token for counterclockwise-run."
+        },
+        "off_cmd": {
+          "type": "string",
+          "description": "Raw Modbus command token for stop."
+        },
+        "set_rpm_cmd": {
+          "type": "string",
+          "description": "Raw Modbus command token for set-speed."
+        },
+        "get_min_rpm_cmd": {
+          "type": "string"
+        },
+        "get_max_rpm_cmd": {
+          "type": "string"
+        },
+        "get_rpm_cmd": {
+          "type": "string",
+          "description": "If omitted, delay-based timing (spinup_ms/spindown_ms) is used instead of polling actual RPM."
+        }
+      }
+    },
+    "macrosSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a711.",
+      "additionalProperties": false,
+      "properties": {
+        "startup_line0": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "startup_line1": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "macro0": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/macroLine"
+            }
+          ],
+          "description": "Triggered by control.macro0_pin or $Macros/Run=0."
+        },
+        "macro1": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "macro2": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "macro3": {
+          "$ref": "#/$defs/macroLine"
+        },
+        "after_homing": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/macroLine"
+            }
+          ],
+          "description": "v3.7.6+. Runs after a full $H homing sequence completes."
+        },
+        "after_reset": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/macroLine"
+            }
+          ],
+          "description": "v3.7.6+. Runs after reset, only if system reaches Idle."
+        },
+        "after_unlock": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/macroLine"
+            }
+          ],
+          "description": "v3.7.6+. Runs after $X unlock."
+        }
+      }
+    },
+    "userOutputsSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a715. Fixed size: 4 analog + 8 digital slots, not extensible via config.",
+      "additionalProperties": false,
+      "properties": {
+        "analog0_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "analog1_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "analog2_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "analog3_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "analog0_hz": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000000,
+          "default": 5000
+        },
+        "analog1_hz": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000000,
+          "default": 5000
+        },
+        "analog2_hz": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000000,
+          "default": 5000
+        },
+        "analog3_hz": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000000,
+          "default": 5000
+        },
+        "digital0_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital1_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital2_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital3_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital4_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital5_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital6_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital7_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "userInputsSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a715. Fixed size: 8 digital + 4 analog slots.",
+      "additionalProperties": false,
+      "properties": {
+        "digital0_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital1_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital2_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital3_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital4_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital5_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital6_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "digital7_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "analog0_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "analog1_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "analog2_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "analog3_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "startSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a716.1. Ground truth Machine::Start::group().",
+      "additionalProperties": false,
+      "properties": {
+        "must_home": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true,
+          "description": "Refuses motion commands until $H has been run."
+        },
+        "deactivate_parking": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "check_limits": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true,
+          "description": "Alarm (rather than Idle) at boot if a limit switch already reads active."
+        }
+      }
+    },
+    "parkingSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a716.2. Ground truth Parking::group(). enable_parking_override_control (top-level scalar) additionally allows M56 to toggle this at runtime; parking.enable is the base on/off switch for the feature existing at all.",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "axis": {
+          "type": "string",
+          "enum": [
+            "x",
+            "y",
+            "z",
+            "a",
+            "b",
+            "c"
+          ],
+          "default": "z"
+        },
+        "target_mpos_mm": {
+          "type": "number",
+          "default": -5.0,
+          "description": "Machine position to retract to when parking."
+        },
+        "rate_mm_per_min": {
+          "type": "number",
+          "default": 800.0,
+          "description": "Fast parking-retract feed rate."
+        },
+        "pullout_distance_mm": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3e+38,
+          "default": 5.0,
+          "description": "Initial slow pull-out distance before the fast retract."
+        },
+        "pullout_rate_mm_per_min": {
+          "type": "number",
+          "default": 250.0,
+          "description": "Feed rate for the initial pull-out move."
+        }
+      }
+    },
+    "atc_manual": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a717. Ground truth atc_manual.h. Referenced by a spindle's atc: field (by this section's key name, as a string).",
+      "additionalProperties": false,
+      "properties": {
+        "safe_z_mpos_mm": {
+          "type": "number",
+          "minimum": -100000,
+          "maximum": 100000,
+          "default": 50.0
+        },
+        "probe_seek_rate_mm_per_min": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 200.0
+        },
+        "probe_feed_rate_mm_per_min": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 80.0
+        },
+        "change_mpos_mm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/floatArray"
+            }
+          ],
+          "description": "One value per axis -- manual tool-change waypoint."
+        },
+        "ets_mpos_mm": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/floatArray"
+            }
+          ],
+          "description": "Electronic tool-setter probe position."
+        },
+        "ets_rapid_z_mpos_mm": {
+          "type": "number",
+          "default": 0.0
+        }
+      }
+    },
+    "extenderInstance": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "deprecated": true,
+      "description": "DO NOT USE. spec \u00a719. Registered <ExtenderTypeName> values: pca9539, pca9535_9555.",
+      "additionalProperties": false,
+      "properties": {
+        "busId": {
+          "type": "integer",
+          "description": "Which top-level i2cN: bus this expander is on."
+        },
+        "interrupt0": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "interrupt1": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "interrupt2": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "interrupt3": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    },
+    "extendersSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "deprecated": true,
+      "description": "DO NOT USE -- provisional, may be removed. spec \u00a719. Prefer user_outputs:/user_inputs: for spare I/O instead. Up to 10 slots pinextender0..pinextender9, each containing exactly one nested <ExtenderTypeName> key (pca9539 or pca9535_9555).",
+      "additionalProperties": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "pca9539": {
+            "$ref": "#/$defs/extenderInstance"
+          },
+          "pca9535_9555": {
+            "$ref": "#/$defs/extenderInstance"
+          }
+        },
+        "maxProperties": 1
+      }
+    },
+    "oledSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a721. Optional onboard status display. Mounted as a plain top-level key.",
+      "additionalProperties": false,
+      "properties": {
+        "report_interval_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 5000,
+          "default": 500
+        },
+        "i2c_num": {
+          "type": "integer",
+          "default": 0,
+          "description": "Which top-level i2cN: bus the display is on."
+        },
+        "i2c_address": {
+          "type": "integer",
+          "default": 60,
+          "description": "0x3c in hex -- MUST be written in decimal (60), hex literals are rejected by the parser."
+        },
+        "width": {
+          "type": "integer",
+          "default": 64
+        },
+        "height": {
+          "type": "integer",
+          "default": 48
+        },
+        "flip": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true
+        },
+        "mirror": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false
+        },
+        "radio_delay_ms": {
+          "type": "integer",
+          "default": 0
+        }
+      }
+    },
+    "statusOutputsSection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a722. Ground truth Status_Outputs::group() (Status_outputs.h/.cpp). Registered as a ConfigurableModule named \"status_outputs\", mounted at the top level via ConfigurableModuleFactory::factory(handler) inside MachineConfig::group() -- same mounting pattern as oled:, a plain top-level key, not nested under any wrapper section. Drives status-indicator outputs (e.g. tower lights) from the machine's current state string. idle_pin/run_pin/alarm_pin require an EXACT state match (\"Idle\"/\"Run\"/\"Alarm\" respectively); hold_pin/door_pin match on the state string's first 4 characters (\"Hold\"/\"Door\"), so they also activate for GRBL-style numbered substates like \"Hold:0\"/\"Door:0\". Note the field is named run_pin but corresponds to the firmware's own \"Cycle\" log label for the same pin (_Run_pin, logged as \"Cycle:\") -- not a typo in this schema, a real naming inconsistency between the config field and the log output.",
+      "additionalProperties": false,
+      "properties": {
+        "report_interval_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 5000,
+          "default": 500
+        },
+        "idle_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "run_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "hold_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "alarm_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        },
+        "door_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
+        }
+      }
+    }
+  }
+}
