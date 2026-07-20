@@ -458,58 +458,58 @@ namespace WebUI {
 
         // Find the start of JSON options (if any)
         // Skip ${...} patterns - JSON starts with { that is NOT preceded by $
-    std::string_view data = value;
-    size_t           json_pos = std::string_view::npos;
-    size_t           pos      = 0;
-    while (pos < data.size()) {
-        if (data[pos] == '{') {
-            // Check if this is a token pattern (preceded by $)
-            if (pos > 0 && data[pos - 1] == '$') {
-                // This is ${...}, skip to the closing }
-                pos++;
-                while (pos < data.size() && data[pos] != '}') {
-                    pos++;
-                }
-                if (pos < data.size() && data[pos] == '}') {
-                    pos++;
-                }
-                continue;
-            }
-            // This is the start of JSON options
-            json_pos = pos;
-            break;
-        }
-        pos++;
-    }
-
-    if (json_pos != std::string_view::npos) {
-        // URL is everything before the '{'
-        url.assign(data.substr(0, json_pos));
-
-        // JSON is everything from '{' to matching '}'
-        int  brace_count = 1;
-        pos              = json_pos + 1;
-        while (pos < data.size() && brace_count > 0) {
+        std::string_view data     = value;
+        size_t           json_pos = std::string_view::npos;
+        size_t           pos      = 0;
+        while (pos < data.size()) {
             if (data[pos] == '{') {
-                brace_count++;
-            } else if (data[pos] == '}') {
-                brace_count--;
+                // Check if this is a token pattern (preceded by $)
+                if (pos > 0 && data[pos - 1] == '$') {
+                    // This is ${...}, skip to the closing }
+                    pos++;
+                    while (pos < data.size() && data[pos] != '}') {
+                        pos++;
+                    }
+                    if (pos < data.size() && data[pos] == '}') {
+                        pos++;
+                    }
+                    continue;
+                }
+                // This is the start of JSON options
+                json_pos = pos;
+                break;
             }
             pos++;
         }
 
-        if (brace_count != 0) {
-            return false;  // Unbalanced braces
+        if (json_pos != std::string_view::npos) {
+            // URL is everything before the '{'
+            url.assign(data.substr(0, json_pos));
+
+            // JSON is everything from '{' to matching '}'
+            int brace_count = 1;
+            pos             = json_pos + 1;
+            while (pos < data.size() && brace_count > 0) {
+                if (data[pos] == '{') {
+                    brace_count++;
+                } else if (data[pos] == '}') {
+                    brace_count--;
+                }
+                pos++;
+            }
+
+            if (brace_count != 0) {
+                return false;  // Unbalanced braces
+            }
+
+            json_options.assign(data.substr(json_pos, pos - json_pos));
+        } else {
+            url.assign(data);
+            json_options.clear();
         }
 
-        json_options.assign(data.substr(json_pos, pos - json_pos));
-    } else {
-        url.assign(data);
-        json_options.clear();
+        return !url.empty();
     }
-
-    return !url.empty();
-}
 
     // ============================================================================
     // JSON parsing using streaming parser
