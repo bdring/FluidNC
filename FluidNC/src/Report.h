@@ -11,9 +11,9 @@
 #include "Error.h"
 #include "Config.h"
 #include "Serial.h"  // CLIENT_xxx
+#include "PlatformCompat.h"  // FreeRTOS compatibility (xPortGetFreeHeapSize, etc.)
 
 #include <cstdint>
-#include <freertos/FreeRTOS.h>  // UBaseType_t
 
 // Define status reporting boolean enable bit flags in status_report_mask
 enum RtStatus {

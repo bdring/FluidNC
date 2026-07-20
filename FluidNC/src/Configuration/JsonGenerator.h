@@ -47,6 +47,7 @@ namespace Configuration {
         void item(const char* name, InputPin& value) override;
         void item(const char* name, Pin& value) override;
         void item(const char* name, IPAddress& value) override;
+        void item(const char* name, step_engine*& value) override;
         void item(const char* name, uint32_t& value, const EnumItem* e) override;
         void item(const char* name, axis_t& value) override;
     };

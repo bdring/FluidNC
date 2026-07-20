@@ -242,6 +242,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
 
             protocol_send_event_from_ISR(&cycleStopEvent);
             awake = false;
+            // XXX this is probably redundant because stop_stepping()
             Stepping::unstep();
             return false;  // Nothing to do but exit.
         }
@@ -717,7 +718,7 @@ void Stepper::prep_buffer() {
 
         // Compute step timing and multi-axis smoothing level.
         for (level = 0; level < maxAmassLevel; level++) {
-            if (timerTicks < amassThreshold) {
+            if (timerTicks * amassFactor < Machine::Stepping::fStepperTimer) {
                 break;
             }
             timerTicks >>= 1;

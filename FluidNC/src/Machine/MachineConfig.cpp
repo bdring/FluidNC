@@ -48,7 +48,7 @@ namespace Machine {
         // We currently support only one I2S bus
         handler.section("i2so", _i2so);
 #endif
-#if MAX_N_I2SO
+#if MAX_N_I2C
         handler.sections("i2c", 0, MAX_N_I2C, false, _i2c);
 #endif
 #if MAX_N_SPI
@@ -60,6 +60,10 @@ namespace Machine {
         handler.section("sdcard", _sdCard);
 #endif
 
+#if MAX_N_ETH
+        handler.section("ethernet", _ethernet);
+#endif
+
         handler.section("kinematics", _kinematics);
         handler.section("axes", _axes);
 
@@ -67,7 +71,9 @@ namespace Machine {
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
         handler.section("macros", _macros);
+#if SUPPORT_PIN_EXTENDERS
         handler.section("extenders", _extenders);
+#endif
         handler.section("start", _start);
         handler.section("parking", _parking);
 
@@ -77,7 +83,9 @@ namespace Machine {
         ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
+#if SUPPORT_LISTENERS
         Listeners::SysListenerFactory::factory(handler);
+#endif
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
@@ -210,6 +218,7 @@ namespace Machine {
             auto filesize = file.size();
             if (filesize <= 0) {
                 log_config_error("Configuration file:" << filename << " is empty");
+                load_yaml("");
                 return;
             }
 
@@ -294,6 +303,9 @@ namespace Machine {
         delete _probe;
 #if MAX_N_SDCARD
         delete _sdCard;
+#endif
+#if MAX_N_ETH
+        delete _ethernet;
 #endif
 #if MAX_N_SDCARD
         delete _spi;

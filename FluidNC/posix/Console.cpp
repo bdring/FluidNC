@@ -1,20 +1,129 @@
 #include <iostream>
+#include <thread>
 
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdio.h>
+
+// termios defines baud-rate macros like B0 and B9600 that collide with
+// Arduino-Emulator's Binary.h enum constants on Linux.
+#ifdef B0
+#    undef B0
+#endif
+#ifdef B50
+#    undef B50
+#endif
+#ifdef B75
+#    undef B75
+#endif
+#ifdef B110
+#    undef B110
+#endif
+#ifdef B134
+#    undef B134
+#endif
+#ifdef B150
+#    undef B150
+#endif
+#ifdef B200
+#    undef B200
+#endif
+#ifdef B300
+#    undef B300
+#endif
+#ifdef B600
+#    undef B600
+#endif
+#ifdef B1200
+#    undef B1200
+#endif
+#ifdef B1800
+#    undef B1800
+#endif
+#ifdef B2400
+#    undef B2400
+#endif
+#ifdef B4800
+#    undef B4800
+#endif
+#ifdef B9600
+#    undef B9600
+#endif
+#ifdef B19200
+#    undef B19200
+#endif
+#ifdef B38400
+#    undef B38400
+#endif
+#ifdef B57600
+#    undef B57600
+#endif
+#ifdef B115200
+#    undef B115200
+#endif
+#ifdef B230400
+#    undef B230400
+#endif
+#ifdef B460800
+#    undef B460800
+#endif
+#ifdef B500000
+#    undef B500000
+#endif
+#ifdef B576000
+#    undef B576000
+#endif
+#ifdef B921600
+#    undef B921600
+#endif
+#ifdef B1000000
+#    undef B1000000
+#endif
+#ifdef B1152000
+#    undef B1152000
+#endif
+#ifdef B1500000
+#    undef B1500000
+#endif
+#ifdef B2000000
+#    undef B2000000
+#endif
+#ifdef B2500000
+#    undef B2500000
+#endif
+#ifdef B3000000
+#    undef B3000000
+#endif
+#ifdef B3500000
+#    undef B3500000
+#endif
+#ifdef B4000000
+#    undef B4000000
+#endif
+
 #include "Serial.h"  // allChannels
 #include "Driver/Console.h"
 
 #include "Channel.h"
 #include "lineedit.h"
+#include "StringChannel.h"
+#include "../capture/freertos/task.h"
+//#include "SimulatorWebSocketServer.h"
+
+// Global StringChannel pointer - set by main() if command-line string injection is requested
+// extern Channel* g_stringChannel;
+extern std::string command_line_cmds;
+extern "C" {
+extern bool continue_after_cmds;
+};
 
 static struct termios _orig_termios;
 
 class PosixConsole : public Channel {
 private:
     Lineedit* _lineedit;
+    bool      _exit_after_cmds = false;
 
 public:
     PosixConsole(bool addCR = false) : Channel("PosixConsole", addCR) {}
@@ -64,10 +173,30 @@ public:
     }
 
     void init() override {
+        if (command_line_cmds.size()) {
+            push(command_line_cmds);
+            _exit_after_cmds = !continue_after_cmds;
+        }
+
         editModeOff();
         _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
         allChannels.registration(this);
+
+#if 0
+        // Register StringChannel subordinate object if provided (following esp32s3 Console pattern)
+        if (g_stringChannel) {
+            g_stringChannel->init();
+        }
+#endif
+
+        // Start WebSocket server
+        //fprintf(stderr, "[Console::init] Starting WebSocket server...\n");
+        //SimulatorWS::SimulatorWebSocketServer::instance().init(9000);
+        //fprintf(stderr, "[Console::init] WebSocket server init returned\n");
     };
+
+    // This is a no-op so the initial call to it does not clear the queue
+    void flushRx() override {}
 
     // Print methods (Stream inherits from Print)
     size_t write(uint8_t c) override {
@@ -107,6 +236,13 @@ public:
             return true;
         }
         return false;
+    }
+    Error pollLine(char* line) override {
+        if (line && _queue.empty() && _exit_after_cmds) {
+            cleanup_threads();
+            exit(0);
+        }
+        return Channel::pollLine(line);
     }
 };
 

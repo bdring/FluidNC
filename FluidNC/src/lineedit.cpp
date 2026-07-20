@@ -72,122 +72,41 @@ void Lineedit::erase_line() {
     endaddr = startaddr;
 }
 
-void Lineedit::validate_history() {
-    uint32_t i;
-
-    // Clear history if it is invalid
-    if (saved_length == 0 || saved_length > MAXHISTORY)
-        goto clear_history;
-
-    for (i = 0; i < MAXHISTORY; i++) {
-        if (lastline[i] & 0x80)
-            goto clear_history;
-    }
-    return;
-
-clear_history:
-    for (i = 0; i < MAXHISTORY; i++) {
-        lastline[i] = '\0';
-    }
-    saved_length = 0;
-}
-
-bool Lineedit::already_in_history(const char* adr, uint32_t len) {
-    const char* first;
-    const char* thischar;
-    uint32_t    i;
-    if (!saved_length)
-        return false;
-
-    thischar = adr;
-    first    = lastline;
-    for (char* p = lastline; p < &lastline[MAXHISTORY];) {
-        if (*p == '\0') {
-            if ((p - first) == len) {
-                // Found a match; reorder history so the match
-                // is at the beginning.
-                while ((--p - lastline) > len) {
-                    *p = p[-len - 1];
-                }
-                *p = '\0';
-                for (i = 0; i < len; i++) {
-                    lastline[i] = adr[i];
-                }
-                return true;
-            }
-            if (++p == &lastline[MAXHISTORY])
-                return false;
-            thischar = adr;
-            first    = p;
-            continue;
-        }
-        if (*p == *thischar) {
-            // Match
-            ++p;
-            ++thischar;
-        } else {
-            // Mismatch
-            while (*++p != '\0') {}
-            ++p;
-            thischar = adr;
-            first    = p;
-        }
-    }
-    return false;
-}
-
 void Lineedit::add_to_history(const char* adr, uint32_t len) {
-    validate_history();
-    if (len && !already_in_history(adr, len)) {
-        int32_t  i;
-        uint32_t new_length;
+    if (len == 0) {
+        return;
+    }
+    std::string entry(adr, len);
 
-        len += 1;  // Room for null
-        new_length = (len > MAXHISTORY) ? MAXHISTORY : len;
+    // If already present, move it to the front instead of duplicating
+    for (auto it = history.begin(); it != history.end(); ++it) {
+        if (*it == entry) {
+            history.erase(it);
+            break;
+        }
+    }
 
-        // Make room for new history line
-        for (i = MAXHISTORY; --i >= new_length;)
-            lastline[i] = lastline[i - new_length];
+    history.insert(history.begin(), entry);
 
-        lastline[MAXHISTORY - 1] = '\0';  // Truncate the last line
-        lastline[i]              = '\0';
-
-        while (--i >= 0)
-            lastline[i] = adr[i];
-
-        saved_length += new_length;
-        if (saved_length > MAXHISTORY)
-            saved_length = MAXHISTORY;
+    if (history.size() > MAX_HISTORY_ENTRIES) {
+        history.resize(MAX_HISTORY_ENTRIES);
     }
 }
 
 // history_num is the number of the history line to fetch
 // returns true if that line exists.
-bool Lineedit::get_history(uint32_t history_num) {
-    uint32_t    i;
-    uint32_t    hn;
-    const char* p;
-
-    validate_history();
-
-    if (saved_length == 0)
+bool Lineedit::get_history(int32_t history_num) {
+    if (history_num < 0 || (size_t)history_num >= history.size()) {
         return false;
-
-    p = lastline;
-    for (hn = 0; hn < history_num; hn++) {
-        while (*p++ != '\0') {}
-        if ((p - lastline) >= saved_length)
-            return false;
     }
 
+    const std::string& entry = history[history_num];
     erase_line();
-    for (i = 0; i < maxaddr - startaddr - 1; i++) {
-        if (*p == '\0') {
-            break;
-        }
-        addchar(*p++);
+    size_t maxlen = (maxaddr - startaddr) - 1;
+    size_t n      = entry.size() < maxlen ? entry.size() : maxlen;
+    for (size_t i = 0; i < n; ++i) {
+        addchar(entry[i]);
     }
-
     return true;
 }
 

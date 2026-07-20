@@ -7,6 +7,7 @@
 
 #include <map>
 #include <cstdint>
+#include <exception>
 
 // Error codes. Valid values (0-255)
 enum class Error : uint8_t {
@@ -99,3 +100,19 @@ enum class Error : uint8_t {
 const char* errorString(Error errorNumber);
 
 extern const std::map<Error, const char*> ErrorNames;
+
+// Exception wrapper for Error enum to allow proper C++ exception handling
+class ErrorException : public std::exception {
+private:
+    Error _error;
+
+public:
+    explicit ErrorException(Error err) noexcept : _error(err) {}
+
+    Error error() const noexcept { return _error; }
+
+    const char* what() const noexcept override {
+        // Return a simple static string - avoid any dynamic allocation
+        return "File operation failed";
+    }
+};

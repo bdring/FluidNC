@@ -32,8 +32,10 @@ inline void vTaskPrioritySet(portMUX_TYPE* mux) {
     mux->unlock();
 }
 
-inline int32_t xPortGetFreeHeapSize() {
-    return 1024 * 1024 * 4;
+#define pdMS_TO_TICKS(ms) ((TickType_t)(ms))
+
+inline size_t xPortGetFreeHeapSize() {
+    return 500000;
 }
 
 #define INC_FREERTOS_H

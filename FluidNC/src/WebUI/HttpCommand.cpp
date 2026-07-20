@@ -78,6 +78,7 @@
 #include "Module.h"
 #include "FluidPath.h"
 #include "FileStream.h"
+#include "NetSettings.h"
 
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -119,7 +120,11 @@ namespace WebUI {
                 log_debug("HTTP: Command '" << cmd.first << "' = " << cmd.second);
             }
 
-        } catch (const Error err) { log_debug("HTTP: No settings file at " << SETTINGS_FILE_PATH); }
+        } catch (const ErrorException& err) {
+            log_debug("HTTP: No settings file at " << SETTINGS_FILE_PATH << " (" << errorString(err.error()) << ")");
+        } catch (const std::exception& ex) {
+            log_warn("HTTP: Failed to load settings from " << SETTINGS_FILE_PATH << ": " << ex.what());
+        }
     }
 
     std::string HttpCommand::substitute_tokens(const std::string& input) {
@@ -156,11 +161,11 @@ namespace WebUI {
     // ============================================================================
 
     void HttpOptionsListener::startDocument() {
-        _depth     = 0;
-        _inHeaders = false;
-        _inExtract = false;
-        _currentKey.clear();
-        _nestedKey.clear();
+        _depth      = 0;
+        _inHeaders  = false;
+        _inExtract  = false;
+        _currentKey = "";
+        _nestedKey  = "";
     }
 
     void HttpOptionsListener::key(String key) {
@@ -279,7 +284,7 @@ namespace WebUI {
         _depth      = 0;
         _inTokens   = false;
         _inCommands = false;
-        _currentKey.clear();
+        _currentKey = "";
     }
 
     void TokenFileListener::key(String key) {
@@ -410,9 +415,9 @@ namespace WebUI {
         int      status_code    = 0;
         uint32_t bytes_received = 0;
 
-        // Check WiFi connection (runtime error - respects fail_on_error)
-        if (WiFi.status() != WL_CONNECTED) {
-            log_error_to(out, "HTTP: WiFi not connected");
+        // Check network connection (runtime error - respects fail_on_error)
+        if (!networkConnected()) {
+            log_error_to(out, "HTTP: Network not connected");
             if (request.fail_on_error) {
                 return Error::MessageFailed;
             }

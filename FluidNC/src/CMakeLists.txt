@@ -13,6 +13,7 @@ idf_component_register(SRCS BTConfig.cpp
 							FluidPath.cpp
 							GCode.cpp
 							HashFS.cpp
+                            SHA256.cpp
 							InputFile.cpp
 							Job.cpp
 							Jog.cpp

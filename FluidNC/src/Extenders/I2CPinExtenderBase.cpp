@@ -84,13 +84,13 @@ namespace Extenders {
         log_info("Setting up I2C pin extender on I2C" << _i2cBusId);
 
         _isrQueue = xQueueCreate(16, sizeof(void*));
-        xTaskCreatePinnedToCore(isrTaskLoop,                      // task
+        xTaskCreateAffinitySet(isrTaskLoop,                      // task
                                 "isr_handler",                    // name for task
                                 configMINIMAL_STACK_SIZE + 2048,  // size of task stack
                                 this,                             // parameters
                                 1,                                // priority
-                                &_isrHandler,
-                                SUPPORT_TASK_CORE  // core
+                                (1 << SUPPORT_TASK_CORE),         // affinity mask
+                                &_isrHandler
         );
 
         for (int i = 0; i < 4; ++i) {

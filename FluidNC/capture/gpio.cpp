@@ -69,6 +69,23 @@ void gpio_clear_event(int32_t gpio_num) {
     gpios_update(gpios_interest, gpio_num, false);
 }
 
+void gpio_disarm(int32_t gpio_num) {
+    gpios_update(gpios_interest, gpio_num, false);
+}
+
+void gpio_rearm(int32_t gpio_num) {
+    gpio_mask_t mask = gpio_mask(gpio_num);
+    if (!(gpios_interest & mask)) {
+        gpios_update(gpios_interest, gpio_num, true);
+        if (!(get_gpios() & mask)) {
+            auto arg = gpioArgs[gpio_num];
+            if (arg) {
+                protocol_send_event_from_ISR(&pinInactiveEvent, arg);
+            }
+        }
+    }
+}
+
 static void gpio_send_event(int32_t gpio_num, bool active) {
 #if 0
     auto    end_ticks  = gpio_next_event_ticks[gpio_num];

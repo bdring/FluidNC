@@ -1,7 +1,7 @@
-#include "fnc_idf_uart_idfbuild.h"
 #include <esp_idf_version.h>
 
-#if ESP_IDF_VERSION_MAJOR >= 5
+#if ESP_IDF_VERSION_MAJOR == 5 && ESP_IDF_VERSION_MINOR == 3
+#    include "fnc_idf_uart_idfbuild.h"
 
 /*
  * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD

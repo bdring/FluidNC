@@ -3,7 +3,7 @@
 #include <sdkconfig.h>
 #include <esp_idf_version.h>
 
-#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR < 5
+#if defined(CONFIG_TINYUSB_CDC_ENABLED) && !defined(IDFBUILD)
 #    include <USB.h>
 // We need this even when using TinyUSB in order to stop the HWCDC interface
 #    include <HWCDC.h>

@@ -5,18 +5,25 @@
 #include "Pin.h"
 
 // Pins:
+#include "Platform.h"
 #include "Config.h"
 #include "Pins/PinOptionsParser.h"
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
 #include "Pins/ChannelPinDetail.h"
+#ifdef ENABLE_WS_CHANNEL_PINS
+#    include "Pins/WSChannelPinDetail.h"
+#endif
 #include "Pins/ErrorPinDetail.h"
 #include "string_util.h"
 #include "Machine/MachineConfig.h"  // config
 #include <string_view>
 #include <charconv>
-#include "Pins/ExtPinDetail.h"
+#if SUPPORT_PIN_EXTENDERS
+#    include "Pins/ExtPinDetail.h"
+#endif
+#include "Pins/SimPinDetail.h"
 
 static constexpr bool verbose_debugging = false;
 
@@ -68,6 +75,12 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         return nullptr;
     }
 #endif
+#if MAX_N_SIMULATOR
+    if (string_util::equal_ignore_case(pin_type, "sim")) {
+        pinImplementation = new Pins::SimPinDetail(static_cast<pinnum_t>(pin_number), parser);
+        return nullptr;
+    }
+#endif
     if (string_util::starts_with_ignore_case(pin_type, "uart_channel")) {
         auto     num_str = pin_type.substr(strlen("uart_channel"));
         objnum_t channel_num;
@@ -83,6 +96,14 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         return nullptr;
     }
 
+#ifdef ENABLE_WS_CHANNEL_PINS
+    if (string_util::starts_with_ignore_case(pin_type, "ws")) {
+        auto num_str      = pin_type.substr(strlen("ws"));
+        pinImplementation = new Pins::WSChannelPinDetail(pin_number, parser);
+        return nullptr;
+    }
+#endif
+
     if (string_util::equal_ignore_case(pin_type, "no_pin")) {
         pinImplementation = &Pins::undefinedPin;
         return nullptr;
@@ -94,6 +115,7 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         return nullptr;
     }
 
+#if SUPPORT_PIN_EXTENDERS
     if (string_util::starts_with_ignore_case(pin_type, "pinext")) {
         if (pin_type.length() == 7 && isdigit(pin_type[6])) {
             auto deviceId     = pin_type[6] - '0';
@@ -103,6 +125,7 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
             return "Incorrect pin extender specification. Expected 'pinext[0-9].[port number]'.";
         }
     }
+#endif
 
     if (pinImplementation == nullptr) {
         log_error("Unknown pin type:" << pin_type);

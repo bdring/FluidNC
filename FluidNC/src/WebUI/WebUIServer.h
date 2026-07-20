@@ -13,6 +13,7 @@
 #include <freertos/task.h>
 
 class AsyncWebSocket;
+class AsyncWebSocketClient;
 class AsyncWebServer;
 class AsyncWebSocketMessageHandler;
 class AsyncHeaderFreeMiddleware;
@@ -26,6 +27,8 @@ namespace WebUI {
 
     static const int MIN_HTTP_PORT = 1;
     static const int MAX_HTTP_PORT = 65001;
+
+    std::string webServerIp();
 
     extern EnumSetting* http_enable;
     extern IntSetting*  http_port;
@@ -42,6 +45,7 @@ namespace WebUI {
 #endif
 
     std::string getSession(AsyncClient* client);
+    std::string getSession(AsyncWebSocketClient* client);
 
     //Upload status
     enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
@@ -55,6 +59,7 @@ namespace WebUI {
         void poll() override;
 
         static uint16_t port() { return _port; }
+        static std::string getWebSocketSession(AsyncWebServerRequest* request, AsyncWebSocketClient* client = nullptr);
 
         ~WebUI_Server();
 
@@ -65,7 +70,6 @@ namespace WebUI {
         static AsyncWebServer*            _websocketserver;
         static AsyncWebServer*            _websocketserverv3;
         static AsyncWebSocket*            _socket_server;
-        static std::string                current_session;
 
         static uint16_t     _port;
         static UploadStatus _upload_status;
@@ -87,6 +91,7 @@ namespace WebUI {
         static std::string getSessionCookie(AsyncWebServerRequest* request);
         static void        handle_SSDP();
         static void        handle_root(AsyncWebServerRequest* request);
+        static void        handle_trace(AsyncWebServerRequest* request);
         static void        handle_login(AsyncWebServerRequest* request);
         static void        handle_not_found(AsyncWebServerRequest* request);
         static void        _handle_web_command(AsyncWebServerRequest* request, bool);

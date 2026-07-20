@@ -10,6 +10,8 @@
 #include "Protocol.h"
 #include "Event.h"
 
+#include <climits>  // UINT_MAX
+
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"
 #include "Report.h"               // report_feedback_message
@@ -100,17 +102,25 @@ void drain_messages() {
 
 void output_loop(void* unused) {
     while (true) {
+        if (should_exit()) {
+            break;
+        }
         // Block until a message is received
         LogMessage message;
-        if (xQueueReceive(message_queue, &message, portMAX_DELAY)) {
-            if (message.isString) {
-                std::string* s = static_cast<std::string*>(message.line);
-                message.channel->print_msg(message.level, s->c_str());
-                delete s;
-            } else {
-                const char* cp = static_cast<const char*>(message.line);
-                message.channel->print_msg(message.level, cp);
+        if (xQueueReceive(message_queue, &message, 100)) {  // Use timeout to check exit flag
+            if (!message.channel->is_closing()) {
+                if (message.isString) {
+                    std::string* s = static_cast<std::string*>(message.line);
+                    message.channel->print_msg(message.level, s->c_str());
+                    delete s;
+                } else {
+                    const char* cp = static_cast<const char*>(message.line);
+                    message.channel->print_msg(message.level, cp);
+                }
+            } else if (message.isString) {
+                delete static_cast<std::string*>(message.line);
             }
+            message.channel->release_log_ref();
         }
     }
 }
@@ -124,9 +134,13 @@ char activeLine[Channel::maxLine];
 bool pollingPaused = false;
 void polling_loop(void* unused) {
     add_watchdog_to_task();
+    for (;;) {
+        if (should_exit()) {
+            break;
+        }
 
-    // Poll the input sources waiting for a complete line to arrive
-    for (; true; /*feedLoopWDT(), */ vTaskDelay(1)) {
+        // Poll the input sources waiting for a complete line to arrive
+        /*feedLoopWDT(), */ vTaskDelay(1);
         // Polling is paused when xmodem is using a channel for binary upload
         if (pollingPaused) {
             vTaskDelay(100);
@@ -205,22 +219,22 @@ void start_polling() {
     if (pollingTask) {
         vTaskResume(pollingTask);
     } else {
-        xTaskCreatePinnedToCore(polling_loop,      // task
+        xTaskCreateAffinitySet(polling_loop,      // task
                                 "poller",          // name for task
                                 8192,              // size of task stack
                                 0,                 // parameters
                                 1,                 // priority
-                                &pollingTask,      // task handle
-                                SUPPORT_TASK_CORE  // core
+                                (1 << SUPPORT_TASK_CORE),  // affinity mask
+                                &pollingTask       // task handle
         );
-        xTaskCreatePinnedToCore(output_loop,  // task
+        xTaskCreateAffinitySet(output_loop,  // task
                                 "output",     // name for task
                                 16000,
                                 // 8192,              // size of task stack
                                 0,                 // parameters
                                 2,                 // priority
-                                &outputTask,       // task handle
-                                SUPPORT_TASK_CORE  // core
+                                (1 << SUPPORT_TASK_CORE),  // affinity mask
+                                &outputTask        // task handle
         );
     }
 }
@@ -246,7 +260,16 @@ void protocol_main_loop() {
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
     for (;; vTaskDelay(1)) {
+        if (should_exit()) {
+            break;
+        }
         if (activeChannel) {
+            if (activeChannel->is_closing()) {
+                activeChannel->release_processing_ref();
+                activeChannel = nullptr;
+                continue;
+            }
+
             // The input polling task has collected a line of input
             if (gcode_echo->get()) {
                 report_echo_line_received(activeLine, allChannels);
@@ -264,6 +287,7 @@ void protocol_main_loop() {
 
             // Tell the input polling task that the line has been processed,
             // so it can give us another one when available
+            activeChannel->release_processing_ref();
             activeChannel = nullptr;
         }
 
@@ -366,10 +390,12 @@ static void protocol_do_start_homing() {
 }
 
 static void protocol_do_soft_restart() {
+#if SUPPORT_LISTENERS
     auto listeners = Listeners::SysListenerFactory::objects();
     for (auto l : listeners) {
         l->beforeVariableReset();
     }
+#endif
 
     // Reset primary systems.
     system_reset();
@@ -397,9 +423,11 @@ static void protocol_do_soft_restart() {
     report_init_message(allChannels);
     mc_init();
 
+#if SUPPORT_LISTENERS
     for (auto l : listeners) {
         l->afterVariableReset();
     }
+#endif
 
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.

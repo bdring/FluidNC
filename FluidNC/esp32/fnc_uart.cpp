@@ -85,20 +85,32 @@ std::map<UartParity, uart_parity_t> parity_mode = {
     { UartParity::Odd, UART_PARITY_ODD },
 };
 
-void uart_mode(uint32_t uart_num, uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits) {
-    uart_config_t conf;
-    conf.source_clk          = UART_SCLK_APB;
-    conf.baud_rate           = baud;
-    conf.data_bits           = datalen[dataBits];
-    conf.parity              = parity_mode[parity];
-    conf.stop_bits           = stopbits[stopBits];
-    conf.flow_ctrl           = UART_HW_FLOWCTRL_DISABLE;
-    conf.rx_flow_ctrl_thresh = 0;
+#if ESP_IDF_VERSION_MAJOR < 5 || (ESP_IDF_VERSION_MAJOR == 5 && ESP_IDF_VERSION_MINOR < 5)
+#    define fnc_uart_config_t uart_config_t
+#endif
 
+void uart_mode(uint32_t uart_num, uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits) {
     uart_port_t port = (uart_port_t)uart_num;
     if (port) {
+        fnc_uart_config_t conf;
+        conf.source_clk          = UART_SCLK_APB;
+        conf.baud_rate           = baud;
+        conf.data_bits           = datalen[dataBits];
+        conf.parity              = parity_mode[parity];
+        conf.stop_bits           = stopbits[stopBits];
+        conf.flow_ctrl           = UART_HW_FLOWCTRL_DISABLE;
+        conf.rx_flow_ctrl_thresh = 0;
+
         fnc_uart_param_config(port, &conf);
     } else {
+        uart_config_t conf;
+        conf.source_clk          = UART_SCLK_APB;
+        conf.baud_rate           = baud;
+        conf.data_bits           = datalen[dataBits];
+        conf.parity              = parity_mode[parity];
+        conf.stop_bits           = stopbits[stopBits];
+        conf.flow_ctrl           = UART_HW_FLOWCTRL_DISABLE;
+        conf.rx_flow_ctrl_thresh = 0;
         uart_param_config(port, &conf);
     }
 }

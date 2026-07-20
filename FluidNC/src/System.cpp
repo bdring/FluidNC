@@ -11,6 +11,7 @@
 #include "Config.h"                 // MAX_N_AXIS
 #include "Machine/MachineConfig.h"  // config
 #include "Stepping.h"               // config
+#include "Serial.h"                 // AllChannels
 
 #include <cstring>  // memset
 #include <cmath>    // roundf
@@ -54,6 +55,7 @@ void motor_pos_to_steps(steps_t* steps, float* motor_pos) {
         steps[motor] = motor_pos_to_steps(motor_pos[motor], motor);
     }
 }
+
 void steps_to_motor_pos(float* motor_pos, steps_t* steps) {
     auto   a      = config->_axes;
     axis_t n_axis = a ? a->_numberAxis : X_AXIS;
@@ -62,6 +64,7 @@ void steps_to_motor_pos(float* motor_pos, steps_t* steps) {
     }
 }
 
+// Convert motor step count to mm and transform back to Cartesian (GCode) space
 void steps_to_mpos(float* position, steps_t* steps) {
     auto   a      = config->_axes;
     axis_t n_axis = a ? a->_numberAxis : X_AXIS;
@@ -84,10 +87,12 @@ void set_motor_pos(float* motor_pos, size_t n_motors) {
     }
 }
 
+// Position in motor steps for one axis
 steps_t get_axis_steps(axis_t axis) {
     return Stepping::getSteps(axis);
 }
 
+// Position in motor steps for all axes
 void get_steps(steps_t* steps) {
     auto axes   = config->_axes;
     auto n_axis = axes->_numberAxis;
@@ -95,6 +100,8 @@ void get_steps(steps_t* steps) {
         steps[axis] = Stepping::getSteps(axis);
     }
 }
+
+// Position in motor steps for all axes
 steps_t* get_steps() {
     static steps_t steps[MAX_N_AXIS];
 
@@ -102,12 +109,14 @@ steps_t* get_steps() {
     return steps;
 }
 
+// Position in mm in motor space for all axes
 float* get_motor_pos() {
     static float motor_pos[MAX_N_AXIS];
     steps_to_motor_pos(motor_pos, get_steps());
     return motor_pos;
 }
 
+// Position in mm in Cartesian space for all axes, accounting for kinematics
 float* get_mpos() {
     static float position[MAX_N_AXIS];
 
@@ -141,7 +150,10 @@ const std::map<State, const char*> StateName = {
 };
 
 void set_state(State s) {
-    sys.set_state(s);
+    if (!state_is(s)) {
+        sys.set_state(s);
+        allChannels.notifyState();
+    }
 }
 bool state_is(State s) {
     return sys.state() == s;

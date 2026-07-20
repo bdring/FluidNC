@@ -4,6 +4,7 @@
 #define PASS_THROUGH_80_BF
 // #define TEST_UTF8
 
+#include <cstddef>
 #include "UTF8.h"
 
 // Returns 1 if we have a valid sequence, and value is set

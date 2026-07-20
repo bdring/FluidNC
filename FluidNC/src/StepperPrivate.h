@@ -29,5 +29,5 @@ struct PrepFlag {
 // NOTE: Current settings are set to overdrive the ISR to no more than 16kHz, balancing CPU overhead
 // and timer accuracy.  Do not alter these settings unless you know what you are doing.
 
-const uint32_t amassThreshold = Machine::Stepping::fStepperTimer / 8000;
+const uint32_t amassFactor    = 8000;
 const int      maxAmassLevel  = 3;  // Each level increase doubles the threshold

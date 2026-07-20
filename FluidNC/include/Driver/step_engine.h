@@ -1,15 +1,13 @@
 // Copyright (c) 2024 -  Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-// Interface between Stepping.cpp and low-level stepping engine drivers
-// This is in C instead of C++ to make it easy to force the relevant pieces
-// to be in RAM or IRAM, thus avoiding ESP32 problems with accessing FLASH
-// from interrupt service routines.
+// Interface between Stepping.cpp and low-level stepping engine drivers.
 
 #pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <vector>
 #include "Driver/fluidnc_gpio.h"
 
 typedef struct step_engine {
@@ -18,7 +16,7 @@ typedef struct step_engine {
     // Prepare the engine for use
     // The return value is the actual pulse delay according to the
     // characteristics of the engine.
-    uint32_t (*init)(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*fn)(void));
+    uint32_t (*init)(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t& frequency, bool (*fn)(void));
 
     // Setup the step pin, returning a number to identify it.
     // In many cases, the return value is the same as pin, but some step
@@ -63,16 +61,15 @@ typedef struct step_engine {
     // Stop the pulse event timer
     void (*stop_timer)();
 
-    // Link to next engine in the list of registered stepping engines
+    // Reserved for compatibility with older engine definitions.
     struct step_engine* link;
 } step_engine_t;
 
-// Linked list of registered step engines
-extern step_engine_t* step_engines;
+// Registered step engines.
+extern std::vector<step_engine_t*> step_engines;
 
 // clang-format off
 #define REGISTER_STEP_ENGINE(name, engine)                       \
     __attribute__((constructor)) void __register_##name(void) {  \
-        (engine)->link = step_engines;                           \
-        step_engines = engine;                                   \
+        step_engines.push_back(engine);                          \
     }

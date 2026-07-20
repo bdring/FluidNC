@@ -490,11 +490,11 @@ namespace Kinematics {
         log_debug("Planned move to " << target[0] << "," << target[1] << "," << target[2] << " @ " << rate);
     }
 
-    void Cartesian::homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) {
+    void Cartesian::homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t& settle_ms) {
         releaseMotors(axisMask, motors);
         float rate;
         float target[MAX_N_AXIS];
-        axesVector(axisMask, motors, phase, target, rate, settling_ms);
+        axesVector(axisMask, motors, phase, target, rate, settle_ms);
 
         plan_line_data_t plan_data      = {};
         plan_data.spindle_speed         = 0;
@@ -524,6 +524,28 @@ namespace Kinematics {
 
     bool Cartesian::kinematics_homing(AxisMask& axisMask) {
         return false;  // kinematics does not do the homing for catesian systems
+    }
+
+    void Cartesian::rearmLimits(AxisMask axisMask, MotorMask motorMask) {
+        // Iterate through all motors in the motorMask and rearm their switches
+        for (int i = 0; i < MAX_N_AXIS; ++i) {
+            axis_t axis = static_cast<axis_t>(i);
+            if (!(axisMask & (1 << axis))) {
+                continue;  // Skip axes not in the mask
+            }
+            Machine::Axis* a = Machine::Axes::_axis[axis];
+            if (!a) {
+                continue;
+            }
+            // Check motor 0 (bits 0-15)
+            if ((motorMask & (1UL << axis)) && a->_motors[0]) {
+                a->_motors[0]->rearmSwitches();
+            }
+            // Check motor 1 (bits 16-31)
+            if ((motorMask & (1UL << (axis + 16))) && a->_motors[1]) {
+                a->_motors[1]->rearmSwitches();
+            }
+        }
     }
 
     // Configuration registration

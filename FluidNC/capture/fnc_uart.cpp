@@ -27,9 +27,8 @@ void uart_discard_input(uint32_t uart_num) {}
 void uart_init(uint32_t uart_num) {}
 
 int uart_buflen(uint32_t uart_num) {
-    auto        key = uart_key(uart_num);
-    const auto& val = Inputs::instance().get(key);
-    return val.size();
+    auto key = uart_key(uart_num);
+    return int(Inputs::instance().size(key));
 }
 
 extern int inchar();
@@ -48,14 +47,8 @@ int uart_read(uint32_t uart_num, uint8_t* buf, uint32_t len, uint32_t timeout_ms
         return 0;
     }
     auto        key = uart_key(uart_num);
-    const auto& val = Inputs::instance().get(key);
-    auto        max = std::min(size_t(len), val.size());
-    for (size_t i = 0; i < max; ++i) {
-        buf[i] = uint8_t(val[i]);
-    }
-    std::vector<uint32_t> newval(val.begin() + max, val.end());
-    Inputs::instance().set(key, newval);
-    return int(max);
+    auto        count = Inputs::instance().read(key, buf, len);
+    return int(count);
 }
 
 int uart_write(uint32_t uart_num, const uint8_t* buf, size_t len) {
@@ -69,11 +62,7 @@ int uart_write(uint32_t uart_num, const uint8_t* buf, size_t len) {
     }
 
     auto key = uart_key(uart_num);
-    auto val = Inputs::instance().get(key);
-    for (size_t i = 0; i < len; ++i) {
-        val.push_back(uint32_t(uint8_t(buf[i])));
-    }
-    Inputs::instance().set(key, val);
+    Inputs::instance().append(key, buf, len);
     return int(len);
 }
 

@@ -11,6 +11,7 @@
 
 #define WEAK_LINK __attribute__((weak))
 #define WITH_MBEDTLS
+#define HAVE_UPDATE
 
 #define MAX_N_UARTS SOC_UART_NUM
 #define MAX_N_I2C SOC_I2C_NUM
@@ -46,7 +47,6 @@ inline void platform_preinit() {
 #endif
 }
 
-#if ESP_IDF_VERSION_MAJOR >= 5
-// Compatibility for older compilers versions.
-#    define memory_order_seq_cst seq_cst
-#endif
+inline bool should_exit() {
+    return false;
+}
