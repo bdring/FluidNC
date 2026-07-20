@@ -762,7 +762,7 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a75.4.6. Only use when the chip's UART is actually wired -- otherwise use stepstick. Individually addressable via addr: 0-3 (hardware MS1/MS2 pins), up to 4 chips per UART bus. homing_amps is TMC2209-SPECIFIC (does not exist on 2130/2208/5160); if left at its default of 0 it is silently set equal to run_amps at parse time. stallguard range here is 0-255, NOT -64 to 63 like every SPI driver type.",
+      "description": "spec \u00a75.4.6. Only use when the chip's UART is actually wired -- otherwise use stepstick. Individually addressable via addr: 0-3 (hardware MS1/MS2 pins), up to 4 independently readable chips per UART bus. Selectorless drivers may share an address only when every member explicitly enables shared_address_write_only and has identical UART-controlled settings. homing_amps is TMC2209-SPECIFIC (does not exist on 2130/2208/5160); if left at its default of 0 it is silently set equal to run_amps at parse time. stallguard range here is 0-255, NOT -64 to 63 like every SPI driver type.",
       "additionalProperties": false,
       "properties": {
         "step_pin": {
@@ -874,6 +874,15 @@
             }
           ],
           "default": false
+        },
+        "shared_address_write_only": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false,
+          "description": "Explicitly permits selectorless TMC2209s with the same uart_num and addr to receive identical writes. Every group member must enable it, use cs_pin: NO_PIN, and have identical UART-controlled settings. UART readback and stallguard_debug are unavailable."
         },
         "homing_amps": {
           "type": "number",

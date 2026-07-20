@@ -398,11 +398,12 @@ tmc_2209:
   stallguard_debug: false
   toff_coolstep: 3
   use_enable: false
+  shared_address_write_only: false # Boolean, default false; see shared-address rule below
 ```
 Rules:
 - **Only use `tmc_2209:` when the chip's UART is actually wired up and being addressed.** A TMC2209 without real UART wiring — whether it's an onboard chip with no UART broken out, or a stepstick module factory-jumpered for standalone mode — must be configured as `stepstick:` (§5.4.2) instead; `tmc_2209:`'s current/microstepping/mode fields do nothing without a working UART link to actually write them to the chip.
 - **`homing_amps` has a real, useful fallback behavior worth knowing:** `TMC2209Driver::afterParse()` explicitly sets `_homing_current = _run_current` whenever `homing_amps` was left at its default of `0`. So omitting `homing_amps` entirely is equivalent to setting it equal to `run_amps` — a reasonable default, but only for this one driver type; don't assume the same fallback applies elsewhere (it doesn't — `homing_amps` doesn't exist as a field on any other TMC type in this document).
-- Unlike TMC2208, TMC2209 chips **are** individually addressable, but only when each chip's hardware address pins (`MS1_AD0`/`MS2_AD1`) are wired to give it a unique `addr:` (0–3) on the shared UART bus — up to 4 chips per UART.
+- Unlike TMC2208, TMC2209 chips **are** individually addressable when each chip's hardware address pins (`MS1_AD0`/`MS2_AD1`) are wired to give it a unique `addr:` (0–3) on the shared UART bus — up to 4 independently readable chips per UART. Multiple selectorless TMC2209s may intentionally use the same `uart_num:` and `addr:` only when every member sets `shared_address_write_only: true`, uses `cs_pin: NO_PIN`, and has identical UART-controlled settings. In that mode, addressed writes configure all responders while version/IFCNT/register readback and live StallGuard diagnostics are unavailable; `stallguard_debug: true` is rejected. Step, direction, disable, and limit pins remain independent per motor. The default `false` preserves strict communication testing.
 - `uart_num:` must reference a `uartN:` top-level section (§0.11 — no ordering requirement, but placing it earlier is still good practice).
 - There is no per-motor nested `uart:` sub-block for TMC2209 (or TMC2208, per the correction in §5.4.4) — always use the external `uart_num:` + top-level `uartN:` section form.
 
