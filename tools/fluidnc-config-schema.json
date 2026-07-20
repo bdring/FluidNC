@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.org/schemas/fluidnc-config.schema.json",
   "title": "FluidNC config.yaml",
-  "description": "JSON Schema for FluidNC's config.yaml, derived from the companion markdown specification 'FluidNC config.yaml Formal Specification (for LLM Generation)'. This schema validates the PARSED (YAML-to-JSON) representation of a config file, not the raw YAML text -- YAML-syntax rules from spec \u00a70 (indentation, whitespace, no trailing-newline requirement, etc.) are not and cannot be expressed here; validate the YAML syntax separately and only feed the parsed document to this schema. IMPORTANT DESIGN NOTE ON additionalProperties: sections that were confirmed byte-for-byte against the FluidNC C++ source (see the markdown doc's 'Ground truth' notes per section) use additionalProperties: false, since any other key is a real mistake worth catching. Do not relax this to mirror the real parser's leniency (spec \u00a70.7, unknown keys are logged and ignored, not rejected) -- for LLM-generation guidance, catching an unrecognized key here is more useful than silently accepting it the way the real firmware does. Board-specific pin legality (which GPIO numbers exist/are usable on a given board) is intentionally NOT validated -- pin identifiers are checked only for correct syntax (spec \u00a73), matching the stated design goal of both the markdown doc and this schema. Sections/fields marked deprecated:true (extenders/pinextender/pinext pins, rgbled) should not be used when generating new configs; they are included only to recognize them in existing configs. CASING NOTE: ground truth (Parser::is(), strncasecmp-based) confirms FluidNC matches essentially every key name, type-selector name (spindle types, motor driver types, kinematics types), and enum value case-INsensitively -- e.g. 'pwm'/'PWM', 'm6_macro'/'M6_macro', 'z'/'Z' are all equivalent to the real firmware. This schema deliberately does NOT replicate that leniency (JSON Schema property/enum matching is inherently case-sensitive, and doing so would balloon every property set) -- it enforces the single canonical casing shown in the companion markdown spec, on the theory that guiding an LLM toward one consistent, readable form is more valuable than accepting every casing variant the real parser happens to tolerate.",
+  "description": "JSON Schema for FluidNC's config.yaml, derived from the companion markdown specification 'FluidNC config.yaml Formal Specification (for LLM Generation)'. This schema validates the PARSED (YAML-to-JSON) representation of a config file, not the raw YAML text -- YAML-syntax rules from spec \u00a70 (indentation, whitespace, no trailing-newline requirement, etc.) are not and cannot be expressed here; validate the YAML syntax separately and only feed the parsed document to this schema. IMPORTANT DESIGN NOTE ON additionalProperties: sections that were confirmed byte-for-byte against the FluidNC C++ source (see the markdown doc's 'Ground truth' notes per section) use additionalProperties: false, since any other key is a real mistake worth catching. Do not relax this to mirror the real parser's leniency (spec \u00a70.7, unknown keys are logged and ignored, not rejected) -- for LLM-generation guidance, catching an unrecognized key here is more useful than silently accepting it the way the real firmware does. Board-specific pin legality (which GPIO numbers exist/are usable on a given board) is intentionally NOT validated -- pin identifiers are checked only for correct syntax (spec \u00a73), matching the stated design goal of both the markdown doc and this schema. Sections/fields marked deprecated:true (extenders/pinextender/pinext pins) should not be used when generating new configs; they are included only to recognize them in existing configs. CASING NOTE: ground truth (Parser::is(), strncasecmp-based) confirms FluidNC matches essentially every key name, type-selector name (spindle types, motor driver types, kinematics types), and enum value case-INsensitively -- e.g. 'pwm'/'PWM', 'm6_macro'/'M6_macro', 'z'/'Z' are all equivalent to the real firmware. This schema deliberately does NOT replicate that leniency (JSON Schema property/enum matching is inherently case-sensitive, and doing so would balloon every property set) -- it enforces the single canonical casing shown in the companion markdown spec, on the theory that guiding an LLM toward one consistent, readable form is more valuable than accepting every casing variant the real parser happens to tolerate.",
   "type": "object",
   "properties": {
     "board": {
@@ -89,8 +89,8 @@
     "oled": {
       "$ref": "#/$defs/oledSection"
     },
-    "rgbled": {
-      "$ref": "#/$defs/rgbledSection"
+    "status_outputs": {
+      "$ref": "#/$defs/statusOutputsSection"
     },
     "atc_manual": {
       "$ref": "#/$defs/atc_manual"
@@ -3331,68 +3331,39 @@
         }
       }
     },
-    "rgbledSection": {
+    "statusOutputsSection": {
       "type": [
         "object",
         "null"
       ],
-      "deprecated": true,
-      "description": "DO NOT USE -- the Listeners/SysListener framework this belongs to is likely to be removed from FluidNC. spec \u00a722. NOTE: the 10 color fields use camelCase (checkMode, safetyDoor, configAlarm), the ONLY place in the whole config surface that does -- this is a real firmware inconsistency, not a typo in this schema. Colors are 6-hex-digit strings with NO leading #; the literal string \"none\" means 'leave unchanged', not off (use \"000000\" for off/black).",
+      "description": "spec \u00a722. Ground truth Status_Outputs::group() (Status_outputs.h/.cpp). Registered as a ConfigurableModule named \"status_outputs\", mounted at the top level via ConfigurableModuleFactory::factory(handler) inside MachineConfig::group() -- same mounting pattern as oled:, a plain top-level key, not nested under any wrapper section. Drives status-indicator outputs (e.g. tower lights) from the machine's current state string. idle_pin/run_pin/alarm_pin require an EXACT state match (\"Idle\"/\"Run\"/\"Alarm\" respectively); hold_pin/door_pin match on the state string's first 4 characters (\"Hold\"/\"Door\"), so they also activate for GRBL-style numbered substates like \"Hold:0\"/\"Door:0\". Note the field is named run_pin but corresponds to the firmware's own \"Cycle\" log label for the same pin (_Run_pin, logged as \"Cycle:\") -- not a typo in this schema, a real naming inconsistency between the config field and the log output.",
       "additionalProperties": false,
       "properties": {
-        "pin": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/pinAny"
-            }
-          ],
-          "description": "Data pin to the LED/LED strip.",
+        "report_interval_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 5000,
+          "default": 500
+        },
+        "idle_pin": {
+          "$ref": "#/$defs/pinAny",
           "default": "NO_PIN"
         },
-        "index": {
-          "type": "integer",
-          "default": 0,
-          "description": "Which LED in a chain this config addresses."
+        "run_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
         },
-        "idle": {
-          "type": "string",
-          "default": "007F00"
+        "hold_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
         },
-        "alarm": {
-          "type": "string",
-          "default": "7F0000"
+        "alarm_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
         },
-        "checkMode": {
-          "type": "string",
-          "default": "b936bf"
-        },
-        "homing": {
-          "type": "string",
-          "default": "501f00"
-        },
-        "cycle": {
-          "type": "string",
-          "default": "7f4422"
-        },
-        "hold": {
-          "type": "string",
-          "default": "777744"
-        },
-        "jog": {
-          "type": "string",
-          "default": "007f3f"
-        },
-        "safetyDoor": {
-          "type": "string",
-          "default": "3f7f00"
-        },
-        "sleep": {
-          "type": "string",
-          "default": "001F00"
-        },
-        "configAlarm": {
-          "type": "string",
-          "default": "7f0000"
+        "door_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN"
         }
       }
     }

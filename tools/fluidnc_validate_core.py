@@ -33,11 +33,18 @@ silently drifted out of sync with the schema over time. Reading them from
 the schema means this module extends automatically as the schema grows.
 
 Separately from strict/permissive: this module also scans for usage of
-anything the schema marks "deprecated": true (currently: the extenders:/
-rgbled: sections, and pinext-syntax pin values) and reports it as a warning,
+anything the schema marks "deprecated": true (currently: the extenders:
+section and pinext-syntax pin values) and reports it as a warning,
 REGARDLESS of mode -- see scan_deprecated(). Deprecation is orthogonal to
 the casing-strictness question above; a deprecated-but-otherwise-valid
 config is worth flagging either way.
+
+Note: rgbled: was removed from the schema entirely (not just marked
+deprecated) since the Listeners/SysListener framework it belonged to was
+never actually going to ship -- a config with rgbled: now fails schema
+validation as an unrecognized top-level key rather than validating with a
+deprecation warning. status_outputs: was added in its place (a real,
+previously-undocumented section -- see Status_outputs.h/.cpp).
 """
 import copy
 import json
@@ -196,8 +203,8 @@ def normalize_permissive(doc, schema):
 
     # 1. Root-level fixed keys (covers board/name/meta/stepping/axes/control/
     #    coolant/probe/macros/extenders/start/parking/user_outputs/
-    #    user_inputs/oled/rgbled/atc_manual/every spindle+VFD type name/the
-    #    top-level scalars -- ALL of these are literal entries in
+    #    user_inputs/oled/status_outputs/atc_manual/every spindle+VFD type
+    #    name/the top-level scalars -- ALL of these are literal entries in
     #    schema["properties"], so one generic pass handles every one of them,
     #    including what earlier passes of this module treated as a special
     #    "spindle type" case).
@@ -241,7 +248,7 @@ def normalize_permissive(doc, schema):
         ("user_outputs", "userOutputsSection"),
         ("user_inputs", "userInputsSection"),
         ("oled", "oledSection"),
-        ("rgbled", "rgbledSection"),
+        ("status_outputs", "statusOutputsSection"),
         ("atc_manual", "atc_manual"),
         ("spi", "spiSection"),
         ("sdcard", "sdcardSection"),
@@ -369,9 +376,11 @@ def scan_deprecated(doc, schema):
     exist in the schema):
 
       - Root-level sections whose resolved schema is deprecated (currently:
-        extenders:, rgbled:) -- detected generically by resolving each
-        present root key's $ref and checking its "deprecated" flag, so this
-        part DOES automatically extend to any future deprecated root
+        extenders: only -- rgbled: was removed from the schema entirely
+        rather than kept as recognized-but-deprecated, since the framework
+        it belonged to never shipped) -- detected generically by resolving
+        each present root key's $ref and checking its "deprecated" flag, so
+        this part DOES automatically extend to any future deprecated root
         section without code changes here.
       - Pin values using the deprecated pinext syntax (spec §3.5) --
         detected by pattern-matching every string leaf value in the

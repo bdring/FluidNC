@@ -65,7 +65,7 @@ user_inputs:                   # handler.section — see §15
 
 pinextender0:                   # DO NOT USE — provisional, may be removed. See §19.
 oled:                            # via ConfigurableModuleFactory::factory — see §21 (optional status display)
-rgbled:                           # DO NOT USE — Listeners/SysListener framework likely to be removed. See §22.
+status_outputs:                   # via ConfigurableModuleFactory::factory — see §22 (optional state-indicator outputs)
 atc_manual:                        # via ATCs::ATCFactory::factory — see §17 (referenced by a spindle's atc: field)
 <SpindleTypeName>:               # via Spindles::SpindleFactory::factory — one or more, see §10/§14
 
@@ -1215,31 +1215,25 @@ oled:
 
 ---
 
-## 22. `rgbled:` section — status-indicator RGB LED (e.g. NeoPixel/WS2812) — **DO NOT USE (provisional, may be removed)**
+## 22. `status_outputs:` section — machine-state indicator outputs (e.g. tower lights)
 
-**The entire `Listeners`/`SysListener` framework that `rgbled:` belongs to is likely to be removed from FluidNC.** Do not generate configs using `rgbled:`. Documented here for recognition purposes only, same treatment as `extenders:`/`pinextN.M` in §19 — in case it's encountered in an existing config someone hands to a generator for editing, not because it should be generated.
+**`rgbled:` (a NeoPixel/WS2812 status-indicator LED section, via the `Listeners`/`SysListener` framework) previously occupied this slot in this document. It has been removed here entirely** — that framework never shipped as a real, generatable feature, and `rgbled:` is no longer a recognized key in the companion JSON Schema at all (a config using it now fails schema validation as an unrecognized top-level key, rather than validating with a deprecation warning as it did previously). `status_outputs:`, documented below, is a real, currently-shipping section that was previously undocumented in this file (also absent from the wiki, as of this pass) and is unrelated to `rgbled:` beyond both being simple state-driven output pins.
 
-Ground truth: `Listeners/RGBLed.h`/`RGBLed.cpp`, registered as `SysListenerFactory::InstanceBuilder<RGBLed>("rgbled")`, mounted directly at the top level via `Listeners::SysListenerFactory::factory(handler)` inside `MachineConfig::group()` — a plain top-level key, same mounting pattern as `oled:` and every spindle type. This was found only by re-reading `MachineConfig::group()` in full; it had been missed entirely in earlier passes of this document.
+Ground truth: `Status_outputs.h`/`Status_outputs.cpp`, registered as a `ConfigurableModule` named `"status_outputs"`, mounted directly at the top level via `ConfigurableModuleFactory::factory(handler)` inside `MachineConfig::group()` — a plain top-level key, same mounting pattern as `oled:` and every spindle type. Drives up to 5 output pins from the machine's current status-report state string (the same state names shown in `<...>` status reports, e.g. `Idle`, `Run`, `Hold:0`), intended for external indicators like tower lights.
 
 ```yaml
-rgbled:
-  pin: NO_PIN            # Pin (output) — data pin to the LED/LED strip
-  index: 0                 # Integer, default 0 — which LED in a chain this config addresses
-  idle: "007F00"              # String, 6 hex digits RRGGBB (no leading #), default shown
-  alarm: "7F0000"
-  checkMode: "b936bf"
-  homing: "501f00"
-  cycle: "7f4422"
-  hold: "777744"
-  jog: "007f3f"
-  safetyDoor: "3f7f00"
-  sleep: "001F00"
-  configAlarm: "7f0000"
+status_outputs:
+  report_interval_ms: 500      # Integer, 100-5000, default 500
+  idle_pin: NO_PIN               # Pin (output) — driven high while state == "Idle" (exact match)
+  run_pin: NO_PIN                  # Pin (output) — driven high while state == "Run" (exact match)
+  hold_pin: NO_PIN                   # Pin (output) — driven high while state starts with "Hold" (matches "Hold:0" etc.)
+  alarm_pin: NO_PIN                    # Pin (output) — driven high while state == "Alarm" (exact match)
+  door_pin: NO_PIN                       # Pin (output) — driven high while state starts with "Door" (matches "Door:0" etc.)
 ```
 
 **Two gotchas worth flagging explicitly:**
-- **These 10 color fields are the one place in the entire config surface that uses camelCase key names** (`checkMode`, `safetyDoor`, `configAlarm`) instead of the `snake_case` convention used everywhere else in FluidNC config (`step_pin`, `run_amps`, `off_on_alarm`, etc.). Ground truth: `handler.item(name, str)` is called with the literal camelCase strings `"checkMode"`, `"safetyDoor"`, `"configAlarm"` in `RGBLed.h` — this is not a typo in this document, it's a real inconsistency in the firmware itself. Writing `check_mode:`/`safety_door:`/`config_alarm:` here will silently fail to match (§0.7 — unrecognized key, ignored, not fatal) rather than erroring, so get the casing right.
-- **Color values are hex strings without a leading `#`** — write `"7F0000"`, not `"#7F0000"`. The special string `"none"` means "leave this color unchanged from whatever it currently is" (`parseColor()` returns `-1` for `"none"`, which the runtime treats as a no-op rather than a color), not "off"/black — for actual off/black, use `"000000"`.
+- **`run_pin` corresponds to the firmware's own `"Cycle"` log label for the same pin**, not `"run"` — `Status_Outputs::init()`'s own log line reads `... Cycle:<pin> ...` for `_Run_pin`. Not a typo in this document; a real naming inconsistency between the config field name and the firmware's own log output for it.
+- **`hold_pin`/`door_pin` match on only the state string's first 4 characters** (`state.substr(0, 4) == "Hold"` / `"Door"`), so they also activate for GRBL-style numbered substates like `"Hold:0"`/`"Door:0"`, not just the bare state name. `idle_pin`/`run_pin`/`alarm_pin` require an exact full-string match instead.
 
 ---
 

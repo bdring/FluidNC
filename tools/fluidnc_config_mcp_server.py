@@ -47,7 +47,7 @@ case-insensitive identifiers before validating -- normalizations are then
 reported as non-blocking "warnings" instead. See fluidnc_validate_core.py
 for exactly which identifiers this covers.
 
-Separately, deprecated-feature usage (e.g. extenders:/rgbled: sections,
+Separately, deprecated-feature usage (e.g. the extenders: section,
 pinext-syntax pin values) is always reported as a "warnings" entry
 regardless of permissive -- "warnings" is not empty only in permissive
 mode; a strictly-valid-but-deprecated config will have warnings too.
@@ -130,7 +130,7 @@ def validate_fluidnc_config(yaml_text: str, permissive: bool = False) -> dict:
     Call this after generating or editing a FluidNC config, and fix any
     reported errors before presenting the result to the user. Also check
     "warnings" even when valid is true -- deprecated-feature usage (e.g.
-    extenders:/rgbled: sections, pinext-syntax pins) is reported there
+    the extenders: section, pinext-syntax pins) is reported there
     regardless of the permissive setting below.
 
     permissive: FluidNC's real parser matches most identifiers (spindle

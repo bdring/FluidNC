@@ -20,7 +20,7 @@ Strict vs permissive mode:
     where casing style shouldn't block a merge. See fluidnc_validate_core.py
     for exactly which identifiers this covers.
 
-    Separately, deprecated-feature usage (e.g. extenders:/rgbled: sections,
+    Separately, deprecated-feature usage (e.g. the extenders: section,
     pinext-syntax pin values) is always reported as a WARNING regardless of
     --permissive -- deprecation is a different concern from casing
     strictness and surfaces either way.
