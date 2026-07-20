@@ -14,6 +14,8 @@
 #include "Report.h"  // git_info
 
 #include <Esp.h>
+#include <esp_system.h>
+#include <esp_timer.h>
 
 #include <sstream>
 #include <iomanip>
@@ -67,8 +69,52 @@ namespace WebUI {
             return restart(parameter, auth_level, out);
         }
 
+        static uint64_t uptime_ms() {
+            return esp_timer_get_time() / 1000;
+        }
+
+        static const char* reset_reason_name(esp_reset_reason_t reason) {
+            switch (reason) {
+                case ESP_RST_UNKNOWN:
+                    return "ESP_RST_UNKNOWN";
+                case ESP_RST_POWERON:
+                    return "ESP_RST_POWERON";
+                case ESP_RST_EXT:
+                    return "ESP_RST_EXT";
+                case ESP_RST_SW:
+                    return "ESP_RST_SW";
+                case ESP_RST_PANIC:
+                    return "ESP_RST_PANIC";
+                case ESP_RST_INT_WDT:
+                    return "ESP_RST_INT_WDT";
+                case ESP_RST_TASK_WDT:
+                    return "ESP_RST_TASK_WDT";
+                case ESP_RST_WDT:
+                    return "ESP_RST_WDT";
+                case ESP_RST_DEEPSLEEP:
+                    return "ESP_RST_DEEPSLEEP";
+                case ESP_RST_BROWNOUT:
+                    return "ESP_RST_BROWNOUT";
+                case ESP_RST_SDIO:
+                    return "ESP_RST_SDIO";
+                default:
+                    return "ESP_RST_UNKNOWN";
+            }
+        }
+
+        static void id_value_object_raw(JSONencoder& j, const char* id, const std::string& value) {
+            j.begin_object();
+            j.member("id", id);
+            j.begin_member("value");
+            j.verbatim(value);
+            j.end_object();
+        }
+
         // Used by js/statusdlg.js
         static Error showSysStatsJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
+
+            const auto reset_reason  = esp_reset_reason();
+            const auto previous_panic = reset_reason == ESP_RST_PANIC;
 
             JSONencoder j(&out);
             j.begin();
@@ -90,6 +136,10 @@ namespace WebUI {
             j.id_value_object("Free memory", formatBytes(ESP.getFreeHeap()));
             j.id_value_object("SDK", ESP.getSdkVersion());
             j.id_value_object("Flash Size", formatBytes(ESP.getFlashChipSize()));
+            id_value_object_raw(j, "uptime_ms", std::to_string(uptime_ms()));
+            id_value_object_raw(j, "reset_reason_code", std::to_string(static_cast<int>(reset_reason)));
+            j.id_value_object("reset_reason_name", reset_reason_name(reset_reason));
+            id_value_object_raw(j, "previous_panic", previous_panic ? "true" : "false");
 
             for (auto const& module : ModuleFactory::objects()) {
                 module->wifi_stats(j);
@@ -118,6 +168,9 @@ namespace WebUI {
                 return showSysStatsJSON(parameter, auth_level, out);
             }
 
+            const auto reset_reason  = esp_reset_reason();
+            const auto previous_panic = reset_reason == ESP_RST_PANIC;
+
             log_stream(out, "Chip ID: " << (uint16_t)(ESP.getEfuseMac() >> 32));
             log_stream(out, "CPU Cores: " << ESP.getChipCores());
             log_stream(out, "CPU Frequency: " << ESP.getCpuFreqMHz() << "Mhz");
@@ -128,6 +181,10 @@ namespace WebUI {
             log_stream(out, "Free memory: " << formatBytes(ESP.getFreeHeap()));
             log_stream(out, "SDK: " << ESP.getSdkVersion());
             log_stream(out, "Flash Size: " << formatBytes(ESP.getFlashChipSize()));
+            log_stream(out, "uptime_ms: " << uptime_ms());
+            log_stream(out, "reset_reason_code: " << static_cast<int>(reset_reason));
+            log_stream(out, "reset_reason_name: " << reset_reason_name(reset_reason));
+            log_stream(out, "previous_panic: " << (previous_panic ? "true" : "false"));
 
             for (auto const& module : Modules()) {
                 module->build_info(out);
