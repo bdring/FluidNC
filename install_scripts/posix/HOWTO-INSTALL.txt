@@ -149,3 +149,11 @@ scratch, you can just delete the directory that contains the
 virtual environment with:
 
    rm -rf ~/.fluidnc_venv
+
+### Updating
+
+Either just follow the install steps above, or use the OTA update feature with one of the following files:
+
+    bt/firmware.bin
+    wifi/firmware.bin
+    wifi_s3/firmware.bin
