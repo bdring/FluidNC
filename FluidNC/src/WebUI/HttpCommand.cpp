@@ -505,6 +505,7 @@ namespace WebUI {
         json_options.assign(data.substr(json_pos, pos - json_pos));
     } else {
         url.assign(data);
+        json_options.clear();
     }
 
     return !url.empty();
