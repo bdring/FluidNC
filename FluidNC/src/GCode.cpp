@@ -23,6 +23,7 @@
 
 #include <string.h>  // memset
 #include <math.h>    // sqrt etc.
+#include <vector>
 
 // Allow iteration over CoordIndex values
 CoordIndex& operator++(CoordIndex& i) {
@@ -151,6 +152,31 @@ static void gcode_comment_msg(const char* comment) {
 
 static std::optional<WaitOnInputMode> validate_wait_on_input_mode_value(objnum_t);
 static Error                          gc_wait_on_input(bool is_digital, objnum_t input_number, WaitOnInputMode mode, float timeout);
+
+static constexpr size_t MaxSpindleSpeedClusterSize = 16;
+
+static bool parse_spindle_speed_cluster(const char* line, size_t& pos, float first_value, std::vector<float>& clustered_values) {
+    clustered_values.clear();
+    clustered_values.push_back(first_value);
+
+    while (line[pos] == ':') {
+        if (clustered_values.size() >= MaxSpindleSpeedClusterSize) {
+            log_error("Spindle speed cluster exceeds maximum of " << MaxSpindleSpeedClusterSize << " values");
+            return false;
+        }
+
+        ++pos;
+
+        float clustered_value;
+        if (!read_number(line, pos, clustered_value) || clustered_value < 0.0f) {
+            return false;
+        }
+
+        clustered_values.push_back(clustered_value);
+    }
+
+    return true;
+}
 
 // Edit GCode line in-place, removing whitespace and comments and
 // converting to uppercase
@@ -281,6 +307,7 @@ Error gc_execute_line(const char* input_line) {
     bool laserIsMotion        = false;
     bool nonmodalG38          = false;  // Used for G38.6-9
     bool isWaitOnInputDigital = false;
+    std::vector<float> clustered_spindle_speeds;
 
     auto    n_axis = Axes::_numberAxis;
     float   coord_data[MAX_N_AXIS];  // Used by WCO-related commands
@@ -843,7 +870,14 @@ Error gc_execute_line(const char* input_line) {
                         break;
                     case 'S':
                         axis_word_bit     = GCodeWord::S;
-                        gc_block.values.s = value;
+                        if (line[pos] == ':') {
+                            if (!parse_spindle_speed_cluster(line, pos, value, clustered_spindle_speeds)) {
+                                return Error::BadNumberFormat;
+                            }
+                            gc_block.values.s = clustered_spindle_speeds.back();
+                        } else {
+                            gc_block.values.s = value;
+                        }
                         break;
                     case 'T':
                         axis_word_bit = GCodeWord::T;
@@ -1537,6 +1571,11 @@ Error gc_execute_line(const char* input_line) {
             }
         }
     }
+    if (clustered_spindle_speeds.size() > 1) {
+        if (axis_command != AxisCommand::MotionMode || gc_block.modal.motion != Motion::Linear || !axis_words) {
+            return Error::GcodeUnsupportedCommand;
+        }
+    }
     // [21. Program flow ]: No error checks required.
     // [0. Non-specific error-checks]: Complete unused value words check, i.e. IJK used when in arc
     // radius mode, or axis words that aren't used in the block.
@@ -1892,7 +1931,11 @@ Error gc_execute_line(const char* input_line) {
         if (axis_command == AxisCommand::MotionMode) {
             GCUpdatePos gc_update_pos = GCUpdatePos::Target;
             if (gc_state.modal.motion == Motion::Linear) {
-                mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
+                if (clustered_spindle_speeds.size() > 1) {
+                    mc_clustered_linear_move(gc_block.values.xyz, pl_data, gc_state.position, clustered_spindle_speeds);
+                } else {
+                    mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
+                }
             } else if (gc_state.modal.motion == Motion::Seek) {
                 pl_data->motion.rapidMotion = 1;  // Set rapid motion flag.
                 mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
