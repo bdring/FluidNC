@@ -1213,7 +1213,9 @@ const ArgEvent alarmEvent { (void (*)(void*))protocol_do_alarm };
 QueueHandle_t event_queue;
 
 void protocol_init() {
-    event_queue   = xQueueCreate(50, sizeof(EventItem));
+    // 200 slots: covers worst-case of MAX_N_AXIS active limit pins
+    // bouncing during the settling delay (settle_ms / debounce_ms events each) plus headroom
+    event_queue   = xQueueCreate(200, sizeof(EventItem));
     message_queue = xQueueCreate(15, sizeof(LogMessage));
 }
 
