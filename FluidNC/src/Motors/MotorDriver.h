@@ -54,6 +54,13 @@ namespace MotorDrivers {
         // normal operation.  Returns true if the motor can home
         virtual bool set_homing_mode(bool isHoming) = 0;
 
+        // set_homing_phase() is called during a homing cycle when the
+        // cycle transitions between the fast (seek) approach and the
+        // slow (feed) approach.  Motor types with phase-dependent
+        // settings - such as Trinamic StallGuard thresholds - can
+        // override it to retune themselves.  Default is a no-op.
+        virtual void set_homing_phase(bool fastApproach) {}
+
         // this is used to determine if the motor can home
         // it is tested when hoing cycles are requested.
         virtual bool can_self_home() = 0;

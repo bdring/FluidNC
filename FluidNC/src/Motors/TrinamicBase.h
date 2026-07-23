@@ -39,12 +39,26 @@ namespace MotorDrivers {
         float    _r_sense     = 0;
         bool     _use_enable  = false;
 
+        static constexpr int32_t UNSET_STALLGUARD_SEEK = INT32_MIN;
+
         float   _run_current         = 0.50;
         float   _hold_current        = 0.50;
         float   _homing_current      = 0.0;
         int32_t _microsteps          = 16;
         int32_t _stallguard          = 0;
+        int32_t _stallguard_seek     = UNSET_STALLGUARD_SEEK;  // defaults to _stallguard in afterParse()
         bool    _stallguardDebugMode = false;
+        bool    _fastHomingPhase     = false;  // true during the homing seek (fast approach) phase
+
+        // The stallguard threshold for the current homing phase: the seek
+        // (fast approach) phase can use a different sensitivity than the
+        // feed (slow approach) phase.
+        int32_t active_stallguard() const { return _fastHomingPhase ? _stallguard_seek : _stallguard; }
+
+        // Called when a homing cycle transitions between the seek and feed
+        // phases; drivers with phase-dependent registers override
+        // apply_homing_phase() to reprogram them.
+        virtual void apply_homing_phase() {}
 
         uint8_t _toff_disable     = 0;
         uint8_t _toff_stealthchop = 5;
@@ -72,6 +86,13 @@ namespace MotorDrivers {
 
     public:
         TrinamicBase(const char* name) : StandardStepper(name) {}
+
+        void set_homing_phase(bool fastApproach) override {
+            _fastHomingPhase = fastApproach;
+            if (_mode == TrinamicMode::StallGuard) {
+                apply_homing_phase();
+            }
+        }
 
         void group(Configuration::HandlerBase& handler) override {
             StandardStepper::group(handler);
