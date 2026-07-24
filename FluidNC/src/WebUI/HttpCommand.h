@@ -9,6 +9,7 @@
 #include <JsonListener.h>
 #include <JsonStreamingParser.h>
 #include <string>
+#include <string_view>
 #include <map>
 
 namespace WebUI {
@@ -125,7 +126,7 @@ namespace WebUI {
 
     private:
         // Parse the command string into URL and JSON options
-        static bool parse_command(const char* value, std::string& url, std::string& json_options);
+        static bool parse_command(std::string_view value, std::string& url, std::string& json_options);
 
         // Parse JSON options into HttpRequest struct using streaming parser
         static bool parse_json_options(const std::string& json, HttpRequest& request);

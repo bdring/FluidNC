@@ -92,6 +92,14 @@ body:
   validations:
     required: true
 - type: textarea
+  id: ai_usage
+  attributes:
+    label: Did you use an AI?
+    description: Did you use an AI to help with anything like creating a config file. If so, what AI and what was the prompt. This info will help use teach AI to give better esults
+    placeholder: I did not use AI
+  validations:
+    required: true
+- type: textarea
   id: gcode-file
   attributes:
     label: GCode File

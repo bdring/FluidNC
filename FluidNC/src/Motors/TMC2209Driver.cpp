@@ -10,6 +10,49 @@
 #include <atomic>
 
 namespace MotorDrivers {
+    std::vector<TMC2209Driver*> TMC2209Driver::_tmc2209_instances;
+
+    bool TMC2209Driver::sameUartAddress(const TMC2209Driver& other) const {
+        TMC2209UartEndpoint endpoint { _uart_num, _addr, !_cs_pin.undefined() };
+        TMC2209UartEndpoint other_endpoint { other._uart_num, other._addr, !other._cs_pin.undefined() };
+        return endpoint.sharesUnselectedAddress(other_endpoint);
+    }
+
+    TMC2209UartSettings TMC2209Driver::uartSettings() const {
+        return { tmc2209EffectiveRSense(_r_sense, TMC2209_RSENSE_DEFAULT),
+                 _run_current,
+                 _hold_current,
+                 _homing_current,
+                 _microsteps,
+                 _run_mode,
+                 _homing_mode,
+                 _stallguard,
+                 _toff_disable,
+                 _toff_stealthchop,
+                 _toff_coolstep,
+                 _use_enable };
+    }
+
+    void TMC2209Driver::validate() {
+        TrinamicUartDriver::validate();
+        if (tmc2209RequiresReadback(_shared_address_write_only)) {
+            return;
+        }
+
+        Assert(_cs_pin.undefined(), "shared_address_write_only requires cs_pin: NO_PIN");
+        Assert(!_stallguardDebugMode, "shared_address_write_only does not support stallguard_debug");
+
+        for (auto* other : _tmc2209_instances) {
+            if (other == this || !sameUartAddress(*other)) {
+                continue;
+            }
+            Assert(other->_shared_address_write_only,
+                   "TMC2209 UART%d address %d is shared; all drivers at that address must set shared_address_write_only: true", _uart_num,
+                   _addr);
+            const char* mismatch = uartSettings().mismatch(other->uartSettings());
+            Assert(!mismatch, "TMC2209 UART%d address %d shared-address setting conflict: %s", _uart_num, _addr, mismatch);
+        }
+    }
 
     void TMC2209Driver::init() {
         TrinamicUartDriver::init();
@@ -78,20 +121,24 @@ namespace MotorDrivers {
             }
         }
 
-        // dump the registers. This is helpful for people migrating to the Pro version
-        log_verbose("CHOPCONF: " << to_hex(tmc2209->CHOPCONF()));
-        log_verbose("COOLCONF: " << to_hex(tmc2209->COOLCONF()));
-        log_verbose("TPWMTHRS: " << to_hex(tmc2209->TPWMTHRS()));
-        log_verbose("TCOOLTHRS: " << to_hex(tmc2209->TCOOLTHRS()));
-        log_verbose("GCONF: " << to_hex(tmc2209->GCONF()));
-        log_verbose("PWMCONF: " << to_hex(tmc2209->PWMCONF()));
-        log_verbose("IHOLD_IRUN: " << to_hex(tmc2209->IHOLD_IRUN()));
+        // Most TMCStepper setters above use local shadow registers and are
+        // write-only.  Several getters below read the device, so omit the dump
+        // when duplicate responders make readback electrically ambiguous.
+        if (tmc2209RequiresReadback(_shared_address_write_only)) {
+            log_verbose("CHOPCONF: " << to_hex(tmc2209->CHOPCONF()));
+            log_verbose("COOLCONF: " << to_hex(tmc2209->COOLCONF()));
+            log_verbose("TPWMTHRS: " << to_hex(tmc2209->TPWMTHRS()));
+            log_verbose("TCOOLTHRS: " << to_hex(tmc2209->TCOOLTHRS()));
+            log_verbose("GCONF: " << to_hex(tmc2209->GCONF()));
+            log_verbose("PWMCONF: " << to_hex(tmc2209->PWMCONF()));
+            log_verbose("IHOLD_IRUN: " << to_hex(tmc2209->IHOLD_IRUN()));
+        }
 
         _cs_pin.synchronousWrite(false);
     }
 
     void TMC2209Driver::debug_message() {
-        if (_has_errors) {
+        if (_has_errors || _shared_address_write_only) {
             return;
         }
 
@@ -123,6 +170,11 @@ namespace MotorDrivers {
     }
 
     bool TMC2209Driver::test() {
+        if (_shared_address_write_only) {
+            log_warn(axisName() << " TMC2209 shared-address write-only mode; UART readback and diagnostics are unavailable");
+            return true;
+        }
+
         _cs_pin.synchronousWrite(true);
         if (!checkVersion(0x21, tmc2209->version())) {
             _cs_pin.synchronousWrite(false);

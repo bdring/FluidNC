@@ -4,10 +4,13 @@
 #pragma once
 
 #include "TrinamicUartDriver.h"
+#include "TMC2209SharedAddress.h"
 #include "Pin.h"
 #include "PinMapper.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <vector>
 
 const float TMC2209_RSENSE_DEFAULT = 0.11f;
 
@@ -15,14 +18,17 @@ namespace MotorDrivers {
 
     class TMC2209Driver : public TrinamicUartDriver {
     public:
-        TMC2209Driver(const char* name) : TrinamicUartDriver(name) {}
+        TMC2209Driver(const char* name) : TrinamicUartDriver(name) { _tmc2209_instances.push_back(this); }
+        ~TMC2209Driver() override {
+            _tmc2209_instances.erase(std::remove(_tmc2209_instances.begin(), _tmc2209_instances.end(), this), _tmc2209_instances.end());
+        }
 
         // Overrides for inherited methods
         void init() override;
         void set_disable(bool disable);
         void config_motor() override;
         void debug_message() override;
-        void validate() override { StandardStepper::validate(); }
+        void validate() override;
 
         void group(Configuration::HandlerBase& handler) override {
             TrinamicUartDriver::group(handler);
@@ -33,6 +39,7 @@ namespace MotorDrivers {
             handler.item("stallguard", _stallguard, 0, 255);
             handler.item("stallguard_debug", _stallguardDebugMode);
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
+            handler.item("shared_address_write_only", _shared_address_write_only);
         }
 
         void afterParse() override {
@@ -43,9 +50,14 @@ namespace MotorDrivers {
         }
 
     private:
+        static std::vector<TMC2209Driver*> _tmc2209_instances;
+
         TMC2209Stepper* tmc2209 = nullptr;
+        bool            _shared_address_write_only = false;
 
         bool test();
         void set_registers(bool isHoming);
+        bool sameUartAddress(const TMC2209Driver& other) const;
+        TMC2209UartSettings uartSettings() const;
     };
 }
