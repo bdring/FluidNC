@@ -85,6 +85,7 @@ idf_component_register(SRCS BTConfig.cpp
 							Machine/SPIBus.cpp
 							Machine/UserInputs.cpp
 							Machine/UserOutputs.cpp
+						Machine/USBDrive.cpp
 							Motors/Dynamixel2.cpp
 							Motors/MotorDriver.cpp
 							Motors/NullMotor.cpp
@@ -150,7 +151,7 @@ idf_component_register(SRCS BTConfig.cpp
 							WebUI/WSChannel.cpp
 							WebUI/ASyncTCP_Shim.cpp
                             version.cpp
-
+						usbmsc.cpp
 							# extra
 							# Spindles/ODriveSpindle.cpp
 							# Spindles/ODrive/ODriveESP32.cpp

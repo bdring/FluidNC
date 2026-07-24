@@ -12,13 +12,15 @@ struct Volume {
 };
 extern Volume SD;
 extern Volume LocalFS;
+extern Volume USBFS;
 
 class FluidPath : public stdfs::path {
 private:
     FluidPath(const std::string_view name, const Volume& fs, std::error_code*);
 
     static uint32_t _refcnt;
-    bool            _isSD = false;
+    bool            _isSD  = false;
+    bool            _isUSB = false;
 
 public:
     FluidPath(const std::string_view name, const Volume& fs, std::error_code& ec) noexcept : FluidPath(name, fs, &ec) {}

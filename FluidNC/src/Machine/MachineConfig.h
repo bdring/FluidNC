@@ -16,6 +16,7 @@
 #include "Probe.h"
 #include "Parking.h"
 #include "SDCard.h"
+#include "Machine/USBDrive.h"
 #include "Spindles/Spindle.h"
 #include "Stepping.h"
 #include "Stepper.h"
@@ -79,6 +80,9 @@ namespace Machine {
         UserOutputs*    _userOutputs = nullptr;
         UserInputs*     _userInputs  = nullptr;
         SDCard*         _sdCard      = nullptr;
+#if MAX_N_USB_HOST
+        USBDrive*       _usbDrive    = nullptr;
+#endif
         Macros*         _macros      = nullptr;
         Start*          _start       = nullptr;
         Parking*        _parking     = nullptr;

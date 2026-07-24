@@ -89,6 +89,11 @@ void setup() {
                 config->_sdCard->init();
             }
 #        endif
+#        if MAX_N_USB_HOST
+            if (config->_usbDrive != nullptr) {
+                config->_usbDrive->init();
+            }
+#        endif
         }
 #    endif
 

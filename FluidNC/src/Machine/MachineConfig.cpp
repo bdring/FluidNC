@@ -59,6 +59,9 @@ namespace Machine {
 #if MAX_N_SDCARD
         handler.section("sdcard", _sdCard);
 #endif
+#if MAX_N_USB_HOST
+        handler.section("usbdrive", _usbDrive);
+#endif
 
         handler.section("kinematics", _kinematics);
         handler.section("axes", _axes);
@@ -118,6 +121,11 @@ namespace Machine {
 #if MAX_N_SDCARD
         if (_sdCard == nullptr) {
             _sdCard = new SDCard();
+        }
+#endif
+#if MAX_N_USB_HOST
+        if (_usbDrive == nullptr) {
+            _usbDrive = new USBDrive();
         }
 #endif
 
@@ -294,6 +302,9 @@ namespace Machine {
         delete _probe;
 #if MAX_N_SDCARD
         delete _sdCard;
+#endif
+#if MAX_N_USB_HOST
+        delete _usbDrive;
 #endif
 #if MAX_N_SDCARD
         delete _spi;

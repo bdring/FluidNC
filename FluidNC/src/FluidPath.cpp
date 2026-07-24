@@ -3,6 +3,7 @@
 
 #include "FluidPath.h"
 #include "Driver/sdspi.h"
+#include "Driver/usbmsc.h"
 #include "Config.h"
 #include "Error.h"
 #include "Machine/MachineConfig.h"
@@ -15,16 +16,29 @@
 
 Volume SD { "sd" };
 Volume LocalFS { "localfs" };
+Volume USBFS { "usb" };
 
 uint32_t FluidPath::_refcnt = 0;
+static uint32_t usb_refcnt = 0;
 static std::mutex sd_refcnt_mutex;
+static std::mutex usb_refcnt_mutex;
 static SemaphoreHandle_t sd_mount_lock = nullptr;
+static SemaphoreHandle_t usb_mount_lock = nullptr;
 
 static void ensure_sd_mount_lock() {
     if (!sd_mount_lock) {
         sd_mount_lock = xSemaphoreCreateBinary();
         if (sd_mount_lock) {
             xSemaphoreGive(sd_mount_lock);
+        }
+    }
+}
+
+static void ensure_usb_mount_lock() {
+    if (!usb_mount_lock) {
+        usb_mount_lock = xSemaphoreCreateBinary();
+        if (usb_mount_lock) {
+            xSemaphoreGive(usb_mount_lock);
         }
     }
 }
@@ -68,6 +82,11 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
             ret += tail;
             return ret;
         }
+        if (string_util::equal_ignore_case(fsname, USBFS.name)) {
+            ret = USBFS.prefix;
+            ret += tail;
+            return ret;
+        }
         ret = defaultFs.prefix;
         ret += filename;
         return ret;
@@ -82,7 +101,8 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
 
 FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_code* ecptr) : std::filesystem::path(canonPath(name, fs)) {
     auto mount = *(++begin());  // Use the path iterator to get the first component
-    _isSD      = mount == "sd";
+    _isSD  = mount == "sd";
+    _isUSB = mount == "usb";
 
     if (_isSD) {
         std::lock_guard<std::mutex> ref_guard(sd_refcnt_mutex);
@@ -92,7 +112,7 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
                 *ecptr = ec;
                 return;
             }
-            throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
+            throw stdfs::filesystem_error("SD card is inaccessible", stdfs::path(name), ec);
         }
         if (_refcnt == 0) {
             ensure_sd_mount_lock();
@@ -108,49 +128,107 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
                     *ecptr = ec;
                     return;
                 }
-                throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
+                throw stdfs::filesystem_error("SD card is inaccessible", stdfs::path(name), ec);
             }
         }
         ++_refcnt;
     }
+
+#if MAX_N_USB_HOST
+    if (_isUSB) {
+        std::lock_guard<std::mutex> ref_guard(usb_refcnt_mutex);
+        if (!config->_usbDrive->config_ok) {
+            std::error_code ec = FluidError::SDNotConfigured;
+            if (ecptr) {
+                *ecptr = ec;
+                return;
+            }
+            throw stdfs::filesystem_error { "USB drive is inaccessible", stdfs::path(name), ec };
+        }
+        if (usb_refcnt == 0) {
+            ensure_usb_mount_lock();
+            if (usb_mount_lock) {
+                xSemaphoreTake(usb_mount_lock, portMAX_DELAY);
+            }
+            auto ec = usb_mount();
+            if (ec) {
+                if (usb_mount_lock) {
+                    xSemaphoreGive(usb_mount_lock);
+                }
+                if (ecptr) {
+                    *ecptr = ec;
+                    return;
+                }
+                throw stdfs::filesystem_error("USB drive is inaccessible", stdfs::path(name), ec);
+            }
+        }
+        ++usb_refcnt;
+    }
+#endif
 }
 
-FluidPath::FluidPath(const FluidPath& o) : path(o), _isSD(o._isSD) {
-    if (this != &o && _isSD) {
-        ++_refcnt;
+FluidPath::FluidPath(const FluidPath& o) : path(o), _isSD(o._isSD), _isUSB(o._isUSB) {
+    if (this != &o) {
+        if (_isSD) {
+            ++_refcnt;
+        }
+        if (_isUSB) {
+            ++usb_refcnt;
+        }
     }
 }
 
-FluidPath::FluidPath(FluidPath&& o) : path(std::move(o)), _isSD(o._isSD) {
+FluidPath::FluidPath(FluidPath&& o) : path(std::move(o)), _isSD(o._isSD), _isUSB(o._isUSB) {
     if (this != &o) {
         // After a move, the other object is dead so we do not want
         // to decrement the refcount on destruction
-        o._isSD = false;
+        o._isSD  = false;
+        o._isUSB = false;
     }
 }
 
 FluidPath& FluidPath::operator=(const FluidPath& o) {
     stdfs::path::operator=(o);
 
-    _isSD = o._isSD;
-    if (&o != this && _isSD) {
-        ++_refcnt;
+    if (&o != this) {
+        _isSD  = o._isSD;
+        _isUSB = o._isUSB;
+        if (_isSD) {
+            ++_refcnt;
+        }
+        if (_isUSB) {
+            ++usb_refcnt;
+        }
     }
     return *this;
 }
 
 FluidPath& FluidPath::operator=(FluidPath&& o) {
     std::swap(_isSD, o._isSD);
+    std::swap(_isUSB, o._isUSB);
     stdfs::path::operator=(std::move(o));
     return *this;
 }
 
 FluidPath::~FluidPath() {
-    std::lock_guard<std::mutex> ref_guard(sd_refcnt_mutex);
-    if (_isSD && (_refcnt && --_refcnt == 0)) {
-        sd_unmount();
-        if (sd_mount_lock) {
-            xSemaphoreGive(sd_mount_lock);
+    if (_isSD) {
+        std::lock_guard<std::mutex> ref_guard(sd_refcnt_mutex);
+        if (_refcnt && --_refcnt == 0) {
+            sd_unmount();
+            if (sd_mount_lock) {
+                xSemaphoreGive(sd_mount_lock);
+            }
         }
     }
+#if MAX_N_USB_HOST
+    if (_isUSB) {
+        std::lock_guard<std::mutex> ref_guard(usb_refcnt_mutex);
+        if (usb_refcnt && --usb_refcnt == 0) {
+            usb_unmount();
+            if (usb_mount_lock) {
+                xSemaphoreGive(usb_mount_lock);
+            }
+        }
+    }
+#endif
 }
