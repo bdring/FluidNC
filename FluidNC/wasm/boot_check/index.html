@@ -121,21 +121,19 @@ FluidNCModule().then((Module) => {
   start();
   log('[page] fluidnc_start() returned (should be immediate, not blocked)');
 
-  // Lineedit (src/lineedit.cpp) deliberately does not echo a clean run of
-  // typed characters itself -- see addchar(c, /*echo=*/false) -- the same
-  // way a real GRBL/FluidNC serial connection doesn't echo, relying on the
-  // terminal program's own local-echo setting. It only takes full manual
-  // control of the display (via its needs_reecho/echo_line() catch-up
-  // reprint) once an actual edit/movement key is pressed. So this needs to
-  // behave like a serial terminal with local echo on: blindly write
-  // whatever was typed (including multi-byte escape sequences xterm.js
-  // already encodes for arrow keys, Delete, Home/End, etc.) back to the
-  // display AND forward it to FluidNC, trusting Lineedit's catch-up
-  // reprint to resync the display correctly once editing starts.
-  term.onData((data) => {
-    term.write(data);
-    sendText(data);
-  });
+  // No local echo, on purpose: FluidNC boots mimicking classic Grbl, which
+  // doesn't echo either -- conventional Grbl senders are a line-collecting
+  // send box that transmits the whole line unechoed, and Grbl-style
+  // firmware works poorly with character-at-a-time terminals even *with*
+  // local echo, because editing a line that was never echoed just garbles
+  // the display. So a real FluidNC session over a real terminal shows
+  // nothing as you type until you press some control character (backspace,
+  // an arrow key, Tab, ...), at which point Lineedit (src/lineedit.cpp)
+  // takes full manual control of the display via its needs_reecho/
+  // echo_line() catch-up reprint, and everything from then on echoes
+  // correctly. Matching that (not adding our own local echo) is what makes
+  // this behave the same as real FluidNC on a real terminal emulator.
+  term.onData((data) => sendText(data));
 }).catch((err) => {
   log('[page] WASM module failed to load: ' + err);
 });
