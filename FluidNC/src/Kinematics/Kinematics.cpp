@@ -77,7 +77,7 @@ namespace Kinematics {
         return _system->max_motor_pos(axis);
     }
 
-    void Kinematics::homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) {
+    void Kinematics::homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t& settling_ms) {
         Assert(_system != nullptr, no_system);
         return _system->homing_move(axes, motors, phase, settling_ms);
     }
@@ -85,6 +85,11 @@ namespace Kinematics {
     void Kinematics::set_homed_mpos(float* mpos) {
         Assert(_system != nullptr, no_system);
         return _system->set_homed_mpos(mpos);
+    }
+
+    void Kinematics::rearmLimits(AxisMask axisMask, MotorMask motorMask) {
+        Assert(_system != nullptr, no_system);
+        return _system->rearmLimits(axisMask, motorMask);
     }
 
     void Kinematics::group(Configuration::HandlerBase& handler) {

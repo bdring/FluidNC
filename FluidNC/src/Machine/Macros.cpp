@@ -6,8 +6,6 @@
 #include "System.h"                 // sys
 #include "Machine/MachineConfig.h"  // config
 #include "Job.h"                    // Job::
-#include <sstream>
-#include <iomanip>
 
 void MacroEvent::run(void* arg) const {
     config->_macros->_macro[_num].run(nullptr);
@@ -154,9 +152,7 @@ Error MacroChannel::pollLine(char* line) {
             log_debug("Macro line: " << line);
             float percent_complete = (float)_position * 100.0f / _macro->get().length();
 
-            std::ostringstream s;
-            s << "SD:" << std::fixed << std::setprecision(2) << percent_complete << "," << name();
-            _progress = s.str();
+            _progress = "SD:" + formatFloat(percent_complete, 2) + "," + name();
         }
             return Error::Ok;
         case Error::Eof:

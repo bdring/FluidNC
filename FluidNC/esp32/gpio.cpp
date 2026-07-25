@@ -161,6 +161,26 @@ static void gpio_send_event(int32_t gpio_num, bool active) {
     }
 }
 
+void gpio_disarm(int32_t gpio_num) {
+    gpios_update(gpios_interest, gpio_num, false);
+}
+
+void gpio_rearm(int32_t gpio_num) {
+    auto mask = gpio_mask(gpio_num);
+    if (!(gpios_interest & mask)) {
+        gpios_interest |= mask;
+        // If the GPIO is now inactive, send the corresponding event
+        // to update the Pin state.  Don't send a duplicate event if
+        // the GPIO is still active.
+        if (!(get_gpios() & mask)) {
+            auto arg = gpioArgs[gpio_num];
+            if (arg) {
+                protocol_send_event_from_ISR(&pinInactiveEvent, arg);
+            }
+        }
+    }
+}
+
 void poll_gpios() {
     gpio_mask_t gpios_active  = get_gpios();
     gpio_mask_t gpios_changed = (gpios_active ^ gpios_current) & gpios_interest;

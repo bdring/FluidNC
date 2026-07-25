@@ -9,8 +9,7 @@
 #include <cstring>
 #include <cstdint>
 #include <cmath>
-#include <sstream>
-#include <iomanip>
+#include <cstdio>
 #include <string_view>
 
 uint32_t get_ms() {
@@ -135,6 +134,14 @@ const char* to_hex(uint32_t n) {
     return hexstr;
 }
 
+// Lightweight fixed-precision float formatting.  Uses snprintf instead of
+// std::ostringstream/<iomanip> to reduce reliance on libstdc++, which is quite large
+std::string formatFloat(double value, int decimals) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.*f", decimals, value);
+    return std::string(buf);
+}
+
 std::string formatBytes(uint64_t bytes) {
     if (bytes < 1024) {
         return std::to_string((uint16_t)bytes) + " B";
@@ -142,29 +149,21 @@ std::string formatBytes(uint64_t bytes) {
     float b = bytes;
     b /= 1024;
     if (b < 1024) {
-        std::ostringstream msg;
-        msg << std::fixed << std::setprecision(2) << b << " KB";
-        return msg.str();
+        return formatFloat(b, 2) + " KB";
     }
     b /= 1024;
     if (b < 1024) {
-        std::ostringstream msg;
-        msg << std::fixed << std::setprecision(2) << b << " MB";
-        return msg.str();
+        return formatFloat(b, 2) + " MB";
     }
     b /= 1024;
     if (b < 1024) {
-        std::ostringstream msg;
-        msg << std::fixed << std::setprecision(2) << b << " GB";
-        return msg.str();
+        return formatFloat(b, 2) + " GB";
     }
     b /= 1024;
     if (b > 99999) {
         b = 99999;
     }
-    std::ostringstream msg;
-    msg << std::fixed << std::setprecision(2) << b << " TB";
-    return msg.str();
+    return formatFloat(b, 2) + " TB";
 }
 
 std::string IP_string(uint32_t ipaddr) {

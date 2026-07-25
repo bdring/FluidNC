@@ -13,7 +13,7 @@ namespace Pins {
 
         static PinCapabilities GetDefaultCapabilities(pinnum_t index);
 
-        static std::vector<bool> _claimed;
+        static bool _claimed[MAX_N_GPIO];
 
         bool _lastWrittenValue = false;
 
@@ -42,6 +42,8 @@ namespace Pins {
         bool canStep() override { return true; }
 
         void registerEvent(InputPin* obj) override;
+        void disarm() override;
+        void rearm() override;
 
         ~GPIOPinDetail() override { _claimed[_index] = false; }
     };

@@ -62,7 +62,7 @@
 #    undef chmod
 #    define chmod _wchmod
 #endif
-namespace fs = std::filesystem;
+    namespace fs = std::filesystem;
 fs::path fs::absolute(const path& p) {
 #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
     error_code ec;
@@ -522,6 +522,7 @@ bool fs::create_directory(const path& p, const path& attributes, error_code& ec)
     return false;
 #endif
 }
+#if 0
 void fs::create_directory_symlink(const path& to, const path& new_symlink) {
     error_code ec;
     create_directory_symlink(to, new_symlink, ec);
@@ -529,11 +530,11 @@ void fs::create_directory_symlink(const path& to, const path& new_symlink) {
         _GLIBCXX_THROW_OR_ABORT(filesystem_error("cannot create directory symlink", to, new_symlink, ec));
 }
 void fs::create_directory_symlink(const path& to, const path& new_symlink, error_code& ec) noexcept {
-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+#    ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
     ec = std::make_error_code(std::errc::not_supported);
-#else
+#    else
     create_symlink(to, new_symlink, ec);
-#endif
+#    endif
 }
 void fs::create_hard_link(const path& to, const path& new_hard_link) {
     error_code ec;
@@ -542,14 +543,14 @@ void fs::create_hard_link(const path& to, const path& new_hard_link) {
         _GLIBCXX_THROW_OR_ABORT(filesystem_error("cannot create hard link", to, new_hard_link, ec));
 }
 void fs::create_hard_link(const path& to, const path& new_hard_link, error_code& ec) noexcept {
-#ifdef _GLIBCXX_HAVE_UNISTD_H
+#    ifdef _GLIBCXX_HAVE_UNISTD_H
     if (::link(to.c_str(), new_hard_link.c_str()))
         ec.assign(errno, std::generic_category());
     else
         ec.clear();
-#else
+#    else
     ec = std::make_error_code(std::errc::not_supported);
-#endif
+#    endif
 }
 void fs::create_symlink(const path& to, const path& new_symlink) {
     error_code ec;
@@ -558,15 +559,16 @@ void fs::create_symlink(const path& to, const path& new_symlink) {
         _GLIBCXX_THROW_OR_ABORT(filesystem_error("cannot create symlink", to, new_symlink, ec));
 }
 void fs::create_symlink(const path& to, const path& new_symlink, error_code& ec) noexcept {
-#ifdef _GLIBCXX_HAVE_UNISTD_H
+#    ifdef _GLIBCXX_HAVE_UNISTD_H
     if (::symlink(to.c_str(), new_symlink.c_str()))
         ec.assign(errno, std::generic_category());
     else
         ec.clear();
-#else
+#    else
     ec = std::make_error_code(std::errc::not_supported);
-#endif
+#    endif
 }
+#endif
 fs::path fs::current_path() {
     error_code ec;
     path       p = current_path(ec);
@@ -780,9 +782,9 @@ void fs::last_write_time(const path& p __attribute__((__unused__)), file_time_ty
 #elif _GLIBCXX_HAVE_UTIME_H
     ::utimbuf times;
     times.modtime = s.count();
-    times.actime  = do_stat(
-        p, ec, [](const auto& st) { return st.st_atime; }, times.modtime);
-    if (::utime(p.c_str(), &times))
+    times.actime  = do_stat(p, ec, [](const auto& st) { return st.st_atime; }, times.modtime);
+    //    if (::utime(p.c_str(), &times))
+    if (false)
         ec.assign(errno, std::generic_category());
     else
         ec.clear();

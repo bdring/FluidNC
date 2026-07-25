@@ -11,18 +11,25 @@
 #include "Configuration/Configurable.h"
 #include "CoolantControl.h"
 #include "Kinematics/Kinematics.h"
-#include "Extenders/Extenders.h"
+#if SUPPORT_PIN_EXTENDERS
+#    include "Extenders/Extenders.h"
+#endif
 #include "Control.h"
 #include "Probe.h"
 #include "Parking.h"
 #include "SDCard.h"
+#if MAX_N_ETH
+#    include "Machine/EthPhy.h"
+#endif
 #include "Spindles/Spindle.h"
 #include "Stepping.h"
 #include "Stepper.h"
 #include "UartChannel.h"
 #include "Driver/Console.h"
 #include "Module.h"
-#include "Listeners/SysListener.h"
+#if SUPPORT_LISTENERS
+#    include "Listeners/SysListener.h"
+#endif
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2CBus.h"
@@ -79,13 +86,20 @@ namespace Machine {
         UserOutputs*    _userOutputs = nullptr;
         UserInputs*     _userInputs  = nullptr;
         SDCard*         _sdCard      = nullptr;
+#if MAX_N_ETH
+        EthPhy* _ethernet = nullptr;
+#endif
         Macros*         _macros      = nullptr;
         Start*          _start       = nullptr;
         Parking*        _parking     = nullptr;
 
-        //        Listeners::SysListenerList _sysListeners;
+#if SUPPORT_LISTENERS
+        Listeners::SysListenerList _sysListeners;
+#endif
         //        Spindles::SpindleList      _spindles;
+#if SUPPORT_PIN_EXTENDERS
         Extenders::Extenders* _extenders = nullptr;
+#endif
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };

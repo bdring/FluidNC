@@ -10,7 +10,7 @@
 static TaskHandle_t wdt_task_handle = nullptr;
 
 static void get_wdt_task_handle() {
-#if ESP_IDF_VERSION_MAJOR >= 5
+#if ESP_IDF_VERSION_MAJOR >= 5 && ESP_IDF_VERSION_MINOR >= 2
     TaskHandle_t idle_0 = xTaskGetIdleTaskHandleForCore(0);
 #else
     TaskHandle_t idle_0 = xTaskGetIdleTaskHandleForCPU(0);

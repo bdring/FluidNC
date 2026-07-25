@@ -1,0 +1,47 @@
+name: Build linux_x86_64
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - MachineSimulator
+      - main
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-pio-linux_x86_64-${{ hashFiles('**/platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-linux_x86_64-
+
+      - name: Build linux_x86_64
+        run: pio run -e linux_x86_64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fluidnc-linux_x86_64
+          path: .pio/build/linux_x86_64/program
+          if-no-files-found: error

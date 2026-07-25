@@ -356,7 +356,7 @@ namespace Kinematics {
         copyArray(_last_motor_pos, get_motor_pos(), n_axis);
     }
 
-    void ParallelDelta::homing_move(AxisMask axisMask, MotorMask motorMask, Machine::Homing::Phase phase, uint32_t settling_ms) {
+    void ParallelDelta::homing_move(AxisMask axisMask, MotorMask motorMask, Machine::Homing::Phase phase, uint32_t& settling_ms) {
         if ((axisMask & 7) && (axisMask > 7)) {
             log_error("Delta axes XYZ cannot be homed in the same cycle as other axes");
             return;

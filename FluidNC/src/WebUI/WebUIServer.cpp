@@ -4,16 +4,23 @@
 #include "Machine/MachineConfig.h"
 #include "Serial.h"    // is_realtime_command()
 #include "Settings.h"  // settings_execute_line()
+#include "Error.h"     // ErrorException
 
 #include "WebUIServer.h"
 
-#include "Mdns.h"
+#include "Driver/fluidnc_mdns.h"
+#include "NetSettings.h"
 
 #include <WiFi.h>
-#include <StreamString.h>
-#include <Update.h>
-#include <esp_wifi_types.h>
-#include <DNSServer.h>
+// #include <StreamString.h>
+#ifdef HAVE_UPDATE
+#    include <Update.h>
+#    include <esp_wifi_types.h>
+#    include <esp_ota_ops.h>
+#endif
+#ifdef HAVE_DNS
+#    include <DNSServer.h>
+#endif
 
 #include "WSChannel.h"
 
@@ -24,6 +31,7 @@
 #include "JSONEncoder.h"
 
 #include "HashFS.h"
+#include <cstdio>
 #include <list>
 #include <algorithm>
 #include <memory>
@@ -31,13 +39,14 @@
 #include "Mime.h"  // getContentType
 
 #include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
 #include "WebDAV.h"
 
+#ifdef HAVE_DNS
 namespace WebUI {
     const byte DNS_PORT = 53;
     DNSServer  dnsServer;
 }
+#endif
 
 namespace {
     struct FileListChunkState {
@@ -221,8 +230,6 @@ namespace {
 
 using namespace asyncsrv;
 
-#include <esp_ota_ops.h>
-
 //embedded response file if no files on LocalFS
 #include "NoFile.h"
 
@@ -248,7 +255,6 @@ namespace WebUI {
     AsyncWebServer*            WebUI_Server::_websocketserver = NULL;
     AsyncHeaderFreeMiddleware* WebUI_Server::_headerFilter    = NULL;
     AsyncWebSocket*            WebUI_Server::_socket_server   = NULL;
-    std::string                WebUI_Server::current_session  = "";
 #ifdef ENABLE_AUTHENTICATION
     AuthenticationIP* WebUI_Server::_head  = NULL;
     uint8_t           WebUI_Server::_nb_ip = 0;
@@ -277,7 +283,7 @@ namespace WebUI {
 
         _setupdone = false;
 
-        if (WiFi.getMode() == WIFI_OFF || !http_enable->get()) {
+        if (!networkEnabled() || !http_enable->get()) {
             return;
         }
 
@@ -294,10 +300,6 @@ namespace WebUI {
         _headerFilter->keep("If-None-Match");
         _headerFilter->keep("User-Agent");
 
-        // WebDAV needs these
-        _headerFilter->keep("Depth");
-        _headerFilter->keep("Destination");
-
         //For websockets we need to keep these headers, otherwise this wouldn't work!
         _headerFilter->keep("Upgrade");
         _headerFilter->keep("Connection");
@@ -305,6 +307,10 @@ namespace WebUI {
         _headerFilter->keep("Sec-WebSocket-Version");
         _headerFilter->keep("Sec-WebSocket-Protocol");
         _headerFilter->keep("Sec-WebSocket-Extensions");
+
+        // WebDAV needs these
+        _headerFilter->keep("Depth");
+        _headerFilter->keep("Destination");
 
         _webserver->addMiddlewares({ _headerFilter });
 
@@ -324,15 +330,9 @@ namespace WebUI {
         // 4 - Potentially check for a difference in requests headers of v2 vs v3 to dynamically send the proper payload in the same handler
         // For now, I've settled with #3
         _socket_server = new AsyncWebSocket("/");
-
-        _socket_server->addMiddleware([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
-            current_session = getSessionCookie(request);
-            next();  // continue middleware chain
-        });
-        // Passing the current_session globally, lets hope there is no async switch back of other requests to change this in between
         _socket_server->onEvent(
             [](AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
-                WSChannels::handleEvent(server, client, type, arg, data, len, current_session);
+                WSChannels::handleEvent(server, client, type, arg, data, len);
             });
 
         _webserver->addHandler(_socket_server);
@@ -355,6 +355,7 @@ namespace WebUI {
         //web commands
         _webserver->on("/command", HTTP_ANY, handle_web_command);
         _webserver->on("/command_silent", HTTP_ANY, handle_web_command_silent);
+        _webserver->on("/trace", HTTP_ANY, handle_trace);
         _webserver->on("/feedhold_reload", HTTP_ANY, handleFeedholdReload);
         _webserver->on("/cyclestart_reload", HTTP_ANY, handleCyclestartReload);
         _webserver->on("/restart_reload", HTTP_ANY, handleRestartReload);
@@ -363,13 +364,16 @@ namespace WebUI {
         //LocalFS
         _webserver->on("/files", HTTP_ANY, handleFileList, LocalFSFileupload);
 
+#ifdef HAVE_UPDATE
         //web update
         _webserver->on("/updatefw", HTTP_ANY, handleUpdate, WebUpdateUpload);
+#endif
 
         //Direct SD management
         _webserver->on("/upload", HTTP_ANY, handle_direct_SDFileList, SDFileUpload);
         //_webserver->on("/SD", HTTP_ANY, handle_SDCARD);
 
+#ifdef HAVE_DNS
         if (WiFi.getMode() == WIFI_AP) {
             // if DNSServer is started with "*" for domain name, it will reply with
             // provided IP to all DNS request
@@ -380,12 +384,12 @@ namespace WebUI {
             //do not forget the / at the end
             _webserver->on("/fwlink/", HTTP_ANY, handle_root);
         }
+        Mdns::add("_http", "_tcp", _port);
+#endif
 
         log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
-
-        Mdns::add("_http", "_tcp", _port);
 
         HashFS::hash_all();
 
@@ -397,7 +401,9 @@ namespace WebUI {
 
         //        SSDP.end();
 
-        Mdns::remove("_http", "_tcp");
+#ifdef HAVE_DNS
+        WMB Mdns::remove("_http", "_tcp");
+#endif
 
         if (_socket_server) {
             delete _socket_server;
@@ -436,10 +442,21 @@ namespace WebUI {
             int pos = cookies.find("sessionId=");
             if (pos != std::string::npos) {
                 int pos2 = cookies.find(";", pos);
-                return cookies.substr(pos + strlen("sessionId="), pos2);
+                auto start = pos + strlen("sessionId=");
+                if (pos2 == std::string::npos) {
+                    return cookies.substr(start);
+                }
+                return cookies.substr(start, pos2 - start);
             }
         }
         return "";
+    }
+
+    std::string WebUI_Server::getWebSocketSession(AsyncWebServerRequest* request, AsyncWebSocketClient* client) {
+        if (request->hasParam("independent_session")) {
+            return client ? getSession(client) : getSession(request->client());
+        }
+        return getSessionCookie(request);
     }
 
     static void get_random_string(char* str, unsigned int len) {
@@ -522,16 +539,14 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file   = NULL;
         try {
-            file = new FileStream(path, "r", LocalFS);
-        } catch (const Error err) {
+            file = new FileStream(fpath, "r", LocalFS);
+        } catch (const ErrorException& err) {
             if (acceptGz) {
                 try {
-                    std::string gzpath(fpath);
-                    //                    std::filesystem::path gzpath(fpath);
-                    gzpath += ".gz";
-                    file   = new FileStream(gzpath, "r", LocalFS);
+                    fpath += ".gz";
+                    file   = new FileStream(fpath, "r");
                     isGzip = true;
-                } catch (const Error err) {}
+                } catch (const ErrorException& err) {}
             }
         }
         if (!file) {
@@ -580,8 +595,7 @@ namespace WebUI {
         return true;
     }
     void WebUI_Server::sendWithOurAddress(AsyncWebServerRequest* request, const char* content, uint16_t code) {
-        auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
-        std::string ipstr = IP_string(ip);
+        std::string ipstr = webServerIp();
         if (_port != 80) {
             ipstr += ":";
             ipstr += std::to_string(_port);
@@ -619,6 +633,14 @@ namespace WebUI {
 
     void WebUI_Server::handle_root(AsyncWebServerRequest* request) {
         log_info("WebUI: Request from " << request->client()->remoteIP());
+        const char* referer    = request->hasHeader("Referer") ? request->getHeader("Referer")->value().c_str() : "";
+        const char* fetch_mode = request->hasHeader("Sec-Fetch-Mode") ? request->getHeader("Sec-Fetch-Mode")->value().c_str() : "";
+        const char* fetch_dest = request->hasHeader("Sec-Fetch-Dest") ? request->getHeader("Sec-Fetch-Dest")->value().c_str() : "";
+        const char* fetch_site = request->hasHeader("Sec-Fetch-Site") ? request->getHeader("Sec-Fetch-Site")->value().c_str() : "";
+        auto session = getSessionCookie(request);
+        if (!session.empty()) {
+            WSChannels::closeSessionChannels(session);
+        }
         if (!(request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes")) {
             if (myStreamFile(request, "index.html", false, true)) {
                 return;
@@ -631,8 +653,24 @@ namespace WebUI {
         request->send(response);
     }
 
+    void WebUI_Server::handle_trace(AsyncWebServerRequest* request) {
+        std::string msg;
+        if (request->hasParam("msg")) {
+            msg = request->getParam("msg")->value().c_str();
+        }
+        std::printf("[WEBUI_BROWSER] session=%s pageid=%lu msg=%s\n",
+                    getSessionCookie(request).c_str(),
+                    (unsigned long)getPageid(request),
+                    msg.c_str());
+        request->send(200, "text/plain", "");
+    }
+
     // Handle filenames and other things that are not explicitly registered
     void WebUI_Server::handle_not_found(AsyncWebServerRequest* request) {
+        const char* upgrade    = request->hasHeader("Upgrade") ? request->getHeader("Upgrade")->value().c_str() : "";
+        const char* connection = request->hasHeader("Connection") ? request->getHeader("Connection")->value().c_str() : "";
+        const char* protocol =
+            request->hasHeader("Sec-WebSocket-Protocol") ? request->getHeader("Sec-WebSocket-Protocol")->value().c_str() : "";
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             request->redirect("/");
             //_webserver->client().stop();
@@ -640,7 +678,6 @@ namespace WebUI {
         }
 
         std::string path(request->url().c_str());  //request->urlDecode(request->url()).c_str());
-
         if (path.rfind("/api/", 0) == 0) {
             request->send(404);
             return;
@@ -711,15 +748,24 @@ namespace WebUI {
     }
 
     std::string getSession(AsyncClient* client) {
-        return (std::to_string(IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
+        if (!client) {
+            return "";
+        }
+        return (std::to_string((uint32_t)IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
+    }
+    std::string getSession(AsyncWebSocketClient* client) {
+        if (!client) {
+            return "";
+        }
+        return (std::to_string((uint32_t)client->remoteIP()) + ":" + std::to_string(client->remotePort()));
     }
     void WebUI_Server::websocketCommand(AsyncWebServerRequest* request, const char* cmd, uint32_t pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
             request->send(401, "text/plain", "Authentication failed\n");
             return;
         }
-        std::string session  = getSessionCookie(request);
-        bool        hasError = WSChannels::runGCode(pageid, cmd, session);
+        std::string session = getSessionCookie(request);
+        bool hasError = WSChannels::runGCode(pageid, cmd, session);
         request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
     }
 
@@ -740,9 +786,6 @@ namespace WebUI {
             // [ESPXXX] commands expect data in the HTTP response
             String cmdUpper = cmd;
             cmdUpper.toUpperCase();
-            // Modified async hack // no longer needed...
-            //if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") || cmdUpper.startsWith("$ESP") {
-            // Original check (now also work with $ESP400, but is slower than if it was returned as http response)
             if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/")) {
                 synchronousCommand(request, cmd.c_str(), silent, auth_level, isAllowedInMotion(cmdUpper));
             } else {
@@ -1079,6 +1122,7 @@ namespace WebUI {
         }
     }
 
+#ifdef HAVE_UPDATE
     //File upload for Web update
     void WebUI_Server::WebUpdateUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
         static size_t   last_upload_update;
@@ -1161,6 +1205,7 @@ namespace WebUI {
             }
         }
     }
+#endif
 
     void WebUI_Server::handleFileOps(AsyncWebServerRequest* request, const Volume& fs) {
         //this is only for admin and user
@@ -1289,8 +1334,8 @@ namespace WebUI {
             _uploadPath = "";  // Root directory
         }
 
-        auto space = stdfs::space(fpath);
-        if (filesize && filesize > space.available) {
+        auto space = stdfs::space(fpath, ec);
+        if (!ec && filesize && filesize > space.available) {
             // If the file already exists, maybe there will be enough space
             // when we replace it.
             auto existing_size = stdfs::file_size(fpath, ec);
@@ -1307,7 +1352,7 @@ namespace WebUI {
             try {
                 _uploadFile    = new FileStream(fpath, "w");
                 _upload_status = UploadStatus::ONGOING;
-            } catch (const Error err) {
+            } catch (const ErrorException& err) {
                 _uploadFile    = nullptr;
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload failed - cannot create file");
@@ -1352,7 +1397,7 @@ namespace WebUI {
                 size_t actual_size;
                 try {
                     actual_size = stdfs::file_size(filepath);
-                } catch (const Error err) { actual_size = 0; }
+                } catch (const ErrorException& err) { actual_size = 0; }
 
                 if (filesize != actual_size) {
                     _upload_status = UploadStatus::FAILED;
@@ -1399,9 +1444,11 @@ namespace WebUI {
 
     void WebUI_Server::poll() {
         static uint32_t start_time = millis();
+#ifdef HAVE_DNS
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();
         }
+#endif
         if (_schedule_reboot and _schedule_reboot_time == millis()) {
             _schedule_reboot = false;
             protocol_send_event(&fullResetEvent);

@@ -117,6 +117,8 @@ bool constrain_with_message(T& value, const T min, const T max, const char* name
 
 bool multiple_bits_set(uint32_t val);
 
+std::string formatFloat(double value, int decimals);
+
 std::string formatBytes(uint64_t bytes);
 
 std::string IP_string(uint32_t ipaddr);

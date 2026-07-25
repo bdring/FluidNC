@@ -83,7 +83,7 @@ namespace Kinematics {
         bool delta_calcAngleYZ(float x0, float y0, float z0, float& theta);
 
         void motorVector(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms);
-        void homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) override;
+        void homing_move(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, uint32_t& settling_ms) override;
         void set_homed_mpos(float* mpos) override;
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) override;
 

@@ -4,7 +4,7 @@
 #pragma once
 
 #include <vector>
-#include <sstream>
+#include <string>
 
 #include "Pin.h"
 #include "Report.h"    // report_gcode_modes()
@@ -67,6 +67,8 @@ namespace Configuration {
             send_item(name, s);
         }
 
+        void send_item(const char* name, const char* value) { send_item(name, std::string(value)); }
+
         void item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) override {
             send_item(name, std::to_string(value));
         }
@@ -83,14 +85,13 @@ namespace Configuration {
             if (value.size() == 0) {
                 send_item(name, "None");
             } else {
-                std::ostringstream s;
-                s.precision(2);
+                std::string s;
                 const char* separator = "";
                 for (speedEntry n : value) {
-                    s << separator << n.speed << "=" << std::fixed << n.percent << "%";
+                    s += separator + std::to_string(n.speed) + "=" + formatFloat(n.percent, 2) + "%";
                     separator = " ";
                 }
-                send_item(name, s.str());
+                send_item(name, s);
             }
         }
 
@@ -98,15 +99,13 @@ namespace Configuration {
             if (value.size() == 0) {
                 send_item(name, "None");
             } else {
-                std::ostringstream s;
-                s.precision(3);
-                s << std::fixed;
+                std::string s;
                 const char* separator = "";
                 for (float n : value) {
-                    s << separator << n;
+                    s += separator + formatFloat(n, 3);
                     separator = " ";
                 }
-                send_item(name, s.str());
+                send_item(name, s);
             }
         }
 
@@ -124,6 +123,7 @@ namespace Configuration {
         void item(const char* name, Macro& value) override { send_item(name, value.get()); }
 
         void item(const char* name, IPAddress& value) override { send_item(name, IP_string(value)); }
+        void item(const char* name, step_engine*& value) override { send_item(name, value->name); }
         void item(const char* name, uint32_t& value, const EnumItem* e) override {
             const char* str = "unknown";
             for (; e->name; ++e) {

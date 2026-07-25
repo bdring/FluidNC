@@ -105,8 +105,6 @@ public:
     bool          synchronous() { return _synchronous; }
 };
 
-extern NVS nvs;
-
 class Setting : public Word {
 private:
 protected:

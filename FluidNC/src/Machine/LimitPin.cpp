@@ -53,6 +53,11 @@ namespace Machine {
 
     void LimitPin::trigger(bool active) {
         if (active) {
+            if (Homing::approach()) {
+                // Prevent spamming with rapid-fire events if motion
+                // stops right at the switch activation threshold
+                disarm();
+            }
             if (Homing::approach() || (!state_is(State::Homing) && _pHardLimits)) {
                 if (_pLimited != nullptr) {
                     *_pLimited = active;

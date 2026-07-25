@@ -106,10 +106,10 @@ namespace WebUI {
     class HttpCommand {
     public:
         // Maximum request timeout in milliseconds
-        static const uint32_t MAX_TIMEOUT_MS = 10000;
+        inline static constexpr uint32_t MAX_TIMEOUT_MS = 10000;
 
         // Default request timeout in milliseconds
-        static const uint32_t DEFAULT_TIMEOUT_MS = 5000;
+        inline static constexpr uint32_t DEFAULT_TIMEOUT_MS = 5000;
 
         // Settings file path on LocalFS (stores tokens, etc.)
         static constexpr const char* SETTINGS_FILE_PATH = "/http_settings.json";

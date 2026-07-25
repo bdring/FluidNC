@@ -1,10 +1,7 @@
 #include "HashFS.h"
 #include "FileStream.h"
-
-#ifdef WITH_MBEDTLS
-#    include <mbedtls/md.h>
-#    include "Driver/watchdog.h"
-#endif
+#include "SHA256.h"
+#include "Driver/watchdog.h"
 
 std::map<std::string, std::string> HashFS::localFsHashes;
 
@@ -20,23 +17,15 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
         uint8_t    buf[512];
         size_t     len;
 
-#ifdef WITH_MBEDTLS
-        mbedtls_md_context_t ctx;
+        SHA256_CTX ctx;
+        sha256_init(&ctx);
 
-        mbedtls_md_init(&ctx);
-        mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
-        mbedtls_md_starts(&ctx);
         while ((len = inFile.read(buf, 512)) > 0) {
-            mbedtls_md_update(&ctx, buf, len);
+            sha256_update(&ctx, buf, len);
             feed_watchdog();
         }
-        mbedtls_md_finish(&ctx, shaResult);
-        mbedtls_md_free(&ctx);
-#else
-        // Use the first 32 bytes of the file as a not-very-good "hash"
-        inFile.read(shaResult, 32);
-#endif
-    } catch (const Error err) {
+        sha256_final(&ctx, shaResult);
+    } catch (const ErrorException& err) {
         log_debug("Cannot hash file " << ipath.string());
         return Error::FsFailedOpenFile;
     }
@@ -107,7 +96,11 @@ void HashFS::hash_all() {
 
     auto iter = stdfs::directory_iterator { lfspath, ec };
     if (ec) {
-        log_error(lfspath.string() << " " << ec.message());
+        if (ec == std::errc::no_such_file_or_directory) {
+            log_debug("HashFS: LocalFS unavailable at " << lfspath.string());
+        } else {
+            log_error(lfspath.string() << " " << ec.message());
+        }
         return;
     }
     for (auto const& dir_entry : iter) {
