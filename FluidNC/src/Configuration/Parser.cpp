@@ -24,7 +24,7 @@ namespace Configuration {
         if (len != _token._key.size()) {
             return false;
         }
-        bool result = !strncasecmp(expected, _token._key.cbegin(), len);
+        bool result = !strncasecmp(expected, _token._key.data(), len);
         if (result) {
             _token._state = TokenState::Matched;
         }

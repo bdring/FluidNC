@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FluidNC WASM boot check</title>
+<style>
+  body { font-family: monospace; padding: 2rem; }
+  #log { white-space: pre-wrap; border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; max-height: 70vh; overflow-y: auto; }
+  input { font-family: monospace; width: 30rem; }
+</style>
+</head>
+<body>
+<h1>FluidNC WASM boot check</h1>
+<p>Real FluidNC/src, real setup()/loop() on a background thread. No config.yaml is present yet, so expect it to land in an alarm/config-error state -- the point here is just that it boots and talks back, not that it's configured.</p>
+<div id="log">loading...</div>
+<input id="cmdline" placeholder="type a line, e.g. $I or ?, press Enter" autofocus>
+
+<script>
+const logEl = document.getElementById('log');
+logEl.textContent = '';
+function log(line) {
+  const div = document.createElement('div');
+  div.textContent = line;
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+self.fluidncOnOutput = (text) => log(text);
+</script>
+<script src="program.js"></script>
+<script>
+FluidNCModule().then((Module) => {
+  log('[page] WASM module instantiated');
+  const start = Module.cwrap('fluidnc_start', null, []);
+  const sendLine = Module.cwrap('fluidnc_send_line', null, ['string']);
+
+  log('[page] calling fluidnc_start()...');
+  start();
+  log('[page] fluidnc_start() returned (should be immediate, not blocked)');
+
+  document.getElementById('cmdline').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const line = e.target.value;
+      log('> ' + line);
+      sendLine(line);
+      e.target.value = '';
+    }
+  });
+}).catch((err) => {
+  log('[page] WASM module failed to load: ' + err);
+});
+</script>
+</body>
+</html>

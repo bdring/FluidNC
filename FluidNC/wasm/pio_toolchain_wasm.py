@@ -36,7 +36,12 @@ toolchain = dict(
 # Flags that must be present at both compile and link time for a pthread
 # build; kept here (rather than platformio.ini build_flags) since native
 # platform doesn't reliably forward build_flags to the link step.
-pthread_flags = ["-pthread"]
+#
+# -fexceptions: Emscripten disables C++ exception catching by default (for
+# code size/speed); without it, FluidNC's own try/catch blocks (e.g.
+# setup()'s around config loading) compile fine but abort the whole runtime
+# the first time something actually throws, instead of being caught.
+pthread_flags = ["-pthread", "-fexceptions"]
 link_flags = [
     # No PROXY_TO_PTHREAD: per the direct-JS-bridge design there is no
     # blocking main()/loop() -- JS instantiates the module, then calls an

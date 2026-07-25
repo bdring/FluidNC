@@ -56,6 +56,8 @@ FluidNC/wasm/spike/program.js
 FluidNC/wasm/spike/program.wasm
 FluidNC/wasm/shim_check/program.js
 FluidNC/wasm/shim_check/program.wasm
+FluidNC/wasm/boot_check/program.js
+FluidNC/wasm/boot_check/program.wasm
 
 # Netlify CLI local site-link state (machine-specific, not source)
 .netlify/
