@@ -126,6 +126,22 @@ namespace Machine {
         return motorsCanHome;
     }
 
+    void Axes::set_homing_phase(AxisMask axisMask, bool fastApproach) {
+        for (axis_t axis = X_AXIS; axis < _numberAxis; axis++) {
+            if (bitnum_is_true(axisMask, axis)) {
+                auto a = _axis[axis];
+                if (a != nullptr) {
+                    for (motor_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+                        auto m = _axis[axis]->_motors[motor];
+                        if (m) {
+                            m->_driver->set_homing_phase(fastApproach);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     void Axes::config_motors() {
         for (axis_t axis = X_AXIS; axis < _numberAxis; ++axis) {
             _axis[axis]->config_motors();

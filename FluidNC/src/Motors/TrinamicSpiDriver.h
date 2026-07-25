@@ -48,6 +48,12 @@ namespace MotorDrivers {
                 }
             }
             _spi_setup_done = true;
+            if (_homing_current == 0) {
+                _homing_current = _run_current;
+            }
+            if (_stallguard_seek == UNSET_STALLGUARD_SEEK) {
+                _stallguard_seek = _stallguard;
+            }
         }
 
         void validate() override { StandardStepper::validate(); }
@@ -60,7 +66,9 @@ namespace MotorDrivers {
 
             handler.item("run_mode", _run_mode, trinamicModes);
             handler.item("homing_mode", _homing_mode, trinamicModes);
+            handler.item("homing_amps", _homing_current, 0.0, 10.0);
             handler.item("stallguard", _stallguard, -64, 63);
+            handler.item("stallguard_seek", _stallguard_seek, -64, 63);
             handler.item("stallguard_debug", _stallguardDebugMode);
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
 

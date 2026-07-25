@@ -29,5 +29,6 @@ namespace MotorDrivers {
 
         bool test();
         void set_registers(bool isHoming) override;
+        void apply_homing_phase() override;
     };
 }
