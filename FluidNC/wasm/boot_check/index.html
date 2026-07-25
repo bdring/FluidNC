@@ -6,7 +6,14 @@
 <link rel="stylesheet" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
 <style>
   body { font-family: monospace; padding: 2rem; }
-  #terminal { border: 1px solid #ccc; padding: 0.5rem; margin-top: 1rem; }
+  /* Fixed height + hidden overflow + box-sizing so the terminal fills and
+     clips to this box rather than a fixed pixel size (previously cols:100)
+     that could be wider than the actual window, pushing long lines past
+     the right edge instead of wrapping/clipping within it. FitAddon (see
+     below) recalculates cols/rows to match this box's actual size, both on
+     load and on window resize, so widening the window reveals more columns
+     instead of requiring a page reload. */
+  #terminal { border: 1px solid #ccc; padding: 0.5rem; margin-top: 1rem; height: 60vh; box-sizing: border-box; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -19,20 +26,118 @@ for completion highlighting, not a page-side reimplementation of any of that.</p
 <div id="terminal"></div>
 
 <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
 <script>
 // convertEol: FluidNC (like any Unix-style program) only ever writes "\n",
 // not "\r\n" -- a real serial terminal's tty driver usually does that
 // translation (see posix/Console.cpp's ONLCR flag), but nothing here does
 // that on FluidNC's behalf, so xterm.js needs to do it or every line would
 // render as a "staircase" (line feed without carriage return).
-const term = new Terminal({ convertEol: true, cols: 100, rows: 32 });
+const term = new Terminal({ convertEol: true });
+const fitAddon = new FitAddon.FitAddon();
+term.loadAddon(fitAddon);
 term.open(document.getElementById('terminal'));
+fitAddon.fit();
+window.addEventListener('resize', () => fitAddon.fit());
 term.focus();
 
 function log(line) {
   term.write(line + '\n');
 }
-self.fluidncOnOutput = (text) => term.write(text);
+
+// Ported from FluidTerm2's src/Colorize.cpp -- same ANSI color codes, same
+// tag list, same line-buffering/immediate-flush heuristic -- since xterm.js
+// is a real terminal that interprets raw ANSI escapes natively, this can be
+// a much more direct port than the DOM-span version used before switching
+// to xterm.js.
+const GRAY          = '\x1b[0;37;40m';
+const BRIGHT_GREEN  = '\x1b[92m';
+const BRIGHT_YELLOW = '\x1b[93m';
+const BRIGHT_RED    = '\x1b[91m';
+const BOLD_YELLOW   = '\x1b[1;33;40m';
+const BOLD_CYAN     = '\x1b[1;36;40m';
+const BOLD_WHITE    = '\x1b[1;37;40m';
+
+const INPUT_COLOR   = GRAY;
+const GOOD_COLOR    = BRIGHT_GREEN;
+const WARN_COLOR    = BRIGHT_YELLOW;
+const ERROR_COLOR   = BRIGHT_RED;
+const DEBUG_COLOR   = BRIGHT_YELLOW;
+const EQUALS_COLOR  = BOLD_WHITE;
+const SETTING_COLOR = BOLD_CYAN;
+const VALUE_COLOR   = BOLD_YELLOW;
+
+// Colorize.cpp's colorizedSetting(): $key=value lines get key/=/value each
+// colored separately, then back to input color for whatever follows.
+function colorizedSetting(line) {
+  if (line.length && line[0] === '$') {
+    const eq = line.indexOf('=');
+    if (eq !== -1) {
+      term.write('$' + SETTING_COLOR + line.slice(1, eq) + EQUALS_COLOR + line.slice(eq, eq + 1) + VALUE_COLOR +
+                  line.slice(eq + 1) + INPUT_COLOR + '\n');
+      return true;
+    }
+  }
+  return false;
+}
+
+// Colorize.cpp's colorized(): only the matched tag itself is colored (the
+// leading '[' or '<' prints in whatever color was already active), then
+// back to input color for the rest of the line.
+function colorized(line, tag, color) {
+  if (!line.startsWith(tag)) {
+    return false;
+  }
+  const offset = tag[0] === '[' || tag[0] === '<' ? 1 : 0;
+  term.write(line.slice(0, offset) + color + line.slice(offset, tag.length) + INPUT_COLOR + line.slice(tag.length) + '\n');
+  return true;
+}
+
+// Colorize.cpp's colorizeLine().
+function colorizeLine(line) {
+  const matched =
+      colorizedSetting(line) ||
+      colorized(line, '[MSG:INFO', GOOD_COLOR) ||
+      colorized(line, '[MSG:ERR', ERROR_COLOR) ||
+      colorized(line, '[MSG:WARN', WARN_COLOR) ||
+      colorized(line, '[MSG:DBG', DEBUG_COLOR) ||
+      colorized(line, '<Alarm', WARN_COLOR) ||
+      colorized(line, '<Idle', GOOD_COLOR) ||
+      colorized(line, '<Run', GOOD_COLOR) ||
+      colorized(line, 'error', ERROR_COLOR);
+  if (!matched) {
+    term.write(line + '\n');
+  }
+}
+
+// Colorize.cpp's colorizeOutput(): buffers until a full line has arrived so
+// a tag can be matched against the whole line, EXCEPT when what's pending
+// doesn't look like it could be the start of a colorizable tag (or we just
+// sent input and are expecting a live per-character echo back, e.g. from
+// Lineedit's editing-mode redraw) -- in which case it's flushed immediately
+// uncolored, so interactive echo still appears live rather than waiting
+// indefinitely for a newline that might not come until Enter.
+let residue = '';
+let expectingEcho = false;
+function expectEcho() {
+  expectingEcho = true;
+}
+function colorizeOutput(text) {
+  residue += text;
+  const lines = residue.split('\n');
+  residue = lines.pop();
+  for (const line of lines) {
+    colorizeLine(line);
+  }
+  if (residue.length &&
+      lines.length === 0 &&
+      (expectingEcho || residue.length === 1 || (residue[0] !== '<' && residue[0] !== '[' && residue[0] !== '$'))) {
+    expectingEcho = false;
+    term.write(residue);
+    residue = '';
+  }
+}
+self.fluidncOnOutput = (text) => colorizeOutput(text);
 
 const TEST_CONFIG_YAML = `
 name: "WASM test machine"
@@ -133,7 +238,10 @@ FluidNCModule().then((Module) => {
   // echo_line() catch-up reprint, and everything from then on echoes
   // correctly. Matching that (not adding our own local echo) is what makes
   // this behave the same as real FluidNC on a real terminal emulator.
-  term.onData((data) => sendText(data));
+  term.onData((data) => {
+    expectEcho();
+    sendText(data);
+  });
 }).catch((err) => {
   log('[page] WASM module failed to load: ' + err);
 });
