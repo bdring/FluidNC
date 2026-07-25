@@ -11,7 +11,7 @@
 </head>
 <body>
 <h1>FluidNC WASM boot check</h1>
-<p>Real FluidNC/src, real setup()/loop() on a background thread. No config.yaml is present yet, so expect it to land in an alarm/config-error state -- the point here is just that it boots and talks back, not that it's configured.</p>
+<p>Real FluidNC/src, real setup()/loop() on a background thread. A minimal config.yaml (no VFD/SD, out of core-only scope) is staged into MEMFS's /native_localfs before boot, then locked read-only.</p>
 <div id="log">loading...</div>
 <input id="cmdline" placeholder="type a line, e.g. $I or ?, press Enter" autofocus>
 
@@ -25,6 +25,52 @@ function log(line) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 self.fluidncOnOutput = (text) => log(text);
+
+const TEST_CONFIG_YAML = `
+name: "WASM test machine"
+board: "None"
+
+stepping:
+  engine: timed
+  idle_ms: 255
+  dir_delay_us: 10
+  pulse_us: 1
+  disable_delay_us: 0
+
+axes:
+  x:
+    steps_per_mm: 800
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 100
+    max_travel_mm: 300
+    motor0:
+      standard_stepper:
+        step_pin: gpio.10
+        direction_pin: gpio.11
+
+  y:
+    steps_per_mm: 800
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 100
+    max_travel_mm: 300
+    motor0:
+      standard_stepper:
+        step_pin: gpio.13
+        direction_pin: gpio.14
+
+  z:
+    steps_per_mm: 800
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 100
+    max_travel_mm: 300
+    motor0:
+      standard_stepper:
+        step_pin: gpio.16
+        direction_pin: gpio.17
+
+start:
+  must_home: false
+`;
 </script>
 <script src="program.js"></script>
 <script>
@@ -32,6 +78,13 @@ FluidNCModule().then((Module) => {
   log('[page] WASM module instantiated');
   const start = Module.cwrap('fluidnc_start', null, []);
   const sendLine = Module.cwrap('fluidnc_send_line', null, ['string']);
+  const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string']);
+  const lockReadonly = Module.cwrap('fluidnc_lock_localfs_readonly', null, []);
+
+  const staged = stageFile('config.yaml', TEST_CONFIG_YAML);
+  log('[page] staged config.yaml: ' + staged);
+  lockReadonly();
+  log('[page] locked /native_localfs read-only');
 
   log('[page] calling fluidnc_start()...');
   start();
