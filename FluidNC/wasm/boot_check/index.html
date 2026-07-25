@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>FluidNC WASM boot check</title>
+<title>FluidNC Demonstration</title>
 <style>
   body { font-family: monospace; padding: 2rem; }
   #log { white-space: pre-wrap; border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; max-height: 70vh; overflow-y: auto; }
@@ -20,8 +20,8 @@
 </style>
 </head>
 <body>
-<h1>FluidNC WASM boot check</h1>
-<p>Real FluidNC/src, real setup()/loop() on a background thread. A minimal config.yaml (no VFD/SD, out of core-only scope) is staged into MEMFS's /native_localfs before boot, then locked read-only.</p>
+<h1>FluidNC Demonstration</h1>
+<p>Real FluidNC/src, real setup()/loop() on a background thread. A minimal config.yaml and a sample SD card are staged into MEMFS's /native_localfs and /native_sd before boot, then locked read-only.</p>
 <div id="log">loading...</div>
 <input id="cmdline" placeholder="type a line, e.g. $I or ?, press Enter" autofocus>
 
@@ -146,8 +146,26 @@ axes:
         step_pin: gpio.16
         direction_pin: gpio.17
 
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.21
+  sck_pin: gpio.18
+
+sdcard:
+  cs_pin: gpio.5
+
 start:
   must_home: false
+`;
+
+const TEST_GCODE = `; sample job for $SD/List and $SD/Run
+G21 G90
+G0 X0 Y0
+G1 X10 Y0 F500
+G1 X10 Y10
+G1 X0 Y10
+G1 X0 Y0
+M30
 `;
 </script>
 <script src="program.js"></script>
@@ -156,13 +174,18 @@ FluidNCModule().then((Module) => {
   log('[page] WASM module instantiated');
   const start = Module.cwrap('fluidnc_start', null, []);
   const sendLine = Module.cwrap('fluidnc_send_line', null, ['string']);
-  const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string']);
-  const lockReadonly = Module.cwrap('fluidnc_lock_localfs_readonly', null, []);
+  const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string', 'string']);
+  const lockReadonly = Module.cwrap('fluidnc_lock_readonly', null, ['string']);
 
-  const staged = stageFile('config.yaml', TEST_CONFIG_YAML);
-  log('[page] staged config.yaml: ' + staged);
-  lockReadonly();
+  const stagedConfig = stageFile('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
+  log('[page] staged native_localfs/config.yaml: ' + stagedConfig);
+  lockReadonly('native_localfs');
   log('[page] locked /native_localfs read-only');
+
+  const stagedGcode = stageFile('native_sd', 'square.nc', TEST_GCODE);
+  log('[page] staged native_sd/square.nc: ' + stagedGcode);
+  lockReadonly('native_sd');
+  log('[page] locked /native_sd read-only');
 
   log('[page] calling fluidnc_start()...');
   start();
