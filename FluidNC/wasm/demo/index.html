@@ -250,25 +250,18 @@ M30
 <script src="program.js"></script>
 <script>
 FluidNCModule().then((Module) => {
-  log('[page] WASM module instantiated');
   const start = Module.cwrap('fluidnc_start', null, []);
   const sendText = Module.cwrap('fluidnc_send_text', null, ['string']);
   const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string', 'string']);
   const lockReadonly = Module.cwrap('fluidnc_lock_readonly', null, ['string']);
 
-  const stagedConfig = stageFile('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
-  log('[page] staged native_localfs/config.yaml: ' + stagedConfig);
+  stageFile('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
   lockReadonly('native_localfs');
-  log('[page] locked /native_localfs read-only');
 
-  const stagedGcode = stageFile('native_sd', 'square.nc', TEST_GCODE);
-  log('[page] staged native_sd/square.nc: ' + stagedGcode);
+  stageFile('native_sd', 'square.nc', TEST_GCODE);
   lockReadonly('native_sd');
-  log('[page] locked /native_sd read-only');
 
-  log('[page] calling fluidnc_start()...');
   start();
-  log('[page] fluidnc_start() returned (should be immediate, not blocked)');
 
   // No local echo, on purpose: FluidNC boots mimicking classic Grbl, which
   // doesn't echo either -- conventional Grbl senders are a line-collecting
@@ -287,7 +280,8 @@ FluidNCModule().then((Module) => {
     sendText(data);
   });
 }).catch((err) => {
-  log('[page] WASM module failed to load: ' + err);
+  console.error(err);
+  log('Failed to load: ' + err);
 });
 </script>
 </body>
