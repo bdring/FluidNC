@@ -18,11 +18,12 @@
 </head>
 <body>
 <h1>FluidNC Demonstration</h1>
-<p>Real FluidNC/src, real setup()/loop() on a background thread. A minimal config.yaml and a sample SD card are
-staged into MEMFS's /native_localfs and /native_sd before boot, then locked read-only. Input goes through a real
-xterm.js terminal straight to FluidNC's own Lineedit (src/lineedit.h) -- the same local echo, arrow-key/backspace
-editing, history, and $-setting tab completion a real serial console gets, including its real ANSI color escapes
-for completion highlighting, not a page-side reimplementation of any of that.</p>
+<p>This is FluidNC running in a browser.  It is compiled to Web
+  Assembly code from the real FluidNC source.  It cannot access actual
+  machine hardware, but it can process GCode and simulate motion.  It
+  has a minimal config.yaml and a sample, read-only SD card.  Input
+  editing works the same a FluidNC running on an ESP32.
+</p>
 <div id="terminal"></div>
 
 <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
