@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FluidNC WASM shim check</title>
+<style>
+  body { font-family: monospace; padding: 2rem; }
+  #log { white-space: pre-wrap; border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; }
+  .ok { color: #080; }
+  .fail { color: #c00; }
+</style>
+</head>
+<body>
+<h1>FluidNC WASM shim check</h1>
+<p>Validates capture/arduino + capture/freertos (real xTaskCreate/xQueueSend/xQueueReceive, millis(), String), not just bare std::thread.</p>
+<div id="log">loading...</div>
+
+<script>
+function log(line, cls) {
+  const el = document.getElementById('log');
+  const span = document.createElement('div');
+  if (cls) span.className = cls;
+  span.textContent = line;
+  el.appendChild(span);
+}
+document.getElementById('log').textContent = '';
+
+log('crossOriginIsolated = ' + self.crossOriginIsolated, self.crossOriginIsolated ? 'ok' : 'fail');
+</script>
+<script src="program.js"></script>
+<script>
+FluidNCModule().then((Module) => {
+  log('WASM module instantiated', 'ok');
+
+  const handleLine = Module.cwrap('shim_handle_line', 'string', ['string']);
+  const startTask = Module.cwrap('shim_start_task', null, []);
+  const drainQueue = Module.cwrap('shim_drain_queue', 'number', []);
+  const getMillis = Module.cwrap('shim_millis', 'number', []);
+
+  const resp = handleLine('?');
+  log('shim_handle_line("?") -> ' + resp, resp.startsWith('<Idle') ? 'ok' : 'fail');
+
+  const badResp = handleLine('garbage');
+  log('shim_handle_line("garbage") -> ' + badResp);
+
+  const m = getMillis();
+  log('millis() -> ' + m, typeof m === 'number' ? 'ok' : 'fail');
+
+  log('starting real FreeRTOS task (xTaskCreate)...');
+  startTask();
+
+  // Worker task sends 5 items ~50ms apart via xQueueSend; poll xQueueReceive
+  // (from the main/JS-driving thread) until they've all arrived.
+  let attempts = 0;
+  const poll = setInterval(() => {
+    const n = drainQueue();
+    attempts++;
+    if (n > 0) {
+      log('xQueueReceive drained ' + n + ' item(s) after ' + attempts + ' poll(s)', 'ok');
+      clearInterval(poll);
+    } else if (attempts > 20) {
+      log('xQueueReceive drained nothing after ' + attempts + ' polls', 'fail');
+      clearInterval(poll);
+    }
+  }, 100);
+}).catch((err) => {
+  log('WASM module failed to load: ' + err, 'fail');
+});
+</script>
+</body>
+</html>
