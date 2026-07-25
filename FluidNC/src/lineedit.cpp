@@ -386,7 +386,14 @@ bool Lineedit::step(int c) {
     }
 
     if (!editing) {
-        if (c < ' ') {
+        // 127 (DEL) is grouped with the control characters here, not with
+        // ordinary printable ones, because the switch below treats it the
+        // same as '\b' (erase_char()) -- and DEL, not BS, is what backspace
+        // actually sends on effectively every modern terminal. Without this,
+        // backspace as the very first special key of a session would fail
+        // this check (127 is not < ' ') and fall into the plain addchar()
+        // branch, silently inserting a stray DEL byte instead of erasing.
+        if (c < ' ' || c == 127) {
             if (c == '\r' || c == '\n') {
                 return true;
             }
