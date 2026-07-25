@@ -10,6 +10,7 @@
 // immediately.
 
 #include <emscripten.h>
+#include <cstring>
 #include <string>
 #include <thread>
 
@@ -42,18 +43,23 @@ void fluidnc_start() {
     fluidnc_thread.detach();
 }
 
-// Bridge for JS to deliver a complete line of input (a full command, not
-// raw keystrokes -- there's no terminal here for FluidNC to locally echo
-// against, unlike posix/Console.cpp's Lineedit). Feeds the same push()-fed
-// queue every other Channel type (e.g. a network channel) already uses, so
-// Channel::pollLine()'s line assembly and realtime-character interception
-// apply unchanged.
+// wasm/Console.cpp's receiver: feeds a queue that WasmConsole's own
+// read()/available() drain, rather than Channel::push() -- see the
+// comment atop wasm/Console.cpp for why push() specifically doesn't work
+// here (it would let Lineedit's realtimeOkay() veto be bypassed).
+void wasm_console_receive(const uint8_t* data, size_t len);
+
+// Bridge for JS to deliver raw input bytes exactly as typed/pasted (e.g.
+// from an xterm.js onData callback) -- unlike a plain line-oriented input
+// box, no newline is appended here: Console's Lineedit does its own local
+// echo, intra-line editing, and realtime-character interception the same
+// way it would from a real serial terminal, one byte at a time.
 EMSCRIPTEN_KEEPALIVE
-void fluidnc_send_line(const char* line) {
-    if (line == nullptr) {
+void fluidnc_send_text(const char* text) {
+    if (text == nullptr) {
         return;
     }
-    Console.push(std::string(line) + "\n");
+    wasm_console_receive(reinterpret_cast<const uint8_t*>(text), std::strlen(text));
 }
 
 }  // extern "C"

@@ -3,106 +3,36 @@
 <head>
 <meta charset="utf-8">
 <title>FluidNC Demonstration</title>
+<link rel="stylesheet" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
 <style>
   body { font-family: monospace; padding: 2rem; }
-  #log { white-space: pre-wrap; border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; max-height: 70vh; overflow-y: auto; }
-  input { font-family: monospace; width: 30rem; }
-  /* Same semantic roles as FluidTerm2's Colorize.cpp (src/Colorize.cpp),
-     ported from ANSI terminal colors to CSS -- only the matched tag itself
-     is colored (e.g. just "MSG:ERR"), not the whole line, matching that
-     implementation's behavior. */
-  .tag-info { color: #2e7d32; }
-  .tag-warn { color: #b8860b; }
-  .tag-err  { color: #c62828; font-weight: bold; }
-  .tag-dbg  { color: #b8860b; }
-  .tag-setting { color: #1565c0; }
-  .tag-value   { color: #8e24aa; }
+  #terminal { border: 1px solid #ccc; padding: 0.5rem; margin-top: 1rem; }
 </style>
 </head>
 <body>
 <h1>FluidNC Demonstration</h1>
-<p>Real FluidNC/src, real setup()/loop() on a background thread. A minimal config.yaml and a sample SD card are staged into MEMFS's /native_localfs and /native_sd before boot, then locked read-only.</p>
-<div id="log">loading...</div>
-<input id="cmdline" placeholder="type a line, e.g. $I or ?, press Enter" autofocus>
+<p>Real FluidNC/src, real setup()/loop() on a background thread. A minimal config.yaml and a sample SD card are
+staged into MEMFS's /native_localfs and /native_sd before boot, then locked read-only. Input goes through a real
+xterm.js terminal straight to FluidNC's own Lineedit (src/lineedit.h) -- the same local echo, arrow-key/backspace
+editing, history, and $-setting tab completion a real serial console gets, including its real ANSI color escapes
+for completion highlighting, not a page-side reimplementation of any of that.</p>
+<div id="terminal"></div>
 
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
 <script>
-const logEl = document.getElementById('log');
-logEl.textContent = '';
+// convertEol: FluidNC (like any Unix-style program) only ever writes "\n",
+// not "\r\n" -- a real serial terminal's tty driver usually does that
+// translation (see posix/Console.cpp's ONLCR flag), but nothing here does
+// that on FluidNC's behalf, so xterm.js needs to do it or every line would
+// render as a "staircase" (line feed without carriage return).
+const term = new Terminal({ convertEol: true, cols: 100, rows: 32 });
+term.open(document.getElementById('terminal'));
+term.focus();
 
-function appendText(text) {
-  if (text) logEl.appendChild(document.createTextNode(text));
-}
-function appendSpan(text, cls) {
-  if (!text) return;
-  const span = document.createElement('span');
-  span.className = cls;
-  span.textContent = text;
-  logEl.appendChild(span);
-}
-
-// Ported from FluidTerm2's src/Colorize.cpp (colorized()/colorizedSetting()):
-// color only the matched tag itself, not the rest of the line, so message
-// bodies and position data stay in the default color.
-const TAG_COLORS = [
-  ['[MSG:INFO', 'tag-info'],
-  ['[MSG:ERR', 'tag-err'],
-  ['[MSG:WARN', 'tag-warn'],
-  ['[MSG:DBG', 'tag-dbg'],
-  ['<Alarm', 'tag-warn'],
-  ['<Idle', 'tag-info'],
-  ['<Run', 'tag-info'],
-];
-
-function colorizeLine(line) {
-  if (line.length && line[0] === '$') {
-    const eq = line.indexOf('=');
-    if (eq !== -1) {
-      appendText('$');
-      appendSpan(line.slice(1, eq), 'tag-setting');
-      appendText(line.slice(eq, eq + 1));
-      appendSpan(line.slice(eq + 1), 'tag-value');
-      return;
-    }
-  }
-  for (const [tag, cls] of TAG_COLORS) {
-    if (line.startsWith(tag)) {
-      // tags starting with '[' or '<' print that bracket in the default
-      // color, then color just the tag word after it (matches Colorize.cpp's
-      // `offset` handling)
-      const bracketOffset = tag[0] === '[' || tag[0] === '<' ? 1 : 0;
-      appendText(line.slice(0, bracketOffset));
-      appendSpan(line.slice(bracketOffset, tag.length), cls);
-      appendText(line.slice(tag.length));
-      return;
-    }
-  }
-  if (line.startsWith('error')) {
-    appendSpan('error', 'tag-err');
-    appendText(line.slice('error'.length));
-    return;
-  }
-  appendText(line);
-}
-
-// Buffers raw output until a full line (terminated by '\n') has arrived --
-// necessary because FluidNC's Channel::print_msg() does
-// write(msg); write("\n"); as two separate write() calls, and a matched
-// tag needs the whole line in hand before it can be colorized.
-let residue = '';
-function appendRaw(text) {
-  residue += text;
-  const lines = residue.split('\n');
-  residue = lines.pop();
-  for (const line of lines) {
-    colorizeLine(line);
-    appendText('\n');
-  }
-  logEl.scrollTop = logEl.scrollHeight;
-}
 function log(line) {
-  appendRaw(line + '\n');
+  term.write(line + '\n');
 }
-self.fluidncOnOutput = (text) => appendRaw(text);
+self.fluidncOnOutput = (text) => term.write(text);
 
 const TEST_CONFIG_YAML = `
 name: "WASM test machine"
@@ -173,7 +103,7 @@ M30
 FluidNCModule().then((Module) => {
   log('[page] WASM module instantiated');
   const start = Module.cwrap('fluidnc_start', null, []);
-  const sendLine = Module.cwrap('fluidnc_send_line', null, ['string']);
+  const sendText = Module.cwrap('fluidnc_send_text', null, ['string']);
   const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string', 'string']);
   const lockReadonly = Module.cwrap('fluidnc_lock_readonly', null, ['string']);
 
@@ -191,13 +121,20 @@ FluidNCModule().then((Module) => {
   start();
   log('[page] fluidnc_start() returned (should be immediate, not blocked)');
 
-  document.getElementById('cmdline').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const line = e.target.value;
-      log('> ' + line);
-      sendLine(line);
-      e.target.value = '';
-    }
+  // Lineedit (src/lineedit.cpp) deliberately does not echo a clean run of
+  // typed characters itself -- see addchar(c, /*echo=*/false) -- the same
+  // way a real GRBL/FluidNC serial connection doesn't echo, relying on the
+  // terminal program's own local-echo setting. It only takes full manual
+  // control of the display (via its needs_reecho/echo_line() catch-up
+  // reprint) once an actual edit/movement key is pressed. So this needs to
+  // behave like a serial terminal with local echo on: blindly write
+  // whatever was typed (including multi-byte escape sequences xterm.js
+  // already encodes for arrow keys, Delete, Home/End, etc.) back to the
+  // display AND forward it to FluidNC, trusting Lineedit's catch-up
+  // reprint to resync the display correctly once editing starts.
+  term.onData((data) => {
+    term.write(data);
+    sendText(data);
   });
 }).catch((err) => {
   log('[page] WASM module failed to load: ' + err);
