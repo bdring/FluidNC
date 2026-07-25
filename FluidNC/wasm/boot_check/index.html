@@ -7,6 +7,16 @@
   body { font-family: monospace; padding: 2rem; }
   #log { white-space: pre-wrap; border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; max-height: 70vh; overflow-y: auto; }
   input { font-family: monospace; width: 30rem; }
+  /* Same semantic roles as FluidTerm2's Colorize.cpp (src/Colorize.cpp),
+     ported from ANSI terminal colors to CSS -- only the matched tag itself
+     is colored (e.g. just "MSG:ERR"), not the whole line, matching that
+     implementation's behavior. */
+  .tag-info { color: #2e7d32; }
+  .tag-warn { color: #b8860b; }
+  .tag-err  { color: #c62828; font-weight: bold; }
+  .tag-dbg  { color: #b8860b; }
+  .tag-setting { color: #1565c0; }
+  .tag-value   { color: #8e24aa; }
 </style>
 </head>
 <body>
@@ -18,13 +28,81 @@
 <script>
 const logEl = document.getElementById('log');
 logEl.textContent = '';
-function log(line) {
-  const div = document.createElement('div');
-  div.textContent = line;
-  logEl.appendChild(div);
+
+function appendText(text) {
+  if (text) logEl.appendChild(document.createTextNode(text));
+}
+function appendSpan(text, cls) {
+  if (!text) return;
+  const span = document.createElement('span');
+  span.className = cls;
+  span.textContent = text;
+  logEl.appendChild(span);
+}
+
+// Ported from FluidTerm2's src/Colorize.cpp (colorized()/colorizedSetting()):
+// color only the matched tag itself, not the rest of the line, so message
+// bodies and position data stay in the default color.
+const TAG_COLORS = [
+  ['[MSG:INFO', 'tag-info'],
+  ['[MSG:ERR', 'tag-err'],
+  ['[MSG:WARN', 'tag-warn'],
+  ['[MSG:DBG', 'tag-dbg'],
+  ['<Alarm', 'tag-warn'],
+  ['<Idle', 'tag-info'],
+  ['<Run', 'tag-info'],
+];
+
+function colorizeLine(line) {
+  if (line.length && line[0] === '$') {
+    const eq = line.indexOf('=');
+    if (eq !== -1) {
+      appendText('$');
+      appendSpan(line.slice(1, eq), 'tag-setting');
+      appendText(line.slice(eq, eq + 1));
+      appendSpan(line.slice(eq + 1), 'tag-value');
+      return;
+    }
+  }
+  for (const [tag, cls] of TAG_COLORS) {
+    if (line.startsWith(tag)) {
+      // tags starting with '[' or '<' print that bracket in the default
+      // color, then color just the tag word after it (matches Colorize.cpp's
+      // `offset` handling)
+      const bracketOffset = tag[0] === '[' || tag[0] === '<' ? 1 : 0;
+      appendText(line.slice(0, bracketOffset));
+      appendSpan(line.slice(bracketOffset, tag.length), cls);
+      appendText(line.slice(tag.length));
+      return;
+    }
+  }
+  if (line.startsWith('error')) {
+    appendSpan('error', 'tag-err');
+    appendText(line.slice('error'.length));
+    return;
+  }
+  appendText(line);
+}
+
+// Buffers raw output until a full line (terminated by '\n') has arrived --
+// necessary because FluidNC's Channel::print_msg() does
+// write(msg); write("\n"); as two separate write() calls, and a matched
+// tag needs the whole line in hand before it can be colorized.
+let residue = '';
+function appendRaw(text) {
+  residue += text;
+  const lines = residue.split('\n');
+  residue = lines.pop();
+  for (const line of lines) {
+    colorizeLine(line);
+    appendText('\n');
+  }
   logEl.scrollTop = logEl.scrollHeight;
 }
-self.fluidncOnOutput = (text) => log(text);
+function log(line) {
+  appendRaw(line + '\n');
+}
+self.fluidncOnOutput = (text) => appendRaw(text);
 
 const TEST_CONFIG_YAML = `
 name: "WASM test machine"
