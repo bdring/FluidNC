@@ -56,9 +56,17 @@ function fitTerminal() {
   if (!viewport || !screen || term.cols < 2 || term.rows < 2) {
     return;
   }
+  // A small fixed safety margin on top of the measured overflow, not just
+  // the measured overflow alone: exact-fit math trusts getBoundingClientRect()
+  // more than real font rendering deserves -- sub-pixel rounding between how
+  // the browser lays out each row and the cell height xterm.js computed can
+  // drift by a fraction of a pixel per row, accumulating across many rows
+  // until the last one's glyphs spill past the container edge even though
+  // the *measured* overflow at fit time looked like zero.
+  const SAFETY_MARGIN_PX = 4;
   const screenRect = screen.getBoundingClientRect();
-  const overflowX = screenRect.width - viewport.clientWidth;
-  const overflowY = screenRect.height - viewport.clientHeight;
+  const overflowX = screenRect.width - viewport.clientWidth + SAFETY_MARGIN_PX;
+  const overflowY = screenRect.height - viewport.clientHeight + SAFETY_MARGIN_PX;
   let cols = term.cols;
   let rows = term.rows;
   if (overflowX > 0) {
