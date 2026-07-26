@@ -14,6 +14,14 @@
      load and on window resize, so widening the window reveals more columns
      instead of requiring a page reload. */
   #terminal { border: 1px solid #ccc; padding: 0.5rem; margin-top: 1rem; height: 60vh; box-sizing: border-box; overflow: hidden; }
+  /* Shrunk to make room once a WebUI iframe is showing -- see
+     terminalEl.classList.add('terminal-compact') below. Approximate, not
+     computed from the actual font metrics: "about 4 lines" is the ask,
+     not an exact fit. */
+  #terminal.terminal-compact { height: 8em; }
+  #webuiPanel { margin-top: 1rem; }
+  #webuiFrame { display: none; width: 100%; height: 60vh; border: 1px solid #ccc; margin-top: 0.5rem; box-sizing: border-box; }
+  #webuiStatus { margin-left: 0.5rem; color: #666; }
 </style>
 </head>
 <body>
@@ -24,6 +32,21 @@
   has a minimal config.yaml and a sample, read-only SD card.  Input
   editing works the same a FluidNC running on an ESP32.
 </p>
+<div id="webuiPanel">
+  <label for="webuiSelect">WebUI:</label>
+  <select id="webuiSelect">
+    <option value="">-- none --</option>
+    <option data-owner="figamore" data-repo="FigUI" data-tag="v1.2.7">FigUI (figamore)</option>
+    <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="">ESP3D-WEBUI (michmela44)</option>
+  </select>
+  <span id="webuiStatus"></span>
+</div>
+<!-- Not yet wired to the running FluidNC instance -- see webui-proxy.js's
+     comment for why the fetch is needed at all, and the wasm/README.md
+     section on it. WebUI's own WebSocket calls will just fail for now
+     (nothing here intercepts them yet), so expect it to render but not
+     function until that's wired up separately. -->
+<iframe id="webuiFrame"></iframe>
 <div id="terminal"></div>
 
 <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
@@ -102,6 +125,54 @@ function scheduleFit() {
   });
 }
 window.addEventListener('resize', scheduleFit);
+
+// Loads a WebUI build (chosen from the dropdown) into the iframe via
+// webui-proxy.js (see wasm/README.md) -- this only works when the page
+// itself is served from the Netlify site the function is deployed
+// alongside (functions aren't available under the local serve.py/
+// python3 -m http.server dev flow). Not wired to the running FluidNC
+// instance yet: WebUI's own WebSocket calls will just fail, so expect it
+// to render but not function until that's addressed separately.
+const webuiSelect = document.getElementById('webuiSelect');
+const webuiFrame = document.getElementById('webuiFrame');
+const webuiStatus = document.getElementById('webuiStatus');
+const terminalEl = document.getElementById('terminal');
+
+webuiSelect.addEventListener('change', async () => {
+  const opt = webuiSelect.selectedOptions[0];
+  const owner = opt.dataset.owner;
+  const repo = opt.dataset.repo;
+  const tag = opt.dataset.tag;
+
+  if (!owner) {
+    webuiFrame.style.display = 'none';
+    webuiFrame.src = 'about:blank';
+    terminalEl.classList.remove('terminal-compact');
+    fitTerminal();
+    return;
+  }
+
+  webuiStatus.textContent = 'Loading ' + opt.textContent + '...';
+  let url = '/.netlify/functions/webui-proxy?owner=' + encodeURIComponent(owner) + '&repo=' + encodeURIComponent(repo);
+  if (tag) {
+    url += '&tag=' + encodeURIComponent(tag);
+  }
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(res.status + ' ' + res.statusText + ': ' + (await res.text()));
+    }
+    const html = await res.text();
+    webuiFrame.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    webuiFrame.style.display = 'block';
+    terminalEl.classList.add('terminal-compact');
+    fitTerminal();
+    webuiStatus.textContent = '';
+  } catch (err) {
+    console.error(err);
+    webuiStatus.textContent = 'Failed to load: ' + err.message;
+  }
+});
 
 function log(line) {
   term.write(line + '\n');
