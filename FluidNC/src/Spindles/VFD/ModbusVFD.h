@@ -67,15 +67,67 @@ namespace Spindles {
                 _set_rpm_cmd(set_rpm_cmd), _get_min_rpm_cmd(get_min_rpm_cmd), _get_max_rpm_cmd(get_max_rpm_cmd), _get_rpm_cmd(get_rpm_cmd) {}
 
             void group(Configuration::HandlerBase& handler) override {
+                // Generic/raw ModbusVFD spindle -- use this directly only for an
+                // unsupported VFD model; a supported model (e.g. Huanyang) instead
+                // registers under its own model-specific config name, but shows every one
+                // of these same fields with model-appropriate values.
+
+                // @config model
+                // @default "" (empty)
+                // VFD model name. Informational (used for support purposes) -- not itself
+                // used to select protocol behavior; the cw_cmd/ccw_cmd/etc. fields below
+                // are what actually define the protocol.
                 handler.item("model", _model);
+
+                // @config min_RPM
+                // @default 0xffffffff (uninitialized sentinel)
+                // Minimum spindle RPM, in Hz-derived RPM terms. Normally left unset and
+                // retrieved from the VFD itself via get_min_rpm_cmd at startup.
                 handler.item("min_RPM", _minRPM);
+
+                // @config max_RPM
+                // @default 0xffffffff (uninitialized sentinel)
+                // Maximum spindle RPM. Normally left unset and retrieved from the VFD
+                // itself via get_max_rpm_cmd at startup.
                 handler.item("max_RPM", _maxRPM);
+
+                // @config cw_cmd
+                // @default "" (empty)
+                // Modbus command template for clockwise spindle rotation.
                 handler.item("cw_cmd", _cw_cmd);
+
+                // @config ccw_cmd
+                // @default "" (empty)
+                // Modbus command template for counter-clockwise spindle rotation.
                 handler.item("ccw_cmd", _ccw_cmd);
+
+                // @config off_cmd
+                // @default "" (empty)
+                // Modbus command template to stop the spindle.
                 handler.item("off_cmd", _off_cmd);
+
+                // @config set_rpm_cmd
+                // @default "" (empty)
+                // Modbus command template to set the spindle speed.
                 handler.item("set_rpm_cmd", _set_rpm_cmd);
+
+                // @config get_min_rpm_cmd
+                // @default "" (empty)
+                // Modbus command template to query the VFD's minimum RPM. If left unset,
+                // speed_map must be configured manually instead of being auto-derived.
                 handler.item("get_min_rpm_cmd", _get_min_rpm_cmd);
+
+                // @config get_max_rpm_cmd
+                // @default "" (empty)
+                // Modbus command template to query the VFD's maximum RPM. If left unset,
+                // speed_map must be configured manually instead of being auto-derived.
                 handler.item("get_max_rpm_cmd", _get_max_rpm_cmd);
+
+                // @config get_rpm_cmd
+                // @default "" (empty)
+                // Modbus command template to query the VFD's current RPM. Leaving this
+                // unset also changes delay behavior -- use_delay_settings() returns true
+                // (spinup_ms/spindown_ms apply) only when this command is NOT configured.
                 handler.item("get_rpm_cmd", _get_rpm_cmd);
             }
         };

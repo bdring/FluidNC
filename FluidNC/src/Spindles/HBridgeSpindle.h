@@ -61,9 +61,28 @@ namespace Spindles {
             // Those might not be practical for many CNC applications,
             // but the hardware can handle them, so we let the
             // user choose.
+            // @config pwm_hz
+            // @default 5000
+            // PWM signal frequency. Resolution trades off against frequency -- 76Hz or
+            // less gets the full 20-bit duty-cycle resolution, roughly halving for every
+            // doubling of frequency above that, down to 4 levels (2 bits) at the 20MHz
+            // ceiling.
             handler.item("pwm_hz", _pwm_freq, 1, 20000000);
+
+            // @config output_cw_pin
+            // @default NO_PIN
+            // Clockwise PWM output. While this pin is toggling, output_ccw_pin is held low.
             handler.item("output_cw_pin", _output_cw_pin);
+
+            // @config output_ccw_pin
+            // @default NO_PIN
+            // Counter-clockwise PWM output. While this pin is toggling, output_cw_pin is
+            // held low.
             handler.item("output_ccw_pin", _output_ccw_pin);
+
+            // @config enable_pin
+            // @default NO_PIN
+            // Optional enable signal for the H-bridge driver.
             handler.item("enable_pin", _enable_pin);
 
             Spindle::group(handler);

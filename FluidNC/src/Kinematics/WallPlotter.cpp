@@ -7,14 +7,44 @@
 
 namespace Kinematics {
     void WallPlotter::group(Configuration::HandlerBase& handler) {
+        // A puck suspended by two cords, positioned by adjusting each cord's length --
+        // e.g. a wall-mounted plotter/drawbot. Each cord is driven by one machine axis,
+        // measured as cord length rather than a cartesian coordinate.
+
+        // @config left_axis
+        // @default 0
+        // Which machine axis index drives the left cord's length.
         handler.item("left_axis", _left_axis);
+
+        // @config left_anchor_x
+        // @default -100
+        // X position of the left cord's fixed anchor point, in the cartesian frame.
         handler.item("left_anchor_x", _left_anchor_x);
+
+        // @config left_anchor_y
+        // @default 100
+        // Y position of the left cord's fixed anchor point.
         handler.item("left_anchor_y", _left_anchor_y);
 
+        // @config right_axis
+        // @default 1
+        // Which machine axis index drives the right cord's length.
         handler.item("right_axis", _right_axis);
+
+        // @config right_anchor_x
+        // @default 100
+        // X position of the right cord's fixed anchor point.
         handler.item("right_anchor_x", _right_anchor_x);
+
+        // @config right_anchor_y
+        // @default 100
+        // Y position of the right cord's fixed anchor point.
         handler.item("right_anchor_y", _right_anchor_y);
 
+        // @config segment_length
+        // @default 10
+        // Maximum length of the small linear segments a cartesian move is broken into
+        // before being converted to cord lengths (the cord-length transform is nonlinear).
         handler.item("segment_length", _segment_length);
     }
 

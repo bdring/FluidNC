@@ -19,7 +19,15 @@ namespace Spindles {
         // do not support direction_pin can invoke OnOff::groupCommon() instead
         // of OnOff::group()
         void groupCommon(Configuration::HandlerBase& handler) {
+            // @config output_pin
+            // @default NO_PIN
+            // On/off (or PWM duty, depending on the concrete spindle type) output signal.
+            // Turns off with M5.
             handler.item("output_pin", _output_pin);
+
+            // @config enable_pin
+            // @default NO_PIN
+            // Optional enable signal, separate from output_pin.
             handler.item("enable_pin", _enable_pin);
 
             Spindle::group(handler);
@@ -47,6 +55,10 @@ namespace Spindles {
         void validate() override { Spindle::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
+            // @config direction_pin
+            // @default NO_PIN
+            // Optional direction signal. M4 (spindle-reverse) is only accepted when a real
+            // pin is assigned here -- without one, only M3/M5 are meaningful.
             handler.item("direction_pin", _direction_pin);
             groupCommon(handler);
         }

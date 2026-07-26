@@ -6,12 +6,50 @@
 
 namespace Machine {
     void Axis::group(Configuration::HandlerBase& handler) {
+        // @config steps_per_mm
+        // @default 80.0
+        // Controller-side step-pulse resolution for this axis -- really "steps per GCode
+        // unit," despite the name: in G21 (mm) mode, a one-unit move issues this many step
+        // pulses; for a linear (XYZ) axis in G20 (inches) mode, the step count is instead
+        // multiplied by 25.4. A rotary (ABC) axis always issues this many pulses per unit,
+        // regardless of G20/G21. If using a microstepping driver, this already needs to
+        // include the microstep multiplier.
         handler.item("steps_per_mm", _stepsPerMm, 0.001, 100000.0);
+
+        // @config max_rate_mm_per_min
+        // @default 1000.0
+        // Maximum feed rate (rapids and feed moves alike are capped here) for this axis.
         handler.item("max_rate_mm_per_min", _maxRate, 0.001, 250000.0);
+
+        // @config acceleration_mm_per_sec2
+        // @default 25.0
+        // Acceleration used for this axis's motion ramps.
         handler.item("acceleration_mm_per_sec2", _acceleration, 0.001, 100000.0);
+
+        // @config max_travel_mm
+        // @default 1000.0
+        // Working length of the axis, measured from its position immediately after homing
+        // pull-off. If a second limit switch exists at the far end of travel (for hard
+        // limits), make sure this value stays short enough that a soft-limit alarm trips
+        // before that second switch would be physically reached.
         handler.item("max_travel_mm", _maxTravel, 0.1, 10000000.0);
+
+        // @config soft_limits
+        // @default false
+        // When true, a move that would exceed max_travel_mm is aborted before it starts;
+        // jogs are instead constrained to stop at the travel limit rather than alarming.
+        // Relies on accurate machine position, so the axis should be homed first -- always
+        // home before jogging or running GCode when soft limits are enabled.
         handler.item("soft_limits", _softLimits);
+
+        // @config idle_disable
+        // @default true
+        // Whether this axis participates in stepping.idle_ms auto-disable. Set to false to
+        // keep this axis's motor(s) always enabled regardless of the global idle timeout --
+        // e.g. a Z axis that would otherwise fall, or an RC servo axis that needs to stay
+        // enabled to hold position.
         handler.item("idle_disable", _idleDisable);
+
         handler.section("homing", _homing);
 
         char tmp[7];

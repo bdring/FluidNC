@@ -16,17 +16,59 @@ const MacroEvent macro1Event { 1 };
 const MacroEvent macro2Event { 2 };
 const MacroEvent macro3Event { 3 };
 
+// Macros::group() (Macros.h) registers each of these via handler.item(macro.name(), macro),
+// not a literal handler.item("name", ...) call per macro -- see ItemDocs.md's "data-driven
+// item lists" section for why these are annotated here, at construction, instead. Every
+// field here is a String (one config-file line, "&"-separated sub-commands, default empty
+// meaning "do nothing").
+
+// @config startup_line0
+// @default "" (empty)
+// Legacy Grbl feature (formerly $N0). Runs once, the first time the firmware enters Idle
+// after boot.
 Macro Macros::_startup_line0 { "startup_line0" };
+
+// @config startup_line1
+// @default "" (empty)
+// Legacy Grbl feature (formerly $N1). Runs once, the first time the firmware enters Idle
+// after boot, immediately after startup_line0.
 Macro Macros::_startup_line1 { "startup_line1" };
+
 Macro Macros::_macro[] = {
+    // @config macro0
+    // @default "" (empty)
+    // Runs when macro0_pin (control:) is activated. The switch must read inactive at
+    // startup -- deactivate it before clearing the alarm, same as any other control input.
     Macro { "Macro0" },
+    // @config macro1
+    // @default "" (empty)
+    // Runs when macro1_pin (control:) is activated.
     Macro { "Macro1" },
+    // @config macro2
+    // @default "" (empty)
+    // Runs when macro2_pin (control:) is activated.
     Macro { "Macro2" },
+    // @config macro3
+    // @default "" (empty)
+    // Runs when macro3_pin (control:) is activated.
     Macro { "Macro3" },
 };
 
+// @config after_homing
+// @default "" (empty)
+// Runs after a homing cycle completes -- i.e. once every axis with homing enabled has been
+// homed.
 Macro Macros::_after_homing { "after_homing" };
+
+// @config after_reset
+// @default "" (empty)
+// Runs after the system resets (power-on/startup, or a Ctrl-X real-time reset), but only if
+// the system ends up in Idle state immediately after the reset.
 Macro Macros::_after_reset { "after_reset" };
+
+// @config after_unlock
+// @default "" (empty)
+// Runs after a $X unlock command.
 Macro Macros::_after_unlock { "after_unlock" };
 
 // clang-format off

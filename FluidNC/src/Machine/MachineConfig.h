@@ -58,8 +58,24 @@ namespace Machine {
         Start() {}
 
         void group(Configuration::HandlerBase& handler) {
+            // @config must_home
+            // @default true
+            // Refuses to accept motion commands until $H (home) has been run at least once
+            // since boot. Jogging and settings commands still work while unhomed.
             handler.item("must_home", _mustHome);
+
+            // @config deactivate_parking
+            // @default false
+            // Sets what the M56 parking-motion override defaults to at boot and after a
+            // program ends (only takes effect when enable_parking_override_control is also
+            // true): false leaves parking motion active by default; true starts with it
+            // disabled until M56 is used to turn it back on.
             handler.item("deactivate_parking", _deactivateParking);
+
+            // @config check_limits
+            // @default true
+            // Checks limit switches at power-up/reset; if hard limits are enabled and a
+            // switch is already active, the machine enters Alarm state instead of Idle.
             handler.item("check_limits", _checkLimits);
         }
 

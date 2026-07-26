@@ -53,10 +53,39 @@ namespace Extenders {
     }
 
     void I2CPinExtenderBase::group(Configuration::HandlerBase& handler) {
+        // Pin extenders (extenders: / pinextenderN: / the pinextN.M pin-string prefix) are
+        // PROVISIONAL and may be removed from FluidNC in a future version -- do not use in
+        // a new config. This is documented here only so an existing config using the
+        // feature can be recognized and understood, not as a recommendation.
+
+        // @config busId
+        // @default 0
+        // Which top-level i2cN: bus this extender chip is attached to. No range is
+        // enforced by this item() call itself, but init() asserts it must be 0 or 1.
         handler.item("busId", _i2cBusId);
+
+        // @config interrupt0
+        // @default NO_PIN
+        // Optional interrupt pin for device 0 in this extender's chain (address
+        // baseAddress + 0). When defined, avoids polling that device for input changes.
         handler.item("interrupt0", _isrData[0]._pin);
+
+        // @config interrupt1
+        // @default NO_PIN
+        // Optional interrupt pin for device 1 in this extender's chain (address
+        // baseAddress + 1).
         handler.item("interrupt1", _isrData[1]._pin);
+
+        // @config interrupt2
+        // @default NO_PIN
+        // Optional interrupt pin for device 2 in this extender's chain (address
+        // baseAddress + 2).
         handler.item("interrupt2", _isrData[2]._pin);
+
+        // @config interrupt3
+        // @default NO_PIN
+        // Optional interrupt pin for device 3 in this extender's chain (address
+        // baseAddress + 3).
         handler.item("interrupt3", _isrData[3]._pin);
     }
 

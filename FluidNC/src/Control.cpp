@@ -7,17 +7,86 @@
 #include "Machine/Macros.h"  // macro0Event
 
 Control::Control() {
+    // All control inputs (Pin, input, default NO_PIN) must read non-active at boot -- this
+    // guards against starting with a stuck switch, and raises an "active at startup" alarm
+    // if one already reads active on reset. Active state is inverted with the pin's :low
+    // attribute. Status is reported via the '?' status command.
+    //
+    // The first 4 pins below (safety_door/reset/feed_hold/cycle_start) match standard Grbl
+    // v1.1 control pins and trigger the same actions as their real-time-character
+    // equivalents; a Grbl-only sender won't recognize the rest (macroN/fault/estop/homing).
+
     // The SafetyDoor pin must be defined first because it is checked explicitly in safety_door_ajar()
+
+    // @config safety_door_pin
+    // @default NO_PIN
+    // Typically wired to an enclosure door switch. While active, quickly stops motion and
+    // enters Door mode (often paired with the parking feature); the switch must be
+    // deactivated before the machine can be used. If it paused a running job, closing the
+    // door and issuing cycle_start (a sender's resume button, or a cycle_start_pin switch)
+    // resumes the job.
     _pins.push_back(new ControlPin(&safetyDoorEvent, "safety_door_pin", 'D'));
+
+    // @config reset_pin
+    // @default NO_PIN
+    // Performs a soft reset, equivalent to sending the Ctrl-X real-time character.
     _pins.push_back(new ControlPin(&rtResetEvent, "reset_pin", 'R'));
+
+    // @config feed_hold_pin
+    // @default NO_PIN
+    // Pauses a running job, equivalent to sending the '!' real-time character. Paired with
+    // cycle_start_pin, lets a job be paused/resumed with physical buttons.
     _pins.push_back(new ControlPin(&feedHoldEvent, "feed_hold_pin", 'H'));
+
+    // @config cycle_start_pin
+    // @default NO_PIN
+    // Resumes a paused job, equivalent to sending the '~' real-time character. Paired with
+    // feed_hold_pin, lets a job be paused/resumed with physical buttons.
     _pins.push_back(new ControlPin(&cycleStartEvent, "cycle_start_pin", 'S'));
+
+    // @config macro0_pin
+    // @default NO_PIN
+    // Runs macro0 (configured under macros:) when active, equivalent to sending the 0x87
+    // real-time character.
     _pins.push_back(new ControlPin(&macro0Event, "macro0_pin", '0'));
+
+    // @config macro1_pin
+    // @default NO_PIN
+    // Runs macro1 (configured under macros:) when active, equivalent to sending the 0x88
+    // real-time character.
     _pins.push_back(new ControlPin(&macro1Event, "macro1_pin", '1'));
+
+    // @config macro2_pin
+    // @default NO_PIN
+    // Runs macro2 (configured under macros:) when active, equivalent to sending the 0x89
+    // real-time character.
     _pins.push_back(new ControlPin(&macro2Event, "macro2_pin", '2'));
+
+    // @config macro3_pin
+    // @default NO_PIN
+    // Runs macro3 (configured under macros:) when active, equivalent to sending the 0x8a
+    // real-time character.
     _pins.push_back(new ControlPin(&macro3Event, "macro3_pin", '3'));
+
+    // @config fault_pin
+    // @default NO_PIN
+    // Immediate hard stop (no deceleration, so position accuracy can be lost) and a
+    // critical alarm that only a soft reset can clear; also stops the spindle if the active
+    // spindle's off_on_alarm is true. Critical alarm state blocks homing and unlock.
+    // Functionally identical to estop_pin -- this one is intended for a machine-detected
+    // fault signal (e.g. a stepper driver's fault/alarm output), not a user-operated switch.
     _pins.push_back(new ControlPin(&faultPinEvent, "fault_pin", 'F'));
+
+    // @config estop_pin
+    // @default NO_PIN
+    // Functionally identical to fault_pin (same hard stop + critical alarm behavior) --
+    // this one is intended for a user-operated emergency-stop switch. Note that this alone
+    // is only a control-input-level stop; a true e-stop should also cut power directly.
     _pins.push_back(new ControlPin(&faultPinEvent, "estop_pin", 'E'));
+
+    // @config homing_button_pin
+    // @default NO_PIN
+    // Runs $H (home all) when active.
     _pins.push_back(new ControlPin(&homingButtonEvent, "homing_button_pin", 'O'));
 }
 
