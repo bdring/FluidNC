@@ -40,26 +40,37 @@ term.loadAddon(fitAddon);
 term.open(document.getElementById('terminal'));
 
 // FitAddon.fit() alone isn't enough: it sizes the character grid to
-// .xterm-viewport's *outer* width, not the space actually left over once
-// the viewport's own vertical scrollbar (needed once scrollback grows past
-// one screen) reserves its gutter -- confirmed by measuring both directly:
-// the grid comes out ~12px wider than the viewport's clientWidth even when
-// fit() is called with the scrollbar already showing, so this isn't a
-// timing issue fit() will resolve on its own. Clamp cols down afterward
-// using the actual (if wrongly-sized) per-column pixel width to find out
-// how many columns need to go.
+// .xterm-viewport's *outer* box, not the space actually left over once the
+// viewport's own scrollbar (needed once scrollback grows past one screen)
+// reserves its gutter -- confirmed by measuring directly: the grid comes
+// out wider (and, same root cause, occasionally one row taller) than the
+// viewport's clientWidth/clientHeight even when fit() is called with the
+// scrollbar already showing, so this isn't a timing issue fit() will
+// resolve on its own. Clamp cols/rows down afterward using the actual (if
+// wrongly-sized) per-cell pixel dimensions to find out how much needs to
+// go in each direction.
 function fitTerminal() {
   fitAddon.fit();
   const viewport = term.element && term.element.querySelector('.xterm-viewport');
   const screen = term.element && term.element.querySelector('.xterm-screen');
-  if (!viewport || !screen || term.cols < 2) {
+  if (!viewport || !screen || term.cols < 2 || term.rows < 2) {
     return;
   }
-  const overflow = screen.getBoundingClientRect().width - viewport.clientWidth;
-  if (overflow > 0) {
-    const cellWidth = screen.getBoundingClientRect().width / term.cols;
-    const colsToDrop = Math.max(1, Math.ceil(overflow / cellWidth));
-    term.resize(term.cols - colsToDrop, term.rows);
+  const screenRect = screen.getBoundingClientRect();
+  const overflowX = screenRect.width - viewport.clientWidth;
+  const overflowY = screenRect.height - viewport.clientHeight;
+  let cols = term.cols;
+  let rows = term.rows;
+  if (overflowX > 0) {
+    const cellWidth = screenRect.width / term.cols;
+    cols -= Math.max(1, Math.ceil(overflowX / cellWidth));
+  }
+  if (overflowY > 0) {
+    const cellHeight = screenRect.height / term.rows;
+    rows -= Math.max(1, Math.ceil(overflowY / cellHeight));
+  }
+  if (cols !== term.cols || rows !== term.rows) {
+    term.resize(cols, rows);
   }
 }
 fitTerminal();
