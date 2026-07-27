@@ -189,7 +189,7 @@ namespace {
             path,
             status,
             formatBytes(totalspace),
-            formatBytes(usedspace + 1),
+            formatBytes(usedspace),
             percent);
 
         if (list_files) {
