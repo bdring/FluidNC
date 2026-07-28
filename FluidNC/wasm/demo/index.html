@@ -358,6 +358,77 @@ function postToWebui(msg) {
   }
 }
 
+// Queue of pending { id, cmd } requests from 'fluidnc-shim-command' (see
+// the message listener below) -- see FluidNCModule().then(...) further
+// down, which points sendShimTextRef at the real sendShimText once it
+// exists -- plus the one currently awaiting its ok/error terminator, if
+// any. Centralizes what used to be a hand-rolled "send a command, collect
+// lines until ok/error" matcher duplicated in ESP3D-WEBUI's
+// wasmbridge.js and FigUI's commandBridge.ts, so two commands sent
+// through this RPC at once can no longer have their response lines
+// cross-attributed -- FigUI's own bridge used to work around exactly this
+// with a per-bridge Promise chain (commandBridge.ts's old `chain`
+// variable); this makes it structurally impossible instead, the same
+// guarantee WebUI-mm's WebSocketService already provides itself via its
+// own command queue (which is also why WebUI-mm never adopted this RPC --
+// it didn't have the gap to begin with).
+//
+// This only serializes commands against each other, not against raw
+// 'fluidnc-shim-send' traffic (e.g. G-code lines a WebSocket-shaped
+// facade sends directly, bypassing this RPC entirely) -- a command's
+// ok/error can still race one of those. On real hardware an HTTP-shaped
+// /command call and WebSocket G-code streaming are genuinely independent
+// connections with independent response streams; closing that gap here
+// too would mean holding up all raw shim traffic behind whatever the
+// current pending command is, which could stall unrelated G-code
+// streaming for no good reason. Left open on purpose -- see each bridge's
+// WasmBridgeWebSocket/WasmBridgeWsAdapter for where it's still discussed.
+const shimCommandQueue = [];
+let currentShimCommand = null; // { id, responseLines, jsonText }
+let sendShimTextRef = null;
+
+function maybeStartNextShimCommand() {
+  if (currentShimCommand || shimCommandQueue.length === 0 || !sendShimTextRef) {
+    return;
+  }
+  const next = shimCommandQueue.shift();
+  currentShimCommand = { id: next.id, responseLines: [], jsonText: '' };
+  sendShimTextRef(`${next.cmd}\n`);
+}
+
+// The single point every reassembled shim line passes through: broadcasts
+// it to the loaded WebUI exactly as before, and -- if a 'fluidnc-shim-
+// command' request is currently in flight -- also feeds it, resolving
+// that request and starting the next queued one once the ok/error
+// terminator line arrives. Lines are still broadcast either way, so
+// nothing changes for a WebUI bridge that only ever listens to the
+// broadcast stream itself (e.g. a WebSocket-shaped facade tracking its
+// own G-code acks) -- this is purely additive.
+function deliverShimLine(line, isJson) {
+  postToWebui({ type: 'fluidnc-shim-line', line, isJson });
+  if (!currentShimCommand) {
+    return;
+  }
+  if (!isJson && (line.indexOf('ok') === 0 || line.indexOf('error') === 0)) {
+    const cmd = currentShimCommand;
+    currentShimCommand = null;
+    postToWebui({
+      type: 'fluidnc-shim-command-response',
+      id: cmd.id,
+      ok: line.indexOf('ok') === 0,
+      response: cmd.jsonText || cmd.responseLines.join('\n'),
+      ackLine: line,
+    });
+    maybeStartNextShimCommand();
+    return;
+  }
+  if (isJson) {
+    currentShimCommand.jsonText += line;
+  } else {
+    currentShimCommand.responseLines.push(line);
+  }
+}
+
 function dispatchShimLine(line) {
   const chunk = JSON_CHUNK_RE.exec(line);
   if (chunk) {
@@ -365,10 +436,10 @@ function dispatchShimLine(line) {
     return;
   }
   if (shimJsonAccum !== null) {
-    postToWebui({ type: 'fluidnc-shim-line', line: shimJsonAccum, isJson: true });
+    deliverShimLine(shimJsonAccum, true);
     shimJsonAccum = null;
   }
-  postToWebui({ type: 'fluidnc-shim-line', line, isJson: false });
+  deliverShimLine(line, false);
 }
 
 self.fluidncOnShimOutput = (text) => {
@@ -452,6 +523,7 @@ FluidNCModule().then((Module) => {
   const start = Module.cwrap('fluidnc_start', null, []);
   const sendText = Module.cwrap('fluidnc_send_text', null, ['string']);
   const sendShimText = Module.cwrap('fluidnc_shim_send', null, ['string']);
+  sendShimTextRef = sendShimText;
   const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string', 'string']);
   const fsList = Module.cwrap('fluidnc_fs_list', 'string', ['string', 'string']);
   const fsDelete = Module.cwrap('fluidnc_fs_delete', 'boolean', ['string', 'string']);
@@ -516,6 +588,9 @@ FluidNCModule().then((Module) => {
     }
     if (msg.type === 'fluidnc-shim-send' && typeof msg.text === 'string') {
       sendShimText(msg.text);
+    } else if (msg.type === 'fluidnc-shim-command' && typeof msg.id === 'number' && typeof msg.cmd === 'string') {
+      shimCommandQueue.push({ id: msg.id, cmd: msg.cmd });
+      maybeStartNextShimCommand();
     } else if (msg.type === 'fluidnc-fs-request') {
       webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
     }
