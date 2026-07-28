@@ -335,9 +335,50 @@ self.fluidncOnOutput = (text) => colorizeOutput(text);
 // wasm/README.md's section on the WebUI bridge). Harmless no-op when no
 // WebUI is loaded (webuiFrame.contentWindow is then either null or
 // about:blank's, and postMessage on it just goes nowhere).
-self.fluidncOnShimOutput = (text) => {
+//
+// Buffers raw shim text into complete lines and reassembles any
+// [JSON:...]-encapsulated chunks (see FluidNC's JSONencoder -- when
+// constructed with a tag, JSONencoder::flush() wraps each ~100-char chunk
+// of output in a "[JSON:" ... "]" line, since a serial-shaped channel like
+// ShimChannel has no message framing of its own to keep a JSON payload
+// line from colliding with the ok/error line that terminates a command)
+// here rather than leaving it to each WebUI bridge -- WebUI-mm's
+// wasmBridgeTransport.ts, FigUI's shimTransport.ts, and ESP3D-WEBUI's
+// wasmbridge.js all used to reimplement this same ~100-line buffer/regex
+// dance independently. Every WebUI bridge now just listens for
+// 'fluidnc-shim-line' and gets plain, already-unwrapped lines -- the same
+// shape a real WSChannel connection would produce.
+const JSON_CHUNK_RE = /^\[JSON:([\s\S]*)\]$/;
+let shimLineBuffer = '';
+let shimJsonAccum = null;
+
+function postToWebui(msg) {
   if (webuiFrame && webuiFrame.contentWindow) {
-    webuiFrame.contentWindow.postMessage({ type: 'fluidnc-shim-output', text }, '*');
+    webuiFrame.contentWindow.postMessage(msg, '*');
+  }
+}
+
+function dispatchShimLine(line) {
+  const chunk = JSON_CHUNK_RE.exec(line);
+  if (chunk) {
+    shimJsonAccum = (shimJsonAccum === null ? '' : shimJsonAccum) + chunk[1];
+    return;
+  }
+  if (shimJsonAccum !== null) {
+    postToWebui({ type: 'fluidnc-shim-line', line: shimJsonAccum, isJson: true });
+    shimJsonAccum = null;
+  }
+  postToWebui({ type: 'fluidnc-shim-line', line, isJson: false });
+}
+
+self.fluidncOnShimOutput = (text) => {
+  shimLineBuffer += text.replace(/\r/g, '');
+  let endLineIndex = shimLineBuffer.indexOf('\n');
+  while (endLineIndex >= 0) {
+    const line = shimLineBuffer.slice(0, endLineIndex);
+    shimLineBuffer = shimLineBuffer.slice(endLineIndex + 1);
+    if (line) dispatchShimLine(line);
+    endLineIndex = shimLineBuffer.indexOf('\n');
   }
 };
 
