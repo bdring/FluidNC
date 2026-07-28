@@ -38,14 +38,25 @@
     <option value="">-- none --</option>
     <option data-owner="figamore" data-repo="FigUI" data-tag="v1.2.7">FigUI (figamore)</option>
     <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="">ESP3D-WEBUI (michmela44)</option>
+    <option data-local-file="true">Load local build file (.html/.html.gz)...</option>
   </select>
+  <input type="file" id="webuiFileInput" accept=".html,.gz" style="display:none">
   <span id="webuiStatus"></span>
 </div>
-<!-- Not yet wired to the running FluidNC instance -- see webui-proxy.js's
-     comment for why the fetch is needed at all, and the wasm/README.md
-     section on it. WebUI's own WebSocket calls will just fail for now
-     (nothing here intercepts them yet), so expect it to render but not
-     function until that's wired up separately. -->
+<!-- Commands, the WebSocket-equivalent status/response stream, and file
+     operations (list/upload/download/delete/createdir) are all bridged to
+     the running FluidNC instance via postMessage (see
+     self.fluidncOnShimOutput/the 'fluidnc-shim-send' and 'fluidnc-fs-*'
+     listeners below, and WebUI-mm's targets/CNC/FluidNC/{commandTransport,
+     wsAdapter,fileTransport}.ts on the other end). Only WebUI variants
+     whose local build has this bridge wired in will actually work here --
+     currently that's a local, unpublished WebUI-mm checkout only, reachable
+     via "Load local build file..." (build it with `npm run build` in
+     WebUI-mm, then pick dist/index.html.gz here). The two GitHub-release
+     options load the real published builds, which don't know about this
+     bridge and will just show "Connecting..." forever. See webui-proxy.js's
+     comment for why the fetch to load a release build at all is needed,
+     and wasm/README.md's WebUI section. -->
 <iframe id="webuiFrame"></iframe>
 <div id="terminal"></div>
 
@@ -126,29 +137,78 @@ function scheduleFit() {
 }
 window.addEventListener('resize', scheduleFit);
 
-// Loads a WebUI build (chosen from the dropdown) into the iframe via
-// webui-proxy.js (see wasm/README.md) -- this only works when the page
-// itself is served from the Netlify site the function is deployed
-// alongside (functions aren't available under the local serve.py/
-// python3 -m http.server dev flow). Not wired to the running FluidNC
-// instance yet: WebUI's own WebSocket calls will just fail, so expect it
-// to render but not function until that's addressed separately.
+// Loads a WebUI build (chosen from the dropdown) into the iframe, either
+// fetched from GitHub via webui-proxy.js (see wasm/README.md -- only works
+// when this page is served from the Netlify site the function is deployed
+// alongside, not under local serve.py/python3 -m http.server) or read from
+// a local file the user picks (see webuiFileInput's listener below). Either
+// way the result is a single HTML string, which loadWebuiHtml() marks with
+// the bridge marker and hands to the iframe the same way.
 const webuiSelect = document.getElementById('webuiSelect');
 const webuiFrame = document.getElementById('webuiFrame');
 const webuiStatus = document.getElementById('webuiStatus');
+const webuiFileInput = document.getElementById('webuiFileInput');
 const terminalEl = document.getElementById('terminal');
+
+// Marker so WebUI-mm's targets/CNC/FluidNC/{commandTransport,wsAdapter,
+// fileTransport}.ts can tell at runtime that they're loaded inside this
+// demo (vs. talking to real hardware) and switch to the postMessage-based
+// bridge instead of real HTTP/WebSocket calls. The closing tag below is
+// split with a backslash so the HTML parser doesn't end our own enclosing
+// script element early -- and for the same reason, this comment spells the
+// tag as "close script" rather than writing it out literally.
+function loadWebuiHtml(html) {
+  const marker = '<script>window.__FLUIDNC_WASM_BRIDGE__ = true;<\/script>';
+  webuiFrame.src = URL.createObjectURL(new Blob([marker + html], { type: 'text/html' }));
+  webuiFrame.style.display = 'block';
+  terminalEl.classList.add('terminal-compact');
+  fitTerminal();
+  webuiStatus.textContent = '';
+}
+
+webuiFileInput.addEventListener('change', async () => {
+  const file = webuiFileInput.files[0];
+  webuiFileInput.value = ''; // allow re-picking the same file later
+  if (!file) {
+    webuiSelect.value = '';
+    return;
+  }
+  webuiStatus.textContent = 'Loading ' + file.name + '...';
+  try {
+    // .gz files (e.g. WebUI-mm's own `npm run build` output,
+    // dist/index.html.gz) need decompressing first; DecompressionStream is
+    // a standard browser API, no library needed. Detected by extension
+    // rather than sniffing magic bytes -- good enough for a file the user
+    // just chose deliberately.
+    const isGzip = /\.gz$/i.test(file.name);
+    const html = isGzip
+      ? await new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text()
+      : await file.text();
+    loadWebuiHtml(html);
+  } catch (err) {
+    console.error(err);
+    webuiStatus.textContent = 'Failed to load: ' + err.message;
+    webuiSelect.value = '';
+  }
+});
 
 webuiSelect.addEventListener('change', async () => {
   const opt = webuiSelect.selectedOptions[0];
   const owner = opt.dataset.owner;
   const repo = opt.dataset.repo;
   const tag = opt.dataset.tag;
+  const localFile = opt.dataset.localFile;
 
-  if (!owner) {
+  if (!owner && !localFile) {
     webuiFrame.style.display = 'none';
     webuiFrame.src = 'about:blank';
     terminalEl.classList.remove('terminal-compact');
     fitTerminal();
+    return;
+  }
+
+  if (localFile) {
+    webuiFileInput.click();
     return;
   }
 
@@ -162,12 +222,7 @@ webuiSelect.addEventListener('change', async () => {
     if (!res.ok) {
       throw new Error(res.status + ' ' + res.statusText + ': ' + (await res.text()));
     }
-    const html = await res.text();
-    webuiFrame.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-    webuiFrame.style.display = 'block';
-    terminalEl.classList.add('terminal-compact');
-    fitTerminal();
-    webuiStatus.textContent = '';
+    loadWebuiHtml(await res.text());
   } catch (err) {
     console.error(err);
     webuiStatus.textContent = 'Failed to load: ' + err.message;
@@ -274,6 +329,18 @@ function colorizeOutput(text) {
 }
 self.fluidncOnOutput = (text) => colorizeOutput(text);
 
+// Forwards ShimChannel's output (wasm/ShimChannel.cpp) to whatever WebUI
+// build is currently loaded in the iframe, so it can be routed into
+// WebUI-mm's WasmBridgeWsAdapter (a plain postMessage relay -- see
+// wasm/README.md's section on the WebUI bridge). Harmless no-op when no
+// WebUI is loaded (webuiFrame.contentWindow is then either null or
+// about:blank's, and postMessage on it just goes nowhere).
+self.fluidncOnShimOutput = (text) => {
+  if (webuiFrame && webuiFrame.contentWindow) {
+    webuiFrame.contentWindow.postMessage({ type: 'fluidnc-shim-output', text }, '*');
+  }
+};
+
 const TEST_CONFIG_YAML = `
 name: "WASM test machine"
 board: "None"
@@ -343,14 +410,78 @@ M30
 FluidNCModule().then((Module) => {
   const start = Module.cwrap('fluidnc_start', null, []);
   const sendText = Module.cwrap('fluidnc_send_text', null, ['string']);
+  const sendShimText = Module.cwrap('fluidnc_shim_send', null, ['string']);
   const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string', 'string']);
-  const lockReadonly = Module.cwrap('fluidnc_lock_readonly', null, ['string']);
+  const fsList = Module.cwrap('fluidnc_fs_list', 'string', ['string', 'string']);
+  const fsDelete = Module.cwrap('fluidnc_fs_delete', 'boolean', ['string', 'string']);
+  const fsDeleteDir = Module.cwrap('fluidnc_fs_deletedir', 'boolean', ['string', 'string']);
+  const fsMkdir = Module.cwrap('fluidnc_fs_mkdir', 'boolean', ['string', 'string']);
+  const fsRead = Module.cwrap('fluidnc_fs_read', 'string', ['string', 'string']);
+
+  // Handles one { type: 'fluidnc-fs-request', id, op, root, path, ... }
+  // message -- see WebUI-mm's wasmBridgeTransport.ts fsRequest(), the
+  // other end of this exchange. Files are session-writable (native_sd/
+  // native_localfs are never locked read-only here, unlike earlier drafts
+  // of this demo): MEMFS never persists past a page reload regardless, so
+  // there's no illusion-of-persistence problem with letting writes
+  // actually take effect for the life of the tab.
+  function handleFsRequest(msg) {
+    let result, ok = true;
+    try {
+      switch (msg.op) {
+        case 'list':
+          result = JSON.parse(fsList(msg.root, msg.path));
+          break;
+        case 'delete':
+          ok = fsDelete(msg.root, msg.path);
+          break;
+        case 'deletedir':
+          ok = fsDeleteDir(msg.root, msg.path);
+          break;
+        case 'mkdir':
+          ok = fsMkdir(msg.root, msg.path);
+          break;
+        case 'read':
+          result = fsRead(msg.root, msg.path);
+          break;
+        case 'write':
+          ok = stageFile(msg.root, msg.path, msg.content);
+          break;
+        default:
+          ok = false;
+      }
+    } catch (err) {
+      ok = false;
+      result = String(err);
+    }
+    return { type: 'fluidnc-fs-response', id: msg.id, ok, result };
+  }
+
+  // The other half of self.fluidncOnShimOutput above: relays commands sent
+  // by WebUI-mm's WasmBridgeWsAdapter/bridge sendCommand back into
+  // ShimChannel, and handles file-operation requests (see
+  // handleFsRequest() above). Only messages from the currently-loaded
+  // iframe are honored (event.source check) -- postMessage's targetOrigin
+  // is '*' on both ends since the iframe is loaded from a blob: URL with
+  // no fixed origin to pin to, so this is the only available authenticity
+  // check.
+  window.addEventListener('message', (event) => {
+    if (!webuiFrame || event.source !== webuiFrame.contentWindow) {
+      return;
+    }
+    const msg = event.data;
+    if (!msg) {
+      return;
+    }
+    if (msg.type === 'fluidnc-shim-send' && typeof msg.text === 'string') {
+      sendShimText(msg.text);
+    } else if (msg.type === 'fluidnc-fs-request') {
+      webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
+    }
+  });
 
   stageFile('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
-  lockReadonly('native_localfs');
-
   stageFile('native_sd', 'square.nc', TEST_GCODE);
-  lockReadonly('native_sd');
 
   start();
 
