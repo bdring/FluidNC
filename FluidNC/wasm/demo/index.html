@@ -358,74 +358,76 @@ function postToWebui(msg) {
   }
 }
 
-// Queue of pending { id, cmd } requests from 'fluidnc-shim-command' (see
-// the message listener below) -- see FluidNCModule().then(...) further
-// down, which points sendShimTextRef at the real sendShimText once it
-// exists -- plus the one currently awaiting its ok/error terminator, if
-// any. Centralizes what used to be a hand-rolled "send a command, collect
-// lines until ok/error" matcher duplicated in ESP3D-WEBUI's
-// wasmbridge.js and FigUI's commandBridge.ts, so two commands sent
-// through this RPC at once can no longer have their response lines
-// cross-attributed -- FigUI's own bridge used to work around exactly this
-// with a per-bridge Promise chain (commandBridge.ts's old `chain`
-// variable); this makes it structurally impossible instead, the same
-// guarantee WebUI-mm's WebSocketService already provides itself via its
-// own command queue (which is also why WebUI-mm never adopted this RPC --
-// it didn't have the gap to begin with).
-//
-// This only serializes commands against each other, not against raw
-// 'fluidnc-shim-send' traffic (e.g. G-code lines a WebSocket-shaped
-// facade sends directly, bypassing this RPC entirely) -- a command's
-// ok/error can still race one of those. On real hardware an HTTP-shaped
-// /command call and WebSocket G-code streaming are genuinely independent
-// connections with independent response streams; closing that gap here
-// too would mean holding up all raw shim traffic behind whatever the
-// current pending command is, which could stall unrelated G-code
-// streaming for no good reason. Left open on purpose -- see each bridge's
-// WasmBridgeWebSocket/WasmBridgeWsAdapter for where it's still discussed.
-const shimCommandQueue = [];
-let currentShimCommand = null; // { id, responseLines, jsonText }
+// Queue of everything waiting to go out over the shim -- both raw
+// 'fluidnc-shim-send' text (e.g. G-code/realtime bytes a WebSocket-shaped
+// facade sends directly) and 'fluidnc-shim-command' requests (see the
+// message listener below) -- plus the one currently awaiting its
+// ok/error terminator, if any. Both kinds share this one gate because
+// they share one physical ShimChannel: an earlier version of this only
+// serialized commands against each other (closing the cross-attribution
+// gap FigUI's bridge used to work around per-bridge with a Promise chain
+// -- commandBridge.ts's old `chain` variable), on the theory that a raw
+// send's own ok/error isn't tracked here anyway, so letting it through
+// immediately couldn't matter. In practice it can: ESP3D-WEBUI sends a
+// raw "$G" the moment its WebSocket facade opens, which can land in
+// ShimChannel's queue *while* the connect handshake's ESP800 request is
+// still in flight, and FluidNC's output for it can arrive split across
+// more than one self.fluidncOnShimOutput() call -- enough of a gap for a
+// second queued command (ESP400 next in this app's boot sequence) to
+// become "current" in between, so $G's own "ok" gets misattributed to
+// ESP400 and ESP400's real response never gets read. A real WSChannel
+// connection never has this problem (genuinely independent connections,
+// independent response streams); this bridge only has the one channel,
+// so treating every send -- raw or command -- as mutually exclusive is
+// what actually matches real hardware's observed behavior (never two
+// unacknowledged things in flight at once), even though it costs a WS
+// send the ability to jump ahead of a pending command the way it could
+// on real hardware's separate connection.
+const shimSendQueue = []; // { kind: 'raw', text } | { kind: 'command', id, cmd }
+let currentShimSend = null; // { kind, id, responseLines, jsonText }
 let sendShimTextRef = null;
 
-function maybeStartNextShimCommand() {
-  if (currentShimCommand || shimCommandQueue.length === 0 || !sendShimTextRef) {
+function maybeStartNextShimSend() {
+  if (currentShimSend || shimSendQueue.length === 0 || !sendShimTextRef) {
     return;
   }
-  const next = shimCommandQueue.shift();
-  currentShimCommand = { id: next.id, responseLines: [], jsonText: '' };
-  sendShimTextRef(`${next.cmd}\n`);
+  const next = shimSendQueue.shift();
+  currentShimSend = { kind: next.kind, id: next.id, responseLines: [], jsonText: '' };
+  sendShimTextRef(next.kind === 'raw' ? next.text : `${next.cmd}\n`);
 }
 
 // The single point every reassembled shim line passes through: broadcasts
-// it to the loaded WebUI exactly as before, and -- if a 'fluidnc-shim-
-// command' request is currently in flight -- also feeds it, resolving
-// that request and starting the next queued one once the ok/error
-// terminator line arrives. Lines are still broadcast either way, so
+// it to the loaded WebUI exactly as before, and -- if something is
+// currently in flight -- also feeds it, settling it (and, for a command,
+// posting its response) once the ok/error terminator line arrives, then
+// starting the next queued send. Lines are still broadcast either way, so
 // nothing changes for a WebUI bridge that only ever listens to the
 // broadcast stream itself (e.g. a WebSocket-shaped facade tracking its
 // own G-code acks) -- this is purely additive.
 function deliverShimLine(line, isJson) {
   postToWebui({ type: 'fluidnc-shim-line', line, isJson });
-  if (!currentShimCommand) {
+  if (!currentShimSend) {
     return;
   }
   if (!isJson && (line.indexOf('ok') === 0 || line.indexOf('error') === 0)) {
-    const cmd = currentShimCommand;
-    currentShimCommand = null;
-    postToWebui({
-      type: 'fluidnc-shim-command-response',
-      id: cmd.id,
-      ok: line.indexOf('ok') === 0,
-      response: cmd.jsonText || cmd.responseLines.join('\n'),
-      ackLine: line,
-    });
-    maybeStartNextShimCommand();
+    const sent = currentShimSend;
+    currentShimSend = null;
+    if (sent.kind === 'command') {
+      postToWebui({
+        type: 'fluidnc-shim-command-response',
+        id: sent.id,
+        ok: line.indexOf('ok') === 0,
+        response: sent.jsonText || sent.responseLines.join('\n'),
+        ackLine: line,
+      });
+    }
+    maybeStartNextShimSend();
     return;
   }
   if (isJson) {
-    currentShimCommand.jsonText += line;
+    currentShimSend.jsonText += line;
   } else {
-    currentShimCommand.responseLines.push(line);
+    currentShimSend.responseLines.push(line);
   }
 }
 
@@ -587,10 +589,11 @@ FluidNCModule().then((Module) => {
       return;
     }
     if (msg.type === 'fluidnc-shim-send' && typeof msg.text === 'string') {
-      sendShimText(msg.text);
+      shimSendQueue.push({ kind: 'raw', text: msg.text });
+      maybeStartNextShimSend();
     } else if (msg.type === 'fluidnc-shim-command' && typeof msg.id === 'number' && typeof msg.cmd === 'string') {
-      shimCommandQueue.push({ id: msg.id, cmd: msg.cmd });
-      maybeStartNextShimCommand();
+      shimSendQueue.push({ kind: 'command', id: msg.id, cmd: msg.cmd });
+      maybeStartNextShimSend();
     } else if (msg.type === 'fluidnc-fs-request') {
       webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
     }
