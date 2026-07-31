@@ -14,6 +14,8 @@ namespace Kinematics {
         // @config left_axis
         // @default 0
         // Which machine axis index drives the left cord's length.
+        // NOT bounds-checked against MAX_N_AXIS -- see transform_cartesian_to_motors()
+        // below for why an out-of-range or Z-and-above value here is unsafe.
         handler.item("left_axis", _left_axis);
 
         // @config left_anchor_x
@@ -29,6 +31,7 @@ namespace Kinematics {
         // @config right_axis
         // @default 1
         // Which machine axis index drives the right cord's length.
+        // NOT bounds-checked -- see left_axis above.
         handler.item("right_axis", _right_axis);
 
         // @config right_anchor_x
@@ -86,8 +89,27 @@ namespace Kinematics {
         return false;
     }
 
-    bool WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
-        log_error("WallPlotter::transform_cartesian_to_motors is broken");
+    bool WallPlotter::transform_cartesian_to_motors(float* motors, float* cartesian) {
+        float left_length, right_length;
+        xy_to_lengths(cartesian[X_AXIS], cartesian[Y_AXIS], left_length, right_length);
+
+        // Inverse of the mapping used in motors_to_cartesian() (left motor runs backward).
+        //
+        // KNOWN ISSUE: _left_axis/_right_axis come straight from config with no
+        // validation. An out-of-range value is an out-of-bounds write into motors[];
+        // a value >= Z_AXIS gets silently overwritten by the copy loop below, which
+        // would produce wrong (not crashing) soft-limit bounds. Same unchecked
+        // pattern already existed in motors_to_cartesian()'s reads of motors[_left_axis]/
+        // motors[_right_axis] before this function was implemented -- flagged in PR
+        // review (bdring/FluidNC#1771) as worth a real fix (bounds-check in validate()),
+        // just not folded into that PR.
+        motors[_left_axis]  = 0 - (left_length - zero_left);
+        motors[_right_axis] = 0 + (right_length - zero_right);
+
+        auto n_axis = Axes::_numberAxis;
+        for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
+            motors[axis] = cartesian[axis];
+        }
         return true;
     }
 

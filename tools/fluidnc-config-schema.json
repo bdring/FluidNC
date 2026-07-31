@@ -1823,9 +1823,17 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a713.2. No config fields. Cannot combine two axes into one homing.cycle group (see homingBlock description).",
+      "description": "spec \u00a713.2. Cannot combine two axes into one homing.cycle group (see homingBlock description).",
       "additionalProperties": false,
-      "properties": {}
+      "properties": {
+        "x_scaler": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 10.0,
+          "default": 1.0,
+          "description": "Compensation factor for midTbot-style machines where the motors themselves move in X. Leave at 1 on CoreXY machines where the motors don't move in X."
+        }
+      }
     },
     "kinematics_midtbot": {
       "type": [

@@ -164,12 +164,13 @@ SECTIONS = [
     ),
     ("kinematics.ParallelDelta", [("Kinematics/ParallelDelta.cpp", "ParallelDelta")], None),
     ("kinematics.WallPlotter", [("Kinematics/WallPlotter.cpp", "WallPlotter")], None),
+    ("kinematics.CoreXY", [("Kinematics/CoreXY.cpp", "CoreXY")], None),
     (
-        "kinematics.CoreXY / kinematics.midtbot / kinematics.Cartesian",
+        "kinematics.midtbot / kinematics.Cartesian",
         [],
-        "No config items at all -- CoreXY::group()/Midtbot::group()/Cartesian::group() are empty. "
-        "CoreXY's own x_scaler is a real field used in its math but is NOT wired up as a config item (see CONFIG_ITEM_ISSUES.md); "
-        "Midtbot hardcodes it to 2.0 instead.",
+        "No config items at all -- Midtbot::group()/Cartesian::group() are empty. Midtbot hardcodes "
+        "its x_scaler to 2.0 in init() rather than exposing it as a config item, since that ratio is "
+        "a fixed property of the midTbot hardware design, not something a user should tune.",
     ),
 ]
 

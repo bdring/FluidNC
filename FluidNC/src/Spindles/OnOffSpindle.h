@@ -70,8 +70,6 @@ namespace Spindles {
         Pin _enable_pin;
         Pin _output_pin;
         Pin _direction_pin;
-        // _zero_speed_with_disable forces speed to 0 when disabled
-        bool _zero_speed_with_disable = true;
 
         virtual void set_output(uint32_t speed);
         virtual void deinit();

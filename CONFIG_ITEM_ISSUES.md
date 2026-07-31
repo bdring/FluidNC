@@ -2,10 +2,10 @@
 
 Found during the effort to annotate every `handler.item()` call in the FluidNC
 config system with `@config`/`@default` comments (see `DECISIONS.md` /
-`PROGRESS.md` for that effort's own log). Two categories: wiki pages that
-have drifted from the actual firmware behavior, and code-quality problems
-spotted in passing. Nothing here was fixed as part of the annotation work
-itself — these are handoff notes.
+`PROGRESS.md` for that effort's own log). Wiki pages that have drifted from
+the actual firmware behavior, plus known scope boundaries of the generator
+tooling. (A separate batch of code-quality issues found in passing was fixed
+directly in source and is no longer listed here.)
 
 ## 1. Wiki pages that have drifted from source
 
@@ -29,61 +29,7 @@ written into the source reflect the *source* value, not the wiki's.
 | Status Outputs | `run_pin` / `hold_pin` / `alarm_pin` / `door_pin` | labeled `Type: Pin (input)` | these are outputs the firmware drives based on machine state (e.g. to run a stack light), not inputs | `FluidNC/src/Status_outputs.h:8-12` |
 | Modbus VFD Spindles | `uart_num` | default `1` | default `-1` (meaning "not configured") | `FluidNC/src/Spindles/VFDSpindle.h:35` |
 
-## 2. Code-quality issues found in passing
-
-These were flagged as separate background tasks rather than fixed inline,
-since they're out of scope for a documentation pass.
-
-### 2.1 Dead shadow field in `OnOffSpindle.h` — fix in progress
-
-`Spindles::Spindle` (base class) has a **private** field:
-```cpp
-bool _zero_speed_with_disable = false;   // Spindle.h:30
-```
-registered as the config item `s0_with_disable` (`Spindle.h:155`) and read in
-`Spindle.cpp:162`.
-
-`Spindles::OnOff` (a subclass) separately declares its **own** field with the
-exact same name but a different default:
-```cpp
-bool _zero_speed_with_disable = true;    // OnOffSpindle.h:61 (protected)
-```
-Because the base class's field is `private`, this isn't an override — it's a
-completely independent variable that happens to share a name. Confirmed via
-whole-tree `grep` that `OnOff`'s copy is never read anywhere except its own
-declaration. It looks load-bearing (same name, same comment, copied from the
-real field) but does nothing.
-
-**Status:** flagged as task `task_a0a53682` ("Remove dead
-`_zero_speed_with_disable` shadow in `OnOffSpindle.h`") — you've started this
-one in a separate session; it's running now.
-
-### 2.2 Three Kinematics findings — bundled, not yet started
-
-Flagged as task `task_564db26f` ("Audit dead/broken fields in Kinematics/").
-
-- **`CoreXY::group()` / `Midtbot::group()` are both empty** (`CoreXY.cpp`,
-  `Midtbot.cpp`), yet `CoreXY.cpp`'s own header comment (lines 11-26)
-  advertises a working `x_scaler: 1` config example, and `_x_scaler` is a
-  real field actively used in the kinematics math
-  (`transform_cartesian_to_motors`/`motors_to_cartesian`). It is **not**
-  actually configurable from `config.yaml` at all — setting it in a real
-  config file would be silently ignored as an unrecognized key. Matches the
-  file's own "TODO: Implement scalers" comment, so this is known-incomplete,
-  not a fresh regression. `Midtbot.cpp` instead hardcodes `_x_scaler = 2.0;`
-  in `init()`.
-- **`ParallelDelta.h:76,78`**: `_homing_degrees` (default `0.0`) and
-  `_down_degrees` (default `90.0`) are declared with real-looking defaults,
-  but neither is read anywhere in the codebase, nor registered via
-  `handler.item()` in `ParallelDelta::group()` — which does register the
-  seemingly-paired `up_degrees`. Both fields are dead.
-- **`WallPlotter.cpp`**: `WallPlotter::transform_cartesian_to_motors()`
-  contains `log_error("WallPlotter::transform_cartesian_to_motors is
-  broken");` — the kinematics system apparently self-reports as
-  non-functional. Worth checking whether this is still accurate or a stale
-  warning from a since-fixed implementation.
-
-## 3. Generator limitations (not bugs — known scope boundaries)
+## 2. Generator limitations (not bugs — known scope boundaries)
 
 Not "problems" in the same sense as the above, but worth knowing if you're
 about to run `tools/gen_config_docs.py` yourself:
