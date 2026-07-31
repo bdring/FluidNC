@@ -73,12 +73,14 @@ def find_group_body(cpp_text: str, class_name: str, method_name: str = "group") 
     start = marker.end()
     depth = 1
     i = start
-    while depth > 0:
+    while depth > 0 and i < len(cpp_text):
         if cpp_text[i] == '{':
             depth += 1
         elif cpp_text[i] == '}':
             depth -= 1
         i += 1
+    if depth != 0:
+        raise SystemExit(f"error: unmatched braces while scanning {class_name}::{method_name}(...) body")
     return cpp_text[start:i - 1]
 
 
@@ -276,13 +278,11 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
     elif len(extra) == 2:
         entry["min"] = extra[0]
         entry["max"] = extra[1]
-    elif len(extra) == 1 and extra[0] in enum_arrays:
-        # item(name, value, SomeEnumArray) -- HandlerBase's item(name, uint32_t&, const
-        # EnumItem*) overload. The array identifier is passed explicitly as the 3rd
-        # argument here, unlike the step_engine_t* case below, so it's looked up directly
-        # by that name rather than by member-name proximity.
+    elif len(extra) == 1:
+        # item(name, value, SomeEnumArray) -- HandlerBase's item(name, uint32_t&, const EnumItem*) overload.
         entry["kind"] = "enum"
-        entry["values"] = enum_arrays[extra[0]]["values"]
+        if extra[0] in enum_arrays:
+            entry["values"] = enum_arrays[extra[0]]["values"]
 
     if kind == "enum" and member in enum_lookup:
         # step_engine_t*-typed fields (e.g. Stepping::engine) don't pass their EnumItem

@@ -219,6 +219,9 @@ def main():
             out_lines.append("")
             continue
         entries, errors, warnings = merge_section(contributors)
+        if section in {"Laser", "PlasmaSpindle"}:
+            entries.pop("spinup_ms", None)
+            entries.pop("spindown_ms", None)
         if errors:
             any_errors = True
             for e in errors:
