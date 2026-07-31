@@ -86,8 +86,18 @@ namespace Kinematics {
         return false;
     }
 
-    bool WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
-        log_error("WallPlotter::transform_cartesian_to_motors is broken");
+    bool WallPlotter::transform_cartesian_to_motors(float* motors, float* cartesian) {
+        float left_length, right_length;
+        xy_to_lengths(cartesian[X_AXIS], cartesian[Y_AXIS], left_length, right_length);
+
+        // Inverse of the mapping used in motors_to_cartesian() (left motor runs backward).
+        motors[_left_axis]  = 0 - (left_length - zero_left);
+        motors[_right_axis] = 0 + (right_length - zero_right);
+
+        auto n_axis = Axes::_numberAxis;
+        for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
+            motors[axis] = cartesian[axis];
+        }
         return true;
     }
 

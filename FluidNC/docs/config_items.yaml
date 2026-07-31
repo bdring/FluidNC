@@ -2500,8 +2500,17 @@ kinematics.WallPlotter:
     description: |
       Maximum length of the small linear segments a cartesian move is broken into before being converted to cord lengths (the cord-length transform is nonlinear).
 
-# kinematics.CoreXY / kinematics.midtbot / kinematics.Cartesian: (no config items)
-#   No config items at all -- CoreXY::group()/Midtbot::group()/Cartesian::group() are empty. CoreXY's own x_scaler is a real field used in its math but is NOT wired up as a config item (see CONFIG_ITEM_ISSUES.md); Midtbot hardcodes it to 2.0 instead.
+kinematics.CoreXY:
+  x_scaler:
+    type: float
+    min: 0.1
+    max: 10.0
+    default: '1.0'
+    description: |
+      Compensation factor for midTbot-style machines where the motors themselves move in X, so a cartesian X move corresponds to a larger motor-space move. Leave at 1 on CoreXY machines where the motors don't move in X.
+
+# kinematics.midtbot / kinematics.Cartesian: (no config items)
+#   No config items at all -- Midtbot::group()/Cartesian::group() are empty. Midtbot hardcodes its x_scaler to 2.0 in init() rather than exposing it as a config item, since that ratio is a fixed property of the midTbot hardware design, not something a user should tune.
 
 # Registered via a runtime loop over a list of (event, name, letter) tuples, not literal handler.item() calls -- see ItemDocs.md's "data-driven item lists" section. Extracted here from the @config annotations directly.
 control:
