@@ -26,8 +26,11 @@ namespace Spindles {
             virtual void afterParse() {};
 
         protected:
-            // Enable spindown / spinup settings:
-            virtual bool use_delay_settings() const { return true; }
+            // Whether this protocol can report real spindle speed back (e.g. via a
+            // Modbus get_rpm_cmd), letting VFDSpindle poll for confirmed speed instead
+            // of blindly waiting out spinup_ms/spindown_ms. False by default -- most
+            // protocols have no such feedback.
+            virtual bool use_speed_feedback() const { return false; }
 
             // Commands:
             virtual void direction_command(SpindleState mode, ModbusCommand& data) = 0;

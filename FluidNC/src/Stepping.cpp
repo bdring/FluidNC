@@ -194,11 +194,56 @@ void IRAM_ATTR Stepping::stopTimer() {
 }
 
 void Stepping::group(Configuration::HandlerBase& handler) {
+    // @config engine
+    // @default board-dependent (DEFAULT_STEPPING_ENGINE, applied in afterParse())
+    // Method used to generate step pulses in firmware. Controller board hardware is
+    // designed for either RMT or I2S stepping, so this must match what the board
+    // actually wires up -- stepping types cannot be mixed across motors. Choices come
+    // from stepTypes[] below.
+    //
+    // RMT drives native GPIO step/direction pins directly using the ESP32 RMT
+    // peripheral, with no CPU delay loops; typically used on boards with few motors.
+    // TIMED has the same pin requirements as RMT but drives pins from the CPU with
+    // delay loops, so there's no reason to prefer it over RMT.
+    // I2S_STATIC and I2S_STREAM both drive motors over the I2S-output ("I2SO") shift
+    // register bus instead of native GPIOs, to support more motors with fewer pins;
+    // they are functionally identical to each other (two names for historical reasons)
+    // and require a valid i2so: section elsewhere in the config.
     handler.item("engine", _engine);
+
+    // @config idle_ms
+    // @default 255 -- special "never auto-disable" value (Grbl compatibility)
+    // Milliseconds of inactivity before motors are automatically disabled. Any value
+    // other than 255 (0-254 or 256+) is a real delay. Motors can also be disabled
+    // manually at any time with $MD.
     handler.item("idle_ms", _idleMsecs, 0, 10000000);  // full range
+
+    // @config pulse_us
+    // @default 4
+    // Duration, in microseconds, of the "on" part of each step pulse; it typically
+    // needs an equal "off" duration, so this caps the max step rate at roughly
+    // 1000000/(2*pulse_us + dir_delay_us) steps/sec. Too short a pulse won't be
+    // registered by some stepper drivers -- check the driver's datasheet if unsure.
     handler.item("pulse_us", _pulseUsecs, 0, 30);
+
+    // @config dir_delay_us
+    // @default 0
+    // Delay, in microseconds, required between a direction change and the next step
+    // pulse. Most drivers don't need this and can leave it at 0.
     handler.item("dir_delay_us", _directionDelayUsecs, 0, 10);
+
+    // @config disable_delay_us
+    // @default 0
+    // Delay, in microseconds, some motors need between being enabled and being able
+    // to take their first step.
     handler.item("disable_delay_us", _disableDelayUsecs, 0, 1000000);  // max 1 second
+
+    // @config segments
+    // @default 12
+    // Number of entries in the step-segment buffer sitting between the step-execution
+    // algorithm and the planner blocks. Governs how much lead time step execution has
+    // for other processing (feedhold/override latency is roughly 10ms * segments);
+    // leave at the default unless fine-tuning a specialized application.
     handler.item("segments", _segments, 6, 20);
 }
 

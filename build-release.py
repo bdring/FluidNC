@@ -98,6 +98,7 @@ manifest = {
         "images": {},
         "files": {},
         "addrinfo": {},
+        "docs": {},
         "upload": {
             "name": "upload",
             "description": "Things you can upload to the file system",
@@ -203,6 +204,54 @@ def addAddrinfo(name, filepath):
         print("Duplicate addrinfo name", name)
         sys.exit(1)
     manifest['addrinfo'][name] = entry
+
+def addDoc(name, filepath):
+    """Register a reference/metadata file (not installed on the controller,
+    unlike 'files') in the manifest -- e.g. config_items.yaml. Same shape as
+    addAddrinfo, but unlike addrinfo generation (best-effort per board), a doc
+    is expected to always exist by the time this is called -- a missing file
+    here means the generation step itself should have already failed loudly."""
+    if not os.path.exists(filepath):
+        print("Missing doc file", filepath)
+        sys.exit(1)
+
+    print("doc", name)
+
+    with open(filepath, "rb") as f:
+        data = f.read()
+
+    # path relative to manifestRelPath
+    relpath = os.path.relpath(filepath, manifestRelPath).replace(os.sep, '/')
+
+    entry = {
+        "size": len(data),
+        "path": relpath,
+        "signature": {
+            "algorithm": "SHA2-256",
+            "value": hashlib.sha256(data).hexdigest()
+        }
+    }
+    if manifest['docs'].get(name) != None:
+        print("Duplicate doc name", name)
+        sys.exit(1)
+    manifest['docs'][name] = entry
+
+# Generate the config-item reference doc (see FluidNC/src/Configuration/ItemDocs.md
+# and tools/build_config_docs.py) and register it in the manifest. Not board-specific,
+# so this runs once, before the per-MCU/variant build loop. A generation failure --
+# e.g. a @config annotation drifted from its handler.item() call -- fails the whole
+# release build, the same as a firmware compile failure would.
+configItemsDir = os.path.join(manifestRelPath, 'docs')
+os.makedirs(configItemsDir, exist_ok=True)
+configItemsPath = os.path.join(configItemsDir, 'config_items.yaml')
+print('Generating config_items.yaml')
+configItemsResult = subprocess.run(
+    ["python", os.path.join("tools", "build_config_docs.py"), "--output", configItemsPath]
+)
+if configItemsResult.returncode != 0:
+    print("Error: failed to generate config_items.yaml", file=sys.stderr)
+    sys.exit(1)
+addDoc('config-items', configItemsPath)
 
 flashsize = "4m"
 

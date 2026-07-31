@@ -27,12 +27,16 @@ namespace Spindles {
         void config_message() override;
         void init() override;
         void set_direction(bool Clockwise) override {};
-        bool use_delay_settings() const override { return false; }
 
         void group(Configuration::HandlerBase& handler) override {
             // pwm_freq is the only item that the PWM class adds to OnOff
             // We cannot call PWM::group() because that would pick up
             // direction_pin, which we do not want in Laser
+
+            // @config pwm_hz
+            // @default 5000
+            // PWM signal frequency, same field as PWMSpindle's pwm_hz but with a narrower
+            // range here (1000-100000 rather than 1-20000000).
             handler.item("pwm_hz", _pwm_freq, 1000, 100000);
             OnOff::groupCommon(handler);
         }
