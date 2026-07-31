@@ -279,7 +279,11 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
         entry["min"] = extra[0]
         entry["max"] = extra[1]
     elif len(extra) == 1:
-        # item(name, value, SomeEnumArray) -- HandlerBase's item(name, uint32_t&, const EnumItem*) overload.
+        # item(name, value, SomeEnumArray) -- HandlerBase's item(name, uint32_t&, const
+        # EnumItem*) overload. There's exactly one such overload, so any single-extra-arg
+        # call is unambiguously an enum even when the array itself is defined in a
+        # different file than the one being parsed (e.g. message_level/phy_type) -- only
+        # try to resolve the actual choice list when the array happens to be in scope.
         entry["kind"] = "enum"
         if extra[0] in enum_arrays:
             entry["values"] = enum_arrays[extra[0]]["values"]

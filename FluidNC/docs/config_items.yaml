@@ -497,7 +497,7 @@ uart_channelN:
       Which previously-defined top-level uartN: section this channel runs over.
 
   message_level:
-    type: unknown
+    type: enum
     default: 'Verbose'
     description: |
       Limits which log messages are sent to this channel, ordered from least to most verbose: None < Error < Warn < Info < Debug < Verbose. Only messages at or below the chosen verbosity are sent -- e.g. Info sends None/Error/Warn/Info messages but holds back Debug/Verbose ones. Useful for a display/pendant that doesn't want to parse messages it has no use for. The global $Message/Level setting is an additional filter on top of this one; a message must pass both to reach this channel.
@@ -561,7 +561,7 @@ ethernet:
       Optional hardware reset pin for the PHY.
 
   phy_type:
-    type: integer
+    type: enum
     default: 'W5500'
     description: |
       Which SPI-attached Ethernet PHY chip is present. W5500 is the only one actually tested; KSZ8851/DM9051 use the same SPI+CS wiring and ETH.begin() call shape with a different chip-type constant, so they're offered too. RMII-attached PHYs (LAN8720 and similar) are a different wiring/API shape entirely and aren't supported by this section.
@@ -976,13 +976,13 @@ axes.<letter>.motorN.tmc_2130:
       -1 means independent SPI mode (used on all drivers when not daisy-chaining). In a daisy chain, each driver gets a distinct position number (1, 2, 3, ...) in chain order -- every physical position in the chain must be represented by a motor entry, even unused ones, or the chain's data alignment breaks.
 
   run_mode:
-    type: unknown
+    type: enum
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
-    type: unknown
+    type: enum
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode) -- StallGuard is typically used here for sensorless homing.
@@ -1120,13 +1120,13 @@ axes.<letter>.motorN.tmc_2208:
       Which top-level uartN: section this chip's UART register interface runs over. Required -- afterParse() asserts this is actually set.
 
   run_mode:
-    type: unknown
+    type: enum
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
-    type: unknown
+    type: enum
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode).
@@ -1245,13 +1245,13 @@ axes.<letter>.motorN.tmc_2209:
       Which top-level uartN: section this chip's UART register interface runs over. Required -- afterParse() asserts this is actually set.
 
   run_mode:
-    type: unknown
+    type: enum
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
-    type: unknown
+    type: enum
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode) -- StallGuard is typically used here for sensorless homing.
@@ -1380,13 +1380,13 @@ axes.<letter>.motorN.tmc_5160:
       -1 means independent SPI mode (used on all drivers when not daisy-chaining). In a daisy chain, each driver gets a distinct position number (1, 2, 3, ...) in chain order -- every physical position in the chain must be represented by a motor entry, even unused ones, or the chain's data alignment breaks.
 
   run_mode:
-    type: unknown
+    type: enum
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
-    type: unknown
+    type: enum
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode) -- StallGuard is typically used here for sensorless homing.
@@ -1654,22 +1654,6 @@ axes.<letter>.motorN.dynamixel2:
 #   Explicit no-op driver -- takes no fields.
 
 PWM:
-  spinup_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
-
-  spindown_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Same as spinup_ms, but applied when the commanded RPM decreases.
-
   tool_num:
     type: integer
     min: 0
@@ -1714,6 +1698,22 @@ PWM:
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
+  spinup_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
+
+  spindown_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Same as spinup_ms, but applied when the commanded RPM decreases.
+
   direction_pin:
     type: pin
     default: 'NO_PIN'
@@ -1740,24 +1740,8 @@ PWM:
     description: |
       PWM signal frequency. Resolution trades off against frequency -- 76Hz or less gets the full 20-bit duty-cycle resolution, roughly halving for every doubling of frequency above that, down to 4 levels (2 bits) at the 20MHz ceiling. Not every value in that range is a practical CNC PWM frequency, but the hardware supports the whole span, so it's left open.
 
-# Skips direction_pin (Laser calls OnOff::groupCommon() directly, not OnOff::group()). Laser::use_delay_settings() returns false, so spinup_ms/spindown_ms (listed under Spindle below) do NOT actually apply here.
+# Skips direction_pin (Laser calls OnOff::groupCommon() directly, not OnOff::group()) and never calls Spindle::groupDelaySettings() -- so unlike every other spindle type, spinup_ms/spindown_ms are genuinely absent here, not merely present-but-inert.
 Laser:
-  spinup_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
-
-  spindown_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Same as spinup_ms, but applied when the commanded RPM decreases.
-
   tool_num:
     type: integer
     min: 0
@@ -1823,22 +1807,6 @@ Laser:
       PWM signal frequency, same field as PWMSpindle's pwm_hz but with a narrower range here (1000-100000 rather than 1-20000000).
 
 10V:
-  spinup_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
-
-  spindown_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Same as spinup_ms, but applied when the commanded RPM decreases.
-
   tool_num:
     type: integer
     min: 0
@@ -1882,6 +1850,22 @@ Laser:
     default: 'false'
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
+
+  spinup_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
+
+  spindown_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Same as spinup_ms, but applied when the commanded RPM decreases.
 
   direction_pin:
     type: pin
@@ -1922,22 +1906,6 @@ Laser:
       Signals reverse rotation when using separate forward/reverse pins. May remain on after M5; turns off after M3.
 
 BESC:
-  spinup_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
-
-  spindown_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Same as spinup_ms, but applied when the commanded RPM decreases.
-
   tool_num:
     type: integer
     min: 0
@@ -1981,6 +1949,22 @@ BESC:
     default: 'false'
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
+
+  spinup_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
+
+  spindown_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Same as spinup_ms, but applied when the commanded RPM decreases.
 
   direction_pin:
     type: pin
@@ -2025,22 +2009,6 @@ BESC:
       Pulse width, in microseconds, corresponding to the ESC's full-power signal. Typically around 2ms (2000us) or more -- check your ESC's documentation.
 
 HBridge:
-  spinup_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
-
-  spindown_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Same as spinup_ms, but applied when the commanded RPM decreases.
-
   tool_num:
     type: integer
     min: 0
@@ -2084,6 +2052,22 @@ HBridge:
     default: 'false'
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
+
+  spinup_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
+
+  spindown_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Same as spinup_ms, but applied when the commanded RPM decreases.
 
   pwm_hz:
     type: integer
@@ -2113,22 +2097,6 @@ HBridge:
 
 # Also backs the "Relay" and "DAC" registrations (RelaySpindle.cpp/DacSpindle.cpp), which add no fields of their own -- same field set.
 OnOff:
-  spinup_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
-
-  spindown_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Same as spinup_ms, but applied when the commanded RPM decreases.
-
   tool_num:
     type: integer
     min: 0
@@ -2173,6 +2141,22 @@ OnOff:
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
+  spinup_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
+
+  spindown_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Same as spinup_ms, but applied when the commanded RPM decreases.
+
   direction_pin:
     type: pin
     default: 'NO_PIN'
@@ -2191,24 +2175,8 @@ OnOff:
     description: |
       Optional enable signal, separate from output_pin.
 
-# PlasmaSpindle::use_delay_settings() returns false, so spinup_ms/spindown_ms (listed under Spindle below) do NOT actually apply here.
+# Never calls Spindle::groupDelaySettings() -- spinup_ms/spindown_ms are genuinely absent here, not merely present-but-inert.
 PlasmaSpindle:
-  spinup_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
-
-  spindown_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Same as spinup_ms, but applied when the commanded RPM decreases.
-
   tool_num:
     type: integer
     min: 0
@@ -2276,24 +2244,8 @@ PlasmaSpindle:
 # NoSpindle: (no config items)
 #   The "Null" spindle -- takes no fields, no I/O.
 
-# Also backs Huanyang/YL620/H2A/SiemensV20/NowForever/FolinnBD600/DeltaMS300/H100/MollomG70/DanfossVLT2800 -- each registers under its own name with fixed constructor-supplied command strings, adding no fields of its own. Spindle.spinup_ms/spindown_ms only apply when get_rpm_cmd is left unset (VFDSpindle::use_delay_settings() == _get_rpm_cmd.empty()).
+# Also backs Huanyang/YL620/H2A/SiemensV20/NowForever/FolinnBD600/DeltaMS300/H100/MollomG70/DanfossVLT2800 -- each registers under its own name with fixed constructor-supplied command strings, adding no fields of its own. spinup_ms/spindown_ms are always present here (VFDSpindle::group() always calls groupDelaySettings()), but only actually applied at runtime when get_rpm_cmd is left unset -- see get_rpm_cmd's own description for why.
 ModbusVFD:
-  spinup_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
-
-  spindown_ms:
-    type: integer
-    min: 0
-    max: 60000
-    default: '0'
-    description: |
-      Same as spinup_ms, but applied when the commanded RPM decreases.
-
   tool_num:
     type: integer
     min: 0
@@ -2337,6 +2289,22 @@ ModbusVFD:
     default: 'false'
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
+
+  spinup_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
+
+  spindown_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    description: |
+      Same as spinup_ms, but applied when the commanded RPM decreases.
 
   uart_num:
     type: integer
@@ -2432,7 +2400,7 @@ ModbusVFD:
     type: string
     default: '"" (empty)'
     description: |
-      Modbus command template to query the VFD's current RPM. Leaving this unset also changes delay behavior -- use_delay_settings() returns true (spinup_ms/spindown_ms apply) only when this command is NOT configured.
+      Modbus command template to query the VFD's current RPM. spinup_ms/ spindown_ms (Spindle::groupDelaySettings()) are always present in config.yaml for a VFD spindle regardless of this field -- what this field changes is whether they're actually used at runtime. When set, use_speed_feedback() returns true and VFDSpindle actively polls this command until it confirms the real target speed, ignoring spinup_ms/ spindown_ms entirely; when left empty, there's no way to confirm real speed, so it falls back to blindly waiting out spinup_ms/spindown_ms instead.
 
 kinematics.ParallelDelta:
   crank_mm:

@@ -135,7 +135,7 @@ namespace Spindles {
             _current_state = state;
         }
 
-        if (detail_->use_delay_settings()) {
+        if (!detail_->use_speed_feedback()) {
             spindleDelay(state, speed);
             return;
         }
@@ -267,6 +267,7 @@ namespace Spindles {
         handler.item("retries", _retries);
 
         Spindle::group(handler);
+        Spindle::groupDelaySettings(handler);
         detail_->group(handler);
     }
 }

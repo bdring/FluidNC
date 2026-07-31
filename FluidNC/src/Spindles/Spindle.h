@@ -65,7 +65,6 @@ namespace Spindles {
         void           stop() { setState(SpindleState::Disable, 0); }
         virtual void   config_message() = 0;
         virtual bool   isRateAdjusted();
-        virtual bool   use_delay_settings() const { return true; }
         virtual tool_t get_current_tool_num() { return _current_tool; }
         virtual bool   tool_change(uint32_t tool_number, bool pre_select, bool set_tool);
 
@@ -100,19 +99,7 @@ namespace Spindles {
         void group(Configuration::HandlerBase& handler) override {
             // Shared field set every spindle type (PWM, Laser, 0-10V, ModbusVFD, etc.)
             // inherits via Spindle::group() -- annotated once here, not repeated per type.
-            if (use_delay_settings()) {
-                // @config spinup_ms
-                // @default 0
-                // Time given for the spindle to reach the commanded RPM (per the speed
-                // map) before the following GCode line executes. Proportional to the RPM
-                // change -- a half-scale speed change only waits half of this value.
-                handler.item("spinup_ms", _spinup_ms, 0, 60000);
-
-                // @config spindown_ms
-                // @default 0
-                // Same as spinup_ms, but applied when the commanded RPM decreases.
-                handler.item("spindown_ms", _spindown_ms, 0, 60000);
-            }
+            // spinup_ms/spindown_ms are NOT here -- see groupDelaySettings() below.
 
             // @config tool_num
             // @default 0
@@ -159,6 +146,24 @@ namespace Spindles {
             // When true, commanding S0 (zero speed) also disables the spindle, the same as
             // M5 -- by default, only M5 itself disables it.
             handler.item("disable_with_s0", _disable_with_zero_speed);
+        }
+
+        // spinup_ms/spindown_ms only make sense for spindle types with a mechanical
+        // ramp-up/down to wait out. Not called from group() itself -- subclasses that
+        // want these fields call this explicitly (OnOff::group(), HBridge::group(),
+        // VFDSpindle::group()); Laser/PlasmaSpindle simply never call it.
+        void groupDelaySettings(Configuration::HandlerBase& handler) {
+            // @config spinup_ms
+            // @default 0
+            // Time given for the spindle to reach the commanded RPM (per the speed
+            // map) before the following GCode line executes. Proportional to the RPM
+            // change -- a half-scale speed change only waits half of this value.
+            handler.item("spinup_ms", _spinup_ms, 0, 60000);
+
+            // @config spindown_ms
+            // @default 0
+            // Same as spinup_ms, but applied when the commanded RPM decreases.
+            handler.item("spindown_ms", _spindown_ms, 0, 60000);
         }
 
         // Virtual base classes require a virtual destructor.

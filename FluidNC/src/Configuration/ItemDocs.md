@@ -118,13 +118,17 @@ item's name literal and purpose are both present:
 _pins.push_back(new ControlPin(&safetyDoorEvent, "safety_door_pin", 'D'));
 ```
 
-This is a documented exception, not something the generator currently
-parses automatically -- `tools/gen_config_docs.py` only understands the
-literal `handler.item("name", ...)` shape. A class using this pattern is
-annotated the same way for a human reader and for future wiki-sync tooling,
-but isn't yet picked up by the per-class YAML generation pass. Extending the
-generator to recognize this second shape is future work, tracked wherever
-this convention's rollout status is tracked (see PROGRESS.md).
+This is a documented exception that `tools/gen_config_docs.py` (the per-class
+parser) still can't see -- it only understands the literal
+`handler.item("name", ...)` shape. `tools/build_config_docs.py` (the
+whole-tree aggregator) does pick these up, though, via a separate code path
+(`LIST_MODE_SECTIONS`/`list_mode_section()`) that scans a whole file directly
+for `@config` blocks rather than requiring a matching `handler.item()` call --
+used for `Control.cpp`, `Machine/UserInputs.cpp`, `Machine/Macros.cpp`, and
+`Listeners/RGBLed.h`. Making `gen_config_docs.py` itself understand this
+shape (so a single-file/single-class run picks it up too, not just the
+whole-tree build) is still future work, tracked wherever this convention's
+rollout status is tracked (see PROGRESS.md).
 
 ## What this feeds
 

@@ -61,6 +61,7 @@ namespace Spindles {
             // pin is assigned here -- without one, only M3/M5 are meaningful.
             handler.item("direction_pin", _direction_pin);
             groupCommon(handler);
+            Spindle::groupDelaySettings(handler);
         }
 
         virtual ~OnOff() {}

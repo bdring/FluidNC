@@ -5,7 +5,8 @@ Walks the SECTIONS table below -- each entry is a real (or templated, for
 per-axis/per-motor/per-driver repeats) config.yaml path, plus the ordered list
 of (file, class[, method]) contributors whose fields flatten into it, mirroring
 C++ inheritance (base class first) and the groupCommon()-style helper split a
-few spindle types use. Emits FluidNC/docs/config_items.yaml.
+few spindle types use. Emits FluidNC/docs/config_items.yaml by default, or
+wherever --output points (build-release.py points it at the release folder).
 
 This is the "single artifact" the annotation effort (see ItemDocs.md) was
 building toward: one machine-readable file a config wizard can load for
@@ -87,43 +88,79 @@ SECTIONS = [
     ("axes.<letter>.motorN.null_motor", [], "Explicit no-op driver -- takes no fields."),
     (
         "PWM",
-        [("Spindles/Spindle.h", "Spindle"), ("Spindles/OnOffSpindle.h", "OnOff", "group"), ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"), ("Spindles/PWMSpindle.h", "PWM")],
+        [
+            ("Spindles/Spindle.h", "Spindle"),
+            ("Spindles/Spindle.h", "Spindle", "groupDelaySettings"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "group"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"),
+            ("Spindles/PWMSpindle.h", "PWM"),
+        ],
         None,
     ),
     (
         "Laser",
         [("Spindles/Spindle.h", "Spindle"), ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"), ("Spindles/LaserSpindle.h", "Laser")],
-        "Skips direction_pin (Laser calls OnOff::groupCommon() directly, not OnOff::group()). "
-        "Laser::use_delay_settings() returns false, so spinup_ms/spindown_ms (listed under Spindle below) do NOT actually apply here.",
+        "Skips direction_pin (Laser calls OnOff::groupCommon() directly, not OnOff::group()) and never calls "
+        "Spindle::groupDelaySettings() -- so unlike every other spindle type, spinup_ms/spindown_ms are genuinely absent here, "
+        "not merely present-but-inert.",
     ),
     (
         "10V",
-        [("Spindles/Spindle.h", "Spindle"), ("Spindles/OnOffSpindle.h", "OnOff", "group"), ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"), ("Spindles/PWMSpindle.h", "PWM"), ("Spindles/10vSpindle.h", "_10v")],
+        [
+            ("Spindles/Spindle.h", "Spindle"),
+            ("Spindles/Spindle.h", "Spindle", "groupDelaySettings"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "group"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"),
+            ("Spindles/PWMSpindle.h", "PWM"),
+            ("Spindles/10vSpindle.h", "_10v"),
+        ],
         None,
     ),
     (
         "BESC",
-        [("Spindles/Spindle.h", "Spindle"), ("Spindles/OnOffSpindle.h", "OnOff", "group"), ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"), ("Spindles/PWMSpindle.h", "PWM"), ("Spindles/BESCSpindle.h", "BESC")],
+        [
+            ("Spindles/Spindle.h", "Spindle"),
+            ("Spindles/Spindle.h", "Spindle", "groupDelaySettings"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "group"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"),
+            ("Spindles/PWMSpindle.h", "PWM"),
+            ("Spindles/BESCSpindle.h", "BESC"),
+        ],
         None,
     ),
-    ("HBridge", [("Spindles/Spindle.h", "Spindle"), ("Spindles/HBridgeSpindle.h", "HBridge")], None),
+    (
+        "HBridge",
+        [("Spindles/Spindle.h", "Spindle"), ("Spindles/Spindle.h", "Spindle", "groupDelaySettings"), ("Spindles/HBridgeSpindle.h", "HBridge")],
+        None,
+    ),
     (
         "OnOff",
-        [("Spindles/Spindle.h", "Spindle"), ("Spindles/OnOffSpindle.h", "OnOff", "group"), ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon")],
+        [
+            ("Spindles/Spindle.h", "Spindle"),
+            ("Spindles/Spindle.h", "Spindle", "groupDelaySettings"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "group"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"),
+        ],
         'Also backs the "Relay" and "DAC" registrations (RelaySpindle.cpp/DacSpindle.cpp), which add no fields of their own -- same field set.',
     ),
     (
         "PlasmaSpindle",
         [("Spindles/Spindle.h", "Spindle"), ("Spindles/PlasmaSpindle.h", "PlasmaSpindle", "groupCommon")],
-        "PlasmaSpindle::use_delay_settings() returns false, so spinup_ms/spindown_ms (listed under Spindle below) do NOT actually apply here.",
+        "Never calls Spindle::groupDelaySettings() -- spinup_ms/spindown_ms are genuinely absent here, not merely present-but-inert.",
     ),
     ("NoSpindle", [], 'The "Null" spindle -- takes no fields, no I/O.'),
     (
         "ModbusVFD",
-        [("Spindles/Spindle.h", "Spindle"), ("Spindles/VFDSpindle.cpp", "VFDSpindle"), ("Spindles/VFD/ModbusVFD.h", "ModbusVFD")],
+        [
+            ("Spindles/Spindle.h", "Spindle"),
+            ("Spindles/Spindle.h", "Spindle", "groupDelaySettings"),
+            ("Spindles/VFDSpindle.cpp", "VFDSpindle"),
+            ("Spindles/VFD/ModbusVFD.h", "ModbusVFD"),
+        ],
         "Also backs Huanyang/YL620/H2A/SiemensV20/NowForever/FolinnBD600/DeltaMS300/H100/MollomG70/DanfossVLT2800 -- each registers under its "
-        "own name with fixed constructor-supplied command strings, adding no fields of its own. Spindle.spinup_ms/spindown_ms only apply when "
-        "get_rpm_cmd is left unset (VFDSpindle::use_delay_settings() == _get_rpm_cmd.empty()).",
+        "own name with fixed constructor-supplied command strings, adding no fields of its own. spinup_ms/spindown_ms are always present here "
+        "(VFDSpindle::group() always calls groupDelaySettings()), but only actually applied at runtime when get_rpm_cmd is left unset -- see "
+        "get_rpm_cmd's own description for why.",
     ),
     ("kinematics.ParallelDelta", [("Kinematics/ParallelDelta.cpp", "ParallelDelta")], None),
     ("kinematics.WallPlotter", [("Kinematics/WallPlotter.cpp", "WallPlotter")], None),
@@ -199,6 +236,16 @@ def list_mode_section(rel_file, kind_for=None):
 
 
 def main():
+    import argparse
+
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument(
+        "-o", "--output", type=Path, default=Path("FluidNC/docs/config_items.yaml"),
+        help="Output path (default: FluidNC/docs/config_items.yaml). "
+        "build-release.py points this at release/current/docs/config_items.yaml.",
+    )
+    args = ap.parse_args()
+
     out_lines = [
         "# FluidNC config item reference -- GENERATED FILE, DO NOT EDIT BY HAND.",
         "#",
@@ -219,9 +266,6 @@ def main():
             out_lines.append("")
             continue
         entries, errors, warnings = merge_section(contributors)
-        if section in {"Laser", "PlasmaSpindle"}:
-            entries.pop("spinup_ms", None)
-            entries.pop("spindown_ms", None)
         if errors:
             any_errors = True
             for e in errors:
@@ -246,7 +290,7 @@ def main():
     if any_errors:
         raise SystemExit(1)
 
-    out_path = Path("FluidNC/docs/config_items.yaml")
+    out_path = args.output
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(out_lines))
     print(f"Wrote {out_path} ({sum(1 for l in out_lines if l.strip())} non-blank lines)")

@@ -27,7 +27,6 @@ namespace Spindles {
         void config_message() override;
         void init() override;
         void set_direction(bool Clockwise) override {};
-        bool use_delay_settings() const override { return false; }
 
         void group(Configuration::HandlerBase& handler) override {
             // pwm_freq is the only item that the PWM class adds to OnOff

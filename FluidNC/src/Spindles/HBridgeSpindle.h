@@ -86,6 +86,7 @@ namespace Spindles {
             handler.item("enable_pin", _enable_pin);
 
             Spindle::group(handler);
+            Spindle::groupDelaySettings(handler);
         }
 
         virtual ~HBridge() {}

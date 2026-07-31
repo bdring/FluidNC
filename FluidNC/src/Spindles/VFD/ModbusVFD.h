@@ -35,7 +35,7 @@ namespace Spindles {
             std::string _get_max_rpm_cmd;
             std::string _get_rpm_cmd;
 
-            bool use_delay_settings() const override { return _get_rpm_cmd.empty(); }
+            bool use_speed_feedback() const override { return !_get_rpm_cmd.empty(); }
             bool safety_polling() const override { return false; }
 
         private:
@@ -125,9 +125,15 @@ namespace Spindles {
 
                 // @config get_rpm_cmd
                 // @default "" (empty)
-                // Modbus command template to query the VFD's current RPM. Leaving this
-                // unset also changes delay behavior -- use_delay_settings() returns true
-                // (spinup_ms/spindown_ms apply) only when this command is NOT configured.
+                // Modbus command template to query the VFD's current RPM. spinup_ms/
+                // spindown_ms (Spindle::groupDelaySettings()) are always present in
+                // config.yaml for a VFD spindle regardless of this field -- what this
+                // field changes is whether they're actually used at runtime. When set,
+                // use_speed_feedback() returns true and VFDSpindle actively polls this
+                // command until it confirms the real target speed, ignoring spinup_ms/
+                // spindown_ms entirely; when left empty, there's no way to confirm real
+                // speed, so it falls back to blindly waiting out spinup_ms/spindown_ms
+                // instead.
                 handler.item("get_rpm_cmd", _get_rpm_cmd);
             }
         };

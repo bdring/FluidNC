@@ -91,7 +91,6 @@ namespace Spindles {
         uint32_t _max_arc_wait = 1000;
 
         bool         _arc_on = false;
-        bool         use_delay_settings() const override { return false; }
         virtual void set_output(uint32_t speed);
         virtual void deinit();
     };
