@@ -88,6 +88,7 @@ dataRelPath = os.path.join(manifestRelPath, 'data')
 os.makedirs(dataRelPath)
 shutil.copy(os.path.join("FluidNC", "data", "index.html.gz"), os.path.join(dataRelPath, "index-webui-2.html.gz"))
 urllib.request.urlretrieve("https://github.com/michmela44/ESP3D-WEBUI/releases/latest/download/index.html.gz", os.path.join("release", "current", "data", "index-webui-3.html.gz"))
+urllib.request.urlretrieve("https://github.com/figamore/FigUI/releases/latest/download/index.html.gz", os.path.join("release", "current", "data", "index-figui.html.gz"))
 
 manifest = {
         "name": "FluidNC",
@@ -395,9 +396,11 @@ def makeManifest():
 
     addFile("WebUI-2", "/localfs/index.html.gz", "index-webui-2.html.gz", os.path.join("release", "current", "data"), "data")
     addFile("WebUI-3", "/localfs/index.html.gz", "index-webui-3.html.gz", os.path.join("release", "current", "data"), "data")
+    addFile("FigUI", "/localfs/index.html.gz", "index-figui.html.gz", os.path.join("release", "current", "data"), "data")
 
     addUpload("WebUI generation 2", "Add WebUI to local filesystem", ["WebUI-2"])
     addUpload("WebUI generation 3", "Add WebUI to local filesystem", ["WebUI-3"])
+    addUpload("FigUI", "Add FigUI to local filesystem", ["FigUI"])
 
 makeManifest()
 
