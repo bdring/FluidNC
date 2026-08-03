@@ -970,8 +970,9 @@ No config fields (`Cartesian` has no `group()` override).
 ```yaml
 kinematics:
   CoreXY:
+    x_scaler: 1.0                              # Float 0.1-10.0, default 1.0
 ```
-No config fields (`group(){}` is an empty override) — CoreXY behavior is entirely driven by which axes/motors are wired, not by config values here. As noted in §5.3, CoreXY cannot combine two axes into one `homing.cycle` group.
+`x_scaler` compensates for midTbot-style machines where the motors themselves move in X; leave at 1 on CoreXY machines where the motors don't move in X. As noted in §5.3, CoreXY cannot combine two axes into one `homing.cycle` group.
 
 ### 13.3 `midtbot:` (note: lowercase registration name, unlike the others)
 ```yaml

@@ -2,13 +2,6 @@ name: Build linux_x86_64
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - MachineSimulator
-      - main
-    paths-ignore:
-      - '**.md'
-      - '**.txt'
 
 jobs:
   build:
