@@ -7,6 +7,23 @@
 
 #include <WiFi.h>
 
+#if defined(ESP32)
+// arduino-esp32's NetworkClient never overrides Print::availableForWrite() --
+// it is hard-coded to return 0 ("a single write may block"), so gating sends
+// on it means queued data never gets flushed. Send directly through a
+// non-blocking socket call instead.
+//
+// This is opt-in for ESP32 specifically (rather than opt-out for everything
+// else) because it depends on details of arduino-esp32's NetworkClient --
+// a raw BSD socket fd and lwip/sockets.h. arduino-pico's WiFiClient
+// (RP2040/RP2350) and the POSIX/Arduino-Emulator hosted build have neither,
+// but both *do* implement availableForWrite() correctly, so they use the
+// portable Client-API path below instead.
+#define TELNET_RAW_SOCKET_SEND 1
+#include <lwip/sockets.h>  // ::send(), MSG_DONTWAIT
+#include <errno.h>
+#endif
+
 namespace WebUI {
     TelnetClient::TelnetClient(WiFiClient* wifiClient) : Channel("telnet"), _wifiClient(wifiClient) {
 #if !HOSTED
@@ -19,13 +36,19 @@ namespace WebUI {
 
     void TelnetClient::handle() {}
 
-    void TelnetClient::closeOnDisconnect() {
+    void TelnetClient::closeOnDisconnectLocked() {
         if (!_wifiClient->connected()) {
             bool expected = false;
             if (_disconnected.compare_exchange_strong(expected, true)) {
                 allChannels.kill(this);
             }
         }
+    }
+
+    void TelnetClient::closeOnDisconnect() {
+        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
+        closeOnDisconnectLocked();
+        xSemaphoreGive(_wifiMutex);
     }
 
     void TelnetClient::flushRx() {
@@ -57,27 +80,66 @@ namespace WebUI {
         return true;
     }
 
+    // Attempts to send up to `len` bytes without blocking the polling task.
+    // Returns the number of bytes actually sent (0 if the socket isn't ready
+    // to accept more right now), or -1 if the connection has failed.
+    // Assumes _wifiMutex is already held.
+    int TelnetClient::trySend(const uint8_t* data, size_t len) {
+#ifdef TELNET_RAW_SOCKET_SEND
+        int sockfd = _wifiClient->fd();
+        if (sockfd < 0) {
+            return -1;
+        }
+        int sent = ::send(sockfd, data, len, MSG_DONTWAIT);
+        if (sent >= 0) {
+            return sent;
+        }
+        return (errno == EAGAIN || errno == EWOULDBLOCK) ? 0 : -1;
+#else
+        size_t canSend = _wifiClient->availableForWrite();
+        size_t toSend  = len < canSend ? len : canSend;
+        if (toSend == 0) {
+            return _wifiClient->connected() ? 0 : -1;
+        }
+        size_t sent = _wifiClient->write(data, toSend);
+        if (sent == 0 && !_wifiClient->connected()) {
+            return -1;
+        }
+        return (int)sent;
+#endif
+    }
+
     // Non-blocking drain of the queue. Bytes that can't be sent now stay queued
     // and go out on the next write().
     void TelnetClient::flushQueue() {
+        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
         while (_txTail != _txHead) {
             size_t contiguous = _txHead > _txTail ? _txHead - _txTail : TX_QUEUE_SIZE - _txTail;
-            size_t canSend    = _wifiClient->availableForWrite();
-            size_t toSend     = contiguous < canSend ? contiguous : canSend;
-            if (toSend == 0) {
-                return;  // nothing can be sent right now
-            }
-            size_t sent = _wifiClient->write(_txQueue.data() + _txTail, toSend);
+            int    sent       = trySend(_txQueue.data() + _txTail, contiguous);
             if (sent > 0) {
-                _txTail = (_txTail + sent) % TX_QUEUE_SIZE;
+                _txTail = (_txTail + (size_t)sent) % TX_QUEUE_SIZE;
                 continue;
             }
-            if (!_wifiClient->connected()) {
-                _wifiClient->stop();  // hard error / peer gone
-                closeOnDisconnect();
+            if (sent < 0) {
+                // Hard error (e.g. connection reset) -- disconnect immediately,
+                // independent of the stall counter below.
+                _wifiClient->stop();
+                closeOnDisconnectLocked();
+                xSemaphoreGive(_wifiMutex);
+                return;
             }
-            return;
+            break;  // sent == 0: socket not ready right now
         }
+
+        if (_txTail == _txHead) {
+            _txStallCount = 0;  // fully drained
+        } else if (++_txStallCount >= TX_STALL_LIMIT) {
+            // Connected but not draining what we send it -- wedged peer.
+            // Force it out so the slot can be reused.
+            _wifiClient->stop();
+            closeOnDisconnectLocked();
+        }
+        xSemaphoreGive(_wifiMutex);
     }
 
     void TelnetClient::queueCompletedLine() {
@@ -86,8 +148,10 @@ namespace WebUI {
 
         if (isCriticalLine(_txLine)) {
             if (!queueLine(data, len, 0)) {
+                xSemaphoreTake(_wifiMutex, portMAX_DELAY);
                 _wifiClient->stop();
-                closeOnDisconnect();
+                closeOnDisconnectLocked();
+                xSemaphoreGive(_wifiMutex);
             }
         } else {
             queueLine(data, len, TX_CRITICAL_RESERVE);
@@ -98,7 +162,10 @@ namespace WebUI {
         if (_state == -1 || buffer == nullptr || length == 0) {
             return length;
         }
-        if (_wifiClient->connected()) {
+        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
+        bool isConnected = _wifiClient->connected();
+        xSemaphoreGive(_wifiMutex);
+        if (!isConnected) {
             closeOnDisconnect();
             return length;
         }
@@ -130,14 +197,20 @@ namespace WebUI {
         if (_disconnected.load()) {
             return -1;
         }
-        return _wifiClient->peek();
+        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
+        int ret = _wifiClient->peek();
+        xSemaphoreGive(_wifiMutex);
+        return ret;
     }
 
     int TelnetClient::available() {
         if (_disconnected.load()) {
             return 0;
         }
-        return _wifiClient->available();
+        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
+        int ret = _wifiClient->available();
+        xSemaphoreGive(_wifiMutex);
+        return ret;
     }
 
     int TelnetClient::rx_buffer_available() {
@@ -149,6 +222,7 @@ namespace WebUI {
             return -1;
         }
 
+        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
         auto ret = _wifiClient->read();
         if (ret < 0) {
             // calling _wifiClient->connected() is expensive when the client is
@@ -156,14 +230,13 @@ namespace WebUI {
             // infrequently, only after quite a few reads have returned no data
             if (++_empty_reads >= DISCONNECT_CHECK_COUNTS) {
                 _empty_reads = 0;
-                if (!_wifiClient->connected()) {
-                    closeOnDisconnect();
-                }
+                closeOnDisconnectLocked();
             }
         } else {
             // Reset the counter if we have data
             _empty_reads = 0;
         }
+        xSemaphoreGive(_wifiMutex);
         return ret;
     }
 
