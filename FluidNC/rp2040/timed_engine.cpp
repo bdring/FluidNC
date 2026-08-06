@@ -41,12 +41,22 @@ static void start_step() {}
 // step pulse should end, then return. The stepper code can then do
 // some work that is overlapped with the pulse time. The spin loop
 // will happen in start_unstep().
+static bool _stepPulsePending = false;
+
 static void finish_step() {
     _stepPulseEndTime = usToEndTicks(_pulse_delay_us);
+    _stepPulsePending = true;
 }
 
 static bool start_unstep() {
-    spinUntil(_stepPulseEndTime);
+    // Only spin out the pulse width if a step pulse is actually in flight.
+    // unstep() is also called from stop_stepping() on soft reset, where
+    // _stepPulseEndTime is stale; the CCOUNT-based spinUntil() can then
+    // spin for up to ~half the 32-bit wraparound and trip the task watchdog.
+    if (_stepPulsePending) {
+        _stepPulsePending = false;
+        spinUntil(_stepPulseEndTime);
+    }
     return false;
 }
 
