@@ -49,8 +49,8 @@ namespace WebUI {
         // critical-line disconnect. Count consecutive flushQueue() calls that
         // fail to fully drain the backlog and force the client out once it's
         // wedged for TX_STALL_LIMIT of them in a row, freeing the slot.
-        static const int TX_STALL_LIMIT = 10;
-        int              _txStallCount  = 0;
+        static constexpr int TX_STALL_LIMIT = 10;
+        int                  _txStallCount  = 0;
 
         int32_t     _state = 0;
         std::string _txLine;             // output accumulated until a full line

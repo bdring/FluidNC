@@ -80,7 +80,7 @@ namespace WebUI {
         return true;
     }
 
-    // Attempts to send up to `len` bytes without blocking the polling task.
+    // Attempts to send up to `len` bytes without blocking.
     // Returns the number of bytes actually sent (0 if the socket isn't ready
     // to accept more right now), or -1 if the connection has failed.
     // Assumes _wifiMutex is already held.
@@ -242,5 +242,6 @@ namespace WebUI {
 
     TelnetClient::~TelnetClient() {
         delete _wifiClient;
+        vSemaphoreDelete(_wifiMutex);
     }
 }
