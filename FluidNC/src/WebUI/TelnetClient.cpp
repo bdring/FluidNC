@@ -7,6 +7,11 @@
 
 #include <WiFi.h>
 
+#ifdef ARDUINO_ARCH_ESP32
+#    include <errno.h>
+#    include <lwip/sockets.h>
+#endif
+
 namespace WebUI {
     TelnetClient::TelnetClient(WiFiClient* wifiClient) : Channel("telnet"), _wifiClient(wifiClient) {
 #if !HOSTED
@@ -62,6 +67,24 @@ namespace WebUI {
     void TelnetClient::flushQueue() {
         while (_txTail != _txHead) {
             size_t contiguous = _txHead > _txTail ? _txHead - _txTail : TX_QUEUE_SIZE - _txTail;
+#ifdef ARDUINO_ARCH_ESP32
+            int sockfd = _wifiClient->fd();
+            if (sockfd < 0) {
+                closeOnDisconnect();
+                return;
+            }
+            int sent = ::send(sockfd, _txQueue.data() + _txTail, contiguous, MSG_DONTWAIT);
+            if (sent > 0) {
+                _txTail = (_txTail + (size_t)sent) % TX_QUEUE_SIZE;
+                continue;
+            }
+            if (sent < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                return;
+            }
+            _wifiClient->stop();
+            closeOnDisconnect();
+            return;
+#else
             size_t canSend    = _wifiClient->availableForWrite();
             size_t toSend     = contiguous < canSend ? contiguous : canSend;
             if (toSend == 0) {
@@ -77,6 +100,7 @@ namespace WebUI {
                 closeOnDisconnect();
             }
             return;
+#endif
         }
     }
 
@@ -98,7 +122,7 @@ namespace WebUI {
         if (_state == -1 || buffer == nullptr || length == 0) {
             return length;
         }
-        if (_wifiClient->connected()) {
+        if (!_wifiClient->connected()) {
             closeOnDisconnect();
             return length;
         }
