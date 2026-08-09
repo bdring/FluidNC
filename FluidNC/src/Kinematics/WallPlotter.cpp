@@ -13,6 +13,7 @@ namespace Kinematics {
 
         // @config left_axis
         // @default 0
+        // @tuning typical
         // Which machine axis index drives the left cord's length.
         // NOT bounds-checked against MAX_N_AXIS -- see transform_cartesian_to_motors()
         // below for why an out-of-range or Z-and-above value here is unsafe.
@@ -20,32 +21,38 @@ namespace Kinematics {
 
         // @config left_anchor_x
         // @default -100
+        // @tuning per-machine
         // X position of the left cord's fixed anchor point, in the cartesian frame.
         handler.item("left_anchor_x", _left_anchor_x);
 
         // @config left_anchor_y
         // @default 100
+        // @tuning per-machine
         // Y position of the left cord's fixed anchor point.
         handler.item("left_anchor_y", _left_anchor_y);
 
         // @config right_axis
         // @default 1
+        // @tuning typical
         // Which machine axis index drives the right cord's length.
         // NOT bounds-checked -- see left_axis above.
         handler.item("right_axis", _right_axis);
 
         // @config right_anchor_x
         // @default 100
+        // @tuning per-machine
         // X position of the right cord's fixed anchor point.
         handler.item("right_anchor_x", _right_anchor_x);
 
         // @config right_anchor_y
         // @default 100
+        // @tuning per-machine
         // Y position of the right cord's fixed anchor point.
         handler.item("right_anchor_y", _right_anchor_y);
 
         // @config segment_length
         // @default 10
+        // @tuning typical
         // Maximum length of the small linear segments a cartesian move is broken into
         // before being converted to cord lengths (the cord-length transform is nonlinear).
         handler.item("segment_length", _segment_length);

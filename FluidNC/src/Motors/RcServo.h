@@ -63,23 +63,27 @@ namespace MotorDrivers {
 
             // @config pwm_hz
             // @default 50
+            // @tuning typical
             // Servo PWM pulse repetition rate. 50Hz is the standard analog-servo value;
             // some digital servos can repeat faster.
             handler.item("pwm_hz", _pwm_freq, SERVO_PWM_FREQ_MIN, SERVO_PWM_FREQ_MAX);
 
             // @config min_pulse_us
             // @default 1000
+            // @tuning per-machine
             // Pulse width, in microseconds, corresponding to one end of the servo's travel.
             handler.item("min_pulse_us", _min_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
 
             // @config max_pulse_us
             // @default 2000
+            // @tuning per-machine
             // Pulse width, in microseconds, corresponding to the other end of the servo's
             // travel.
             handler.item("max_pulse_us", _max_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
 
             // @config timer_ms
             // @default 20
+            // @tuning typical
             // Update interval, in milliseconds, for refreshing the servo's PWM position.
             handler.item("timer_ms", _timer_ms, TIMER_MS_MIN, TIMER_MS_MAX);
 

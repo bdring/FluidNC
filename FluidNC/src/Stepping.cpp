@@ -195,7 +195,8 @@ void IRAM_ATTR Stepping::stopTimer() {
 
 void Stepping::group(Configuration::HandlerBase& handler) {
     // @config engine
-    // @default board-dependent (DEFAULT_STEPPING_ENGINE, applied in afterParse())
+    // @default (none)
+    // @default_note board-dependent (DEFAULT_STEPPING_ENGINE, applied in afterParse())
     // Method used to generate step pulses in firmware. Controller board hardware is
     // designed for either RMT or I2S stepping, so this must match what the board
     // actually wires up -- stepping types cannot be mixed across motors. Choices come
@@ -212,7 +213,9 @@ void Stepping::group(Configuration::HandlerBase& handler) {
     handler.item("engine", _engine);
 
     // @config idle_ms
-    // @default 255 -- special "never auto-disable" value (Grbl compatibility)
+    // @default 255
+    // @default_note special "never auto-disable" value (Grbl compatibility)
+    // @tuning typical
     // Milliseconds of inactivity before motors are automatically disabled. Any value
     // other than 255 (0-254 or 256+) is a real delay. Motors can also be disabled
     // manually at any time with $MD.
@@ -220,6 +223,7 @@ void Stepping::group(Configuration::HandlerBase& handler) {
 
     // @config pulse_us
     // @default 4
+    // @tuning typical
     // Duration, in microseconds, of the "on" part of each step pulse; it typically
     // needs an equal "off" duration, so this caps the max step rate at roughly
     // 1000000/(2*pulse_us + dir_delay_us) steps/sec. Too short a pulse won't be
@@ -228,12 +232,14 @@ void Stepping::group(Configuration::HandlerBase& handler) {
 
     // @config dir_delay_us
     // @default 0
+    // @tuning typical
     // Delay, in microseconds, required between a direction change and the next step
     // pulse. Most drivers don't need this and can leave it at 0.
     handler.item("dir_delay_us", _directionDelayUsecs, 0, 10);
 
     // @config disable_delay_us
     // @default 0
+    // @tuning typical
     // Delay, in microseconds, some motors need between being enabled and being able
     // to take their first step.
     handler.item("disable_delay_us", _disableDelayUsecs, 0, 1000000);  // max 1 second

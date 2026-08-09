@@ -47,8 +47,21 @@ ITEM_CALL_RE = re.compile(
 )
 CONFIG_TAG_RE = re.compile(r'^\s*//\s*@config\s+(\S+)\s*$')
 DEFAULT_TAG_RE = re.compile(r'^\s*//\s*@default\s+(.+?)\s*$')
+DEFAULT_NOTE_TAG_RE = re.compile(r'^\s*//\s*@default_note\s+(.+?)\s*$')
+TUNING_TAG_RE = re.compile(r'^\s*//\s*@tuning\s+(\S+)\s*$')
 UNIT_TAG_RE = re.compile(r'^\s*//\s*@unit\s+(.+?)\s*$')
 COMMENT_LINE_RE = re.compile(r'^\s*//(.*)$')
+
+# The only two values @tuning may take -- see ItemDocs.md. Anything else is
+# almost certainly a typo (e.g. "per_machine" instead of "per-machine") and
+# should fail loudly rather than silently pass through as an unrecognized
+# string a downstream consumer might mishandle.
+VALID_TUNING_VALUES = {"typical", "per-machine"}
+
+# Reserved @default value meaning "no fixed literal exists" (board-dependent,
+# code-substituted, ...) -- see ItemDocs.md. Distinct from None/missing,
+# which means the annotation is simply absent (an error, see missing_default).
+NO_LITERAL_DEFAULT = "(none)"
 
 
 def find_group_body(cpp_text: str, class_name: str, method_name: str = "group") -> str:
@@ -85,15 +98,19 @@ def find_group_body(cpp_text: str, class_name: str, method_name: str = "group") 
 
 
 def parse_doc_blocks(body: str):
-    """Return (docs, missing_default) from @config blocks.
+    """Return (docs, missing_default, bad_tuning) from @config blocks.
 
-    docs: {item_name: {"default": str|None, "unit": str|None, "description": str}}
+    docs: {item_name: {"default": str|None, "default_note": str|None, "tuning": str|None, "unit": str|None, "description": str}}
     missing_default: names of @config blocks that had no immediately-following
     @default line -- a required field per ItemDocs.md, reported as an error
     by the caller rather than silently treated as "no default."
+    bad_tuning: (name, value) pairs where @tuning's value wasn't one of
+    VALID_TUNING_VALUES -- reported as an error, same reasoning as
+    missing_default (a typo here should fail loudly, not pass through).
     """
     docs = {}
     missing_default = []
+    bad_tuning = []
     lines = body.splitlines()
     i = 0
     while i < len(lines):
@@ -111,6 +128,20 @@ def parse_doc_blocks(body: str):
                 i += 1
         if default is None:
             missing_default.append(name)
+        default_note = None
+        if i < len(lines):
+            dnm = DEFAULT_NOTE_TAG_RE.match(lines[i])
+            if dnm:
+                default_note = dnm.group(1)
+                i += 1
+        tuning = None
+        if i < len(lines):
+            tm = TUNING_TAG_RE.match(lines[i])
+            if tm:
+                tuning = tm.group(1)
+                i += 1
+                if tuning not in VALID_TUNING_VALUES:
+                    bad_tuning.append((name, tuning))
         unit = None
         if i < len(lines):
             um = UNIT_TAG_RE.match(lines[i])
@@ -136,8 +167,14 @@ def parse_doc_blocks(body: str):
                 current.append(line)
         if current:
             paragraphs.append(" ".join(current))
-        docs[name] = {"default": default, "unit": unit, "description": "\n\n".join(paragraphs)}
-    return docs, missing_default
+        docs[name] = {
+            "default": default,
+            "default_note": default_note,
+            "tuning": tuning,
+            "unit": unit,
+            "description": "\n\n".join(paragraphs),
+        }
+    return docs, missing_default, bad_tuning
 
 
 def parse_item_calls(body: str):
@@ -297,11 +334,15 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
     doc = docs.get(name)
     if doc:
         entry["default"] = doc["default"]
+        if doc.get("default_note"):
+            entry["default_note"] = doc["default_note"]
+        if doc.get("tuning"):
+            entry["tuning"] = doc["tuning"]
         if doc["unit"]:
             entry["unit"] = doc["unit"]
         entry["description"] = doc["description"]
 
-        if default_literal is not None and doc["default"] is not None:
+        if default_literal is not None and doc["default"] is not None and doc["default"] != NO_LITERAL_DEFAULT:
             # Best-effort cross-check: the annotated text should at least
             # mention the literal the initializer shows (e.g. "255" appearing
             # somewhere in "255 -- special ..."). A miss doesn't necessarily
@@ -310,6 +351,8 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
             # not a hard failure. Strip a trailing C++ float-literal suffix
             # (0.002f -> 0.002) first -- otherwise every plain float default
             # would spuriously warn, since the annotation naturally omits it.
+            # Skipped entirely when @default is the (none) sentinel -- see
+            # ItemDocs.md -- there's deliberately no literal to compare.
             literal_for_compare = re.sub(r'(?<=[0-9])[fFlL]$', '', default_literal)
             if literal_for_compare not in doc["default"]:
                 warnings.append(
@@ -356,6 +399,10 @@ def to_yaml(section: str, entries: dict) -> str:
             lines.append(f"    default: {e['default']!r}")
         else:
             lines.append("    default: null  # missing @default -- should have been caught as an error")
+        if "default_note" in e:
+            lines.append(f"    default_note: {e['default_note']!r}")
+        if "tuning" in e:
+            lines.append(f"    tuning: {e['tuning']}")
         if "unit" in e:
             lines.append(f"    unit: {e['unit']!r}")
         if "description" in e:
@@ -382,7 +429,7 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     header_text = header_path.read_text() if header_path.exists() else ""
 
     body = find_group_body(cpp_text, class_name, method_name)
-    docs, missing_default = parse_doc_blocks(body)
+    docs, missing_default, bad_tuning = parse_doc_blocks(body)
     calls = parse_item_calls(body)
     enum_arrays = find_enum_arrays(cpp_text)
 
@@ -414,6 +461,8 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
         errors.append(f'handler.item("{name}", ...) has no @config/@default annotation')
     for name in missing_default:
         errors.append(f'@config {name} is missing its required @default line')
+    for name, value in bad_tuning:
+        errors.append(f'@config {name} has @tuning {value!r} -- must be one of {sorted(VALID_TUNING_VALUES)}')
 
     return entries, errors, warnings
 

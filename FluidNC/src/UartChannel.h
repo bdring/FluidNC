@@ -57,7 +57,9 @@ public:
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {
         // @config report_interval_ms
-        // @default 0 (off)
+        // @default 0
+        // @default_note off
+        // @tuning per-machine
         // Interval, in milliseconds, at which a status report is proactively pushed to this
         // channel while moving -- useful for driving a DRO without it having to poll. 0
         // disables proactive reporting. No range is enforced by this item() call itself,
@@ -67,6 +69,7 @@ public:
 
         // @config uart_num
         // @default 0
+        // @tuning per-machine
         // Which previously-defined top-level uartN: section this channel runs over.
         handler.item("uart_num", _uart_num);
 

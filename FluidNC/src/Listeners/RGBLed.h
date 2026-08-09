@@ -106,52 +106,62 @@ namespace Listeners {
             handler.item("index", index_);
 
             // @config idle
-            // @default "007F00" (green)
+            // @default "007F00"
+            // @default_note green
             // Color shown while machine status is Idle.
             handleRGBString(handler, "idle", idle);
 
             // @config alarm
-            // @default "7F0000" (red)
+            // @default "7F0000"
+            // @default_note red
             // Color shown while machine status is Alarm.
             handleRGBString(handler, "alarm", alarm);
 
             // @config checkMode
-            // @default "b936bf" (magenta)
+            // @default "b936bf"
+            // @default_note magenta
             // Color shown while in Grbl Check Mode ($C).
             handleRGBString(handler, "checkMode", checkMode);
 
             // @config homing
-            // @default "501f00" (orange-brown)
+            // @default "501f00"
+            // @default_note orange-brown
             // Color shown while homing.
             handleRGBString(handler, "homing", homing);
 
             // @config cycle
-            // @default "7f4422" (orange)
+            // @default "7f4422"
+            // @default_note orange
             // Color shown while running (Cycle state).
             handleRGBString(handler, "cycle", cycle);
 
             // @config hold
-            // @default "777744" (dim yellow)
+            // @default "777744"
+            // @default_note dim yellow
             // Color shown while in Feed Hold.
             handleRGBString(handler, "hold", hold);
 
             // @config jog
-            // @default "007f3f" (teal)
+            // @default "007f3f"
+            // @default_note teal
             // Color shown while jogging.
             handleRGBString(handler, "jog", jog);
 
             // @config safetyDoor
-            // @default "3f7f00" (yellow-green)
+            // @default "3f7f00"
+            // @default_note yellow-green
             // Color shown while the safety door is open (Door state).
             handleRGBString(handler, "safetyDoor", safetyDoor);
 
             // @config sleep
-            // @default "001F00" (dim green)
+            // @default "001F00"
+            // @default_note dim green
             // Color shown while in Sleep state.
             handleRGBString(handler, "sleep", sleep);
 
             // @config configAlarm
-            // @default "7f0000" (red)
+            // @default "7f0000"
+            // @default_note red
             // Color shown when a configuration error put the machine into ConfigAlarm
             // state at startup.
             handleRGBString(handler, "configAlarm", configAlarm);

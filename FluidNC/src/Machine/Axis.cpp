@@ -8,6 +8,7 @@ namespace Machine {
     void Axis::group(Configuration::HandlerBase& handler) {
         // @config steps_per_mm
         // @default 80.0
+        // @tuning per-machine
         // Controller-side step-pulse resolution for this axis -- really "steps per GCode
         // unit," despite the name: in G21 (mm) mode, a one-unit move issues this many step
         // pulses; for a linear (XYZ) axis in G20 (inches) mode, the step count is instead
@@ -18,16 +19,19 @@ namespace Machine {
 
         // @config max_rate_mm_per_min
         // @default 1000.0
+        // @tuning per-machine
         // Maximum feed rate (rapids and feed moves alike are capped here) for this axis.
         handler.item("max_rate_mm_per_min", _maxRate, 0.001, 250000.0);
 
         // @config acceleration_mm_per_sec2
         // @default 25.0
+        // @tuning per-machine
         // Acceleration used for this axis's motion ramps.
         handler.item("acceleration_mm_per_sec2", _acceleration, 0.001, 100000.0);
 
         // @config max_travel_mm
         // @default 1000.0
+        // @tuning per-machine
         // Working length of the axis, measured from its position immediately after homing
         // pull-off. If a second limit switch exists at the far end of travel (for hard
         // limits), make sure this value stays short enough that a soft-limit alarm trips
@@ -36,6 +40,7 @@ namespace Machine {
 
         // @config soft_limits
         // @default false
+        // @tuning typical
         // When true, a move that would exceed max_travel_mm is aborted before it starts;
         // jogs are instead constrained to stop at the travel limit rather than alarming.
         // Relies on accurate machine position, so the axis should be homed first -- always

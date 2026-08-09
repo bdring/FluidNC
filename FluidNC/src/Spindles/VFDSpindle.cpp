@@ -232,20 +232,23 @@ namespace Spindles {
                 handler.section("uart", _uart, 1);
             } else {
                 // @config uart_num
-                // @default -1 (not configured)
+                // @default -1
+                // @default_note not configured
                 // Which top-level uartN: section this VFD's Modbus link runs over.
                 handler.item("uart_num", _uart_num);
             }
         } else {
             handler.section("uart", _uart, 1);
             // @config uart_num
-            // @default -1 (not configured)
+            // @default -1
+            // @default_note not configured
             // Which top-level uartN: section this VFD's Modbus link runs over.
             handler.item("uart_num", _uart_num);
         }
 
         // @config modbus_id
         // @default 1
+        // @tuning typical
         // Modbus slave address of the VFD -- must match the VFD's own configured value
         // (per https://modbus.org/docs/PI_MBUS_300.pdf). When in doubt, try 1.
         handler.item("modbus_id", _modbus_id, 0, 247);  // per https://modbus.org/docs/PI_MBUS_300.pdf

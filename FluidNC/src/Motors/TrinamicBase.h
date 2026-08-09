@@ -81,6 +81,7 @@ namespace MotorDrivers {
 
             // @config r_sense_ohms
             // @default 0.0
+            // @tuning per-machine
             // Sense resistor value for the physical driver module, in ohms. The 0.0 default
             // is not a real, functional value -- TrinamicBase itself has no correct generic
             // default, since this is purely a property of the specific module in hand
@@ -91,16 +92,19 @@ namespace MotorDrivers {
 
             // @config run_amps
             // @default 0.5
+            // @tuning per-machine
             // Motor current while running, in amps RMS.
             handler.item("run_amps", _run_current, 0.05, 10.0);
 
             // @config hold_amps
             // @default 0.5
+            // @tuning per-machine
             // Motor current while holding position (not moving), in amps RMS.
             handler.item("hold_amps", _hold_current, 0.05, 10.0);
 
             // @config microsteps
             // @default 16
+            // @tuning per-machine
             // Microstep resolution. Needs to be reflected in the axis's steps_per_mm.
             handler.item("microsteps", _microsteps, 1, 256);
 

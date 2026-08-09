@@ -48,6 +48,7 @@ namespace Spindles {
             // user choose.
             // @config pwm_hz
             // @default 5000
+            // @tuning typical
             // PWM signal frequency. Resolution trades off against frequency -- 76Hz or
             // less gets the full 20-bit duty-cycle resolution, roughly halving for every
             // doubling of frequency above that, down to 4 levels (2 bits) at the 20MHz

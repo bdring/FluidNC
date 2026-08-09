@@ -40,6 +40,12 @@ SECTIONS = [
     ("uart_channelN", [("UartChannel.h", "UartChannel")], None),
     ("status_outputs", [("Status_outputs.h", "Status_Outputs")], None),
     ("ethernet", [("Machine/EthPhy.h", "EthPhy")], None),
+    (
+        "oled",
+        [("../esp32/OLED.h", "OLED")],
+        "Lives under FluidNC/esp32/ (an ESP32-specific module), not FluidNC/src/ like every "
+        "other section here -- the relative path above deliberately escapes SRC to reach it.",
+    ),
     ("atc_manual", [("ToolChangers/atc_manual.h", "Manual_ATC")], None),
     (
         "extenders.pinextenderN.<i2c_chip>",
@@ -214,12 +220,17 @@ def merge_section(contributors):
 
 def list_mode_section(rel_file, kind_for=None):
     text = (SRC / rel_file).read_text()
-    docs, missing_default = g.parse_doc_blocks(text)
+    docs, missing_default, bad_tuning = g.parse_doc_blocks(text)
     entries = {}
     errors = []
+    bad_tuning_names = {name for name, _ in bad_tuning}
     for name, doc in docs.items():
         if name in missing_default:
             errors.append(f"@config {name} is missing its required @default line")
+            continue
+        if name in bad_tuning_names:
+            value = next(v for n, v in bad_tuning if n == name)
+            errors.append(f"@config {name} has @tuning {value!r} -- must be one of {sorted(g.VALID_TUNING_VALUES)}")
             continue
         kind = "string"
         if kind_for == "pin":
@@ -229,6 +240,10 @@ def list_mode_section(rel_file, kind_for=None):
         elif kind_for is None:  # RGBLed: mixed
             kind = RGBLED_TYPES.get(name, "string (hex color RRGGBB, or \"none\")")
         entry = {"kind": kind, "default": doc["default"]}
+        if doc.get("default_note"):
+            entry["default_note"] = doc["default_note"]
+        if doc.get("tuning"):
+            entry["tuning"] = doc["tuning"]
         if doc["unit"]:
             entry["unit"] = doc["unit"]
         entry["description"] = doc["description"]

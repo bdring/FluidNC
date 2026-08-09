@@ -118,13 +118,59 @@ public:
     void afterParse() override;
 
     void group(Configuration::HandlerBase& handler) override {
+        // @config report_interval_ms
+        // @default 500
+        // @tuning typical
+        // Interval, in milliseconds, at which the display's status content (DRO, state,
+        // filename/percent) is refreshed.
         handler.item("report_interval_ms", _report_interval_ms, 100, 5000);
+
+        // @config i2c_num
+        // @default 0
+        // @tuning per-machine
+        // Which top-level i2cN: bus this display is wired to.
         handler.item("i2c_num", _i2c_num);
+
+        // @config i2c_address
+        // @default 0x3c
+        // @tuning per-machine
+        // I2C address of the display module. Must match the actual hardware -- common
+        // SSD1306 modules use 0x3C or 0x3D.
         handler.item("i2c_address", _address);
+
+        // @config width
+        // @default 64
+        // @tuning per-machine
+        // Physical panel width, in pixels. Must match the actual display module -- there's
+        // no generic value that works across different panels.
         handler.item("width", _width);
+
+        // @config height
+        // @default 48
+        // @tuning per-machine
+        // Physical panel height, in pixels. Must match the actual display module -- there's
+        // no generic value that works across different panels.
         handler.item("height", _height);
+
+        // @config flip
+        // @default true
+        // @tuning per-machine
+        // Rotates the displayed content 180 degrees. Depends on how the panel is physically
+        // mounted.
         handler.item("flip", _flip);
+
+        // @config mirror
+        // @default false
+        // @tuning per-machine
+        // Mirrors the displayed content horizontally. Depends on how the panel is physically
+        // mounted.
         handler.item("mirror", _mirror);
+
+        // @config radio_delay_ms
+        // @default 0
+        // @tuning per-machine
+        // Delay, in milliseconds, before the display shows radio (WiFi/BT) connection info
+        // after boot -- gives the radio hardware time to come up first.
         handler.item("radio_delay_ms", _radio_delay);
     }
 };

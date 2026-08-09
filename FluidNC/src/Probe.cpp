@@ -48,6 +48,7 @@ void Probe::group(Configuration::HandlerBase& handler) {
 
     // @config check_mode_start
     // @default true
+    // @tuning typical
     // Only affects Grbl Check Mode ($C, dry-run parsing with no real motion): while in
     // Check Mode, a probe move reports its position as the move's un-probed target when
     // false, or leaves it at the pre-move start position when true. Has no effect on a real
@@ -56,6 +57,7 @@ void Probe::group(Configuration::HandlerBase& handler) {
 
     // @config hard_stop
     // @default false
+    // @tuning typical
     // On a successful probe trigger, stops with an immediate hard stop instead of
     // decelerating -- avoids the extra travel deceleration needs, at the cost of possibly
     // losing steps (and therefore position accuracy) at higher speeds. Useful with fragile
@@ -64,6 +66,7 @@ void Probe::group(Configuration::HandlerBase& handler) {
 
     // @config probe_hard_limit
     // @default false
+    // @tuning typical
     // When true, the probe pin(s) also act like a hard limit switch during non-probing
     // motion (homing, jog, cycle): triggering it raises an alarm and immediately stops
     // motion, the same as a real hard limit switch would. Guards against accidental probe

@@ -99,6 +99,7 @@ void CoolantControl::group(Configuration::HandlerBase& handler) {
 
     // @config delay_ms
     // @default 0
+    // @tuning typical
     // Delay, in milliseconds, after M7/M8 turns a coolant output on, before motion resumes
     // -- gives the coolant device time to actually start flowing. Not applied if that
     // coolant output is already on, and not applied to M9 (turning off).
