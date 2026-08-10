@@ -22,7 +22,8 @@
 
   meta:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
     description: |
       Free-form notes about the config file itself, e.g. "B. Dring 2022-03-15 Rev 2".
 
@@ -31,6 +32,7 @@
     min: 0.001
     max: 1.0
     default: '0.002'
+    tuning: typical
     description: |
       Maximum deviation, in mm, allowed when tessellating G2/G3 arcs into straight-line segments. Smaller values produce smoother arcs at the cost of more segments (and therefore more planner/computation work). Rarely changed from the default.
 
@@ -39,30 +41,35 @@
     min: 0.01
     max: 1.0
     default: '0.01'
+    tuning: typical
     description: |
       Controls how aggressively the planner slows down at sharp corners between consecutive moves (the Grbl-style "junction deviation" cornering algorithm). Smaller values force more slowdown at corners; larger values allow faster cornering at the cost of more deviation from the programmed path. Rarely changed from the default -- see the planner source for the full derivation.
 
   verbose_errors:
     type: boolean
     default: 'true'
+    tuning: typical
     description: |
       Includes descriptive text alongside the numeric error code in error responses. Some GCode senders may not parse the extra text correctly.
 
   report_inches:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Reports position and feed rate values in inches instead of millimeters. This only affects reporting, not how input values in the GCode/config are interpreted.
 
   enable_parking_override_control:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Enables the M56 GCode command, which lets a running program toggle the parking- motion override on/off at runtime (M56 P0 disables parking, M56 P1 enables it). This only gates whether M56 has any effect; start.deactivate_parking sets what the override defaults to, and parking.enable is the separate switch for the parking feature existing at all.
 
   use_line_numbers:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, line numbers written into GCode as N<number> (e.g. N100) are tracked and echoed back in status reports as Ln:100, so a report can be correlated with the source line currently being executed. Reports Ln:0 when the GCode has no line number information.
 
@@ -71,6 +78,7 @@
     min: 10
     max: 120
     default: '16'
+    tuning: typical
     description: |
       Number of motion blocks held in the look-ahead planner buffer. Leave at the default unless tuning for a special application.
 
@@ -78,18 +86,21 @@ start:
   must_home:
     type: boolean
     default: 'true'
+    tuning: typical
     description: |
       Refuses to accept motion commands until $H (home) has been run at least once since boot. Jogging and settings commands still work while unhomed.
 
   deactivate_parking:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Sets what the M56 parking-motion override defaults to at boot and after a program ends (only takes effect when enable_parking_override_control is also true): false leaves parking motion active by default; true starts with it disabled until M56 is used to turn it back on.
 
   check_limits:
     type: boolean
     default: 'true'
+    tuning: typical
     description: |
       Checks limit switches at power-up/reset; if hard limits are enabled and a switch is already active, the machine enters Alarm state instead of Idle.
 
@@ -97,7 +108,8 @@ stepping:
   engine:
     type: enum
     values: [Timed, RMT, I2S_STATIC, I2S_STREAM, Simulator, PIO]
-    default: 'board-dependent (DEFAULT_STEPPING_ENGINE, applied in afterParse())'
+    default: '(none)'
+    default_note: 'board-dependent (DEFAULT_STEPPING_ENGINE, applied in afterParse())'
     description: |
       Method used to generate step pulses in firmware. Controller board hardware is designed for either RMT or I2S stepping, so this must match what the board actually wires up -- stepping types cannot be mixed across motors. Choices come from stepTypes[] below.
 
@@ -107,7 +119,9 @@ stepping:
     type: integer
     min: 0
     max: 10000000
-    default: '255 -- special "never auto-disable" value (Grbl compatibility)'
+    default: '255'
+    default_note: 'special "never auto-disable" value (Grbl compatibility)'
+    tuning: typical
     description: |
       Milliseconds of inactivity before motors are automatically disabled. Any value other than 255 (0-254 or 256+) is a real delay. Motors can also be disabled manually at any time with $MD.
 
@@ -116,6 +130,7 @@ stepping:
     min: 0
     max: 30
     default: '4'
+    tuning: typical
     description: |
       Duration, in microseconds, of the "on" part of each step pulse; it typically needs an equal "off" duration, so this caps the max step rate at roughly 1000000/(2*pulse_us + dir_delay_us) steps/sec. Too short a pulse won't be registered by some stepper drivers -- check the driver's datasheet if unsure.
 
@@ -124,6 +139,7 @@ stepping:
     min: 0
     max: 10
     default: '0'
+    tuning: typical
     description: |
       Delay, in microseconds, required between a direction change and the next step pulse. Most drivers don't need this and can leave it at 0.
 
@@ -132,6 +148,7 @@ stepping:
     min: 0
     max: 1000000
     default: '0'
+    tuning: typical
     description: |
       Delay, in microseconds, some motors need between being enabled and being able to take their first step.
 
@@ -161,6 +178,7 @@ coolant:
     min: 0
     max: 10000
     default: '0'
+    tuning: typical
     description: |
       Delay, in milliseconds, after M7/M8 turns a coolant output on, before motion resumes -- gives the coolant device time to actually start flowing. Not applied if that coolant output is already on, and not applied to M9 (turning off).
 
@@ -180,18 +198,21 @@ probe:
   check_mode_start:
     type: boolean
     default: 'true'
+    tuning: typical
     description: |
       Only affects Grbl Check Mode ($C, dry-run parsing with no real motion): while in Check Mode, a probe move reports its position as the move's un-probed target when false, or leaves it at the pre-move start position when true. Has no effect on a real (non-Check-Mode) probe cycle.
 
   hard_stop:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       On a successful probe trigger, stops with an immediate hard stop instead of decelerating -- avoids the extra travel deceleration needs, at the cost of possibly losing steps (and therefore position accuracy) at higher speeds. Useful with fragile probes/bits that could be damaged by the overtravel a normal deceleration needs.
 
   probe_hard_limit:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, the probe pin(s) also act like a hard limit switch during non-probing motion (homing, jog, cycle): triggering it raises an alarm and immediately stops motion, the same as a real hard limit switch would. Guards against accidental probe damage from a collision during ordinary motion, not from the probing move itself.
 
@@ -199,24 +220,28 @@ parking:
   enable:
     type: boolean
     default: 'false'
+    tuning: per-machine
     description: |
       Enables the parking feature: opening the safety door (or sending the SafetyDoor real-time command, 0x84) pulls the parking axis out and retracts it to target_mpos_mm instead of just stopping motion. Also gated by enable_parking_override_control/M56 if that's enabled, and by parking.axis's homing status -- parking never runs before that axis has been homed.
 
   axis:
     type: axis
     default: 'z'
+    tuning: per-machine
     description: |
       Which axis performs the parking retract/return sequence. Typically Z. Homing that axis is required -- parking silently does nothing until it has been homed.
 
   target_mpos_mm:
     type: float
     default: '-5.0'
+    tuning: per-machine
     description: |
       Machine-position target (not affected by any active offset) for the final parking retract move.
 
   rate_mm_per_min:
     type: float
     default: '800.0'
+    tuning: per-machine
     description: |
       Feed rate for the final parking retract move, from the pull-out waypoint to target_mpos_mm.
 
@@ -225,12 +250,14 @@ parking:
     min: 0
     max: 3e38
     default: '5.0'
+    tuning: per-machine
     description: |
       Distance of the initial slow pull-out move, relative to the position where parking started -- done before the spindle stops and the fast retract to target_mpos_mm.
 
   pullout_rate_mm_per_min:
     type: float
     default: '250.0'
+    tuning: per-machine
     description: |
       Feed rate for the initial pull-out move (and the equivalent slow return move when resuming from park).
 
@@ -322,6 +349,7 @@ sdcard:
     min: 400000
     max: 20000000
     default: '8000000'
+    tuning: typical
     description: |
       SPI clock speed used for the SD card. Try a lower value if the card has consistent read/write problems.
 
@@ -460,12 +488,14 @@ uartN:
     min: 2400
     max: 10000000
     default: '115200'
+    tuning: typical
     description: |
-      UART data baud rate.
+      UART data baud rate. What "typical" means here depends heavily on what this bus actually carries -- a TMC2209 UART chain, an RS485/Modbus VFD link, and a uart_channel: pendant/DRO each have their own real conventional rate (commonly 115200, 9600, and a much higher rate respectively), but this one field/default is shared by all of them, so this is only a reasonable single-context starting point, not a universal one -- always verify against what's actually on the bus.
 
   mode:
     type: uart_mode
     default: '8N1'
+    tuning: typical
     description: |
       Data format as a 3-character code: data bits (5-8), parity (N/E/O), stop bits (1/1.5/2) -- e.g. 8N1. Always quote this value in YAML (see the config spec's note on 8E1 being ambiguous with scientific-notation floats to generic YAML parsers).
 
@@ -473,7 +503,8 @@ uartN:
     type: integer
     min: 0
     max: 10000000
-    default: '0 (not configured)'
+    default: '0'
+    default_note: 'not configured'
     description: |
       Baud rate used while this UART is in passthrough mode (e.g. forwarding firmware uploads from FluidTerm). 0 means passthrough is not configured for this UART.
 
@@ -486,13 +517,16 @@ uartN:
 uart_channelN:
   report_interval_ms:
     type: integer
-    default: '0 (off)'
+    default: '0'
+    default_note: 'off'
+    tuning: per-machine
     description: |
       Interval, in milliseconds, at which a status report is proactively pushed to this channel while moving -- useful for driving a DRO without it having to poll. 0 disables proactive reporting. No range is enforced by this item() call itself, but keeping it at 0 or in roughly the 50-5000 range is recommended to avoid overloading the processor with reports.
 
   uart_num:
     type: integer
     default: '0'
+    tuning: per-machine
     description: |
       Which previously-defined top-level uartN: section this channel runs over.
 
@@ -508,6 +542,7 @@ status_outputs:
     min: 100
     max: 5000
     default: '500'
+    tuning: typical
     description: |
       How often, in milliseconds, the output pins are refreshed against current status. Doesn't need to be fast -- an update also happens immediately on every status change regardless of this interval.
 
@@ -582,12 +617,73 @@ ethernet:
     description: |
       SPI clock speed used to talk to the Ethernet controller.
 
+# Lives under FluidNC/esp32/ (an ESP32-specific module), not FluidNC/src/ like every other section here -- the relative path above deliberately escapes SRC to reach it.
+oled:
+  report_interval_ms:
+    type: integer
+    min: 100
+    max: 5000
+    default: '500'
+    tuning: typical
+    description: |
+      Interval, in milliseconds, at which the display's status content (DRO, state, filename/percent) is refreshed.
+
+  i2c_num:
+    type: integer
+    default: '0'
+    tuning: per-machine
+    description: |
+      Which top-level i2cN: bus this display is wired to.
+
+  i2c_address:
+    type: integer
+    default: '0x3c'
+    tuning: per-machine
+    description: |
+      I2C address of the display module. Must match the actual hardware -- common SSD1306 modules use 0x3C or 0x3D.
+
+  width:
+    type: integer
+    default: '64'
+    tuning: per-machine
+    description: |
+      Physical panel width, in pixels. Must match the actual display module -- there's no generic value that works across different panels.
+
+  height:
+    type: integer
+    default: '48'
+    tuning: per-machine
+    description: |
+      Physical panel height, in pixels. Must match the actual display module -- there's no generic value that works across different panels.
+
+  flip:
+    type: boolean
+    default: 'true'
+    tuning: per-machine
+    description: |
+      Rotates the displayed content 180 degrees. Depends on how the panel is physically mounted.
+
+  mirror:
+    type: boolean
+    default: 'false'
+    tuning: per-machine
+    description: |
+      Mirrors the displayed content horizontally. Depends on how the panel is physically mounted.
+
+  radio_delay_ms:
+    type: integer
+    default: '0'
+    tuning: per-machine
+    description: |
+      Delay, in milliseconds, before the display shows radio (WiFi/BT) connection info after boot -- gives the radio hardware time to come up first.
+
 atc_manual:
   safe_z_mpos_mm:
     type: float
     min: -100000
     max: 100000
     default: '50.0'
+    tuning: per-machine
     description: |
       Machine-space Z position safe to travel at without hitting the workpiece or fixtures, used while moving to/from the tool-change and tool-setter locations.
 
@@ -596,6 +692,7 @@ atc_manual:
     min: 1
     max: 10000
     default: '200.0'
+    tuning: per-machine
     description: |
       Feed rate for the initial (fast) probe move onto the electronic tool setter.
 
@@ -604,6 +701,7 @@ atc_manual:
     min: 1
     max: 10000
     default: '80.0'
+    tuning: per-machine
     description: |
       Feed rate for the precise (slow) second probe touch on the electronic tool setter.
 
@@ -622,6 +720,7 @@ atc_manual:
   ets_rapid_z_mpos_mm:
     type: float
     default: '0.0'
+    tuning: per-machine
     description: |
       Z position to rapid to before starting the ETS probe approach, giving clearance above the probe before the slower seek/feed moves begin.
 
@@ -676,6 +775,7 @@ axes:
     min: 1
     max: 5
     default: '2'
+    tuning: typical
     description: |
       Number of approach/pulloff touches performed per axis during a homing sequence. Default of 2 matches Grbl's convention.
 
@@ -685,6 +785,7 @@ axes.<letter>:
     min: 0.001
     max: 100000.0
     default: '80.0'
+    tuning: per-machine
     description: |
       Controller-side step-pulse resolution for this axis -- really "steps per GCode unit," despite the name: in G21 (mm) mode, a one-unit move issues this many step pulses; for a linear (XYZ) axis in G20 (inches) mode, the step count is instead multiplied by 25.4. A rotary (ABC) axis always issues this many pulses per unit, regardless of G20/G21. If using a microstepping driver, this already needs to include the microstep multiplier.
 
@@ -693,6 +794,7 @@ axes.<letter>:
     min: 0.001
     max: 250000.0
     default: '1000.0'
+    tuning: per-machine
     description: |
       Maximum feed rate (rapids and feed moves alike are capped here) for this axis.
 
@@ -701,6 +803,7 @@ axes.<letter>:
     min: 0.001
     max: 100000.0
     default: '25.0'
+    tuning: per-machine
     description: |
       Acceleration used for this axis's motion ramps.
 
@@ -709,12 +812,14 @@ axes.<letter>:
     min: 0.1
     max: 10000000.0
     default: '1000.0'
+    tuning: per-machine
     description: |
       Working length of the axis, measured from its position immediately after homing pull-off. If a second limit switch exists at the far end of travel (for hard limits), make sure this value stays short enough that a soft-limit alarm trips before that second switch would be physically reached.
 
   soft_limits:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, a move that would exceed max_travel_mm is aborted before it starts; jogs are instead constrained to stop at the travel limit rather than alarming. Relies on accurate machine position, so the axis should be homed first -- always home before jogging or running GCode when soft limits are enabled.
 
@@ -730,6 +835,7 @@ axes.<letter>.homing:
     min: set_mpos_only
     max: MAX_N_AXIS
     default: '0'
+    tuning: per-machine
     description: |
       Which $H (home-all) pass this axis homes in. -1 (set_mpos_only): the axis doesn't move at all -- mpos_mm is just assigned directly, for an axis with no home switch. 0 (the default): excluded from $H, but still homeable individually with $H<axis> (as long as allow_single_axis stays true). 1 or higher: homes as part of $H; axes sharing the same cycle number home simultaneously in that pass (not usable with CoreXY kinematics, since it drives two motors per logical axis move). Typical convention: Z alone on cycle 1, then X/Y together on cycle 2.
 
@@ -742,12 +848,14 @@ axes.<letter>.homing:
   positive_direction:
     type: boolean
     default: 'true'
+    tuning: per-machine
     description: |
       Direction this axis moves while homing: true moves toward higher position values, false toward lower.
 
   mpos_mm:
     type: float
     default: '0.0'
+    tuning: per-machine
     description: |
       Machine position assigned to this axis once homing (and pull-off) completes. Set to 0 if the switch location should read as machine-position zero. No range is enforced by this item() call -- it accepts any float.
 
@@ -756,6 +864,7 @@ axes.<letter>.homing:
     min: 1.0
     max: 100000.0
     default: '50.0'
+    tuning: typical
     description: |
       Feed rate for the second (precise) touch of the limit switch, after the initial fast approach and pull-off. Usually slow, since the axis is already close to the switch -- a slower second touch tends to be more precise and consistent.
 
@@ -764,6 +873,7 @@ axes.<letter>.homing:
     min: 1.0
     max: 100000.0
     default: '200.0'
+    tuning: typical
     description: |
       Feed rate for the initial fast approach that finds the limit switch's rough position, before pulling off and re-touching at feed_mm_per_min for precision.
 
@@ -772,6 +882,7 @@ axes.<letter>.homing:
     min: 0
     max: 1000
     default: '250'
+    tuning: typical
     description: |
       Pause, in milliseconds, between homing cycles to let the machine settle mechanically after the previous cycle's motion.
 
@@ -780,6 +891,7 @@ axes.<letter>.homing:
     min: 1.0
     max: 100.0
     default: '1.1'
+    tuning: typical
     description: |
       Multiplied by max_travel_mm to get the maximum distance the initial seek move will travel before failing if it hasn't yet reached the limit switch -- needs to be a bit over 1.0 to allow for the extra distance a prior pull-off adds.
 
@@ -788,6 +900,7 @@ axes.<letter>.homing:
     min: 1.0
     max: 100.0
     default: '1.1'
+    tuning: typical
     description: |
       Multiplied by the motor's own pulloff_mm to get the max distance the axis will travel back toward the switch, after the first pull-off, before the precise second touch fails. A switch with a lot of positional variability (or sensorless homing) may need a larger value to reliably trigger the second touch.
 
@@ -814,6 +927,7 @@ axes.<letter>.motorN:
   hard_limits:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Treats the switches above as hard limits: activating one immediately stops all motion. Position is considered lost, so rehoming is required afterward.
 
@@ -912,6 +1026,7 @@ axes.<letter>.motorN.tmc_2130:
     min: 0.0
     max: 1.00
     default: '0.0'
+    tuning: per-machine
     description: |
       Sense resistor value for the physical driver module, in ohms. The 0.0 default is not a real, functional value -- TrinamicBase itself has no correct generic default, since this is purely a property of the specific module in hand (e.g. 0.11 is typical for genuine TMC2130/TMC2208/TMC2209 modules, 0.075 for TMC5160). A real value appropriate to the actual hardware must always be set explicitly.
 
@@ -920,6 +1035,7 @@ axes.<letter>.motorN.tmc_2130:
     min: 0.05
     max: 10.0
     default: '0.5'
+    tuning: per-machine
     description: |
       Motor current while running, in amps RMS.
 
@@ -928,6 +1044,7 @@ axes.<letter>.motorN.tmc_2130:
     min: 0.05
     max: 10.0
     default: '0.5'
+    tuning: per-machine
     description: |
       Motor current while holding position (not moving), in amps RMS.
 
@@ -936,6 +1053,7 @@ axes.<letter>.motorN.tmc_2130:
     min: 1
     max: 256
     default: '16'
+    tuning: per-machine
     description: |
       Microstep resolution. Needs to be reflected in the axis's steps_per_mm.
 
@@ -1052,6 +1170,7 @@ axes.<letter>.motorN.tmc_2208:
     min: 0.0
     max: 1.00
     default: '0.0'
+    tuning: per-machine
     description: |
       Sense resistor value for the physical driver module, in ohms. The 0.0 default is not a real, functional value -- TrinamicBase itself has no correct generic default, since this is purely a property of the specific module in hand (e.g. 0.11 is typical for genuine TMC2130/TMC2208/TMC2209 modules, 0.075 for TMC5160). A real value appropriate to the actual hardware must always be set explicitly.
 
@@ -1060,6 +1179,7 @@ axes.<letter>.motorN.tmc_2208:
     min: 0.05
     max: 10.0
     default: '0.5'
+    tuning: per-machine
     description: |
       Motor current while running, in amps RMS.
 
@@ -1068,6 +1188,7 @@ axes.<letter>.motorN.tmc_2208:
     min: 0.05
     max: 10.0
     default: '0.5'
+    tuning: per-machine
     description: |
       Motor current while holding position (not moving), in amps RMS.
 
@@ -1076,6 +1197,7 @@ axes.<letter>.motorN.tmc_2208:
     min: 1
     max: 256
     default: '16'
+    tuning: per-machine
     description: |
       Microstep resolution. Needs to be reflected in the axis's steps_per_mm.
 
@@ -1104,6 +1226,7 @@ axes.<letter>.motorN.tmc_2208:
   addr:
     type: integer
     default: '0'
+    tuning: per-machine
     description: |
       Hardware UART address of the chip. TMC2208/TMC2225 have a fixed address of 0 (this field has no effect on them); TMC2209/TMC2226 set their real address via their MS1/MS2 pins, making them individually addressable (up to 4 chips per UART bus).
 
@@ -1116,6 +1239,7 @@ axes.<letter>.motorN.tmc_2208:
   uart_num:
     type: integer
     default: '-1'
+    tuning: per-machine
     description: |
       Which top-level uartN: section this chip's UART register interface runs over. Required -- afterParse() asserts this is actually set.
 
@@ -1177,6 +1301,7 @@ axes.<letter>.motorN.tmc_2209:
     min: 0.0
     max: 1.00
     default: '0.0'
+    tuning: per-machine
     description: |
       Sense resistor value for the physical driver module, in ohms. The 0.0 default is not a real, functional value -- TrinamicBase itself has no correct generic default, since this is purely a property of the specific module in hand (e.g. 0.11 is typical for genuine TMC2130/TMC2208/TMC2209 modules, 0.075 for TMC5160). A real value appropriate to the actual hardware must always be set explicitly.
 
@@ -1185,6 +1310,7 @@ axes.<letter>.motorN.tmc_2209:
     min: 0.05
     max: 10.0
     default: '0.5'
+    tuning: per-machine
     description: |
       Motor current while running, in amps RMS.
 
@@ -1193,6 +1319,7 @@ axes.<letter>.motorN.tmc_2209:
     min: 0.05
     max: 10.0
     default: '0.5'
+    tuning: per-machine
     description: |
       Motor current while holding position (not moving), in amps RMS.
 
@@ -1201,6 +1328,7 @@ axes.<letter>.motorN.tmc_2209:
     min: 1
     max: 256
     default: '16'
+    tuning: per-machine
     description: |
       Microstep resolution. Needs to be reflected in the axis's steps_per_mm.
 
@@ -1229,6 +1357,7 @@ axes.<letter>.motorN.tmc_2209:
   addr:
     type: integer
     default: '0'
+    tuning: per-machine
     description: |
       Hardware UART address of the chip. TMC2208/TMC2225 have a fixed address of 0 (this field has no effect on them); TMC2209/TMC2226 set their real address via their MS1/MS2 pins, making them individually addressable (up to 4 chips per UART bus).
 
@@ -1241,6 +1370,7 @@ axes.<letter>.motorN.tmc_2209:
   uart_num:
     type: integer
     default: '-1'
+    tuning: per-machine
     description: |
       Which top-level uartN: section this chip's UART register interface runs over. Required -- afterParse() asserts this is actually set.
 
@@ -1260,7 +1390,8 @@ axes.<letter>.motorN.tmc_2209:
     type: unknown
     min: 0.0
     max: 10.0
-    default: '0.0 -- substituted with run_amps if left at 0'
+    default: '0.0'
+    default_note: 'substituted with run_amps if left at 0'
     description: |
       Motor current while homing. Leaving this at its default 0 isn't literally "zero current" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. This fallback is specific to TMC2209; no other Trinamic driver type has a homing_amps field at all.
 
@@ -1316,6 +1447,7 @@ axes.<letter>.motorN.tmc_5160:
     min: 0.0
     max: 1.00
     default: '0.0'
+    tuning: per-machine
     description: |
       Sense resistor value for the physical driver module, in ohms. The 0.0 default is not a real, functional value -- TrinamicBase itself has no correct generic default, since this is purely a property of the specific module in hand (e.g. 0.11 is typical for genuine TMC2130/TMC2208/TMC2209 modules, 0.075 for TMC5160). A real value appropriate to the actual hardware must always be set explicitly.
 
@@ -1324,6 +1456,7 @@ axes.<letter>.motorN.tmc_5160:
     min: 0.05
     max: 10.0
     default: '0.5'
+    tuning: per-machine
     description: |
       Motor current while running, in amps RMS.
 
@@ -1332,6 +1465,7 @@ axes.<letter>.motorN.tmc_5160:
     min: 0.05
     max: 10.0
     default: '0.5'
+    tuning: per-machine
     description: |
       Motor current while holding position (not moving), in amps RMS.
 
@@ -1340,6 +1474,7 @@ axes.<letter>.motorN.tmc_5160:
     min: 1
     max: 256
     default: '16'
+    tuning: per-machine
     description: |
       Microstep resolution. Needs to be reflected in the axis's steps_per_mm.
 
@@ -1533,6 +1668,7 @@ axes.<letter>.motorN.rc_servo:
     min: SERVO_PWM_FREQ_MIN
     max: SERVO_PWM_FREQ_MAX
     default: '50'
+    tuning: typical
     description: |
       Servo PWM pulse repetition rate. 50Hz is the standard analog-servo value; some digital servos can repeat faster.
 
@@ -1541,6 +1677,7 @@ axes.<letter>.motorN.rc_servo:
     min: SERVO_PULSE_US_MIN
     max: SERVO_PULSE_US_MAX
     default: '1000'
+    tuning: per-machine
     description: |
       Pulse width, in microseconds, corresponding to one end of the servo's travel.
 
@@ -1549,6 +1686,7 @@ axes.<letter>.motorN.rc_servo:
     min: SERVO_PULSE_US_MIN
     max: SERVO_PULSE_US_MAX
     default: '2000'
+    tuning: per-machine
     description: |
       Pulse width, in microseconds, corresponding to the other end of the servo's travel.
 
@@ -1557,6 +1695,7 @@ axes.<letter>.motorN.rc_servo:
     min: TIMER_MS_MIN
     max: TIMER_MS_MAX
     default: '20'
+    tuning: typical
     description: |
       Update interval, in milliseconds, for refreshing the servo's PWM position.
 
@@ -1572,6 +1711,7 @@ axes.<letter>.motorN.solenoid:
     min: 1000
     max: 100000
     default: '1000'
+    tuning: typical
     description: |
       PWM frequency driving the solenoid.
 
@@ -1580,6 +1720,7 @@ axes.<letter>.motorN.solenoid:
     min: 0.0f
     max: 100.0f
     default: '0.0'
+    tuning: typical
     description: |
       Duty cycle while off.
 
@@ -1588,6 +1729,7 @@ axes.<letter>.motorN.solenoid:
     min: 0.0f
     max: 100.0f
     default: '100.0'
+    tuning: typical
     description: |
       Duty cycle during the initial pull-in (highest power, to overcome the solenoid's resting inertia).
 
@@ -1596,6 +1738,7 @@ axes.<letter>.motorN.solenoid:
     min: 0.0f
     max: 100.0f
     default: '75.0'
+    tuning: typical
     description: |
       Duty cycle after pull-in, while holding the solenoid engaged -- typically lower than pull_percent, since holding a solenoid needs less power than pulling it in.
 
@@ -1604,18 +1747,21 @@ axes.<letter>.motorN.solenoid:
     min: 0
     max: 3000
     default: '500'
+    tuning: typical
     description: |
       How long the pull_percent duty cycle is applied before switching to hold_percent.
 
   direction_invert:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Inverts which side of the axis's mpos 0.0 counts as "active".
 
   timer_ms:
     type: integer
     default: '50'
+    tuning: typical
     description: |
       Update interval, in milliseconds, for the solenoid's PWM state machine (pull/hold timing).
 
@@ -1659,42 +1805,52 @@ PWM:
     min: 0
     max: MaxToolNumber
     default: '0'
+    tuning: typical
     description: |
       Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
 
   off_on_alarm:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
 
   atc:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
 
   m6_macro:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
 
   s0_with_disable:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
 
   disable_with_s0:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
@@ -1703,6 +1859,7 @@ PWM:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
 
@@ -1711,6 +1868,7 @@ PWM:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Same as spinup_ms, but applied when the commanded RPM decreases.
 
@@ -1737,6 +1895,7 @@ PWM:
     min: 1
     max: 20000000
     default: '5000'
+    tuning: typical
     description: |
       PWM signal frequency. Resolution trades off against frequency -- 76Hz or less gets the full 20-bit duty-cycle resolution, roughly halving for every doubling of frequency above that, down to 4 levels (2 bits) at the 20MHz ceiling. Not every value in that range is a practical CNC PWM frequency, but the hardware supports the whole span, so it's left open.
 
@@ -1747,42 +1906,52 @@ Laser:
     min: 0
     max: MaxToolNumber
     default: '0'
+    tuning: typical
     description: |
       Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
 
   off_on_alarm:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
 
   atc:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
 
   m6_macro:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
 
   s0_with_disable:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
 
   disable_with_s0:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
@@ -1812,42 +1981,52 @@ Laser:
     min: 0
     max: MaxToolNumber
     default: '0'
+    tuning: typical
     description: |
       Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
 
   off_on_alarm:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
 
   atc:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
 
   m6_macro:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
 
   s0_with_disable:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
 
   disable_with_s0:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
@@ -1856,6 +2035,7 @@ Laser:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
 
@@ -1864,6 +2044,7 @@ Laser:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Same as spinup_ms, but applied when the commanded RPM decreases.
 
@@ -1890,6 +2071,7 @@ Laser:
     min: 1
     max: 20000000
     default: '5000'
+    tuning: typical
     description: |
       PWM signal frequency. Resolution trades off against frequency -- 76Hz or less gets the full 20-bit duty-cycle resolution, roughly halving for every doubling of frequency above that, down to 4 levels (2 bits) at the 20MHz ceiling. Not every value in that range is a practical CNC PWM frequency, but the hardware supports the whole span, so it's left open.
 
@@ -1911,42 +2093,52 @@ BESC:
     min: 0
     max: MaxToolNumber
     default: '0'
+    tuning: typical
     description: |
       Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
 
   off_on_alarm:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
 
   atc:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
 
   m6_macro:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
 
   s0_with_disable:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
 
   disable_with_s0:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
@@ -1955,6 +2147,7 @@ BESC:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
 
@@ -1963,6 +2156,7 @@ BESC:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Same as spinup_ms, but applied when the commanded RPM decreases.
 
@@ -1989,6 +2183,7 @@ BESC:
     min: 1
     max: 20000000
     default: '5000'
+    tuning: typical
     description: |
       PWM signal frequency. Resolution trades off against frequency -- 76Hz or less gets the full 20-bit duty-cycle resolution, roughly halving for every doubling of frequency above that, down to 4 levels (2 bits) at the 20MHz ceiling. Not every value in that range is a practical CNC PWM frequency, but the hardware supports the whole span, so it's left open.
 
@@ -1997,6 +2192,7 @@ BESC:
     min: 500
     max: 3000
     default: '900'
+    tuning: per-machine
     description: |
       Pulse width, in microseconds, corresponding to the ESC's "off" signal. Determine your ESC's actual min pulse from its datasheet/documentation -- typically around 1ms (1000us) or less.
 
@@ -2005,6 +2201,7 @@ BESC:
     min: 500
     max: 3000
     default: '2200'
+    tuning: per-machine
     description: |
       Pulse width, in microseconds, corresponding to the ESC's full-power signal. Typically around 2ms (2000us) or more -- check your ESC's documentation.
 
@@ -2014,42 +2211,52 @@ HBridge:
     min: 0
     max: MaxToolNumber
     default: '0'
+    tuning: typical
     description: |
       Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
 
   off_on_alarm:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
 
   atc:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
 
   m6_macro:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
 
   s0_with_disable:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
 
   disable_with_s0:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
@@ -2058,6 +2265,7 @@ HBridge:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
 
@@ -2066,6 +2274,7 @@ HBridge:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Same as spinup_ms, but applied when the commanded RPM decreases.
 
@@ -2102,42 +2311,52 @@ OnOff:
     min: 0
     max: MaxToolNumber
     default: '0'
+    tuning: typical
     description: |
       Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
 
   off_on_alarm:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
 
   atc:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
 
   m6_macro:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
 
   s0_with_disable:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
 
   disable_with_s0:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
@@ -2146,6 +2365,7 @@ OnOff:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
 
@@ -2154,6 +2374,7 @@ OnOff:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Same as spinup_ms, but applied when the commanded RPM decreases.
 
@@ -2182,42 +2403,52 @@ PlasmaSpindle:
     min: 0
     max: MaxToolNumber
     default: '0'
+    tuning: typical
     description: |
       Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
 
   off_on_alarm:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
 
   atc:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
 
   m6_macro:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
 
   s0_with_disable:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
 
   disable_with_s0:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
@@ -2238,6 +2469,7 @@ PlasmaSpindle:
     min: 0
     max: 3000
     default: '1000'
+    tuning: typical
     description: |
       How long to wait for arc_ok_pin to confirm the arc has started before giving up.
 
@@ -2251,42 +2483,52 @@ ModbusVFD:
     min: 0
     max: MaxToolNumber
     default: '0'
+    tuning: typical
     description: |
       Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
 
   off_on_alarm:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
 
   atc:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
 
   m6_macro:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
 
   s0_with_disable:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
 
   disable_with_s0:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
 
@@ -2295,6 +2537,7 @@ ModbusVFD:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
 
@@ -2303,12 +2546,14 @@ ModbusVFD:
     min: 0
     max: 60000
     default: '0'
+    tuning: typical
     description: |
       Same as spinup_ms, but applied when the commanded RPM decreases.
 
   uart_num:
     type: integer
-    default: '-1 (not configured)'
+    default: '-1'
+    default_note: 'not configured'
     description: |
       Which top-level uartN: section this VFD's Modbus link runs over.
 
@@ -2317,6 +2562,7 @@ ModbusVFD:
     min: 0
     max: 247
     default: '1'
+    tuning: typical
     description: |
       Modbus slave address of the VFD -- must match the VFD's own configured value (per https://modbus.org/docs/PI_MBUS_300.pdf). When in doubt, try 1.
 
@@ -2344,61 +2590,71 @@ ModbusVFD:
 
   model:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
     description: |
       VFD model name. Informational (used for support purposes) -- not itself used to select protocol behavior; the cw_cmd/ccw_cmd/etc. fields below are what actually define the protocol.
 
   min_RPM:
     type: integer
-    default: '0xffffffff (uninitialized sentinel)'
+    default: '0xffffffff'
+    default_note: 'uninitialized sentinel'
     description: |
       Minimum spindle RPM, in Hz-derived RPM terms. Normally left unset and retrieved from the VFD itself via get_min_rpm_cmd at startup.
 
   max_RPM:
     type: integer
-    default: '0xffffffff (uninitialized sentinel)'
+    default: '0xffffffff'
+    default_note: 'uninitialized sentinel'
     description: |
       Maximum spindle RPM. Normally left unset and retrieved from the VFD itself via get_max_rpm_cmd at startup.
 
   cw_cmd:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
     description: |
       Modbus command template for clockwise spindle rotation.
 
   ccw_cmd:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
     description: |
       Modbus command template for counter-clockwise spindle rotation.
 
   off_cmd:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
     description: |
       Modbus command template to stop the spindle.
 
   set_rpm_cmd:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
     description: |
       Modbus command template to set the spindle speed.
 
   get_min_rpm_cmd:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
     description: |
       Modbus command template to query the VFD's minimum RPM. If left unset, speed_map must be configured manually instead of being auto-derived.
 
   get_max_rpm_cmd:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
     description: |
       Modbus command template to query the VFD's maximum RPM. If left unset, speed_map must be configured manually instead of being auto-derived.
 
   get_rpm_cmd:
     type: string
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
     description: |
       Modbus command template to query the VFD's current RPM. spinup_ms/ spindown_ms (Spindle::groupDelaySettings()) are always present in config.yaml for a VFD spindle regardless of this field -- what this field changes is whether they're actually used at runtime. When set, use_speed_feedback() returns true and VFDSpindle actively polls this command until it confirms the real target speed, ignoring spinup_ms/ spindown_ms entirely; when left empty, there's no way to confirm real speed, so it falls back to blindly waiting out spinup_ms/spindown_ms instead.
 
@@ -2408,6 +2664,7 @@ kinematics.ParallelDelta:
     min: 50.0
     max: 500.0
     default: '70.0'
+    tuning: per-machine
     description: |
       Length of the crank arm attached to each motor.
 
@@ -2416,6 +2673,7 @@ kinematics.ParallelDelta:
     min: 20.0
     max: 500.0
     default: '179.437'
+    tuning: per-machine
     description: |
       Side length of the fixed base triangle (where the motors/cranks mount).
 
@@ -2424,6 +2682,7 @@ kinematics.ParallelDelta:
     min: 20.0
     max: 500.0
     default: '133.5'
+    tuning: per-machine
     description: |
       Length of the linkage arm connecting each crank to the end effector.
 
@@ -2432,6 +2691,7 @@ kinematics.ParallelDelta:
     min: 20.0
     max: 500.0
     default: '86.603'
+    tuning: per-machine
     description: |
       Side length of the moving end-effector triangle (where the tool mounts).
 
@@ -2440,12 +2700,14 @@ kinematics.ParallelDelta:
     min: 0.05
     max: 20.0
     default: '1.0'
+    tuning: typical
     description: |
       Maximum length of the small linear segments a cartesian move is broken into before being converted to arm angles -- delta kinematics are nonlinear, so moves are approximated as a series of short, nearly-linear segments (the same idea FluidNC uses for tessellating arcs).
 
   use_servos:
     type: boolean
     default: 'false'
+    tuning: typical
     description: |
       Set true when the arms are driven by servos rather than steppers -- servos use a different (self-contained) homing approach.
 
@@ -2454,6 +2716,7 @@ kinematics.ParallelDelta:
     min: -90
     max: 0
     default: '-30.0'
+    tuning: per-machine
     description: |
       Arm angle, in degrees, considered fully "up" (0 is horizontal, positive angles are below horizontal per this file's own convention -- so "up" is negative).
 
@@ -2461,42 +2724,49 @@ kinematics.WallPlotter:
   left_axis:
     type: integer
     default: '0'
+    tuning: typical
     description: |
-      Which machine axis index drives the left cord's length.
+      Which machine axis index drives the left cord's length. NOT bounds-checked against MAX_N_AXIS -- see transform_cartesian_to_motors() below for why an out-of-range or Z-and-above value here is unsafe.
 
   left_anchor_x:
     type: float
     default: '-100'
+    tuning: per-machine
     description: |
       X position of the left cord's fixed anchor point, in the cartesian frame.
 
   left_anchor_y:
     type: float
     default: '100'
+    tuning: per-machine
     description: |
       Y position of the left cord's fixed anchor point.
 
   right_axis:
     type: integer
     default: '1'
+    tuning: typical
     description: |
-      Which machine axis index drives the right cord's length.
+      Which machine axis index drives the right cord's length. NOT bounds-checked -- see left_axis above.
 
   right_anchor_x:
     type: float
     default: '100'
+    tuning: per-machine
     description: |
       X position of the right cord's fixed anchor point.
 
   right_anchor_y:
     type: float
     default: '100'
+    tuning: per-machine
     description: |
       Y position of the right cord's fixed anchor point.
 
   segment_length:
     type: float
     default: '10'
+    tuning: typical
     description: |
       Maximum length of the small linear segments a cartesian move is broken into before being converted to cord lengths (the cord-length transform is nonlinear).
 
@@ -2658,55 +2928,73 @@ user_inputs:
 macros:
   startup_line0:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Legacy Grbl feature (formerly $N0). Runs once, the first time the firmware enters Idle after boot.
 
   startup_line1:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Legacy Grbl feature (formerly $N1). Runs once, the first time the firmware enters Idle after boot, immediately after startup_line0.
 
   macro0:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Runs when macro0_pin (control:) is activated. The switch must read inactive at startup -- deactivate it before clearing the alarm, same as any other control input.
 
   macro1:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Runs when macro1_pin (control:) is activated.
 
   macro2:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Runs when macro2_pin (control:) is activated.
 
   macro3:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Runs when macro3_pin (control:) is activated.
 
   after_homing:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Runs after a homing cycle completes -- i.e. once every axis with homing enabled has been homed.
 
   after_reset:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Runs after the system resets (power-on/startup, or a Ctrl-X real-time reset), but only if the system ends up in Idle state immediately after the reset.
 
   after_unlock:
     type: macro
-    default: '"" (empty)'
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
     description: |
       Runs after a $X unlock command.
 
@@ -2726,60 +3014,70 @@ rgbled:
 
   idle:
     type: string (hex color RRGGBB, or "none")
-    default: '"007F00" (green)'
+    default: '"007F00"'
+    default_note: 'green'
     description: |
       Color shown while machine status is Idle.
 
   alarm:
     type: string (hex color RRGGBB, or "none")
-    default: '"7F0000" (red)'
+    default: '"7F0000"'
+    default_note: 'red'
     description: |
       Color shown while machine status is Alarm.
 
   checkMode:
     type: string (hex color RRGGBB, or "none")
-    default: '"b936bf" (magenta)'
+    default: '"b936bf"'
+    default_note: 'magenta'
     description: |
       Color shown while in Grbl Check Mode ($C).
 
   homing:
     type: string (hex color RRGGBB, or "none")
-    default: '"501f00" (orange-brown)'
+    default: '"501f00"'
+    default_note: 'orange-brown'
     description: |
       Color shown while homing.
 
   cycle:
     type: string (hex color RRGGBB, or "none")
-    default: '"7f4422" (orange)'
+    default: '"7f4422"'
+    default_note: 'orange'
     description: |
       Color shown while running (Cycle state).
 
   hold:
     type: string (hex color RRGGBB, or "none")
-    default: '"777744" (dim yellow)'
+    default: '"777744"'
+    default_note: 'dim yellow'
     description: |
       Color shown while in Feed Hold.
 
   jog:
     type: string (hex color RRGGBB, or "none")
-    default: '"007f3f" (teal)'
+    default: '"007f3f"'
+    default_note: 'teal'
     description: |
       Color shown while jogging.
 
   safetyDoor:
     type: string (hex color RRGGBB, or "none")
-    default: '"3f7f00" (yellow-green)'
+    default: '"3f7f00"'
+    default_note: 'yellow-green'
     description: |
       Color shown while the safety door is open (Door state).
 
   sleep:
     type: string (hex color RRGGBB, or "none")
-    default: '"001F00" (dim green)'
+    default: '"001F00"'
+    default_note: 'dim green'
     description: |
       Color shown while in Sleep state.
 
   configAlarm:
     type: string (hex color RRGGBB, or "none")
-    default: '"7f0000" (red)'
+    default: '"7f0000"'
+    default_note: 'red'
     description: |
       Color shown when a configuration error put the machine into ConfigAlarm state at startup.

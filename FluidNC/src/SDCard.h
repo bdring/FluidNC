@@ -59,6 +59,7 @@ public:
 
         // @config frequency_hz
         // @default 8000000
+        // @tuning typical
         // SPI clock speed used for the SD card. Try a lower value if the card has
         // consistent read/write problems.
         handler.item("frequency_hz", _frequency_hz, 400000, 20000000);

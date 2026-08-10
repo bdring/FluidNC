@@ -68,6 +68,7 @@ namespace Machine {
         void group(Configuration::HandlerBase& handler) override {
             // @config cycle
             // @default 0
+            // @tuning per-machine
             // Which $H (home-all) pass this axis homes in. -1 (set_mpos_only): the axis
             // doesn't move at all -- mpos_mm is just assigned directly, for an axis with no
             // home switch. 0 (the default): excluded from $H, but still homeable
@@ -88,12 +89,14 @@ namespace Machine {
 
             // @config positive_direction
             // @default true
+            // @tuning per-machine
             // Direction this axis moves while homing: true moves toward higher position
             // values, false toward lower.
             handler.item("positive_direction", _positiveDirection);
 
             // @config mpos_mm
             // @default 0.0
+            // @tuning per-machine
             // Machine position assigned to this axis once homing (and pull-off) completes.
             // Set to 0 if the switch location should read as machine-position zero. No
             // range is enforced by this item() call -- it accepts any float.
@@ -101,6 +104,7 @@ namespace Machine {
 
             // @config feed_mm_per_min
             // @default 50.0
+            // @tuning typical
             // Feed rate for the second (precise) touch of the limit switch, after the
             // initial fast approach and pull-off. Usually slow, since the axis is already
             // close to the switch -- a slower second touch tends to be more precise and
@@ -109,18 +113,21 @@ namespace Machine {
 
             // @config seek_mm_per_min
             // @default 200.0
+            // @tuning typical
             // Feed rate for the initial fast approach that finds the limit switch's rough
             // position, before pulling off and re-touching at feed_mm_per_min for precision.
             handler.item("seek_mm_per_min", _seekRate, 1.0, 100000.0);
 
             // @config settle_ms
             // @default 250
+            // @tuning typical
             // Pause, in milliseconds, between homing cycles to let the machine settle
             // mechanically after the previous cycle's motion.
             handler.item("settle_ms", _settle_ms, 0, 1000);
 
             // @config seek_scaler
             // @default 1.1
+            // @tuning typical
             // Multiplied by max_travel_mm to get the maximum distance the initial seek move
             // will travel before failing if it hasn't yet reached the limit switch -- needs
             // to be a bit over 1.0 to allow for the extra distance a prior pull-off adds.
@@ -128,6 +135,7 @@ namespace Machine {
 
             // @config feed_scaler
             // @default 1.1
+            // @tuning typical
             // Multiplied by the motor's own pulloff_mm to get the max distance the axis
             // will travel back toward the switch, after the first pull-off, before the
             // precise second touch fails. A switch with a lot of positional variability (or

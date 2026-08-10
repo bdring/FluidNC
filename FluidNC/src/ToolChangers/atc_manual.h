@@ -61,6 +61,7 @@ namespace ATCs {
 
             // @config safe_z_mpos_mm
             // @default 50.0
+            // @tuning per-machine
             // Machine-space Z position safe to travel at without hitting the workpiece or
             // fixtures, used while moving to/from the tool-change and tool-setter
             // locations.
@@ -68,11 +69,13 @@ namespace ATCs {
 
             // @config probe_seek_rate_mm_per_min
             // @default 200.0
+            // @tuning per-machine
             // Feed rate for the initial (fast) probe move onto the electronic tool setter.
             handler.item("probe_seek_rate_mm_per_min", _probe_seek_rate, 1, 10000);
 
             // @config probe_feed_rate_mm_per_min
             // @default 80.0
+            // @tuning per-machine
             // Feed rate for the precise (slow) second probe touch on the electronic tool
             // setter.
             handler.item("probe_feed_rate_mm_per_min", _probe_feed_rate, 1, 10000);
@@ -92,6 +95,7 @@ namespace ATCs {
 
             // @config ets_rapid_z_mpos_mm
             // @default 0.0
+            // @tuning per-machine
             // Z position to rapid to before starting the ETS probe approach, giving
             // clearance above the probe before the slower seek/feed moves begin.
             handler.item("ets_rapid_z_mpos_mm", _ets_rapid_z_mpos);

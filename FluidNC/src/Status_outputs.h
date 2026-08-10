@@ -53,6 +53,7 @@ public:
 
         // @config report_interval_ms
         // @default 500
+        // @tuning typical
         // How often, in milliseconds, the output pins are refreshed against current status.
         // Doesn't need to be fast -- an update also happens immediately on every status
         // change regardless of this interval.

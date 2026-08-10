@@ -52,6 +52,7 @@ namespace Spindles {
 
             // @config arc_wait_ms
             // @default 1000
+            // @tuning typical
             // How long to wait for arc_ok_pin to confirm the arc has started before giving
             // up.
             handler.item("arc_wait_ms", _max_arc_wait, 0, 3000);

@@ -41,7 +41,8 @@ comment and the code have drifted apart), not silently ignore it.
 
 ```c++
 // @config idle_ms
-// @default 255 -- special "never auto-disable" value (Grbl compatibility)
+// @default 255
+// @default_note special "never auto-disable" value (Grbl compatibility)
 // Milliseconds of inactivity before motors are automatically disabled.
 // Any value other than 255 (0-254 or 256+) is a real millisecond delay;
 // motors can also be disabled manually at any time with $MD.
@@ -50,7 +51,8 @@ handler.item("idle_ms", _idleMsecs, 0, 10000000);
 
 ```c++
 // @config engine
-// @default board-dependent (DEFAULT_STEPPING_ENGINE, applied in afterParse())
+// @default (none)
+// @default_note board-dependent (DEFAULT_STEPPING_ENGINE, applied in afterParse())
 // Method used to generate step pulses in firmware...
 handler.item("engine", _engine);
 ```
@@ -58,16 +60,49 @@ handler.item("engine", _engine);
 Rules:
 
 - The `@config <name>` line opens the block.
-- The very next line **must** be `@default <text>`, one line, no
+- The very next line **must** be `@default <literal>`, one line, no
   continuation -- a generator should treat a missing `@default` as an error,
-  the same as a name mismatch. Keep it short (the value, plus a terse
-  qualifier if the bare value would be misleading on its own, as in the two
-  examples above); a fuller explanation of *why* belongs in the description
-  below, not crammed into the `@default` line itself.
-- An optional `@unit <text>` line may follow `@default`, before the
-  description, when the field name's own suffix (`_ms`, `_us`, `_mm`,
-  `_amps`, ...) doesn't already say it plainly enough to be worth restating
-  -- most fields don't need this.
+  the same as a name mismatch. `<literal>` must be a single bare value in the
+  field's own type (a number, `true`/`false`, a bare or quoted string,
+  `NO_PIN`, a hex constant, ...) with nothing else on the line -- no
+  qualifier, no parenthetical, no explanation. When the real default
+  genuinely isn't a fixed literal at all (board-dependent, substituted by
+  other code in `afterParse()`, ...), write the reserved token `(none)`
+  instead of inventing one. This keeps `@default` mechanically parseable in
+  every case: a downstream consumer (e.g. the config wizard's silent-pre-fill
+  logic) can trust it's either a real, directly usable value or the explicit
+  "no such value exists" sentinel, never free text it has to guess how to
+  parse.
+- An optional `@default_note <text>` line may immediately follow `@default`
+  -- one line, no continuation. This is where the qualifier that used to be
+  crammed onto the `@default` line itself now goes: why the literal might be
+  misleading on its own (idle_ms's example above), or, when `@default` is
+  `(none)`, what actually determines the real default (engine's example
+  above). A fuller explanation of *why* still belongs in the description
+  below, not here -- keep this short.
+- An optional `@tuning <typical|per-machine>` line may follow
+  `@default`/`@default_note`, before `@unit`/the description. It answers a
+  narrower question than
+  "does a compiled default exist" (true of nearly every item): is that
+  default likely *correct, or at least safe/harmless, for most machines* --
+  `typical` -- or is it a placeholder/starting point that needs real
+  per-machine data before the config will actually work right --
+  `per-machine`. A physical dimension, a bus/device address, a current
+  rating, or anything else that varies with the specific hardware attached
+  is `per-machine` even when the initializer is a plausible-looking number
+  (e.g. Parallel Delta's `crank_mm`, or a TMC driver's `r_sense_ohms`). A
+  behavior toggle, timing constant, or cosmetic setting whose compiled
+  default is safe to leave alone on nearly any machine is `typical`. Omit
+  the line when genuinely unclassified rather than guessing -- a missing
+  `@tuning` is not an error, unlike a missing `@default`. This exists so a
+  config wizard's "pre-fill vs. force the user to look at it" logic can be
+  generated from source instead of hand-maintained (see
+  FluidNC-config-wizard's `TUNING_CLASSIFICATION_REVIEW.md` for the review
+  that produced the first pass of these).
+- An optional `@unit <text>` line may follow `@default`/`@default_note`/
+  `@tuning`, before the description, when the field name's own suffix
+  (`_ms`, `_us`, `_mm`, `_amps`, ...) doesn't already say it plainly enough
+  to be worth restating -- most fields don't need this.
 - Every plain `//` comment line after that (no intervening code, no blank
   line) is part of the description, in order. A blank comment line (`//`
   alone) is a paragraph break; anything else joins with a single space.
@@ -79,7 +114,8 @@ Rules:
   in the field's own initializer, where one exists, and warns (doesn't fail)
   on an apparent mismatch -- that's a strong signal the annotation drifted
   from a later code change, e.g. someone changed the initializer without
-  updating the comment.
+  updating the comment. Skipped entirely when `@default` is `(none)` -- there's
+  no literal to compare against by definition.
 - Every `handler.item(...)` call gets a `@config`/`@default` block, full
   stop -- the generator treats a call with no matching block as an error.
   This is a change from an earlier version of this convention, which allowed

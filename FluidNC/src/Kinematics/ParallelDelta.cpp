@@ -62,26 +62,31 @@ namespace Kinematics {
 
         // @config crank_mm
         // @default 70.0
+        // @tuning per-machine
         // Length of the crank arm attached to each motor.
         handler.item("crank_mm", rf, 50.0, 500.0);
 
         // @config base_triangle_mm
         // @default 179.437
+        // @tuning per-machine
         // Side length of the fixed base triangle (where the motors/cranks mount).
         handler.item("base_triangle_mm", f, 20.0, 500.0);
 
         // @config linkage_mm
         // @default 133.5
+        // @tuning per-machine
         // Length of the linkage arm connecting each crank to the end effector.
         handler.item("linkage_mm", re, 20.0, 500.0);
 
         // @config end_effector_triangle_mm
         // @default 86.603
+        // @tuning per-machine
         // Side length of the moving end-effector triangle (where the tool mounts).
         handler.item("end_effector_triangle_mm", e, 20.0, 500.0);
 
         // @config kinematic_segment_len_mm
         // @default 1.0
+        // @tuning typical
         // Maximum length of the small linear segments a cartesian move is broken into
         // before being converted to arm angles -- delta kinematics are nonlinear, so
         // moves are approximated as a series of short, nearly-linear segments (the same
@@ -90,12 +95,14 @@ namespace Kinematics {
 
         // @config use_servos
         // @default false
+        // @tuning typical
         // Set true when the arms are driven by servos rather than steppers -- servos use
         // a different (self-contained) homing approach.
         handler.item("use_servos", _use_servos);
 
         // @config up_degrees
         // @default -30.0
+        // @tuning per-machine
         // Arm angle, in degrees, considered fully "up" (0 is horizontal, positive angles
         // are below horizontal per this file's own convention -- so "up" is negative).
         handler.item("up_degrees", _up_degrees, -90, 0);

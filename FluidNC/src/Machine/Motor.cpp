@@ -37,6 +37,7 @@ namespace Machine {
 
         // @config hard_limits
         // @default false
+        // @tuning typical
         // Treats the switches above as hard limits: activating one immediately stops all
         // motion. Position is considered lost, so rehoming is required afterward.
         handler.item("hard_limits", _hardLimits);

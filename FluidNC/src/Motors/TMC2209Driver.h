@@ -47,7 +47,8 @@ namespace MotorDrivers {
             handler.item("homing_mode", _homing_mode, trinamicModes);
 
             // @config homing_amps
-            // @default 0.0 -- substituted with run_amps if left at 0
+            // @default 0.0
+            // @default_note substituted with run_amps if left at 0
             // Motor current while homing. Leaving this at its default 0 isn't literally
             // "zero current" -- afterParse() detects the default and substitutes run_amps
             // instead, so omitting this field entirely is equivalent to setting it equal to

@@ -181,6 +181,7 @@ namespace Machine {
 
         // @config homing_runs
         // @default 2
+        // @tuning typical
         // Number of approach/pulloff touches performed per axis during a homing sequence.
         // Default of 2 matches Grbl's convention.
         handler.item("homing_runs", _homing_runs, 1, 5);

@@ -50,7 +50,8 @@ namespace Machine {
         handler.item("name", _name);
 
         // @config meta
-        // @default "" (empty)
+        // @default ""
+        // @default_note empty
         // Free-form notes about the config file itself, e.g. "B. Dring 2022-03-15 Rev 2".
         handler.item("meta", _meta);
 
@@ -105,6 +106,7 @@ namespace Machine {
 
         // @config arc_tolerance_mm
         // @default 0.002
+        // @tuning typical
         // Maximum deviation, in mm, allowed when tessellating G2/G3 arcs into straight-line
         // segments. Smaller values produce smoother arcs at the cost of more segments (and
         // therefore more planner/computation work). Rarely changed from the default.
@@ -112,6 +114,7 @@ namespace Machine {
 
         // @config junction_deviation_mm
         // @default 0.01
+        // @tuning typical
         // Controls how aggressively the planner slows down at sharp corners between
         // consecutive moves (the Grbl-style "junction deviation" cornering algorithm).
         // Smaller values force more slowdown at corners; larger values allow faster
@@ -121,18 +124,21 @@ namespace Machine {
 
         // @config verbose_errors
         // @default true
+        // @tuning typical
         // Includes descriptive text alongside the numeric error code in error responses.
         // Some GCode senders may not parse the extra text correctly.
         handler.item("verbose_errors", _verboseErrors);
 
         // @config report_inches
         // @default false
+        // @tuning typical
         // Reports position and feed rate values in inches instead of millimeters. This
         // only affects reporting, not how input values in the GCode/config are interpreted.
         handler.item("report_inches", _reportInches);
 
         // @config enable_parking_override_control
         // @default false
+        // @tuning typical
         // Enables the M56 GCode command, which lets a running program toggle the parking-
         // motion override on/off at runtime (M56 P0 disables parking, M56 P1 enables it).
         // This only gates whether M56 has any effect; start.deactivate_parking sets what
@@ -142,6 +148,7 @@ namespace Machine {
 
         // @config use_line_numbers
         // @default false
+        // @tuning typical
         // When true, line numbers written into GCode as N<number> (e.g. N100) are tracked
         // and echoed back in status reports as Ln:100, so a report can be correlated with
         // the source line currently being executed. Reports Ln:0 when the GCode has no line
@@ -150,6 +157,7 @@ namespace Machine {
 
         // @config planner_blocks
         // @default 16
+        // @tuning typical
         // Number of motion blocks held in the look-ahead planner buffer. Leave at the
         // default unless tuning for a special application.
         handler.item("planner_blocks", _planner_blocks, 10, 120);

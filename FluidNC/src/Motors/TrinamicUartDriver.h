@@ -33,6 +33,7 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             // @config addr
             // @default 0
+            // @tuning per-machine
             // Hardware UART address of the chip. TMC2208/TMC2225 have a fixed address of 0
             // (this field has no effect on them); TMC2209/TMC2226 set their real address
             // via their MS1/MS2 pins, making them individually addressable (up to 4 chips
@@ -49,6 +50,7 @@ namespace MotorDrivers {
 
             // @config uart_num
             // @default -1
+            // @tuning per-machine
             // Which top-level uartN: section this chip's UART register interface runs
             // over. Required -- afterParse() asserts this is actually set.
             handler.item("uart_num", _uart_num);

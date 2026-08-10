@@ -321,18 +321,26 @@ void Uart::group(Configuration::HandlerBase& handler) {
 
     // @config baud
     // @default 115200
-    // UART data baud rate.
+    // @tuning typical
+    // UART data baud rate. What "typical" means here depends heavily on what this
+    // bus actually carries -- a TMC2209 UART chain, an RS485/Modbus VFD link, and a
+    // uart_channel: pendant/DRO each have their own real conventional rate (commonly
+    // 115200, 9600, and a much higher rate respectively), but this one field/default
+    // is shared by all of them, so this is only a reasonable single-context starting
+    // point, not a universal one -- always verify against what's actually on the bus.
     handler.item("baud", _baud, 2400, 10000000);
 
     // @config mode
     // @default 8N1
+    // @tuning typical
     // Data format as a 3-character code: data bits (5-8), parity (N/E/O), stop bits
     // (1/1.5/2) -- e.g. 8N1. Always quote this value in YAML (see the config spec's note on
     // 8E1 being ambiguous with scientific-notation floats to generic YAML parsers).
     handler.item("mode", _dataBits, _parity, _stopBits);
 
     // @config passthrough_baud
-    // @default 0 (not configured)
+    // @default 0
+    // @default_note not configured
     // Baud rate used while this UART is in passthrough mode (e.g. forwarding firmware
     // uploads from FluidTerm). 0 means passthrough is not configured for this UART.
     handler.item("passthrough_baud", _passthrough_baud, 0, 10000000);  // 0 means not configured
