@@ -88,8 +88,9 @@ float limitsMaxPosition(axis_t axis) {
     auto homing     = axisConfig->_homing;
     auto mpos       = homing ? homing->_mpos : 0;
     auto maxtravel  = axisConfig->_maxTravel;
+    auto slop       = 1.0F / axisConfig->_stepsPerMm;
 
-    return (!homing || homing->_positiveDirection) ? mpos : mpos + maxtravel;
+    return ((!homing || homing->_positiveDirection) ? mpos : mpos + maxtravel) + slop;
 }
 
 float limitsMinPosition(axis_t axis) {
@@ -97,6 +98,7 @@ float limitsMinPosition(axis_t axis) {
     auto homing     = axisConfig->_homing;
     auto mpos       = homing ? homing->_mpos : 0;
     auto maxtravel  = axisConfig->_maxTravel;
+    auto slop       = 1.0F / axisConfig->_stepsPerMm;
 
-    return (!homing || homing->_positiveDirection) ? mpos - maxtravel : mpos;
+    return ((!homing || homing->_positiveDirection) ? mpos - maxtravel : mpos) - slop;
 }

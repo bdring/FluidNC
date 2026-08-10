@@ -24,6 +24,8 @@ void gpio_route(pinnum_t pin, uint32_t signal);
 
 void gpio_set_event(int32_t gpio_num, void* arg, bool invert);
 void gpio_clear_event(int32_t gpio_num);
+void gpio_disarm(int32_t gpio_num);  // Prevent further events until rearmed
+void gpio_rearm(int32_t gpio_num);   // Rearm individual GPIO and send pending inactive event
 void poll_gpios();
 
 #ifdef __cplusplus

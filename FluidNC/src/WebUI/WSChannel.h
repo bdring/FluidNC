@@ -16,18 +16,16 @@ namespace WebUI {
     public:
         WSChannel(AsyncWebSocket* server, objnum_t clientNum, std::string session);
 
-        size_t write(uint8_t c);
-        size_t write(const uint8_t* buffer, size_t size);
+        size_t write(uint8_t c) override;
+        size_t write(const uint8_t* buffer, size_t size) override;
 
-        bool sendTXT(std::string& s);
+        bool sendTXT(std::string_view s);
 
         inline size_t write(const char* s) { return write((uint8_t*)s, ::strlen(s)); }
 
-        void flush(void) override {}
-
         objnum_t id() { return _clientNum; }
 
-        int      rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
+        int      rx_buffer_available() override { return std::max(0, 256 - int(queued_bytes())); }
         uint32_t clientNum() { return _clientNum; };
 
         operator bool() const;
@@ -35,7 +33,7 @@ namespace WebUI {
         ~WSChannel();
 
         int read() override;
-        int available() override { return _queue.size() + (_rtchar > -1); }
+        int available() override { return queued_bytes() + (_rtchar > -1); }
 
         void        autoReport() override;
         void        active(bool is_active);
@@ -61,7 +59,9 @@ namespace WebUI {
         static AsyncWebSocket*         _server;
 
         static WSChannel* _lastWSChannel;
-        static WSChannel* getWSChannel(uint32_t pageid, std::string session);
+        static WSChannel* getWSChannel(objnum_t pageid, std::string session);
+
+        static std::vector<std::pair<pinnum_t, InputPin*>> _pins;
 
     public:
         static void removeChannel(WSChannel* channel);
@@ -69,10 +69,12 @@ namespace WebUI {
 
         static bool runGCode(uint32_t pageid, std::string_view cmd, std::string session);
         static bool sendError(uint32_t pageid, std::string error, std::string session);
+        static void closeSessionChannels(const std::string& session, objnum_t exceptId = 0);
         static void sendPing();
-        static void handleEvent(
-            AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len, std::string session);
+        static void handleEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len);
 
         static void showChannels();
+
+        static void registerEvent(pinnum_t index, InputPin* obj);
     };
 }

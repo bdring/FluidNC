@@ -1,14 +1,11 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
-// #include <ESPmDNS.h>
 #include "Machine/MachineConfig.h"
 #include "TelnetClient.h"
 #include "TelnetServer.h"
+#include "NetSettings.h"
 
-#include "Mdns.h"
 #include "Report.h"  // report_init_message()
-
-#include <WiFi.h>
 
 namespace WebUI {
 
@@ -17,10 +14,8 @@ namespace WebUI {
 
     uint16_t TelnetServer::_port = 0;
 
-    std::queue<TelnetClient*> TelnetServer::_disconnected;
-
     void TelnetServer::init() {
-        if (WiFi.getMode() == WIFI_OFF) {
+        if (!networkEnabled()) {
             return;
         }
 
@@ -37,14 +32,17 @@ namespace WebUI {
         _port = WebUI::telnet_port->get();
 
         //create instance
-        _wifiServer = new WiFiServer(_port, MAX_TLNT_CLIENTS);
+        // _wifiServer = new WiFiServer(_port, MAX_TLNT_CLIENTS);
+        _wifiServer = new WiFiServer(_port);
         _wifiServer->setNoDelay(true);
         log_info("Telnet started on port " << _port);
         //start telnet server
         _wifiServer->begin();
         _setupdone = true;
 
+#ifdef HAVE_DNS
         Mdns::add("_telnet", "_tcp", _port);
+#endif
     }
 
     void TelnetServer::deinit() {
@@ -54,21 +52,14 @@ namespace WebUI {
             _wifiServer = NULL;
         }
 
-        //remove mDNS
+#ifdef HAVE_DNS
         Mdns::remove("_telnet", "_tcp");
+#endif
     }
 
     void TelnetServer::poll() {
         if (!_setupdone || _wifiServer == NULL) {
             return;
-        }
-
-        while (_disconnected.size()) {
-            log_debug("Telnet client disconnected");
-            TelnetClient* client = _disconnected.front();
-            _disconnected.pop();
-            allChannels.deregistration(client);
-            delete client;
         }
 
         //check if there are any new clients

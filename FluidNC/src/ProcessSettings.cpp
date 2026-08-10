@@ -35,6 +35,8 @@
 #include <map>
 #include <filesystem>
 
+#include <Arduino.h>  // PIN_LED
+
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin
@@ -168,6 +170,9 @@ extern void make_settings();
 extern void make_user_commands();
 
 void settings_init() {
+    // Initialize NVS - detects and recovers from corruption
+    nvs.init();
+
     make_settings();
     make_file_commands();
 }
@@ -289,7 +294,7 @@ static Error report_ngc(const char* value, AuthenticationLevel auth_level, Chann
     return Error::Ok;
 }
 static Error msg_to_uart0(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         Channel* dest = allChannels.find("uart_channel0");
         if (dest) {
             log_msg_to(*dest, value);
@@ -306,7 +311,7 @@ static Error msg_to_uart1(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 static Error msg_to_channel(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         std::string_view rest(value);
         std::string_view first;
         if (string_util::split_prefix(rest, first, ',')) {
@@ -325,7 +330,7 @@ static Error msg_to_channel(const char* value, AuthenticationLevel auth_level, C
     return Error::InvalidValue;
 }
 static Error cmd_log_msg(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_msg(value + 1);
         } else {
@@ -335,7 +340,7 @@ static Error cmd_log_msg(const char* value, AuthenticationLevel auth_level, Chan
     return Error::Ok;
 }
 static Error cmd_log_error(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_error(value + 1);
         } else {
@@ -345,7 +350,7 @@ static Error cmd_log_error(const char* value, AuthenticationLevel auth_level, Ch
     return Error::Ok;
 }
 static Error cmd_log_warn(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_warn(value + 1);
         } else {
@@ -355,7 +360,7 @@ static Error cmd_log_warn(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 static Error cmd_log_info(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_info(value + 1);
         } else {
@@ -365,7 +370,7 @@ static Error cmd_log_info(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 static Error cmd_log_debug(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_debug(value + 1);
         } else {
@@ -375,7 +380,7 @@ static Error cmd_log_debug(const char* value, AuthenticationLevel auth_level, Ch
     return Error::Ok;
 }
 static Error cmd_log_verbose(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_verbose(value + 1);
         } else {
@@ -428,7 +433,7 @@ static Error home_all(const char* value, AuthenticationLevel auth_level, Channel
 
     // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
     // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
-    if (value) {
+    if (value && *value) {
         uint8_t    ndigits  = 0;
         const auto lenValue = strlen(value);
         for (int i = 0; i < lenValue; i++) {
@@ -530,11 +535,11 @@ static Error go_to_sleep(const char* value, AuthenticationLevel auth_level, Chan
     return Error::Ok;
 }
 static Error get_report_build_info(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        report_build_info(build_info->get(), out);
-        return Error::Ok;
+    if (value && *value) {
+        return Error::InvalidStatement;
     }
-    return Error::InvalidStatement;
+    report_build_info(build_info->get(), out);
+    return Error::Ok;
 }
 
 const std::map<const char*, uint8_t, cmp_str> restoreCommands = {
@@ -544,15 +549,15 @@ const std::map<const char*, uint8_t, cmp_str> restoreCommands = {
     { "@", SettingsRestore::Wifi },       { "wifi", SettingsRestore::Wifi },
 };
 static Error restore_settings(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        return Error::InvalidStatement;
+    if (value && *value) {
+        auto it = restoreCommands.find(value);
+        if (it == restoreCommands.end()) {
+            return Error::InvalidStatement;
+        }
+        settings_restore(it->second);
+        return Error::Ok;
     }
-    auto it = restoreCommands.find(value);
-    if (it == restoreCommands.end()) {
-        return Error::InvalidStatement;
-    }
-    settings_restore(it->second);
-    return Error::Ok;
+    return Error::InvalidStatement;
 }
 
 static Error showState(const char* value, AuthenticationLevel auth_level, Channel& out) {
@@ -574,13 +579,14 @@ static Error doJog(const char* value, AuthenticationLevel auth_level, Channel& o
     // begins with $J=.  There are several ways we can get here,
     // including  $J, $J=xxx, [J]xxx.  For any form other than
     // $J without =, we reconstruct a $J= line for gc_execute_line().
-    if (!value) {
+    if (value && *value) {
+        char jogLine[LINE_BUFFER_SIZE];
+        strcpy(jogLine, "$J=");
+        strcat(jogLine, value);
+        return gc_execute_line(jogLine);
+    } else {
         return Error::InvalidStatement;
     }
-    char jogLine[LINE_BUFFER_SIZE];
-    strcpy(jogLine, "$J=");
-    strcat(jogLine, value);
-    return gc_execute_line(jogLine);
 }
 
 static Error listAlarms(const char* value, AuthenticationLevel auth_level, Channel& out) {
@@ -589,7 +595,7 @@ static Error listAlarms(const char* value, AuthenticationLevel auth_level, Chann
     } else if (state_is(State::Alarm)) {
         log_stream(out, "Active alarm: " << int(lastAlarm) << " (" << alarmString(lastAlarm) << ")");
     }
-    if (value) {
+    if (value && *value) {
         uint32_t alarmNumber;
         if (!string_util::from_decimal(value, alarmNumber)) {
             log_stream(out, "Malformed alarm number: " << value);
@@ -617,7 +623,7 @@ const char* errorString(Error errorNumber) {
 }
 
 static Error listErrors(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         uint32_t errorNumber;
         if (!string_util::from_decimal(value, errorNumber)) {
             log_stream(out, "Malformed error number: " << value);
@@ -686,7 +692,7 @@ static Error motors_init(const char* value, AuthenticationLevel auth_level, Chan
 }
 
 static Error macros_run(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         size_t macro_num = (*value) - '0';
 
         auto ok = config->_macros->_macro[macro_num].run(&out);
@@ -698,7 +704,7 @@ static Error macros_run(const char* value, AuthenticationLevel auth_level, Chann
 
 static Error dump_config(const char* value, AuthenticationLevel auth_level, Channel& out) {
     Channel* ss;
-    if (value) {
+    if (value && *value) {
         // Use a file on the local file system unless there is an explicit prefix like /sd/
         std::error_code ec;
 
@@ -713,7 +719,7 @@ static Error dump_config(const char* value, AuthenticationLevel auth_level, Chan
         Configuration::Generator generator(*ss);
         config->group(generator);
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
-    if (value) {
+    if (value && *value) {
         drain_messages();
         delete ss;
     }
@@ -727,10 +733,10 @@ static Error report_init_message_cmd(const char* value, AuthenticationLevel auth
 }
 
 static Error switchInchMM(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        log_stream(out, "$13=" << (config->_reportInches ? "1" : "0"));
-    } else {
+    if (value && *value) {
         config->_reportInches = ((value[0] == '1') ? true : false);
+    } else {
+        log_stream(out, "$13=" << (config->_reportInches ? "1" : "0"));
     }
 
     return Error::Ok;
@@ -770,7 +776,7 @@ static Error showBacktrace(const char* value, AuthenticationLevel auth_level, Ch
 #ifdef CRASH_TEST
 static Error forceCrash(const char* value, AuthenticationLevel auth_level, Channel& out) {
     log_stream(out, "Forcing crash by writing to address 0");
-    delay(100);  // Let the message flush
+    delay_ms(100);  // Let the message flush
     *(volatile int*)0 = 0;
     return Error::Ok;  // Never reached
 }
@@ -788,7 +794,7 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
     std::string uart_name("auto");
     objnum_t    uart_num;
 
-    if (value) {
+    if (value && *value) {
         std::string_view rest(value);
         std::string_view first;
         while (string_util::split_prefix(rest, first, ',')) {
@@ -955,32 +961,33 @@ static Error writeGPIOOff(const char* value, AuthenticationLevel auth_level, Cha
 }
 
 static Error setReportInterval(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        uint32_t actual = out.getReportInterval();
-        if (actual) {
-            log_info_to(out, out.name() << " auto report interval is " << actual << " ms");
-        } else {
-            log_info_to(out, out.name() << " auto reporting is off");
+    if (value && *value) {
+        uint32_t intValue;
+
+        if (!string_util::from_decimal(value, intValue)) {
+            return Error::BadNumberFormat;
         }
+
+        uint32_t actual = out.setReportInterval(intValue);
+        if (actual) {
+            log_info(out.name() << " auto report interval set to " << actual << " ms");
+        } else {
+            log_info(out.name() << " auto reporting turned off");
+        }
+
+        // Send a full status report immediately so the client has all the data
+        out.notifyWco();
+        out.notifyOvr();
+
         return Error::Ok;
     }
-    uint32_t intValue;
 
-    if (!string_util::from_decimal(value, intValue)) {
-        return Error::BadNumberFormat;
-    }
-
-    uint32_t actual = out.setReportInterval(intValue);
+    uint32_t actual = out.getReportInterval();
     if (actual) {
-        log_info(out.name() << " auto report interval set to " << actual << " ms");
+        log_info_to(out, out.name() << " auto report interval is " << actual << " ms");
     } else {
-        log_info(out.name() << " auto reporting turned off");
+        log_info_to(out, out.name() << " auto reporting is off");
     }
-
-    // Send a full status report immediately so the client has all the data
-    out.notifyWco();
-    out.notifyOvr();
-
     return Error::Ok;
 }
 
@@ -1106,7 +1113,7 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
                 protocol_buffer_synchronize();
             }
             if (value.empty()) {
-                return cp->action(nullptr, auth_level, out);
+                return cp->action("", auth_level, out);
             }
             std::string s(value);
             return cp->action(s.c_str(), auth_level, out);

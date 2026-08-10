@@ -9,6 +9,9 @@ namespace Pins {
         Assert(false, "registerEvent is not supported by pin %d", _index);
     }
 
+    void PinDetail::disarm() {}
+    void PinDetail::rearm() {}
+
     // cppcheck-suppress unusedFunction
     void IRAM_ATTR PinDetail::synchronousWrite(bool high) {
         write(high);

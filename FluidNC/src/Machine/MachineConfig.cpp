@@ -36,8 +36,23 @@ Machine::MachineConfig* config;
 
 namespace Machine {
     void MachineConfig::group(Configuration::HandlerBase& handler) {
+        // @config board
+        // @default "None"
+        // Descriptive text for the controller board, e.g. "ESP32 Dev Controller V4".
+        // Informational only -- not validated against a list of known boards, and not
+        // used to select behavior.
         handler.item("board", _board);
+
+        // @config name
+        // @default "None"
+        // A basic description of the machine, e.g. "Router XYYZ 10V Spindle" -- shown in
+        // startup/status messages.
         handler.item("name", _name);
+
+        // @config meta
+        // @default ""
+        // @default_note empty
+        // Free-form notes about the config file itself, e.g. "B. Dring 2022-03-15 Rev 2".
         handler.item("meta", _meta);
 
         handler.section("stepping", _stepping);
@@ -48,7 +63,7 @@ namespace Machine {
         // We currently support only one I2S bus
         handler.section("i2so", _i2so);
 #endif
-#if MAX_N_I2SO
+#if MAX_N_I2C
         handler.sections("i2c", 0, MAX_N_I2C, false, _i2c);
 #endif
 #if MAX_N_SPI
@@ -60,6 +75,10 @@ namespace Machine {
         handler.section("sdcard", _sdCard);
 #endif
 
+#if MAX_N_ETH
+        handler.section("ethernet", _ethernet);
+#endif
+
         handler.section("kinematics", _kinematics);
         handler.section("axes", _axes);
 
@@ -67,7 +86,9 @@ namespace Machine {
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
         handler.section("macros", _macros);
+#if SUPPORT_PIN_EXTENDERS
         handler.section("extenders", _extenders);
+#endif
         handler.section("start", _start);
         handler.section("parking", _parking);
 
@@ -77,15 +98,68 @@ namespace Machine {
         ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
+#if SUPPORT_LISTENERS
         Listeners::SysListenerFactory::factory(handler);
+#endif
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
+
+        // @config arc_tolerance_mm
+        // @default 0.002
+        // @tuning typical
+        // Maximum deviation, in mm, allowed when tessellating G2/G3 arcs into straight-line
+        // segments. Smaller values produce smoother arcs at the cost of more segments (and
+        // therefore more planner/computation work). Rarely changed from the default.
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
+
+        // @config junction_deviation_mm
+        // @default 0.01
+        // @tuning typical
+        // Controls how aggressively the planner slows down at sharp corners between
+        // consecutive moves (the Grbl-style "junction deviation" cornering algorithm).
+        // Smaller values force more slowdown at corners; larger values allow faster
+        // cornering at the cost of more deviation from the programmed path. Rarely changed
+        // from the default -- see the planner source for the full derivation.
         handler.item("junction_deviation_mm", _junctionDeviation, 0.01, 1.0);
+
+        // @config verbose_errors
+        // @default true
+        // @tuning typical
+        // Includes descriptive text alongside the numeric error code in error responses.
+        // Some GCode senders may not parse the extra text correctly.
         handler.item("verbose_errors", _verboseErrors);
+
+        // @config report_inches
+        // @default false
+        // @tuning typical
+        // Reports position and feed rate values in inches instead of millimeters. This
+        // only affects reporting, not how input values in the GCode/config are interpreted.
         handler.item("report_inches", _reportInches);
+
+        // @config enable_parking_override_control
+        // @default false
+        // @tuning typical
+        // Enables the M56 GCode command, which lets a running program toggle the parking-
+        // motion override on/off at runtime (M56 P0 disables parking, M56 P1 enables it).
+        // This only gates whether M56 has any effect; start.deactivate_parking sets what
+        // the override defaults to, and parking.enable is the separate switch for the
+        // parking feature existing at all.
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
+
+        // @config use_line_numbers
+        // @default false
+        // @tuning typical
+        // When true, line numbers written into GCode as N<number> (e.g. N100) are tracked
+        // and echoed back in status reports as Ln:100, so a report can be correlated with
+        // the source line currently being executed. Reports Ln:0 when the GCode has no line
+        // number information.
         handler.item("use_line_numbers", _useLineNumbers);
+
+        // @config planner_blocks
+        // @default 16
+        // @tuning typical
+        // Number of motion blocks held in the look-ahead planner buffer. Leave at the
+        // default unless tuning for a special application.
         handler.item("planner_blocks", _planner_blocks, 10, 120);
     }
 
@@ -210,6 +284,7 @@ namespace Machine {
             auto filesize = file.size();
             if (filesize <= 0) {
                 log_config_error("Configuration file:" << filename << " is empty");
+                load_yaml("");
                 return;
             }
 
@@ -294,6 +369,9 @@ namespace Machine {
         delete _probe;
 #if MAX_N_SDCARD
         delete _sdCard;
+#endif
+#if MAX_N_ETH
+        delete _ethernet;
 #endif
 #if MAX_N_SDCARD
         delete _spi;

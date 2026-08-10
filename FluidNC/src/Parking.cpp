@@ -191,10 +191,48 @@ void Parking::restore_coolant() {
 }
 
 void Parking::group(Configuration::HandlerBase& handler) {
+    // @config enable
+    // @default false
+    // @tuning per-machine
+    // Enables the parking feature: opening the safety door (or sending the SafetyDoor
+    // real-time command, 0x84) pulls the parking axis out and retracts it to target_mpos_mm
+    // instead of just stopping motion. Also gated by enable_parking_override_control/M56 if
+    // that's enabled, and by parking.axis's homing status -- parking never runs before that
+    // axis has been homed.
     handler.item("enable", _enable);
+
+    // @config axis
+    // @default z
+    // @tuning per-machine
+    // Which axis performs the parking retract/return sequence. Typically Z. Homing that
+    // axis is required -- parking silently does nothing until it has been homed.
     handler.item("axis", _axis);
+
+    // @config target_mpos_mm
+    // @default -5.0
+    // @tuning per-machine
+    // Machine-position target (not affected by any active offset) for the final parking
+    // retract move.
     handler.item("target_mpos_mm", _target_mpos);
+
+    // @config rate_mm_per_min
+    // @default 800.0
+    // @tuning per-machine
+    // Feed rate for the final parking retract move, from the pull-out waypoint to
+    // target_mpos_mm.
     handler.item("rate_mm_per_min", _rate);
+
+    // @config pullout_distance_mm
+    // @default 5.0
+    // @tuning per-machine
+    // Distance of the initial slow pull-out move, relative to the position where parking
+    // started -- done before the spindle stops and the fast retract to target_mpos_mm.
     handler.item("pullout_distance_mm", _pullout, 0, 3e38);
+
+    // @config pullout_rate_mm_per_min
+    // @default 250.0
+    // @tuning per-machine
+    // Feed rate for the initial pull-out move (and the equivalent slow return move when
+    // resuming from park).
     handler.item("pullout_rate_mm_per_min", _pullout_rate);
 }

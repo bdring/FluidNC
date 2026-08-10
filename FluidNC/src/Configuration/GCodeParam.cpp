@@ -100,6 +100,12 @@ namespace Configuration {
         }
     }
 
+    void GCodeParam::item(const char* name, step_engine*& value) {
+        if (is(name)) {
+            error();
+        }
+    }
+
     void GCodeParam::item(const char* name, uint32_t& value, const EnumItem* e) {
         if (is(name)) {
             isHandled_ = true;

@@ -112,6 +112,7 @@ Located in `FluidNC/tests/`:
 - **Includes**: Correct quotes (`"local"`) and angle brackets (`<system>`); cpp includes header first
 - **Hardware abstraction**: New features use `Machine::` or `MotorDrivers::` namespaces, not hardcoded pins
 - **Config system**: Configurable features implement `group()` handler
+- **Config syntax sync**: Any change to a `handler.item()`/`handler.section()` call, a factory `InstanceBuilder` registration, `Pin::parse()`, or the config-file tokenizer/parser (`src/Configuration/`) changes what a valid `config.yaml` looks like. See `.github/instructions/config-syntax-review.instructions.md` for the full checklist — `tools/fluidnc-config-spec.md` and `tools/fluidnc-config-schema.json` need to stay in sync with this source, since they're hand-verified against it, not auto-generated.
 - **No blocking**: ISR-context code (Stepping, Stepper) avoids allocations, logging
 - **Clang-format**: Run before commit (IDE auto-format or CLI: `clang-format -i file.cpp`)
 
@@ -125,6 +126,7 @@ Located in `FluidNC/tests/`:
 | Web UI endpoint | `src/WebUI/WebUIServer.cpp` | Add handler + registration |
 | Axis-specific init | `src/Machine/Axes.cpp` | Modify `init()` loop |
 | G-code command | `src/GCode.cpp` | Add case in switch, call appropriate handler |
+| Validate a config file | `tools/validate_fluidnc_config.py` | `python3 tools/validate_fluidnc_config.py your_config.yaml` |
 
 ## Essential Files to Know
 - **Machine definition**: `FluidNC/include/Config.h` (MAX_N_AXIS, MAX_MOTORS_PER_AXIS)

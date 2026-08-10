@@ -164,8 +164,26 @@ namespace Machine {
     // Configuration helpers:
 
     void Axes::group(Configuration::HandlerBase& handler) {
+        // @config shared_stepper_disable_pin
+        // @default NO_PIN
+        // A single pin wired to multiple motor drivers (typically all of them), toggled by
+        // the motor enable/disable feature. Pins can also be assigned at the individual
+        // motor level instead of (or alongside) this shared one.
         handler.item("shared_stepper_disable_pin", _sharedStepperDisable);
+
+        // @config shared_stepper_reset_pin
+        // @default NO_PIN
+        // A single pin wired to multiple motor drivers -- commonly found on stepstick
+        // driver sockets. Only sets the voltage once at startup and leaves it there (not a
+        // dynamically toggled signal like shared_stepper_disable_pin). Pins can also be
+        // assigned at the individual motor level.
         handler.item("shared_stepper_reset_pin", _sharedStepperReset);
+
+        // @config homing_runs
+        // @default 2
+        // @tuning typical
+        // Number of approach/pulloff touches performed per axis during a homing sequence.
+        // Default of 2 matches Grbl's convention.
         handler.item("homing_runs", _homing_runs, 1, 5);
 
         // During the initial configuration parsing phase, _numberAxis is 0 so

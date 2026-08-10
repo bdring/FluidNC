@@ -34,7 +34,11 @@ void tmc_spi_bus_setup() {
 #endif
 
     if (clk_reg_val == 0) {
+#ifdef SPI_LL_PERIPH_CLK_FREQ
         spi_ll_master_cal_clock(SPI_LL_PERIPH_CLK_FREQ, 2000000, 128, &clk_reg_val);
+#else
+        spi_ll_master_cal_clock(APB_CLK_FREQ, 2000000, 128, &clk_reg_val);
+#endif
     }
     spi_ll_master_set_clock_by_reg(hw, &clk_reg_val);
 

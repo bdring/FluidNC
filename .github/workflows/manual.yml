@@ -28,6 +28,10 @@ jobs:
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     - name: Set up Python
       uses: actions/setup-python@v2
+      with:
+        # pioarduino's esp_install tool (used for *_s3 release targets)
+        # requires Python 3.10-3.14; see ci.yml for the same fix.
+        python-version: "3.11"
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip

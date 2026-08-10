@@ -56,8 +56,32 @@ public:
 
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {
+        // @config report_interval_ms
+        // @default 0
+        // @default_note off
+        // @tuning per-machine
+        // Interval, in milliseconds, at which a status report is proactively pushed to this
+        // channel while moving -- useful for driving a DRO without it having to poll. 0
+        // disables proactive reporting. No range is enforced by this item() call itself,
+        // but keeping it at 0 or in roughly the 50-5000 range is recommended to avoid
+        // overloading the processor with reports.
         handler.item("report_interval_ms", _report_interval_ms);
+
+        // @config uart_num
+        // @default 0
+        // @tuning per-machine
+        // Which previously-defined top-level uartN: section this channel runs over.
         handler.item("uart_num", _uart_num);
+
+        // @config message_level
+        // @default Verbose
+        // Limits which log messages are sent to this channel, ordered from least to most
+        // verbose: None < Error < Warn < Info < Debug < Verbose. Only messages at or below
+        // the chosen verbosity are sent -- e.g. Info sends None/Error/Warn/Info messages but
+        // holds back Debug/Verbose ones. Useful for a display/pendant that doesn't want to
+        // parse messages it has no use for. The global $Message/Level setting is an
+        // additional filter on top of this one; a message must pass both to reach this
+        // channel.
         handler.item("message_level", _message_level, messageLevels2);
     }
 };

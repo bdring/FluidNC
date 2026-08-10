@@ -19,9 +19,30 @@
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <base64.h>
+// #include <base64.h>
+#include <libb64/cencode.h>
 
 namespace WebUI {
+    std::string myHostname();
+
+    static String base64_encode(const String& text) {
+        const uint8_t* data   = (uint8_t*)text.c_str();
+        size_t         length = text.length();
+        size_t         size   = base64_encode_expected_len(length) + 1;
+        char*          buffer = (char*)malloc(size);
+        if (buffer) {
+            base64_encodestate _state;
+            base64_init_encodestate(&_state);
+            int len = base64_encode_block((const char*)&data[0], length, &buffer[0], &_state);
+            len     = base64_encode_blockend((buffer + len), &_state);
+
+            String base64 = String(buffer);
+            free(buffer);
+            return base64;
+        }
+        return String("-FAIL-");
+    }
+
     static const int PUSHOVER_NOTIFICATION = 1;
     static const int EMAIL_NOTIFICATION    = 2;
     static const int LINE_NOTIFICATION     = 3;
@@ -211,7 +232,7 @@ namespace WebUI {
         data += "&message=";
         data += message;
         data += "&device=";
-        data += WiFi.getHostname();
+        data += myHostname();
         //build post query
         postcmd = "POST /1/messages.json HTTP/1.1\r\nHost: api.pushover.net\r\nConnection: close\r\nCache-Control: no-cache\r\nUser-Agent: "
                   "ESP3D\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nContent-Length: ";
@@ -233,12 +254,16 @@ namespace WebUI {
         if (!Notificationclient.connect(_serveraddress.c_str(), _port)) {
             //Read & log error message (in debug mode)
             if (atMsgLevel(MsgLevelDebug)) {
+#if 0                
                 char      errMsg[150];
-                const int lastError = Notificationclient.lastError(errMsg, sizeof(errMsg));
+                const int lastError = Notificationclient.LAST_ERROR(errMsg, sizeof(errMsg));
                 if (0 == lastError) {
                     errMsg[0] = 0;
                 }
                 log_debug("Cannot connect to " << _serveraddress.c_str() << ":" << _port << ", err: " << lastError << " - " << errMsg);
+#else
+                log_debug("Cannot connect to " << _serveraddress.c_str() << ":" << _port);
+#endif
             }
             return false;
         }
@@ -259,22 +284,28 @@ namespace WebUI {
             return false;
         }
         //sent Login
-        Notificationclient.printf("%s\r\n", _token1.c_str());
+        Notificationclient.print(_token1.c_str());
+        Notificationclient.print("\r\n");
         if (!Wait4Answer(Notificationclient, "334", "334", EMAILTIMEOUT)) {
             return false;
         }
         //Send password
-        Notificationclient.printf("%s\r\n", _token2.c_str());
+        Notificationclient.print(_token2.c_str());
+        Notificationclient.print("\r\n");
         if (!Wait4Answer(Notificationclient, "235", "235", EMAILTIMEOUT)) {
             return false;
         }
         //Send From
-        Notificationclient.printf("MAIL FROM: <%s>\r\n", _settings.c_str());
+        Notificationclient.print("MAIL FROM: <");
+        Notificationclient.print(_settings.c_str());
+        Notificationclient.print(">\r\n");
         if (!Wait4Answer(Notificationclient, "250", "250", EMAILTIMEOUT)) {
             return false;
         }
         //Send To
-        Notificationclient.printf("RCPT TO: <%s>\r\n", _settings.c_str());
+        Notificationclient.print("RCPT TO: <");
+        Notificationclient.print(_settings.c_str());
+        Notificationclient.print(">\r\n");
         if (!Wait4Answer(Notificationclient, "250", "250", EMAILTIMEOUT)) {
             return false;
         }
@@ -284,9 +315,17 @@ namespace WebUI {
             return false;
         }
         //Send message
-        Notificationclient.printf("From:ESP3D<%s>\r\n", _settings.c_str());
-        Notificationclient.printf("To: <%s>\r\n", _settings.c_str());
-        Notificationclient.printf("Subject: %s\r\n\r\n", title);
+        Notificationclient.print("From:ESP3D<");
+        Notificationclient.print(_settings.c_str());
+        Notificationclient.print(">\r\n");
+
+        Notificationclient.print("To: <");
+        Notificationclient.print(_settings.c_str());
+        Notificationclient.print(">\r\n");
+
+        Notificationclient.print("Subject: ");
+        Notificationclient.print(title);
+        Notificationclient.print("\r\n\r\n");
         Notificationclient.println(message);
         //Send Final dot
         Notificationclient.print(".\r\n");
@@ -371,19 +410,26 @@ namespace WebUI {
         //  Length of line marked as TG_PAYLOAD_LINE is precalculated as if all
         //    placeholders were zero-length and added to overall length on line
         //    marked as TG_PAYLOAD_LINE_LEN
-        Notificationclient.printf("POST /bot%s/sendMessage HTTP/1.1\r\n"
-                                  "Host:%s\r\n"
-                                  "Content-Type:application/json\r\n"
-                                  "Content-Length:%d\r\n"
-                                  "\r\n"
-                                  "{\"parse_mode\":\"HTML\",\"chat_id\":\"%s\",\"text\":\"<b>%s</b>\n\n%s\"}"  // TG_PAYLOAD_LINE
-                                  "\r\n",
-                                  _token1.c_str(),
-                                  _serveraddress.c_str(),
-                                  _token2.length() + strlen(title) + strlen(message) + 55,  // TG_PAYLOAD_LINE_LEN
-                                  _token2.c_str(),
-                                  title,
-                                  message);
+        auto contentLength = _token2.length() + strlen(title) + strlen(message) + 55;  // TG_PAYLOAD_LINE_LEN
+        Notificationclient.print("POST /bot");
+        Notificationclient.print(_token1.c_str());
+        Notificationclient.print("/sendMessage HTTP/1.1\r\n"
+                                 "Host:");
+        Notificationclient.print(_serveraddress.c_str());
+        Notificationclient.print("\r\n"
+                                 "Content-Type:application/json\r\n"
+                                 "Content-Length:");
+        Notificationclient.print(std::to_string(contentLength).c_str());
+        Notificationclient.print("\r\n"
+                                 "\r\n"
+                                 "{\"parse_mode\":\"HTML\",\"chat_id\":\"");
+        Notificationclient.print(_token2.c_str());
+        Notificationclient.print("\",\"text\":\"<b>");
+        Notificationclient.print(title);
+        Notificationclient.print("</b>\n\n");
+        Notificationclient.print(message);
+        Notificationclient.print("\"}"  // TG_PAYLOAD_LINE
+                                 "\r\n");
         return Wait4Answer(Notificationclient, "{", "\"ok\":true", TELEGRAMTIMEOUT);
     }
     //Email#serveraddress:port
@@ -472,13 +518,13 @@ namespace WebUI {
                 _port          = TELEGRAMPORT;
                 _serveraddress = TELEGRAMSERVER;
                 break;
-            case EMAIL_NOTIFICATION:
-                _token1 = base64::encode(notification_t1->get()).c_str();
-                _token2 = base64::encode(notification_t2->get()).c_str();
+            case EMAIL_NOTIFICATION: {
+                _token1 = base64_encode(notification_t1->get()).c_str();
+                _token2 = base64_encode(notification_t2->get()).c_str();
                 if (!getEmailFromSettings() || !getPortFromSettings() || !getServerAddressFromSettings()) {
                     return;
                 }
-                break;
+            } break;
             default:
                 return;
                 break;

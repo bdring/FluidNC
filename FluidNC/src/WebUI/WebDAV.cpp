@@ -2,7 +2,6 @@
 #include <ESPAsyncWebServer.h>
 
 #include <AsyncTCP.h>
-#include "ESP32SHA1.h"
 
 #include <algorithm>
 #include <chrono>
@@ -405,7 +404,7 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
             // MacOS tends to create an empty file first, then
             // lock it and write to it.
             FileStream file(fpath, "w", LocalFS);
-        } catch (const Error err) {
+        } catch (const ErrorException& err) {
             log_debug(fpath << " cannot be opened");
             return request->send(403);
         }
@@ -481,7 +480,7 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
             // file if it already exists.
             try {
                 state->outFile = new FileStream(fpath, "w", LocalFS);
-            } catch (const Error err) {
+            } catch (const ErrorException& err) {
                 log_debug(fpath << " cannot be opened");
                 return request->send(500);
             }
@@ -601,12 +600,12 @@ void WebDAV::handleGet(const FluidPath& fpath, DavResource resource, AsyncWebSer
             try {
                 file   = new FileStream(gzpath, "r", LocalFS);
                 isGzip = true;
-            } catch (const Error err) {}
+            } catch (const ErrorException& err) {}
         }
     } else {
         try {
             file = new FileStream(fpath, "r", LocalFS);
-        } catch (const Error err) {}
+        } catch (const ErrorException& err) {}
     }
 
     if (!file) {
@@ -652,7 +651,7 @@ void WebDAV::handlePut(
         FileStream file(fpath, index ? "a" : "w", LocalFS);
         file.write(data, len);
         file.flush();
-    } catch (const Error err) { log_debug(fpath << " cannot be opened"); }
+    } catch (const ErrorException& err) { log_debug(fpath << " cannot be opened"); }
 }
 
 void WebDAV::handleLock(const stdfs::path& path, AsyncWebServerRequest* request) {
@@ -671,9 +670,11 @@ void WebDAV::handleLock(const stdfs::path& path, AsyncWebServerRequest* request)
     response->print("<D:locktype><write/></D:locktype>");
     response->print("<D:lockscope><exclusive/></D:lockscope>");
     response->print("<D:locktoken><D:href>urn:uuid:26e57cb3-834d-191a-00de-000042bdecf9</D:href></D:locktoken>");
-    response->printf("<D:lockroot><D:href>%s</D:href></D:lockroot>", lockroot.c_str());
+    response->print("<D:lockroot><D:href>");
+    response->print(lockroot.c_str());
+    response->print("</D:href></D:lockroot>");
     response->print("<D:depth>infinity</D:depth>");
-    response->printf("<D:owner><a:href xmlns:a=\"DAV:\">%s</a:href></D:owner>", "todo");
+    response->print("<D:owner><a:href xmlns:a=\"DAV:\">todo</a:href></D:owner>");
     response->print("<D:timeout>Second-3600</D:timeout>");
     response->print("</D:activelock>");
     response->print("</D:lockdiscovery>");
@@ -811,4 +812,3 @@ stdfs::path WebDAV::replace_fs_name(const stdfs::path& p) {
 
     return new_path;
 }
-

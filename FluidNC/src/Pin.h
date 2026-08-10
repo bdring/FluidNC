@@ -138,6 +138,9 @@ public:
 
     void registerEvent(InputPin* obj) { _detail->registerEvent(obj); };
 
+    inline void disarm() { _detail->disarm(); };
+    inline void rearm() { _detail->rearm(); };
+
     // Other functions:
     Capabilities capabilities() const { return _detail->capabilities(); }
 

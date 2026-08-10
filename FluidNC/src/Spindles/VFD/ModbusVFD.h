@@ -35,7 +35,7 @@ namespace Spindles {
             std::string _get_max_rpm_cmd;
             std::string _get_rpm_cmd;
 
-            bool use_delay_settings() const override { return _get_rpm_cmd.empty(); }
+            bool use_speed_feedback() const override { return !_get_rpm_cmd.empty(); }
             bool safety_polling() const override { return false; }
 
         private:
@@ -67,15 +67,83 @@ namespace Spindles {
                 _set_rpm_cmd(set_rpm_cmd), _get_min_rpm_cmd(get_min_rpm_cmd), _get_max_rpm_cmd(get_max_rpm_cmd), _get_rpm_cmd(get_rpm_cmd) {}
 
             void group(Configuration::HandlerBase& handler) override {
+                // Generic/raw ModbusVFD spindle -- use this directly only for an
+                // unsupported VFD model; a supported model (e.g. Huanyang) instead
+                // registers under its own model-specific config name, but shows every one
+                // of these same fields with model-appropriate values.
+
+                // @config model
+                // @default ""
+                // @default_note empty
+                // VFD model name. Informational (used for support purposes) -- not itself
+                // used to select protocol behavior; the cw_cmd/ccw_cmd/etc. fields below
+                // are what actually define the protocol.
                 handler.item("model", _model);
+
+                // @config min_RPM
+                // @default 0xffffffff
+                // @default_note uninitialized sentinel
+                // Minimum spindle RPM, in Hz-derived RPM terms. Normally left unset and
+                // retrieved from the VFD itself via get_min_rpm_cmd at startup.
                 handler.item("min_RPM", _minRPM);
+
+                // @config max_RPM
+                // @default 0xffffffff
+                // @default_note uninitialized sentinel
+                // Maximum spindle RPM. Normally left unset and retrieved from the VFD
+                // itself via get_max_rpm_cmd at startup.
                 handler.item("max_RPM", _maxRPM);
+
+                // @config cw_cmd
+                // @default ""
+                // @default_note empty
+                // Modbus command template for clockwise spindle rotation.
                 handler.item("cw_cmd", _cw_cmd);
+
+                // @config ccw_cmd
+                // @default ""
+                // @default_note empty
+                // Modbus command template for counter-clockwise spindle rotation.
                 handler.item("ccw_cmd", _ccw_cmd);
+
+                // @config off_cmd
+                // @default ""
+                // @default_note empty
+                // Modbus command template to stop the spindle.
                 handler.item("off_cmd", _off_cmd);
+
+                // @config set_rpm_cmd
+                // @default ""
+                // @default_note empty
+                // Modbus command template to set the spindle speed.
                 handler.item("set_rpm_cmd", _set_rpm_cmd);
+
+                // @config get_min_rpm_cmd
+                // @default ""
+                // @default_note empty
+                // Modbus command template to query the VFD's minimum RPM. If left unset,
+                // speed_map must be configured manually instead of being auto-derived.
                 handler.item("get_min_rpm_cmd", _get_min_rpm_cmd);
+
+                // @config get_max_rpm_cmd
+                // @default ""
+                // @default_note empty
+                // Modbus command template to query the VFD's maximum RPM. If left unset,
+                // speed_map must be configured manually instead of being auto-derived.
                 handler.item("get_max_rpm_cmd", _get_max_rpm_cmd);
+
+                // @config get_rpm_cmd
+                // @default ""
+                // @default_note empty
+                // Modbus command template to query the VFD's current RPM. spinup_ms/
+                // spindown_ms (Spindle::groupDelaySettings()) are always present in
+                // config.yaml for a VFD spindle regardless of this field -- what this
+                // field changes is whether they're actually used at runtime. When set,
+                // use_speed_feedback() returns true and VFDSpindle actively polls this
+                // command until it confirms the real target speed, ignoring spinup_ms/
+                // spindown_ms entirely; when left empty, there's no way to confirm real
+                // speed, so it falls back to blindly waiting out spinup_ms/spindown_ms
+                // instead.
                 handler.item("get_rpm_cmd", _get_rpm_cmd);
             }
         };

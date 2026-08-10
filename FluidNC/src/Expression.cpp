@@ -22,7 +22,6 @@
 #include "Logging.h"
 
 #include <ctype.h>
-#define _USE_MATH_DEFINES
 #include <cmath>
 #include <stdint.h>
 #include <stdlib.h>

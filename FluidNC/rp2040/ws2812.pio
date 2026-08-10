@@ -1,0 +1,26 @@
+;
+; Copyright (c) 2023 Raspberry Pi (Trading) Ltd.
+;
+; SPDX-License-Identifier: BSD-3-Clause
+;
+
+.program ws2812
+.side_set 1
+
+bitloop:
+    out x, 1       side 0 [6]
+    jmp !x do_zero side 1 [3]
+do_one:
+    jmp bitloop    side 1 [3]
+do_zero:
+    jmp bitloop    side 0 [3]
+
+public entry_point:
+wrap_target
+    pull noblock   side 0 [20]
+    mov x, 32
+    jmp bitloop    side 0
+
+wrap:
+
+%c SDK_PICO_SDK_VERSION 1.5.1

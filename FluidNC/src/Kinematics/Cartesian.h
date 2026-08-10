@@ -47,8 +47,9 @@ namespace Kinematics {
 
         void axesVector(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms);
 
-        void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t settling_ms) override;
+        void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t& settling_ms) override;
         void set_homed_mpos(float* mpos) override;
+        void rearmLimits(AxisMask axisMask, MotorMask motorMask) override;
 
         // Configuration handlers:
         void afterParse() override {}

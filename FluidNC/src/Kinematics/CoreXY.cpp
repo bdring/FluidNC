@@ -17,9 +17,7 @@ kinematics:
 
 Scaling factors are made for midTbot type machines.
 
-TODO: Implement scalers
-
-On a midTbot the motors themselves move in X or Y so they need to be compensated. It 
+On a midTbot the motors themselves move in X or Y so they need to be compensated. It
 would use x_scaler: 1 on bots where the motors move in X
 
 TODO: If touching back off
@@ -27,7 +25,14 @@ TODO: If touching back off
 */
 
 namespace Kinematics {
-    void CoreXY::group(Configuration::HandlerBase& handler) {}
+    void CoreXY::group(Configuration::HandlerBase& handler) {
+        // @config x_scaler
+        // @default 1.0
+        // Compensation factor for midTbot-style machines where the motors themselves
+        // move in X, so a cartesian X move corresponds to a larger motor-space move.
+        // Leave at 1 on CoreXY machines where the motors don't move in X.
+        handler.item("x_scaler", _x_scaler, 0.1, 10.0);
+    }
 
     void CoreXY::init() {
         log_info("Kinematic system: " << name());
