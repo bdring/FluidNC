@@ -11,7 +11,11 @@
 
 static uint32_t _pulse_delay_us;
 static uint32_t _dir_delay_us;
-static int32_t  _stepPulseEndTime;
+// _stepPulseEndTime and _stepPulsePending are read/written from both the
+// stepper timer ISR (via Stepping::step()/finish_step()) and the foreground
+// reset path (Stepper::reset() -> stop_stepping() -> unstep()), so they're
+// volatile to keep the compiler from caching stale values across contexts.
+static volatile int32_t _stepPulseEndTime;
 
 static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t& frequency, bool (*callback)(void)) {
     (void)frequency;
@@ -41,12 +45,24 @@ static void start_step() {}
 // step pulse should end, then return. The stepper code can then do
 // some work that is overlapped with the pulse time. The spin loop
 // will happen in start_unstep().
+static volatile bool _stepPulsePending = false;
+
 static void finish_step() {
     _stepPulseEndTime = usToEndTicks(_pulse_delay_us);
+    _stepPulsePending = true;
 }
 
 static bool start_unstep() {
-    spinUntil(_stepPulseEndTime);
+    // Only spin out the pulse width if a step pulse is actually in flight.
+    // unstep() is also called from stop_stepping() on soft reset, where
+    // _stepPulseEndTime is stale; spinUntil() compares against the RP2040's
+    // free-running 1 MHz hardware timer, which wraps roughly every 71.6
+    // minutes, so a stale deadline can spin for up to half of that and trip
+    // the watchdog.
+    if (_stepPulsePending) {
+        _stepPulsePending = false;
+        spinUntil(_stepPulseEndTime);
+    }
     return false;
 }
 

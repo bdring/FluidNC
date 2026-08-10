@@ -24,7 +24,11 @@ static uint32_t init_step_pin(pinnum_t step_pin, bool step_invert) {
     return step_pin;
 }
 
-static int32_t _stepPulseEndTime;
+// _stepPulseEndTime and _stepPulsePending are read/written from both the
+// stepper timer ISR (via Stepping::step()/finish_step()) and the foreground
+// reset path (Stepper::reset() -> stop_stepping() -> unstep()), so they're
+// volatile to keep the compiler from caching stale values across contexts.
+static volatile int32_t _stepPulseEndTime;
 
 static void IRAM_ATTR set_pin(pinnum_t pin, bool level) {
     gpio_write(pin, level);
@@ -40,12 +44,22 @@ static void IRAM_ATTR start_step() {}
 // step pulse should end, then return.  The stepper code can then do
 // some work that is overlapped with the pulse time.  The spin loop
 // will happen in start_unstep()
+static volatile bool _stepPulsePending = false;
+
 static void IRAM_ATTR finish_step() {
     _stepPulseEndTime = usToEndTicks(_pulse_delay_us);
+    _stepPulsePending = true;
 }
 
 static bool IRAM_ATTR start_unstep() {
-    spinUntil(_stepPulseEndTime);
+    // Only spin out the pulse width if a step pulse is actually in flight.
+    // unstep() is also called from stop_stepping() on soft reset, where
+    // _stepPulseEndTime is stale; the CCOUNT-based spinUntil() can then
+    // spin for up to ~half the 32-bit wraparound and trip the task watchdog.
+    if (_stepPulsePending) {
+        _stepPulsePending = false;
+        spinUntil(_stepPulseEndTime);
+    }
     return false;
 }
 
