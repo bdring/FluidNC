@@ -35,9 +35,14 @@ namespace Spindles {
 
             // @config pwm_hz
             // @default 5000
+            // @tuning typical
             // PWM signal frequency, same field as PWMSpindle's pwm_hz but with a narrower
             // range here (1000-100000 rather than 1-20000000).
             handler.item("pwm_hz", _pwm_freq, 1000, 100000);
+
+            // @default_for speed_map
+            // @default 0=0% 255=100%
+            // @default_note applied by Laser::init() only when speed_map is left unset
             OnOff::groupCommon(handler);
         }
 

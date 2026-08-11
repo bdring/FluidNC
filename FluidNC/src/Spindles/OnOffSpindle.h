@@ -60,6 +60,10 @@ namespace Spindles {
             // Optional direction signal. M4 (spindle-reverse) is only accepted when a real
             // pin is assigned here -- without one, only M3/M5 are meaningful.
             handler.item("direction_pin", _direction_pin);
+
+            // @default_for speed_map
+            // @default 0=0% 1=100%
+            // @default_note applied by OnOff::init() only when unset -- step function: 0 is off, any nonzero S is full on
             groupCommon(handler);
             Spindle::groupDelaySettings(handler);
         }

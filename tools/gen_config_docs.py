@@ -46,6 +46,7 @@ ITEM_CALL_RE = re.compile(
     r'handler\.item\(\s*"(?P<name>[^"]+)"\s*,\s*(?P<rest>[^;]*)\);', re.DOTALL
 )
 CONFIG_TAG_RE = re.compile(r'^\s*//\s*@config\s+(\S+)\s*$')
+DEFAULT_FOR_TAG_RE = re.compile(r'^\s*//\s*@default_for\s+(\S+)\s*$')
 DEFAULT_TAG_RE = re.compile(r'^\s*//\s*@default\s+(.+?)\s*$')
 DEFAULT_NOTE_TAG_RE = re.compile(r'^\s*//\s*@default_note\s+(.+?)\s*$')
 TUNING_TAG_RE = re.compile(r'^\s*//\s*@tuning\s+(\S+)\s*$')
@@ -98,7 +99,8 @@ def find_group_body(cpp_text: str, class_name: str, method_name: str = "group") 
 
 
 def parse_doc_blocks(body: str):
-    """Return (docs, missing_default, bad_tuning) from @config blocks.
+    """Return (docs, missing_default, bad_tuning, default_for_overrides,
+    missing_default_for) from @config and @default_for blocks.
 
     docs: {item_name: {"default": str|None, "default_note": str|None, "tuning": str|None, "unit": str|None, "description": str}}
     missing_default: names of @config blocks that had no immediately-following
@@ -107,13 +109,44 @@ def parse_doc_blocks(body: str):
     bad_tuning: (name, value) pairs where @tuning's value wasn't one of
     VALID_TUNING_VALUES -- reported as an error, same reasoning as
     missing_default (a typo here should fail loudly, not pass through).
+    default_for_overrides: {item_name: {"default": str, "default_note": str|None}}
+    from @default_for blocks (see ItemDocs.md) -- a subclass overriding an
+    inherited item's effective default, NOT a new item declaration. Applied
+    by the caller (build_config_docs.py's merge_section()) as a final pass
+    over the fully-merged section, not here -- this function only extracts
+    what a single class's own body says.
+    missing_default_for: names of @default_for blocks missing their required
+    @default line, same treatment as missing_default.
     """
     docs = {}
     missing_default = []
     bad_tuning = []
+    default_for_overrides = {}
+    missing_default_for = []
     lines = body.splitlines()
     i = 0
     while i < len(lines):
+        dfm = DEFAULT_FOR_TAG_RE.match(lines[i])
+        if dfm:
+            for_name = dfm.group(1)
+            i += 1
+            for_default = None
+            if i < len(lines):
+                fdm = DEFAULT_TAG_RE.match(lines[i])
+                if fdm:
+                    for_default = fdm.group(1)
+                    i += 1
+            if for_default is None:
+                missing_default_for.append(for_name)
+                continue
+            for_default_note = None
+            if i < len(lines):
+                fdnm = DEFAULT_NOTE_TAG_RE.match(lines[i])
+                if fdnm:
+                    for_default_note = fdnm.group(1)
+                    i += 1
+            default_for_overrides[for_name] = {"default": for_default, "default_note": for_default_note}
+            continue
         m = CONFIG_TAG_RE.match(lines[i])
         if not m:
             i += 1
@@ -174,7 +207,7 @@ def parse_doc_blocks(body: str):
             "unit": unit,
             "description": "\n\n".join(paragraphs),
         }
-    return docs, missing_default, bad_tuning
+    return docs, missing_default, bad_tuning, default_for_overrides, missing_default_for
 
 
 def parse_item_calls(body: str):
@@ -416,20 +449,29 @@ def to_yaml(section: str, entries: dict) -> str:
 
 def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     """Parse one class's group() (or groupCommon()-style helper) method.
-    Returns (entries, errors, warnings).
+    Returns (entries, errors, warnings, default_for_overrides).
 
     Reusable core shared by this script's own CLI (one file/class at a time)
     and tools/build_config_docs.py (which calls this once per contributing
     class/method and merges results into one flattened config-section --
     needed because a few spindle types split their items across group() and
     a shared groupCommon() helper, e.g. OnOff/PlasmaSpindle).
+
+    default_for_overrides (see ItemDocs.md's @default_for) is applied to
+    THIS class's own `entries` immediately below when the name it targets
+    happens to already be declared in this same body (a same-class
+    override, not the common case) -- but is also returned as-is so
+    build_config_docs.py's merge_section() can apply it CROSS-class, after
+    every contributor to a section has been merged (the actual point of
+    @default_for: a subclass overriding an item a shared base class
+    declared in a different file entirely).
     """
     cpp_text = cpp_file.read_text()
     header_path = cpp_file.with_suffix(".h")
     header_text = header_path.read_text() if header_path.exists() else ""
 
     body = find_group_body(cpp_text, class_name, method_name)
-    docs, missing_default, bad_tuning = parse_doc_blocks(body)
+    docs, missing_default, bad_tuning, default_for_overrides, missing_default_for = parse_doc_blocks(body)
     calls = parse_item_calls(body)
     enum_arrays = find_enum_arrays(cpp_text)
 
@@ -451,6 +493,16 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
         name, entry = build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings)
         entries[name] = entry
 
+    # Same-class @default_for application -- see this function's own
+    # docstring. Harmless no-op when (as usual) the target name isn't
+    # declared in this same body; the cross-class case is handled by the
+    # caller using the returned default_for_overrides dict.
+    for for_name, override in default_for_overrides.items():
+        if for_name in entries:
+            entries[for_name]["default"] = override["default"]
+            if override["default_note"]:
+                entries[for_name]["default_note"] = override["default_note"]
+
     errors = []
     # An @config block whose name never matches a real handler.item() call means
     # the annotation and the code have drifted apart (renamed item, typo, etc.).
@@ -463,8 +515,10 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
         errors.append(f'@config {name} is missing its required @default line')
     for name, value in bad_tuning:
         errors.append(f'@config {name} has @tuning {value!r} -- must be one of {sorted(VALID_TUNING_VALUES)}')
+    for name in missing_default_for:
+        errors.append(f'@default_for {name} is missing its required @default line')
 
-    return entries, errors, warnings
+    return entries, errors, warnings, default_for_overrides
 
 
 def main():
@@ -475,7 +529,10 @@ def main():
     ap.add_argument("-o", "--output", type=Path)
     args = ap.parse_args()
 
-    entries, errors, warnings = process_class(args.cpp_file, args.class_name)
+    # default_for_overrides is unused here -- a single-class run has no
+    # OTHER contributor to apply a cross-class override to; only
+    # build_config_docs.py's merge_section() (multi-contributor) needs it.
+    entries, errors, warnings, _default_for_overrides = process_class(args.cpp_file, args.class_name)
 
     if errors:
         for e in errors:

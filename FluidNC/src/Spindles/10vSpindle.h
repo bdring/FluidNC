@@ -55,6 +55,9 @@ namespace Spindles {
             // remain on after M5; turns off after M3.
             handler.item("reverse_pin", _reverse_pin);
 
+            // @default_for speed_map
+            // @default 0=0% 0=30% 6000=30% 20000=100%
+            // @default_note applied by _10v::init() only when unset -- shelf: flat 30% to 6000, then linear to 20000=100%
             PWM::group(handler);
         }
 

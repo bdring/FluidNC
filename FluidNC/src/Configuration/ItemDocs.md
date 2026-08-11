@@ -130,6 +130,48 @@ Rules:
 handler.item("pulse_us", _pulseUsecs, 0, 30);
 ```
 
+## Overriding an inherited item's effective default: `@default_for`
+
+Some items are declared once in a shared base class's `group()` (one
+`@config`/`@default`/`handler.item()` site, documented once, same rule as
+above) but a concrete subclass establishes a *different* real default for
+it at a separate point in code -- typically `init()`, not `group()` --
+via a call the generator has no way to connect back to the item by name.
+`Spindle::speed_map` is the motivating case: `handler.item("speed_map",
+_speeds)` lives once in `Spindle::group()` with default `""` (empty --
+genuinely correct when nothing else applies), but every concrete spindle
+type's `init()` does `if (_speeds.size() == 0) { linearSpeeds(...); }` (or
+`shelfSpeeds(...)`) to install its own real working curve when the config
+left it unset -- and the two arguments differ by type (PWM's is not
+Laser's is not BESC's).
+
+For this shape, place a `@default_for <name>` block *inside that
+subclass's own* `group()`/`groupCommon()` body (anywhere in it -- it isn't
+tied to a specific `handler.item()` call the way `@config` is, since the
+call that actually establishes the value lives elsewhere). Same two lines
+as `@config`'s opening -- `@default <literal>` required, `@default_note
+<text>` optional -- but nothing else: no `@tuning`/`@unit`/description
+follows, and it does **not** need a matching `handler.item()` call in this
+class's own body (unlike `@config`, an orphan `@default_for` -- one whose
+name never appears in the section's fully-merged item set -- is a
+warning, not an error, since the generator can't always see far enough
+ahead in the merge to be sure).
+
+```c++
+// In PWMSpindle.h's PWM::group():
+// @default_for speed_map
+// @default 0=0% 10000=100%
+// @default_note applied by PWM::init() only when speed_map is left unset
+OnOff::group(handler);
+```
+
+The generator applies `@default_for` overrides as a final pass after
+merging every contributor for a section (see `tools/build_config_docs.py`'s
+`merge_section()`) -- so a subclass's own override always wins over
+whatever the shared base class declared, regardless of contributor order,
+and a class with nothing to override (e.g. `Relay`, which reuses `OnOff`'s
+default unchanged) simply doesn't need one.
+
 ## Data-driven item lists (no per-item `handler.item()` call to annotate)
 
 A few classes don't call `handler.item(name, member)` once per field at all.

@@ -147,7 +147,34 @@ SECTIONS = [
             ("Spindles/OnOffSpindle.h", "OnOff", "group"),
             ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"),
         ],
-        'Also backs the "Relay" and "DAC" registrations (RelaySpindle.cpp/DacSpindle.cpp), which add no fields of their own -- same field set.',
+        "A base class FluidNC itself never instantiates directly -- \"Relay\" and \"DAC\" below are the real, "
+        "selectable registrations, each with their own (field-identical, but not necessarily "
+        "default-identical -- see speed_map) section.",
+    ),
+    (
+        "Relay",
+        [
+            ("Spindles/Spindle.h", "Spindle"),
+            ("Spindles/Spindle.h", "Spindle", "groupDelaySettings"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "group"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"),
+            ("Spindles/RelaySpindle.h", "Relay"),
+        ],
+        "Adds no fields of its own -- same field set as OnOff, listed as its own section (rather than folded "
+        "into OnOff's) because it's a real, separately-registered, user-selectable spindle type.",
+    ),
+    (
+        "DAC",
+        [
+            ("Spindles/Spindle.h", "Spindle"),
+            ("Spindles/Spindle.h", "Spindle", "groupDelaySettings"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "group"),
+            ("Spindles/OnOffSpindle.h", "OnOff", "groupCommon"),
+            ("Spindles/DacSpindle.h", "Dac"),
+        ],
+        "Adds no fields of its own -- same field set as OnOff/Relay, listed as its own section for the same "
+        "reason as Relay. Its speed_map default genuinely differs from OnOff/Relay's, though (see @default_for "
+        "in DacSpindle.h) -- unlike Relay, DacSpindle.cpp's own init() installs a different curve.",
     ),
     (
         "PlasmaSpindle",
@@ -208,19 +235,38 @@ def merge_section(contributors):
     entries = {}
     all_errors = []
     all_warnings = []
+    # Collected across every contributor, applied only after the full entries
+    # merge below -- @default_for (see ItemDocs.md) exists specifically so a
+    # subclass can override an item a DIFFERENT, earlier-merged contributor
+    # declared (e.g. PWMSpindle.h overriding speed_map's default, which
+    # Spindle.h itself declares) -- applying per-contributor inline, instead
+    # of as a final pass, would make the result depend on contributor order
+    # for no reason.
+    default_for_overrides = {}
     for contrib in contributors:
         rel_file, class_name = contrib[0], contrib[1]
         method_name = contrib[2] if len(contrib) > 2 else "group"
-        e, errors, warnings = g.process_class(SRC / rel_file, class_name, method_name)
+        e, errors, warnings, overrides = g.process_class(SRC / rel_file, class_name, method_name)
         entries.update(e)
+        default_for_overrides.update(overrides)
         all_errors.extend(f"{rel_file}::{class_name}.{method_name}: {msg}" for msg in errors)
         all_warnings.extend(f"{rel_file}::{class_name}.{method_name}: {msg}" for msg in warnings)
+    for name, override in default_for_overrides.items():
+        if name not in entries:
+            all_warnings.append(f'@default_for {name} does not match any item in this section\'s merged field set')
+            continue
+        entries[name]["default"] = override["default"]
+        if override["default_note"]:
+            entries[name]["default_note"] = override["default_note"]
     return entries, all_errors, all_warnings
 
 
 def list_mode_section(rel_file, kind_for=None):
     text = (SRC / rel_file).read_text()
-    docs, missing_default, bad_tuning = g.parse_doc_blocks(text)
+    # default_for_overrides/missing_default_for are unused here -- @default_for
+    # (see ItemDocs.md) exists for a subclass overriding a shared base
+    # class's item, which doesn't arise in this data-driven-list shape.
+    docs, missing_default, bad_tuning, _default_for_overrides, _missing_default_for = g.parse_doc_blocks(text)
     entries = {}
     errors = []
     bad_tuning_names = {name for name, _ in bad_tuning}

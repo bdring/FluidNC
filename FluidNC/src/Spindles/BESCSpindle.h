@@ -59,6 +59,9 @@ namespace Spindles {
         void validate() override { PWM::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
+            // @default_for speed_map
+            // @default 0=0% 0=20% 4000=20% 20000=100%
+            // @default_note applied by BESC::init() only when unset -- shelf: flat 20% to 4000, then linear to 20000=100%
             PWM::group(handler);
 
             // A BESC (Brushless ESC, as used for RC-plane/drone motors) is driven like an

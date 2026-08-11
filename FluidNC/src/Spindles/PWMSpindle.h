@@ -56,6 +56,9 @@ namespace Spindles {
             // the hardware supports the whole span, so it's left open.
             handler.item("pwm_hz", _pwm_freq, 1, 20000000);
 
+            // @default_for speed_map
+            // @default 0=0% 10000=100%
+            // @default_note applied by PWM::init() only when speed_map is left unset
             OnOff::group(handler);
         }
 

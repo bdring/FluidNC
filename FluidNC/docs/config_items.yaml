@@ -1811,8 +1811,8 @@ PWM:
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '""'
-    default_note: 'empty'
+    default: '0=0% 10000=100%'
+    default_note: 'applied by PWM::init() only when speed_map is left unset'
     tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
@@ -1912,8 +1912,8 @@ Laser:
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '""'
-    default_note: 'empty'
+    default: '0=0% 255=100%'
+    default_note: 'applied by Laser::init() only when speed_map is left unset'
     tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
@@ -1972,6 +1972,7 @@ Laser:
     min: 1000
     max: 100000
     default: '5000'
+    tuning: typical
     description: |
       PWM signal frequency, same field as PWMSpindle's pwm_hz but with a narrower range here (1000-100000 rather than 1-20000000).
 
@@ -1987,8 +1988,8 @@ Laser:
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '""'
-    default_note: 'empty'
+    default: '0=0% 0=30% 6000=30% 20000=100%'
+    default_note: 'applied by _10v::init() only when unset -- shelf: flat 30% to 6000, then linear to 20000=100%'
     tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
@@ -2099,8 +2100,8 @@ BESC:
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '""'
-    default_note: 'empty'
+    default: '0=0% 0=20% 4000=20% 20000=100%'
+    default_note: 'applied by BESC::init() only when unset -- shelf: flat 20% to 4000, then linear to 20000=100%'
     tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
@@ -2217,8 +2218,8 @@ HBridge:
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '""'
-    default_note: 'empty'
+    default: '0=0% 10000=100%'
+    default_note: 'applied by HBridge::init() only when speed_map is left unset'
     tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
@@ -2283,6 +2284,7 @@ HBridge:
     min: 1
     max: 20000000
     default: '5000'
+    tuning: typical
     description: |
       PWM signal frequency. Resolution trades off against frequency -- 76Hz or less gets the full 20-bit duty-cycle resolution, roughly halving for every doubling of frequency above that, down to 4 levels (2 bits) at the 20MHz ceiling.
 
@@ -2304,7 +2306,7 @@ HBridge:
     description: |
       Optional enable signal for the H-bridge driver.
 
-# Also backs the "Relay" and "DAC" registrations (RelaySpindle.cpp/DacSpindle.cpp), which add no fields of their own -- same field set.
+# A base class FluidNC itself never instantiates directly -- "Relay" and "DAC" below are the real, selectable registrations, each with their own (field-identical, but not necessarily default-identical -- see speed_map) section.
 OnOff:
   tool_num:
     type: integer
@@ -2317,8 +2319,192 @@ OnOff:
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
+    default: '0=0% 1=100%'
+    default_note: 'applied by OnOff::init() only when unset -- step function: 0 is off, any nonzero S is full on'
+    tuning: per-machine
+    description: |
+      Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
+
+  off_on_alarm:
+    type: boolean
+    default: 'false'
+    tuning: typical
+    description: |
+      Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
+
+  atc:
+    type: string
     default: '""'
     default_note: 'empty'
+    tuning: typical
+    description: |
+      Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
+
+  m6_macro:
+    type: macro
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
+    description: |
+      A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
+
+  s0_with_disable:
+    type: boolean
+    default: 'false'
+    tuning: typical
+    description: |
+      When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
+
+  disable_with_s0:
+    type: boolean
+    default: 'false'
+    tuning: typical
+    description: |
+      When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
+
+  spinup_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    tuning: typical
+    description: |
+      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
+
+  spindown_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    tuning: typical
+    description: |
+      Same as spinup_ms, but applied when the commanded RPM decreases.
+
+  direction_pin:
+    type: pin
+    default: 'NO_PIN'
+    description: |
+      Optional direction signal. M4 (spindle-reverse) is only accepted when a real pin is assigned here -- without one, only M3/M5 are meaningful.
+
+  output_pin:
+    type: pin
+    default: 'NO_PIN'
+    description: |
+      On/off (or PWM duty, depending on the concrete spindle type) output signal. Turns off with M5.
+
+  enable_pin:
+    type: pin
+    default: 'NO_PIN'
+    description: |
+      Optional enable signal, separate from output_pin.
+
+# Adds no fields of its own -- same field set as OnOff, listed as its own section (rather than folded into OnOff's) because it's a real, separately-registered, user-selectable spindle type.
+Relay:
+  tool_num:
+    type: integer
+    min: 0
+    max: MaxToolNumber
+    default: '0'
+    tuning: typical
+    description: |
+      Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
+
+  speed_map:
+    type: std::vector<Configuration::speedEntry>
+    default: '0=0% 1=100%'
+    default_note: 'applied by OnOff::init() only when unset -- step function: 0 is off, any nonzero S is full on'
+    tuning: per-machine
+    description: |
+      Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
+
+  off_on_alarm:
+    type: boolean
+    default: 'false'
+    tuning: typical
+    description: |
+      Turns the spindle off whenever an alarm occurs. Worth enabling with a safety door in use, since the parking feature doesn't operate while in alarm state.
+
+  atc:
+    type: string
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
+    description: |
+      Names an atc_manual:/ATC section (defined elsewhere in the config) to associate with this spindle for automatic tool changes.
+
+  m6_macro:
+    type: macro
+    default: '""'
+    default_note: 'empty'
+    tuning: typical
+    description: |
+      A macro (one config-file line, same syntax as macros:) to run for this spindle's M6 tool change, instead of the built-in tool-change behavior.
+
+  s0_with_disable:
+    type: boolean
+    default: 'false'
+    tuning: typical
+    description: |
+      When true, an M5 (spindle off) also forces the speed signal to S0 (zero) -- by default the speed output stays at its last commanded value even during M5.
+
+  disable_with_s0:
+    type: boolean
+    default: 'false'
+    tuning: typical
+    description: |
+      When true, commanding S0 (zero speed) also disables the spindle, the same as M5 -- by default, only M5 itself disables it.
+
+  spinup_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    tuning: typical
+    description: |
+      Time given for the spindle to reach the commanded RPM (per the speed map) before the following GCode line executes. Proportional to the RPM change -- a half-scale speed change only waits half of this value.
+
+  spindown_ms:
+    type: integer
+    min: 0
+    max: 60000
+    default: '0'
+    tuning: typical
+    description: |
+      Same as spinup_ms, but applied when the commanded RPM decreases.
+
+  direction_pin:
+    type: pin
+    default: 'NO_PIN'
+    description: |
+      Optional direction signal. M4 (spindle-reverse) is only accepted when a real pin is assigned here -- without one, only M3/M5 are meaningful.
+
+  output_pin:
+    type: pin
+    default: 'NO_PIN'
+    description: |
+      On/off (or PWM duty, depending on the concrete spindle type) output signal. Turns off with M5.
+
+  enable_pin:
+    type: pin
+    default: 'NO_PIN'
+    description: |
+      Optional enable signal, separate from output_pin.
+
+# Adds no fields of its own -- same field set as OnOff/Relay, listed as its own section for the same reason as Relay. Its speed_map default genuinely differs from OnOff/Relay's, though (see @default_for in DacSpindle.h) -- unlike Relay, DacSpindle.cpp's own init() installs a different curve.
+DAC:
+  tool_num:
+    type: integer
+    min: 0
+    max: MaxToolNumber
+    default: '0'
+    tuning: typical
+    description: |
+      Sets the tool-number range this spindle responds to for M6 Tn tool changes. With a single spindle, the value doesn't matter (conventionally 0). With multiple spindles, give each a distinct number -- ranges are implied by relative order, e.g. a relay spindle at tool_num: 0 and a laser at tool_num: 100 makes M6 T0-T99 select the relay and M6 T100+ select the laser.
+
+  speed_map:
+    type: std::vector<Configuration::speedEntry>
+    default: '0=0% 10000=100%'
+    default_note: 'applied by Dac::init() only when speed_map is left unset'
     tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.
@@ -2409,8 +2595,8 @@ PlasmaSpindle:
 
   speed_map:
     type: std::vector<Configuration::speedEntry>
-    default: '""'
-    default_note: 'empty'
+    default: '0=0% 1=100%'
+    default_note: 'applied by PlasmaSpindle::init() only when unset -- step function: 0 is off, any nonzero S is full on'
     tuning: per-machine
     description: |
       Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed relationship be linearized or clamped to a minimum speed. See the speed-map documentation for the full syntax.

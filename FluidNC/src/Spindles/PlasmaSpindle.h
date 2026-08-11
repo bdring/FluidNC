@@ -56,6 +56,10 @@ namespace Spindles {
             // How long to wait for arc_ok_pin to confirm the arc has started before giving
             // up.
             handler.item("arc_wait_ms", _max_arc_wait, 0, 3000);
+
+            // @default_for speed_map
+            // @default 0=0% 1=100%
+            // @default_note applied by PlasmaSpindle::init() only when unset -- step function: 0 is off, any nonzero S is full on
             Spindle::group(handler);
         }
 
