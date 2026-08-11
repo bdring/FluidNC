@@ -392,12 +392,22 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
         entry["kind"] = "enum"
         if extra[0] in enum_arrays:
             entry["values"] = enum_arrays[extra[0]]["values"]
+            # The array's own C++ name -- e.g. "trinamicModes" -- carried
+            # alongside the resolved values so build_config_docs.py's final
+            # document assembly can define each distinct enum type ONCE (as a
+            # YAML anchor) and have every other usage site reference it via
+            # alias, instead of re-expanding the same list at every field
+            # that happens to share this array (see to_yaml()'s enum_registry
+            # param). Purely a rendering concern -- doesn't affect what a
+            # parsed config_items.yaml looks like in memory.
+            entry["values_name"] = extra[0]
 
     if kind == "enum" and member in enum_lookup:
         # step_engine_t*-typed fields (e.g. Stepping::engine) don't pass their EnumItem
         # array as an item() argument at all -- the array is only linked by convention
         # (see main()'s enum_lookup construction), not by anything visible at this call site.
         entry["values"] = enum_lookup[member]["values"]
+        entry["values_name"] = enum_lookup[member].get("name")
 
     doc = docs.get(name)
     if doc:
@@ -505,7 +515,15 @@ def scan_class_hierarchy(src_root: Path) -> dict:
     return result
 
 
-def to_yaml(section: str, entries: dict) -> str:
+def to_yaml(section: str, entries: dict, enum_registry: dict = None) -> str:
+    """enum_registry: optional {values_name: anchor_name} for enum types
+    already defined earlier in the document (see build_config_docs.py's
+    enum_types preamble) -- an entry whose values came from a name in this
+    map gets a YAML alias (`values: *anchor_name`) instead of re-expanding
+    the list inline. A parsed document looks identical either way (YAML
+    aliases resolve to the same value on load); this only changes what the
+    file looks like on disk. None (the default, and what this script's own
+    single-class CLI passes) keeps today's always-inline behavior."""
     lines = [f"{section}:"]
     for name, e in entries.items():
         lines.append(f"  {name}:")
@@ -515,8 +533,13 @@ def to_yaml(section: str, entries: dict) -> str:
         if "max" in e:
             lines.append(f"    max: {e['max']}")
         if "values" in e:
-            vals = ", ".join(e["values"])
-            lines.append(f"    values: [{vals}]")
+            values_name = e.get("values_name")
+            anchor = enum_registry.get(values_name) if enum_registry else None
+            if anchor:
+                lines.append(f"    values: *{anchor}")
+            else:
+                vals = ", ".join(e["values"])
+                lines.append(f"    values: [{vals}]")
         if e.get("default") is not None:
             lines.append(f"    default: {e['default']!r}")
         else:
@@ -577,7 +600,7 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     for call in calls:
         cpp_type, _ = find_member_decl(cpp_text, header_text, class_name, call["member"] or "", class_hierarchy)
         if cpp_type == "step_engine_t*" and "stepTypes" in enum_arrays:
-            enum_lookup[call["member"]] = enum_arrays["stepTypes"]
+            enum_lookup[call["member"]] = {"values": enum_arrays["stepTypes"]["values"], "name": "stepTypes"}
 
     warnings = []
     entries = {}

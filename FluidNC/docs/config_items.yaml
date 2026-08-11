@@ -7,6 +7,16 @@
 #
 # Regenerate with: python3 tools/build_config_docs.py
 
+# Enum value sets, named after the C++ EnumItem array they come from --
+# defined once here and referenced via YAML alias (*name) at each field
+# below that uses one, instead of repeating the list inline every time.
+enum_types:
+  messageLevels2: &messageLevels2 [None, Error, Warn, Info, Debug, Verbose]
+  phyTypes: &phyTypes [w5500, ksz8851, dm9051]
+  pulseUsValues: &pulseUsValues [1, 2, 4]
+  stepTypes: &stepTypes [Timed, RMT, I2S_STATIC, I2S_STREAM, Simulator, PIO]
+  trinamicModes: &trinamicModes [StealthChop, CoolStep, StallGuard]
+
 (top-level machine items):
   board:
     type: string
@@ -107,7 +117,7 @@ start:
 stepping:
   engine:
     type: enum
-    values: [Timed, RMT, I2S_STATIC, I2S_STREAM, Simulator, PIO]
+    values: *stepTypes
     default: '(none)'
     default_note: 'board-dependent (DEFAULT_STEPPING_ENGINE, applied in afterParse())'
     description: |
@@ -320,7 +330,7 @@ i2so:
 
   min_pulse_us:
     type: enum
-    values: [1, 2, 4]
+    values: *pulseUsValues
     default: '2'
     description: |
       Minimum output pulse width, in microseconds, for an i2so.N pin -- one of 1, 2, or 4 (see pulseUsValues above). Increase if downstream hardware needs a wider pulse to register a state change reliably.
@@ -532,7 +542,7 @@ uart_channelN:
 
   message_level:
     type: enum
-    values: [None, Error, Warn, Info, Debug, Verbose]
+    values: *messageLevels2
     default: 'Verbose'
     description: |
       Limits which log messages are sent to this channel, ordered from least to most verbose: None < Error < Warn < Info < Debug < Verbose. Only messages at or below the chosen verbosity are sent -- e.g. Info sends None/Error/Warn/Info messages but holds back Debug/Verbose ones. Useful for a display/pendant that doesn't want to parse messages it has no use for. The global $Message/Level setting is an additional filter on top of this one; a message must pass both to reach this channel.
@@ -598,7 +608,7 @@ ethernet:
 
   phy_type:
     type: enum
-    values: [w5500, ksz8851, dm9051]
+    values: *phyTypes
     default: 'W5500'
     description: |
       Which SPI-attached Ethernet PHY chip is present. W5500 is the only one actually tested; KSZ8851/DM9051 use the same SPI+CS wiring and ETH.begin() call shape with a different chip-type constant, so they're offered too. RMII-attached PHYs (LAN8720 and similar) are a different wiring/API shape entirely and aren't supported by this section.
@@ -1097,14 +1107,14 @@ axes.<letter>.motorN.tmc_2130:
 
   run_mode:
     type: enum
-    values: [StealthChop, CoolStep, StallGuard]
+    values: *trinamicModes
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
     type: enum
-    values: [StealthChop, CoolStep, StallGuard]
+    values: *trinamicModes
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode) -- StallGuard is typically used here for sensorless homing.
@@ -1249,14 +1259,14 @@ axes.<letter>.motorN.tmc_2208:
 
   run_mode:
     type: enum
-    values: [StealthChop, CoolStep, StallGuard]
+    values: *trinamicModes
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
     type: enum
-    values: [StealthChop, CoolStep, StallGuard]
+    values: *trinamicModes
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode).
@@ -1382,14 +1392,14 @@ axes.<letter>.motorN.tmc_2209:
 
   run_mode:
     type: enum
-    values: [StealthChop, CoolStep, StallGuard]
+    values: *trinamicModes
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
     type: enum
-    values: [StealthChop, CoolStep, StallGuard]
+    values: *trinamicModes
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode) -- StallGuard is typically used here for sensorless homing.
@@ -1524,14 +1534,14 @@ axes.<letter>.motorN.tmc_5160:
 
   run_mode:
     type: enum
-    values: [StealthChop, CoolStep, StallGuard]
+    values: *trinamicModes
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
     type: enum
-    values: [StealthChop, CoolStep, StallGuard]
+    values: *trinamicModes
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode) -- StallGuard is typically used here for sensorless homing.

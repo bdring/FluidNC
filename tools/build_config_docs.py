@@ -308,6 +308,62 @@ def main():
     )
     args = ap.parse_args()
 
+    # Pass 1: compute every section's entries first (not renders yet) --
+    # needed before rendering starts so the enum_types preamble below can
+    # see every entry's values_name across the WHOLE document, not just one
+    # section at a time.
+    any_errors = False
+    section_results = []  # (section, entries_or_None, note)
+    for section, contributors, note in SECTIONS:
+        if not contributors:
+            section_results.append((section, None, note))
+            continue
+        entries, errors, warnings = merge_section(contributors)
+        if errors:
+            any_errors = True
+            for e in errors:
+                print(f"error [{section}]: {e}", file=sys.stderr)
+            continue
+        for w in warnings:
+            print(f"warning [{section}]: {w}", file=sys.stderr)
+        section_results.append((section, entries, note))
+
+    list_mode_results = []  # (section, entries)
+    for section, rel_file, kind_for in LIST_MODE_SECTIONS:
+        entries, errors, _ = list_mode_section(rel_file, kind_for)
+        if errors:
+            any_errors = True
+            for e in errors:
+                print(f"error [{section}]: {e}", file=sys.stderr)
+            continue
+        list_mode_results.append((section, entries))
+
+    if any_errors:
+        raise SystemExit(1)
+
+    # Pass 2: collect every distinct enum type actually used (keyed by the
+    # C++ array's own name, e.g. "trinamicModes") across every section, and
+    # render it ONCE as a YAML anchor in a preamble block -- every usage site
+    # then aliases it (see to_yaml()'s enum_registry param) instead of
+    # re-expanding the same values list at each of its, sometimes many,
+    # usage sites (run_mode/homing_mode alone repeat trinamicModes 4 times).
+    # A parsed document is identical either way -- YAML aliases resolve to
+    # the same value on load -- this only de-duplicates the file on disk.
+    enum_types = {}  # values_name -> values list
+    for _, entries, _ in section_results:
+        if not entries:
+            continue
+        for e in entries.values():
+            vn = e.get("values_name")
+            if vn and vn not in enum_types:
+                enum_types[vn] = e["values"]
+    for _, entries in list_mode_results:
+        for e in entries.values():
+            vn = e.get("values_name")
+            if vn and vn not in enum_types:
+                enum_types[vn] = e["values"]
+    enum_registry = {name: name for name in enum_types}  # anchor name == array name
+
     out_lines = [
         "# FluidNC config item reference -- GENERATED FILE, DO NOT EDIT BY HAND.",
         "#",
@@ -319,38 +375,35 @@ def main():
         "# Regenerate with: python3 tools/build_config_docs.py",
         "",
     ]
-    any_errors = False
-    for section, contributors, note in SECTIONS:
-        if not contributors:
+
+    if enum_types:
+        out_lines.append(
+            "# Enum value sets, named after the C++ EnumItem array they come from --"
+        )
+        out_lines.append(
+            "# defined once here and referenced via YAML alias (*name) at each field"
+        )
+        out_lines.append("# below that uses one, instead of repeating the list inline every time.")
+        out_lines.append("enum_types:")
+        for name in sorted(enum_types):
+            vals = ", ".join(enum_types[name])
+            out_lines.append(f"  {name}: &{name} [{vals}]")
+        out_lines.append("")
+
+    for section, entries, note in section_results:
+        if entries is None:
             out_lines.append(f"# {section}: (no config items)")
             if note:
                 out_lines.append(f"#   {note}")
             out_lines.append("")
             continue
-        entries, errors, warnings = merge_section(contributors)
-        if errors:
-            any_errors = True
-            for e in errors:
-                print(f"error [{section}]: {e}", file=sys.stderr)
-            continue
-        for w in warnings:
-            print(f"warning [{section}]: {w}", file=sys.stderr)
         if note:
             out_lines.append(f"# {note}")
-        out_lines.append(g.to_yaml(section, entries))
+        out_lines.append(g.to_yaml(section, entries, enum_registry))
 
-    for section, rel_file, kind_for in LIST_MODE_SECTIONS:
-        entries, errors, _ = list_mode_section(rel_file, kind_for)
-        if errors:
-            any_errors = True
-            for e in errors:
-                print(f"error [{section}]: {e}", file=sys.stderr)
-            continue
+    for section, entries in list_mode_results:
         out_lines.append(f"# {LIST_MODE_NOTES[section]}")
-        out_lines.append(g.to_yaml(section, entries))
-
-    if any_errors:
-        raise SystemExit(1)
+        out_lines.append(g.to_yaml(section, entries, enum_registry))
 
     out_path = args.output
     out_path.parent.mkdir(parents=True, exist_ok=True)
