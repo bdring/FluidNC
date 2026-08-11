@@ -19,6 +19,7 @@ What it does NOT try to do (by design, see ItemDocs.md):
       supplies --section explicitly.
 """
 import argparse
+import functools
 import re
 import sys
 from pathlib import Path
@@ -250,7 +251,29 @@ def split_args(arg_str: str):
     return args
 
 
-def find_member_decl(cpp_text: str, header_text: str, class_name: str, member: str):
+def _find_member_in_text(text: str, member_re: str, array_suffix: str):
+    """In-class declaration/initializer search, factored out of
+    find_member_decl() so the same two patterns (with and without an
+    initializer) can be tried against an ancestor class's own file too, not
+    just the class being processed."""
+    m = re.search(
+        rf'^\s*(?:static\s+)?([\w:<>]+[\s*&]*)\s+{member_re}{array_suffix}\s*=\s*([^;]+);',
+        text,
+        re.MULTILINE,
+    )
+    if m:
+        return normalize_type(m.group(1)), m.group(2).strip()
+    m = re.search(
+        rf'^\s*(?:static\s+)?([\w:<>]+[\s*&]*)\s+{member_re}{array_suffix}\s*;',
+        text,
+        re.MULTILINE,
+    )
+    if m:
+        return normalize_type(m.group(1)), None
+    return None, None
+
+
+def find_member_decl(cpp_text: str, header_text: str, class_name: str, member: str, class_hierarchy: dict = None):
     """Find (cpp_type, default_literal_or_None) for a field, static or in-class.
 
     `member` is expected already stripped of any array subscript by the caller
@@ -276,22 +299,33 @@ def find_member_decl(cpp_text: str, header_text: str, class_name: str, member: s
     )
     if m:
         return normalize_type(m.group(1)), None
-    # In-class initializer in the header: `Type _member = value;`
-    m = re.search(
-        rf'^\s*(?:static\s+)?([\w:<>]+[\s*&]*)\s+{member_re}{ARRAY_SUFFIX}\s*=\s*([^;]+);',
-        header_text,
-        re.MULTILINE,
-    )
-    if m:
-        return normalize_type(m.group(1)), m.group(2).strip()
-    # Declared with no initializer in the header.
-    m = re.search(
-        rf'^\s*(?:static\s+)?([\w:<>]+[\s*&]*)\s+{member_re}{ARRAY_SUFFIX}\s*;',
-        header_text,
-        re.MULTILINE,
-    )
-    if m:
-        return normalize_type(m.group(1)), None
+    # In-class declaration/initializer in this class's own header.
+    found = _find_member_in_text(header_text, member_re, ARRAY_SUFFIX)
+    if found != (None, None):
+        return found
+    # Not declared in this class's own file -- walk the real C++ inheritance
+    # chain (class_hierarchy, from scan_class_hierarchy()) up to wherever the
+    # member actually lives. A subclass's group() commonly calls
+    # handler.item() on a member it never redeclares, only inherits -- e.g.
+    # Laser::group() sets _pwm_freq, declared in PWMSpindle.h (Laser's
+    # parent); Solenoid::group() reaches two levels up into RcServo.h. Only
+    # in-class declarations are searched at each ancestor (never a
+    # ClassName::member static out-of-line form -- an inherited instance
+    # member is never declared that way).
+    if class_hierarchy is not None:
+        current, seen = class_name, set()
+        while True:
+            entry = class_hierarchy.get(current)
+            if not entry:
+                break
+            parent_file, parent_class = entry
+            if parent_class in seen:
+                break
+            seen.add(parent_class)
+            found = _find_member_in_text(parent_file.read_text(), member_re, ARRAY_SUFFIX)
+            if found != (None, None):
+                return found
+            current = parent_class
     return None, None
 
 
@@ -303,7 +337,7 @@ def normalize_type(raw: str) -> str:
     return t.rstrip('&').strip()
 
 
-def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings):
+def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings, class_hierarchy=None):
     """Build one entry. The @default annotation is the authoritative default --
     see ItemDocs.md for why (some real defaults, e.g. board-dependent or
     substituted in afterParse(), aren't discoverable from the initializer at
@@ -324,7 +358,7 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
         # default_literal legitimately comes back None here -- @default carries the
         # real per-index default instead, same as any other code-determined case.
         base_member = re.sub(r'\[[^\]]*\]$', '', member)
-        cpp_type, default_literal = find_member_decl(cpp_text, header_text, class_name, base_member)
+        cpp_type, default_literal = find_member_decl(cpp_text, header_text, class_name, base_member, class_hierarchy)
 
     if cpp_type in CPP_TYPE_TO_KIND:
         kind = CPP_TYPE_TO_KIND[cpp_type]
@@ -351,9 +385,10 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
     elif len(extra) == 1:
         # item(name, value, SomeEnumArray) -- HandlerBase's item(name, uint32_t&, const
         # EnumItem*) overload. There's exactly one such overload, so any single-extra-arg
-        # call is unambiguously an enum even when the array itself is defined in a
-        # different file than the one being parsed (e.g. message_level/phy_type) -- only
-        # try to resolve the actual choice list when the array happens to be in scope.
+        # call is unambiguously an enum. enum_arrays is tree-wide (scan_enum_arrays_tree()),
+        # so this resolves regardless of which file actually declares the array (e.g.
+        # message_level's array lives in Logging.cpp, not wherever message_level itself
+        # is a config item).
         entry["kind"] = "enum"
         if extra[0] in enum_arrays:
             entry["values"] = enum_arrays[extra[0]]["values"]
@@ -399,7 +434,11 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
 
 
 def find_enum_arrays(cpp_text: str):
-    """Special-case: EnumItem-style arrays like `stepTypes[] = { {X, "Name"}, ... };`.
+    """Special-case: EnumItem-style arrays like `stepTypes[] = { {X, "Name"}, ... };`,
+    including the out-of-class-static form `const EnumItem EthPhy::phyTypes[] = {...}`
+    (the `(?:\\w+::)?` prefix strips the class qualifier, since call sites always
+    reference the array unqualified from within the class's own scope, e.g.
+    `handler.item("phy_type", _phy_type, phyTypes)`).
 
     Returns {array_name: {"values": [...]}} -- only the choice list. The
     default is deliberately NOT extracted here even though the array often
@@ -409,11 +448,61 @@ def find_enum_arrays(cpp_text: str):
     can't safely resolve on its own (it's a macro, not a literal).
     """
     results = {}
-    for m in re.finditer(r'EnumItem\s+(\w+)\s*\[\]\s*=\s*\{(.*?)\};', cpp_text, re.DOTALL):
+    for m in re.finditer(r'EnumItem\s+(?:\w+::)?(\w+)\s*\[\]\s*=\s*\{(.*?)\};', cpp_text, re.DOTALL):
         array_name, body = m.group(1), m.group(2)
         values = re.findall(r'"([^"]+)"', body)
         results[array_name] = {"values": values}
     return results
+
+
+def find_src_root(cpp_file: Path) -> Path:
+    """Walk up from cpp_file to the ancestor directory literally named 'src'
+    (FluidNC/src/, the root every SECTIONS entry in build_config_docs.py is
+    relative to) -- used to scope the tree-wide scans below."""
+    for p in [cpp_file] + list(cpp_file.parents):
+        if p.name == "src":
+            return p
+    raise SystemExit(f"error: could not locate a 'src' directory above {cpp_file}")
+
+
+@functools.lru_cache(maxsize=None)
+def scan_enum_arrays_tree(src_root: Path) -> dict:
+    """find_enum_arrays(), applied to every .cpp/.h file under src_root and
+    merged. Only 5 EnumItem arrays exist in the whole codebase today (a plain
+    `grep -rn 'EnumItem.*\\[\\]\\s*=' FluidNC/src` confirms it), each declared
+    once -- a whole-tree scan is cheap (a few hundred small files) and, unlike
+    a fixed file list, never needs updating when a 6th one is added somewhere
+    new. Cached per src_root since process_class() is called once per
+    (file, class) contributor -- dozens of times per full docs build -- and
+    the tree doesn't change mid-run."""
+    results = {}
+    for p in sorted(src_root.rglob("*")):
+        if p.suffix in (".cpp", ".h"):
+            results.update(find_enum_arrays(p.read_text()))
+    return results
+
+
+CLASS_DECL_RE = re.compile(r'^\s*class\s+(\w+)\s*:\s*public\s+(?:\w+::)?(\w+)', re.MULTILINE)
+
+
+@functools.lru_cache(maxsize=None)
+def scan_class_hierarchy(src_root: Path) -> dict:
+    """{class_name: (file_path, parent_class_name)} for every `class X : public Y`
+    (or `class X : public Y, Z` -- only the first base is captured, which is
+    always the config-relevant one for this codebase's occasional
+    Configuration::Configurable mixin, e.g. ModbusVFD's
+    `public VFDProtocol, Configuration::Configurable`) declaration under
+    src_root, scanning both .h and .cpp (some VFD subclasses like Huanyang
+    are declared directly in a .cpp with no header at all). Cached per
+    src_root, same reasoning as scan_enum_arrays_tree()."""
+    result = {}
+    for p in sorted(src_root.rglob("*")):
+        if p.suffix not in (".h", ".cpp"):
+            continue
+        text = p.read_text()
+        for m in CLASS_DECL_RE.finditer(text):
+            result[m.group(1)] = (p, m.group(2))
+    return result
 
 
 def to_yaml(section: str, entries: dict) -> str:
@@ -470,27 +559,30 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     header_path = cpp_file.with_suffix(".h")
     header_text = header_path.read_text() if header_path.exists() else ""
 
+    src_root = find_src_root(cpp_file)
+    enum_arrays = scan_enum_arrays_tree(src_root)
+    class_hierarchy = scan_class_hierarchy(src_root)
+
     body = find_group_body(cpp_text, class_name, method_name)
     docs, missing_default, bad_tuning, default_for_overrides, missing_default_for = parse_doc_blocks(body)
     calls = parse_item_calls(body)
-    enum_arrays = find_enum_arrays(cpp_text)
 
     # Heuristic link: a step_engine*-typed item's enum choices come from
     # whichever EnumItem array holds its named choices. For Stepping
-    # specifically this is `stepTypes`; expose it by member name so
-    # build_entry() can find it regardless of the array's own name.
+    # specifically this is `stepTypes` -- look it up by name (not "take
+    # whichever array comes first", now that enum_arrays is tree-wide and
+    # holds all 5) -- expose it by member name so build_entry() can find it
+    # regardless of the array's own name.
     enum_lookup = {}
     for call in calls:
-        cpp_type, _ = find_member_decl(cpp_text, header_text, class_name, call["member"] or "")
-        if cpp_type == "step_engine_t*" and enum_arrays:
-            # Only one such array is expected per pilot module; take the first.
-            arr = next(iter(enum_arrays.values()))
-            enum_lookup[call["member"]] = arr
+        cpp_type, _ = find_member_decl(cpp_text, header_text, class_name, call["member"] or "", class_hierarchy)
+        if cpp_type == "step_engine_t*" and "stepTypes" in enum_arrays:
+            enum_lookup[call["member"]] = enum_arrays["stepTypes"]
 
     warnings = []
     entries = {}
     for call in calls:
-        name, entry = build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings)
+        name, entry = build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings, class_hierarchy)
         entries[name] = entry
 
     # Same-class @default_for application -- see this function's own

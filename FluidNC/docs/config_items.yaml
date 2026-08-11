@@ -532,6 +532,7 @@ uart_channelN:
 
   message_level:
     type: enum
+    values: [None, Error, Warn, Info, Debug, Verbose]
     default: 'Verbose'
     description: |
       Limits which log messages are sent to this channel, ordered from least to most verbose: None < Error < Warn < Info < Debug < Verbose. Only messages at or below the chosen verbosity are sent -- e.g. Info sends None/Error/Warn/Info messages but holds back Debug/Verbose ones. Useful for a display/pendant that doesn't want to parse messages it has no use for. The global $Message/Level setting is an additional filter on top of this one; a message must pass both to reach this channel.
@@ -597,6 +598,7 @@ ethernet:
 
   phy_type:
     type: enum
+    values: [w5500, ksz8851, dm9051]
     default: 'W5500'
     description: |
       Which SPI-attached Ethernet PHY chip is present. W5500 is the only one actually tested; KSZ8851/DM9051 use the same SPI+CS wiring and ETH.begin() call shape with a different chip-type constant, so they're offered too. RMII-attached PHYs (LAN8720 and similar) are a different wiring/API shape entirely and aren't supported by this section.
@@ -1095,18 +1097,20 @@ axes.<letter>.motorN.tmc_2130:
 
   run_mode:
     type: enum
+    values: [StealthChop, CoolStep, StallGuard]
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
     type: enum
+    values: [StealthChop, CoolStep, StallGuard]
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode) -- StallGuard is typically used here for sensorless homing.
 
   stallguard:
-    type: unknown
+    type: integer
     min: -64
     max: 63
     default: '0'
@@ -1114,13 +1118,13 @@ axes.<letter>.motorN.tmc_2130:
       StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard.
 
   stallguard_debug:
-    type: unknown
+    type: boolean
     default: 'false'
     description: |
       Logs live StallGuard sensor values -- useful for tuning the stallguard threshold for sensorless homing.
 
   toff_coolstep:
-    type: unknown
+    type: integer
     min: 2
     max: 15
     default: '3'
@@ -1245,18 +1249,20 @@ axes.<letter>.motorN.tmc_2208:
 
   run_mode:
     type: enum
+    values: [StealthChop, CoolStep, StallGuard]
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
     type: enum
+    values: [StealthChop, CoolStep, StallGuard]
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode).
 
   stallguard:
-    type: unknown
+    type: integer
     min: -64
     max: 63
     default: '0'
@@ -1264,13 +1270,13 @@ axes.<letter>.motorN.tmc_2208:
       StallGuard sensitivity threshold, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard.
 
   stallguard_debug:
-    type: unknown
+    type: boolean
     default: 'false'
     description: |
       Logs live StallGuard sensor values -- useful for tuning the stallguard threshold.
 
   toff_coolstep:
-    type: unknown
+    type: integer
     min: 2
     max: 15
     default: '3'
@@ -1376,18 +1382,20 @@ axes.<letter>.motorN.tmc_2209:
 
   run_mode:
     type: enum
+    values: [StealthChop, CoolStep, StallGuard]
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
     type: enum
+    values: [StealthChop, CoolStep, StallGuard]
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode) -- StallGuard is typically used here for sensorless homing.
 
   homing_amps:
-    type: unknown
+    type: float
     min: 0.0
     max: 10.0
     default: '0.0'
@@ -1396,7 +1404,7 @@ axes.<letter>.motorN.tmc_2209:
       Motor current while homing. Leaving this at its default 0 isn't literally "zero current" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. This fallback is specific to TMC2209; no other Trinamic driver type has a homing_amps field at all.
 
   stallguard:
-    type: unknown
+    type: integer
     min: 0
     max: 255
     default: '0'
@@ -1404,13 +1412,13 @@ axes.<letter>.motorN.tmc_2209:
       StallGuard sensitivity threshold, 0 (least sensitive) to 255 (most sensitive) -- note this range is different from every SPI-driven Trinamic type (tmc_2130/tmc_5160/etc.), which use -64 to 63 instead. Only meaningful when run_mode or homing_mode is StallGuard.
 
   stallguard_debug:
-    type: unknown
+    type: boolean
     default: 'false'
     description: |
       Logs live StallGuard sensor values -- useful for tuning the stallguard threshold for sensorless homing. Not usable together with shared_address_write_only.
 
   toff_coolstep:
-    type: unknown
+    type: integer
     min: 2
     max: 15
     default: '3'
@@ -1516,18 +1524,20 @@ axes.<letter>.motorN.tmc_5160:
 
   run_mode:
     type: enum
+    values: [StealthChop, CoolStep, StallGuard]
     default: 'StealthChop'
     description: |
       Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs cooler, allows higher current), or StallGuard (CoolStep plus stall/load detection).
 
   homing_mode:
     type: enum
+    values: [StealthChop, CoolStep, StallGuard]
     default: 'StealthChop'
     description: |
       Chopper algorithm while homing (same choices as run_mode) -- StallGuard is typically used here for sensorless homing.
 
   stallguard:
-    type: unknown
+    type: integer
     min: -64
     max: 63
     default: '0'
@@ -1535,13 +1545,13 @@ axes.<letter>.motorN.tmc_5160:
       StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard.
 
   stallguard_debug:
-    type: unknown
+    type: boolean
     default: 'false'
     description: |
       Logs live StallGuard sensor values -- useful for tuning the stallguard threshold for sensorless homing.
 
   toff_coolstep:
-    type: unknown
+    type: integer
     min: 2
     max: 15
     default: '3'
@@ -1595,13 +1605,13 @@ axes.<letter>.motorN.tmc_5160Pro:
       Enable/disable output to the driver (active state depends on the driver hardware -- invert with the pin's :low attribute if needed).
 
   cs_pin:
-    type: unknown
+    type: pin
     default: 'NO_PIN'
     description: |
       SPI chip-select for this driver. In independent (non-daisy-chained) SPI mode each driver needs its own; in a daisy chain, define this only on the motor with spi_index: 1.
 
   spi_index:
-    type: unknown
+    type: integer
     min: -1
     max: 127
     default: '-1'
@@ -1609,7 +1619,7 @@ axes.<letter>.motorN.tmc_5160Pro:
       -1 means independent SPI mode. In a daisy chain, each driver gets a distinct position number (1, 2, 3, ...) in chain order.
 
   use_enable:
-    type: unknown
+    type: boolean
     default: 'false'
     description: |
       Uses disable_pin as an active enable signal (inverted sense) instead of the ordinary active-disable sense.
@@ -1701,13 +1711,13 @@ axes.<letter>.motorN.rc_servo:
 
 axes.<letter>.motorN.solenoid:
   output_pin:
-    type: unknown
+    type: pin
     default: 'NO_PIN'
     description: |
       PWM signal output driving the solenoid.
 
   pwm_hz:
-    type: unknown
+    type: integer
     min: 1000
     max: 100000
     default: '1000'
@@ -1968,7 +1978,7 @@ Laser:
       Optional enable signal, separate from output_pin.
 
   pwm_hz:
-    type: unknown
+    type: integer
     min: 1000
     max: 100000
     default: '5000'
