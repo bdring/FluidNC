@@ -2308,7 +2308,7 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a710.7. Chain: Spindle -> OnOff -> Laser via groupCommon only -- explicitly NO direction_pin. pwm_hz range is narrower than plain PWM (1000-100000).",
+      "description": "spec \u00a710.7. Chain: Spindle -> OnOff -> Laser via groupCommon only -- explicitly NO direction_pin, and NO spinup_ms/spindown_ms (Laser::group() calls OnOff::groupCommon() specifically to skip Spindle::groupDelaySettings(), unlike every other OnOff-derived type). pwm_hz range is narrower than plain PWM (1000-100000).",
       "additionalProperties": false,
       "properties": {
         "tool_num": {
@@ -2352,19 +2352,6 @@
             }
           ],
           "default": false
-        },
-        "spinup_ms": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 60000,
-          "default": 0,
-          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
-        },
-        "spindown_ms": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 60000,
-          "default": 0
         },
         "pwm_hz": {
           "type": "integer",
@@ -2754,6 +2741,19 @@
           ],
           "default": false
         },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
         "uart_num": {
           "type": "integer",
           "description": "References a top-level uartN: section (spec \u00a79). Preferred/current form."
@@ -2831,6 +2831,19 @@
             }
           ],
           "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
         },
         "uart_num": {
           "type": "integer",
