@@ -45,12 +45,14 @@ namespace Spindles {
 
             // @config forward_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Signals forward rotation when using separate forward/reverse pins. May
             // remain on after M5; turns off after M4.
             handler.item("forward_pin", _forward_pin);
 
             // @config reverse_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Signals reverse rotation when using separate forward/reverse pins. May
             // remain on after M5; turns off after M3.
             handler.item("reverse_pin", _reverse_pin);

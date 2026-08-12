@@ -59,6 +59,9 @@ namespace Spindles {
             // @default_for speed_map
             // @default 0=0% 10000=100%
             // @default_note applied by PWM::init() only when speed_map is left unset
+
+            // @pin_attributes_for output_pin
+            // @pin_attributes pwm
             OnOff::group(handler);
         }
 

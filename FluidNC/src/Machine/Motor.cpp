@@ -17,17 +17,20 @@ namespace Machine {
     void Motor::group(Configuration::HandlerBase& handler) {
         // @config limit_neg_pin
         // @default NO_PIN
+        // @pin_attributes input
         // Limit switch on the negative-direction end of this motor's travel.
         handler.item("limit_neg_pin", _negLimitPin);
 
         // @config limit_pos_pin
         // @default NO_PIN
+        // @pin_attributes input
         // Limit switch on the positive-direction end of this motor's travel -- often just
         // beyond the axis's max_travel_mm.
         handler.item("limit_pos_pin", _posLimitPin);
 
         // @config limit_all_pin
         // @default NO_PIN
+        // @pin_attributes input
         // A single switch wired to both ends of travel. Mutually exclusive with
         // limit_neg_pin/limit_pos_pin -- don't specify this alongside either of them.
         // Since FluidNC can't tell which end triggered it, it also can't tell which

@@ -27,22 +27,26 @@ namespace MotorDrivers {
 
         // @config ms1_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Microstep-select pin 1, for driver sockets (DRV8825/A4988/TB67S249FTG family)
         // that select microstepping via MSx pins rather than a register interface.
         handler.item("ms1_pin", _MS1);
 
         // @config ms2_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Microstep-select pin 2.
         handler.item("ms2_pin", _MS2);
 
         // @config ms3_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Microstep-select pin 3.
         handler.item("ms3_pin", _MS3);
 
         // @config reset_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Driver reset pin. Only sets the pin's state once at startup (turned on if
         // defined) -- not an actively toggled runtime signal.
         handler.item("reset_pin", _Reset);

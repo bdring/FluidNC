@@ -42,6 +42,7 @@ namespace MotorDrivers {
 
             // @config cs_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Rarely used -- present because this base class is shared with the SPI driver
             // family, but a UART-mode chip doesn't need a chip-select pin. Only relevant
             // for a cs_pin-based UART switching setup, and required to be NO_PIN if

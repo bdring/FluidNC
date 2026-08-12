@@ -79,21 +79,25 @@ namespace Machine {
 
         // @config analog0_pin
         // @default NO_PIN
+        // @pin_attributes pwm
         // Analog (PWM) output slot 0.
         handler.item("analog0_pin", _analogOutput[0]);
 
         // @config analog1_pin
         // @default NO_PIN
+        // @pin_attributes pwm
         // Analog (PWM) output slot 1.
         handler.item("analog1_pin", _analogOutput[1]);
 
         // @config analog2_pin
         // @default NO_PIN
+        // @pin_attributes pwm
         // Analog (PWM) output slot 2.
         handler.item("analog2_pin", _analogOutput[2]);
 
         // @config analog3_pin
         // @default NO_PIN
+        // @pin_attributes pwm
         // Analog (PWM) output slot 3.
         handler.item("analog3_pin", _analogOutput[3]);
 
@@ -119,41 +123,49 @@ namespace Machine {
 
         // @config digital0_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Digital output slot 0.
         handler.item("digital0_pin", _digitalOutput[0]);
 
         // @config digital1_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Digital output slot 1.
         handler.item("digital1_pin", _digitalOutput[1]);
 
         // @config digital2_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Digital output slot 2.
         handler.item("digital2_pin", _digitalOutput[2]);
 
         // @config digital3_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Digital output slot 3.
         handler.item("digital3_pin", _digitalOutput[3]);
 
         // @config digital4_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Digital output slot 4.
         handler.item("digital4_pin", _digitalOutput[4]);
 
         // @config digital5_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Digital output slot 5.
         handler.item("digital5_pin", _digitalOutput[5]);
 
         // @config digital6_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Digital output slot 6.
         handler.item("digital6_pin", _digitalOutput[6]);
 
         // @config digital7_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Digital output slot 7.
         handler.item("digital7_pin", _digitalOutput[7]);
     }

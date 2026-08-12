@@ -99,10 +99,43 @@ Rules:
   generated from source instead of hand-maintained (see
   FluidNC-config-wizard's `TUNING_CLASSIFICATION_REVIEW.md` for the review
   that produced the first pass of these).
+- An optional `@pin_attributes <value>` line, valid only on a `type: pin`
+  item, may follow `@default`/`@default_note`/`@tuning`, before `@unit`/the
+  description. A single bare value from a fixed vocabulary -- never
+  composed (e.g. never `output spi`) -- describing what a physical board
+  pin needs to be eligible for this field:
+  - `input` / `output` / `io` / `pwm` / `isr` -- an ordinary GPIO-style
+    field, matched against a board's own generic-pin role selector.
+    `pwm`/`isr` are for a field that needs that specific hardware
+    capability, not just a plain direction. `io`/`adc`/`dac` are reserved
+    -- valid values, but no current field needs them. `io` in particular
+    is for a genuinely bidirectional field with no dedicated hardware bus
+    block behind it -- e.g. a future bit-banged I2C driver's sda/scl,
+    where the pins are plain GPIOs toggled directly in software rather
+    than handed to the native I2C peripheral. Not needed for `i2cN.sda_pin`
+    /`scl_pin` today, even though I2C is electrically bidirectional too --
+    see `i2c` below, which already covers that case more specifically for
+    the one real (hardware-block) I2C driver that exists now.
+  - `spi` / `i2s` / `uart` / `i2c` -- this field IS one of that bus's own
+    native signal lines (e.g. `spi.mosi_pin`, `uartN.txd_pin`), resolved
+    against the board's fixed peripheral wiring, not the generic-pin role
+    selector -- so no separate direction value is needed alongside it (a
+    board's own `spi:` block, for instance, already establishes mosi as an
+    output; the field doesn't need to repeat that).
+
+  This is deliberately explicit rather than derived from the nearest
+  `Pin::setAttr(Pin::Attr::...)` call in source, even though one usually
+  exists: some classes call `setAttr(Pin::Attr::Input)` again in `deinit()`
+  to release/tri-state the pin on teardown (e.g. every `OnOffSpindle.h`
+  subclass's `deinit()`), which would make a naive scrape see two
+  conflicting calls per field and have no principled way to prefer the
+  "real" one. A human-authored value that a reviewer can check against the
+  nearest non-`deinit()` `setAttr()` call is simpler and more reliable than
+  teaching a script to know which call sites to ignore.
 - An optional `@unit <text>` line may follow `@default`/`@default_note`/
-  `@tuning`, before the description, when the field name's own suffix
-  (`_ms`, `_us`, `_mm`, `_amps`, ...) doesn't already say it plainly enough
-  to be worth restating -- most fields don't need this.
+  `@tuning`/`@pin_attributes`, before the description, when the field
+  name's own suffix (`_ms`, `_us`, `_mm`, `_amps`, ...) doesn't already say
+  it plainly enough to be worth restating -- most fields don't need this.
 - Every plain `//` comment line after that (no intervening code, no blank
   line) is part of the description, in order. A blank comment line (`//`
   alone) is a paragraph break; anything else joins with a single space.
@@ -171,6 +204,30 @@ merging every contributor for a section (see `tools/build_config_docs.py`'s
 whatever the shared base class declared, regardless of contributor order,
 and a class with nothing to override (e.g. `Relay`, which reuses `OnOff`'s
 default unchanged) simply doesn't need one.
+
+## Overriding an inherited item's `@pin_attributes`: `@pin_attributes_for`
+
+Same shape and purpose as `@default_for` above, one level over: a shared
+base class's `output_pin`-style field has one real `@pin_attributes` value
+for most concrete subclasses but a genuinely different one for others,
+established by each subclass's own `init()`. `OnOffSpindle.h`'s
+`output_pin` is the motivating case: plain `output` (a digital on/off
+signal) for `OnOff`/`Relay`/`DAC`, but `pwm` for `PWM`/`Laser`/`10V`/`BESC`
+-- each of those calls its own `_output_pin.setAttr(Pin::Attr::PWM, ...)`
+in its own `init()`, never reusing `OnOff::init()`'s plain
+`Pin::Attr::Output` for that field.
+
+```c++
+// In PWMSpindle.h's PWM::group():
+// @pin_attributes_for output_pin
+// @pin_attributes pwm
+OnOff::group(handler);
+```
+
+Same override-as-final-pass timing as `@default_for` -- a subclass's own
+`@pin_attributes_for` always wins over whatever the shared base class's
+own `@pin_attributes` declared. A class that reuses the base value
+unchanged (e.g. `Relay`, `DAC`) simply doesn't need one.
 
 ## Data-driven item lists (no per-item `handler.item()` call to annotate)
 

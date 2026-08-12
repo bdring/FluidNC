@@ -46,6 +46,7 @@ namespace MotorDrivers {
 
             // @config output_pin
             // @default NO_PIN
+            // @pin_attributes pwm
             // PWM signal output driving the solenoid.
             handler.item("output_pin", _output_pin);
 

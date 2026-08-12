@@ -41,11 +41,13 @@ namespace Spindles {
         void groupCommon(Configuration::HandlerBase& handler) {
             // @config enable_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Enables the plasma cutter's torch/arc-start signal.
             handler.item("enable_pin", _enable_pin);
 
             // @config arc_ok_pin
             // @default NO_PIN
+            // @pin_attributes input
             // Input signaling that the plasma arc has successfully started (transferred).
             // If this goes inactive while the arc was on, motion is aborted with an alarm.
             handler.item("arc_ok_pin", _arcOkEventPin);

@@ -80,13 +80,35 @@ SECTIONS = [
     (
         "axes.<letter>.motorN.tmc_5160",
         [("Motors/StandardStepper.h", "StandardStepper"), ("Motors/TrinamicBase.h", "TrinamicBase"), ("Motors/TrinamicSpiDriver.h", "TrinamicSpiDriver"), ("Motors/TMC5160Driver.h", "TMC5160Driver")],
-        None,
+        "Also registered as tmc_2160 (own SECTIONS entry just below, sharing this contributor list) --"
+        " confirmed via TMC2160Driver.h's own class (extends TMC5160Driver, this same ordinary"
+        " TrinamicSpiDriver-based type) and TMC2160Driver.cpp's registration(\"tmc_2160\") call. NOT"
+        " the same driver as tmc_2160Pro below, despite the similar name -- that one is a raw-register"
+        " tmc_5160Pro alias instead (a DIFFERENT class, confusingly also named TMC2160Driver, declared"
+        " in TMC2160ProDriver.h) -- verify against the actual registration() call before trusting a"
+        " name-similarity assumption here again.",
+    ),
+    (
+        "axes.<letter>.motorN.tmc_2160",
+        [("Motors/StandardStepper.h", "StandardStepper"), ("Motors/TrinamicBase.h", "TrinamicBase"), ("Motors/TrinamicSpiDriver.h", "TrinamicSpiDriver"), ("Motors/TMC5160Driver.h", "TMC5160Driver")],
+        "Registration alias of tmc_5160 -- see that entry's own note (and do not confuse with"
+        " tmc_2160Pro, a different, raw-register alias of tmc_5160Pro instead).",
     ),
     (
         "axes.<letter>.motorN.tmc_5160Pro",
         [("Motors/StandardStepper.h", "StandardStepper"), ("Motors/TMC5160ProDriver.h", "TMC5160ProDriver")],
-        "Also registered as tmc_2160Pro and tmc_2160 -- all three names are the exact same driver class/fields (raw-register expert mode). "
-        "Bypasses TrinamicBase/TrinamicSpiDriver entirely, unlike every other tmc_* type -- no run_amps/microsteps/etc. here.",
+        "Also registered as tmc_2160Pro (own SECTIONS entry just below, sharing this contributor"
+        " list) -- confirmed via TMC2160ProDriver.h's own class (extends TMC5160ProDriver, this same"
+        " raw-register-expert-mode type) and TMC2160ProDriver.cpp's registration(\"tmc_2160Pro\") call."
+        " Bypasses TrinamicBase/TrinamicSpiDriver entirely, unlike every other tmc_* type -- no"
+        " run_amps/microsteps/etc. here. An EARLIER version of this note incorrectly also claimed"
+        " tmc_2160 (no \"Pro\") as a third alias of this same raw-register class -- it is not; see"
+        " tmc_5160's own entry above.",
+    ),
+    (
+        "axes.<letter>.motorN.tmc_2160Pro",
+        [("Motors/StandardStepper.h", "StandardStepper"), ("Motors/TMC5160ProDriver.h", "TMC5160ProDriver")],
+        "Registration alias of tmc_5160Pro -- see that entry's own note.",
     ),
     ("axes.<letter>.motorN.rc_servo", [("Motors/RcServo.h", "RcServo")], None),
     ("axes.<letter>.motorN.solenoid", [("Motors/Solenoid.h", "Solenoid")], None),
@@ -243,12 +265,17 @@ def merge_section(contributors):
     # of as a final pass, would make the result depend on contributor order
     # for no reason.
     default_for_overrides = {}
+    # Same idea, for @pin_attributes_for (see ItemDocs.md) -- e.g.
+    # PWMSpindle.h overriding output_pin's pin_attributes, which
+    # OnOffSpindle.h itself declares as the shared/common value.
+    pin_attributes_for_overrides = {}
     for contrib in contributors:
         rel_file, class_name = contrib[0], contrib[1]
         method_name = contrib[2] if len(contrib) > 2 else "group"
-        e, errors, warnings, overrides = g.process_class(SRC / rel_file, class_name, method_name)
+        e, errors, warnings, overrides, pa_overrides = g.process_class(SRC / rel_file, class_name, method_name)
         entries.update(e)
         default_for_overrides.update(overrides)
+        pin_attributes_for_overrides.update(pa_overrides)
         all_errors.extend(f"{rel_file}::{class_name}.{method_name}: {msg}" for msg in errors)
         all_warnings.extend(f"{rel_file}::{class_name}.{method_name}: {msg}" for msg in warnings)
     for name, override in default_for_overrides.items():
@@ -258,6 +285,14 @@ def merge_section(contributors):
         entries[name]["default"] = override["default"]
         if override["default_note"]:
             entries[name]["default_note"] = override["default_note"]
+    for name, pin_attributes in pin_attributes_for_overrides.items():
+        if name not in entries:
+            all_warnings.append(f'@pin_attributes_for {name} does not match any item in this section\'s merged field set')
+            continue
+        if entries[name]["kind"] != "pin":
+            all_errors.append(f'@pin_attributes_for {name} but is type {entries[name]["kind"]!r}, not "pin"')
+            continue
+        entries[name]["pin_attributes"] = pin_attributes
     return entries, all_errors, all_warnings
 
 
@@ -266,10 +301,19 @@ def list_mode_section(rel_file, kind_for=None):
     # default_for_overrides/missing_default_for are unused here -- @default_for
     # (see ItemDocs.md) exists for a subclass overriding a shared base
     # class's item, which doesn't arise in this data-driven-list shape.
-    docs, missing_default, bad_tuning, _default_for_overrides, _missing_default_for = g.parse_doc_blocks(text)
+    # pin_attributes_for/bad_pin_attributes_for/missing_pin_attributes_for are
+    # unused here -- @pin_attributes_for (like @default_for) exists for a
+    # subclass overriding a shared base class's item, which doesn't arise in
+    # this data-driven-list shape (same reasoning as default_for_overrides
+    # just above).
+    (
+        docs, missing_default, bad_tuning, bad_pin_attributes, _default_for_overrides, _missing_default_for,
+        _pin_attributes_for_overrides, _bad_pin_attributes_for, _missing_pin_attributes_for,
+    ) = g.parse_doc_blocks(text)
     entries = {}
     errors = []
     bad_tuning_names = {name for name, _ in bad_tuning}
+    bad_pin_attributes_names = {name for name, _ in bad_pin_attributes}
     for name, doc in docs.items():
         if name in missing_default:
             errors.append(f"@config {name} is missing its required @default line")
@@ -278,6 +322,10 @@ def list_mode_section(rel_file, kind_for=None):
             value = next(v for n, v in bad_tuning if n == name)
             errors.append(f"@config {name} has @tuning {value!r} -- must be one of {sorted(g.VALID_TUNING_VALUES)}")
             continue
+        if name in bad_pin_attributes_names:
+            value = next(v for n, v in bad_pin_attributes if n == name)
+            errors.append(f"@config {name} has @pin_attributes {value!r} -- must be one of {sorted(g.VALID_PIN_ATTRIBUTES)}")
+            continue
         kind = "string"
         if kind_for == "pin":
             kind = "pin"
@@ -285,11 +333,16 @@ def list_mode_section(rel_file, kind_for=None):
             kind = "macro"
         elif kind_for is None:  # RGBLed: mixed
             kind = RGBLED_TYPES.get(name, "string (hex color RRGGBB, or \"none\")")
+        if doc.get("pin_attributes") and kind != "pin":
+            errors.append(f'@config {name} has @pin_attributes but is type {kind!r}, not "pin"')
+            continue
         entry = {"kind": kind, "default": doc["default"]}
         if doc.get("default_note"):
             entry["default_note"] = doc["default_note"]
         if doc.get("tuning"):
             entry["tuning"] = doc["tuning"]
+        if doc.get("pin_attributes"):
+            entry["pin_attributes"] = doc["pin_attributes"]
         if doc["unit"]:
             entry["unit"] = doc["unit"]
         entry["description"] = doc["description"]
@@ -392,10 +445,23 @@ def main():
 
     for section, entries, note in section_results:
         if entries is None:
-            out_lines.append(f"# {section}: (no config items)")
+            # A real, single config.yaml key (no " / " or parens -- those
+            # mark a joined/descriptive label covering more than one actual
+            # section, e.g. "kinematics.midtbot / kinematics.Cartesian" or
+            # "(top-level machine items)", which can't become one real YAML
+            # key) with zero real config items (e.g. null_motor/NoSpindle,
+            # explicit no-op types with an empty group()) still gets emitted
+            # as a real, empty top-level section -- not just a comment --
+            # so a consumer walking config_items.yaml's own top-level key
+            # list (e.g. the wizard deriving which motor/spindle type names
+            # are real) sees it exist, the same as every other real type.
             if note:
-                out_lines.append(f"#   {note}")
-            out_lines.append("")
+                out_lines.append(f"# {note}")
+            if " / " not in section and not section.startswith("("):
+                out_lines.append(g.to_yaml(section, {}, enum_registry))
+            else:
+                out_lines.append(f"# {section}: (no config items)")
+                out_lines.append("")
             continue
         if note:
             out_lines.append(f"# {note}")

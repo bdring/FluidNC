@@ -20,6 +20,7 @@ Control::Control() {
 
     // @config safety_door_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Typically wired to an enclosure door switch. While active, quickly stops motion and
     // enters Door mode (often paired with the parking feature); the switch must be
     // deactivated before the machine can be used. If it paused a running job, closing the
@@ -29,47 +30,55 @@ Control::Control() {
 
     // @config reset_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Performs a soft reset, equivalent to sending the Ctrl-X real-time character.
     _pins.push_back(new ControlPin(&rtResetEvent, "reset_pin", 'R'));
 
     // @config feed_hold_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Pauses a running job, equivalent to sending the '!' real-time character. Paired with
     // cycle_start_pin, lets a job be paused/resumed with physical buttons.
     _pins.push_back(new ControlPin(&feedHoldEvent, "feed_hold_pin", 'H'));
 
     // @config cycle_start_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Resumes a paused job, equivalent to sending the '~' real-time character. Paired with
     // feed_hold_pin, lets a job be paused/resumed with physical buttons.
     _pins.push_back(new ControlPin(&cycleStartEvent, "cycle_start_pin", 'S'));
 
     // @config macro0_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Runs macro0 (configured under macros:) when active, equivalent to sending the 0x87
     // real-time character.
     _pins.push_back(new ControlPin(&macro0Event, "macro0_pin", '0'));
 
     // @config macro1_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Runs macro1 (configured under macros:) when active, equivalent to sending the 0x88
     // real-time character.
     _pins.push_back(new ControlPin(&macro1Event, "macro1_pin", '1'));
 
     // @config macro2_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Runs macro2 (configured under macros:) when active, equivalent to sending the 0x89
     // real-time character.
     _pins.push_back(new ControlPin(&macro2Event, "macro2_pin", '2'));
 
     // @config macro3_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Runs macro3 (configured under macros:) when active, equivalent to sending the 0x8a
     // real-time character.
     _pins.push_back(new ControlPin(&macro3Event, "macro3_pin", '3'));
 
     // @config fault_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Immediate hard stop (no deceleration, so position accuracy can be lost) and a
     // critical alarm that only a soft reset can clear; also stops the spindle if the active
     // spindle's off_on_alarm is true. Critical alarm state blocks homing and unlock.
@@ -79,6 +88,7 @@ Control::Control() {
 
     // @config estop_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Functionally identical to fault_pin (same hard stop + critical alarm behavior) --
     // this one is intended for a user-operated emergency-stop switch. Note that this alone
     // is only a control-input-level stop; a true e-stop should also cut power directly.
@@ -86,6 +96,7 @@ Control::Control() {
 
     // @config homing_button_pin
     // @default NO_PIN
+    // @pin_attributes input
     // Runs $H (home all) when active.
     _pins.push_back(new ControlPin(&homingButtonEvent, "homing_button_pin", 'O'));
 }

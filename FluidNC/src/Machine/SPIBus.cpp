@@ -52,6 +52,7 @@ namespace Machine {
     void SPIBus::group(Configuration::HandlerBase& handler) {
         // @config miso_pin
         // @default NO_PIN
+        // @pin_attributes spi
         // SPI bus data-in line (master in, slave out). Must be a native MCU pin with input
         // capability -- required (along with mosi_pin/sck_pin) if using an SD card or any
         // other SPI-attached peripheral.
@@ -59,12 +60,14 @@ namespace Machine {
 
         // @config mosi_pin
         // @default NO_PIN
+        // @pin_attributes spi
         // SPI bus data-out line (master out, slave in). Must be a native MCU pin with
         // output capability.
         handler.item("mosi_pin", _mosi);
 
         // @config sck_pin
         // @default NO_PIN
+        // @pin_attributes spi
         // SPI bus clock line. Must be a native MCU pin with output capability.
         handler.item("sck_pin", _sck);
     }

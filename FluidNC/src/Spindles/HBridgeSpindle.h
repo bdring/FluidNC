@@ -72,17 +72,20 @@ namespace Spindles {
 
             // @config output_cw_pin
             // @default NO_PIN
+            // @pin_attributes pwm
             // Clockwise PWM output. While this pin is toggling, output_ccw_pin is held low.
             handler.item("output_cw_pin", _output_cw_pin);
 
             // @config output_ccw_pin
             // @default NO_PIN
+            // @pin_attributes pwm
             // Counter-clockwise PWM output. While this pin is toggling, output_cw_pin is
             // held low.
             handler.item("output_ccw_pin", _output_ccw_pin);
 
             // @config enable_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Optional enable signal for the H-bridge driver.
             handler.item("enable_pin", _enable_pin);
 

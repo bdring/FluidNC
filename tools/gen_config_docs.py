@@ -51,6 +51,15 @@ DEFAULT_FOR_TAG_RE = re.compile(r'^\s*//\s*@default_for\s+(\S+)\s*$')
 DEFAULT_TAG_RE = re.compile(r'^\s*//\s*@default\s+(.+?)\s*$')
 DEFAULT_NOTE_TAG_RE = re.compile(r'^\s*//\s*@default_note\s+(.+?)\s*$')
 TUNING_TAG_RE = re.compile(r'^\s*//\s*@tuning\s+(\S+)\s*$')
+PIN_ATTRIBUTES_TAG_RE = re.compile(r'^\s*//\s*@pin_attributes\s+(\S+)\s*$')
+# Same shape/purpose as @default_for (see ItemDocs.md): a subclass overriding
+# a shared base class's item -- but for @pin_attributes instead of @default.
+# Needed because a handful of fields (e.g. OnOffSpindle's output_pin: plain
+# digital Output for OnOff/Relay/DAC, PWM for PWM/Laser/10V/BESC, set in each
+# concrete type's own init()) have one @config block shared by every
+# contributor but a REAL pin_attributes value that genuinely differs by
+# concrete type.
+PIN_ATTRIBUTES_FOR_TAG_RE = re.compile(r'^\s*//\s*@pin_attributes_for\s+(\S+)\s*$')
 UNIT_TAG_RE = re.compile(r'^\s*//\s*@unit\s+(.+?)\s*$')
 COMMENT_LINE_RE = re.compile(r'^\s*//(.*)$')
 
@@ -59,6 +68,19 @@ COMMENT_LINE_RE = re.compile(r'^\s*//(.*)$')
 # should fail loudly rather than silently pass through as an unrecognized
 # string a downstream consumer might mishandle.
 VALID_TUNING_VALUES = {"typical", "per-machine"}
+
+# @pin_attributes' allowed values -- see ItemDocs.md. A single bare value,
+# not composable (e.g. never "output spi") -- a bus-membership value
+# (spi/i2s/uart/i2c) stands alone for a field that IS one of that bus's own
+# signal lines (native peripheral pin-matrix assignment, no Pin::setAttr()
+# direction call in source at all -- e.g. spi.mosi_pin), while a
+# direction/capability value applies to an ordinary GPIO-style field that
+# goes through the wizard's generic board-pin role selection instead. adc/dac
+# are reserved (no current handler.item() field uses them).
+VALID_PIN_ATTRIBUTES = {
+    "input", "output", "io", "pwm", "isr", "adc", "dac",
+    "spi", "i2s", "uart", "i2c",
+}
 
 # Reserved @default value meaning "no fixed literal exists" (board-dependent,
 # code-substituted, ...) -- see ItemDocs.md. Distinct from None/missing,
@@ -100,16 +122,23 @@ def find_group_body(cpp_text: str, class_name: str, method_name: str = "group") 
 
 
 def parse_doc_blocks(body: str):
-    """Return (docs, missing_default, bad_tuning, default_for_overrides,
-    missing_default_for) from @config and @default_for blocks.
+    """Return (docs, missing_default, bad_tuning, bad_pin_attributes,
+    default_for_overrides, missing_default_for, pin_attributes_for_overrides,
+    bad_pin_attributes_for, missing_pin_attributes_for) from @config,
+    @default_for, and @pin_attributes_for blocks.
 
-    docs: {item_name: {"default": str|None, "default_note": str|None, "tuning": str|None, "unit": str|None, "description": str}}
+    docs: {item_name: {"default": str|None, "default_note": str|None, "tuning": str|None, "pin_attributes": str|None, "unit": str|None, "description": str}}
     missing_default: names of @config blocks that had no immediately-following
     @default line -- a required field per ItemDocs.md, reported as an error
     by the caller rather than silently treated as "no default."
     bad_tuning: (name, value) pairs where @tuning's value wasn't one of
     VALID_TUNING_VALUES -- reported as an error, same reasoning as
     missing_default (a typo here should fail loudly, not pass through).
+    bad_pin_attributes: (name, value) pairs where @pin_attributes' value
+    wasn't one of VALID_PIN_ATTRIBUTES -- same treatment as bad_tuning.
+    Whether the tag was used on a non-pin-typed item is a separate check
+    the caller (build_entry()/process_class()) makes once the item's kind
+    is known, since this function only sees raw comment text.
     default_for_overrides: {item_name: {"default": str, "default_note": str|None}}
     from @default_for blocks (see ItemDocs.md) -- a subclass overriding an
     inherited item's effective default, NOT a new item declaration. Applied
@@ -118,12 +147,22 @@ def parse_doc_blocks(body: str):
     what a single class's own body says.
     missing_default_for: names of @default_for blocks missing their required
     @default line, same treatment as missing_default.
+    pin_attributes_for_overrides: {item_name: pin_attributes_str} from
+    @pin_attributes_for blocks -- same shape/purpose as default_for_overrides,
+    for @pin_attributes instead of @default (e.g. OnOffSpindle's shared
+    output_pin: plain Output for OnOff/Relay/DAC, PWM for PWM/Laser/10V/BESC).
+    bad_pin_attributes_for/missing_pin_attributes_for: same treatment as
+    bad_pin_attributes/missing_default_for.
     """
     docs = {}
     missing_default = []
     bad_tuning = []
+    bad_pin_attributes = []
     default_for_overrides = {}
     missing_default_for = []
+    pin_attributes_for_overrides = {}
+    bad_pin_attributes_for = []
+    missing_pin_attributes_for = []
     lines = body.splitlines()
     i = 0
     while i < len(lines):
@@ -147,6 +186,24 @@ def parse_doc_blocks(body: str):
                     for_default_note = fdnm.group(1)
                     i += 1
             default_for_overrides[for_name] = {"default": for_default, "default_note": for_default_note}
+            continue
+        pafm = PIN_ATTRIBUTES_FOR_TAG_RE.match(lines[i])
+        if pafm:
+            for_name = pafm.group(1)
+            i += 1
+            for_pin_attributes = None
+            if i < len(lines):
+                pam = PIN_ATTRIBUTES_TAG_RE.match(lines[i])
+                if pam:
+                    for_pin_attributes = pam.group(1)
+                    i += 1
+            if for_pin_attributes is None:
+                missing_pin_attributes_for.append(for_name)
+                continue
+            if for_pin_attributes not in VALID_PIN_ATTRIBUTES:
+                bad_pin_attributes_for.append((for_name, for_pin_attributes))
+                continue
+            pin_attributes_for_overrides[for_name] = for_pin_attributes
             continue
         m = CONFIG_TAG_RE.match(lines[i])
         if not m:
@@ -176,6 +233,14 @@ def parse_doc_blocks(body: str):
                 i += 1
                 if tuning not in VALID_TUNING_VALUES:
                     bad_tuning.append((name, tuning))
+        pin_attributes = None
+        if i < len(lines):
+            pam = PIN_ATTRIBUTES_TAG_RE.match(lines[i])
+            if pam:
+                pin_attributes = pam.group(1)
+                i += 1
+                if pin_attributes not in VALID_PIN_ATTRIBUTES:
+                    bad_pin_attributes.append((name, pin_attributes))
         unit = None
         if i < len(lines):
             um = UNIT_TAG_RE.match(lines[i])
@@ -205,10 +270,14 @@ def parse_doc_blocks(body: str):
             "default": default,
             "default_note": default_note,
             "tuning": tuning,
+            "pin_attributes": pin_attributes,
             "unit": unit,
             "description": "\n\n".join(paragraphs),
         }
-    return docs, missing_default, bad_tuning, default_for_overrides, missing_default_for
+    return (
+        docs, missing_default, bad_tuning, bad_pin_attributes, default_for_overrides, missing_default_for,
+        pin_attributes_for_overrides, bad_pin_attributes_for, missing_pin_attributes_for,
+    )
 
 
 def parse_item_calls(body: str):
@@ -416,6 +485,8 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
             entry["default_note"] = doc["default_note"]
         if doc.get("tuning"):
             entry["tuning"] = doc["tuning"]
+        if doc.get("pin_attributes"):
+            entry["pin_attributes"] = doc["pin_attributes"]
         if doc["unit"]:
             entry["unit"] = doc["unit"]
         entry["description"] = doc["description"]
@@ -548,6 +619,8 @@ def to_yaml(section: str, entries: dict, enum_registry: dict = None) -> str:
             lines.append(f"    default_note: {e['default_note']!r}")
         if "tuning" in e:
             lines.append(f"    tuning: {e['tuning']}")
+        if "pin_attributes" in e:
+            lines.append(f"    pin_attributes: {e['pin_attributes']}")
         if "unit" in e:
             lines.append(f"    unit: {e['unit']!r}")
         if "description" in e:
@@ -561,7 +634,8 @@ def to_yaml(section: str, entries: dict, enum_registry: dict = None) -> str:
 
 def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     """Parse one class's group() (or groupCommon()-style helper) method.
-    Returns (entries, errors, warnings, default_for_overrides).
+    Returns (entries, errors, warnings, default_for_overrides,
+    pin_attributes_for_overrides).
 
     Reusable core shared by this script's own CLI (one file/class at a time)
     and tools/build_config_docs.py (which calls this once per contributing
@@ -576,7 +650,9 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     build_config_docs.py's merge_section() can apply it CROSS-class, after
     every contributor to a section has been merged (the actual point of
     @default_for: a subclass overriding an item a shared base class
-    declared in a different file entirely).
+    declared in a different file entirely). pin_attributes_for_overrides
+    (@pin_attributes_for) works identically, one level over for
+    @pin_attributes instead of @default.
     """
     cpp_text = cpp_file.read_text()
     header_path = cpp_file.with_suffix(".h")
@@ -587,7 +663,10 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     class_hierarchy = scan_class_hierarchy(src_root)
 
     body = find_group_body(cpp_text, class_name, method_name)
-    docs, missing_default, bad_tuning, default_for_overrides, missing_default_for = parse_doc_blocks(body)
+    (
+        docs, missing_default, bad_tuning, bad_pin_attributes, default_for_overrides, missing_default_for,
+        pin_attributes_for_overrides, bad_pin_attributes_for, missing_pin_attributes_for,
+    ) = parse_doc_blocks(body)
     calls = parse_item_calls(body)
 
     # Heuristic link: a step_engine*-typed item's enum choices come from
@@ -608,15 +687,18 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
         name, entry = build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings, class_hierarchy)
         entries[name] = entry
 
-    # Same-class @default_for application -- see this function's own
-    # docstring. Harmless no-op when (as usual) the target name isn't
-    # declared in this same body; the cross-class case is handled by the
-    # caller using the returned default_for_overrides dict.
+    # Same-class @default_for/@pin_attributes_for application -- see this
+    # function's own docstring. Harmless no-op when (as usual) the target
+    # name isn't declared in this same body; the cross-class case is
+    # handled by the caller using the returned overrides dicts.
     for for_name, override in default_for_overrides.items():
         if for_name in entries:
             entries[for_name]["default"] = override["default"]
             if override["default_note"]:
                 entries[for_name]["default_note"] = override["default_note"]
+    for for_name, pin_attributes in pin_attributes_for_overrides.items():
+        if for_name in entries:
+            entries[for_name]["pin_attributes"] = pin_attributes
 
     errors = []
     # An @config block whose name never matches a real handler.item() call means
@@ -630,10 +712,28 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
         errors.append(f'@config {name} is missing its required @default line')
     for name, value in bad_tuning:
         errors.append(f'@config {name} has @tuning {value!r} -- must be one of {sorted(VALID_TUNING_VALUES)}')
+    for name, value in bad_pin_attributes:
+        errors.append(f'@config {name} has @pin_attributes {value!r} -- must be one of {sorted(VALID_PIN_ATTRIBUTES)}')
+    # @pin_attributes only makes sense on a type: pin item -- anywhere else
+    # it's certainly a copy-paste mistake, not a real annotation.
+    for name, doc in docs.items():
+        if doc.get("pin_attributes") and name in entries and entries[name]["kind"] != "pin":
+            errors.append(f'@config {name} has @pin_attributes but is type {entries[name]["kind"]!r}, not "pin"')
     for name in missing_default_for:
         errors.append(f'@default_for {name} is missing its required @default line')
+    for name, value in bad_pin_attributes_for:
+        errors.append(f'@pin_attributes_for {name} has @pin_attributes {value!r} -- must be one of {sorted(VALID_PIN_ATTRIBUTES)}')
+    for name in missing_pin_attributes_for:
+        errors.append(f'@pin_attributes_for {name} is missing its required @pin_attributes line')
+    # Same non-pin-type sanity check as @pin_attributes above, but for a
+    # same-class @pin_attributes_for target (the cross-class case is
+    # checked by build_config_docs.py's merge_section() instead, once the
+    # full section is merged).
+    for name in pin_attributes_for_overrides:
+        if name in entries and entries[name]["kind"] != "pin":
+            errors.append(f'@pin_attributes_for {name} but is type {entries[name]["kind"]!r}, not "pin"')
 
-    return entries, errors, warnings, default_for_overrides
+    return entries, errors, warnings, default_for_overrides, pin_attributes_for_overrides
 
 
 def main():
@@ -644,10 +744,11 @@ def main():
     ap.add_argument("-o", "--output", type=Path)
     args = ap.parse_args()
 
-    # default_for_overrides is unused here -- a single-class run has no
-    # OTHER contributor to apply a cross-class override to; only
-    # build_config_docs.py's merge_section() (multi-contributor) needs it.
-    entries, errors, warnings, _default_for_overrides = process_class(args.cpp_file, args.class_name)
+    # default_for_overrides/pin_attributes_for_overrides are unused here -- a
+    # single-class run has no OTHER contributor to apply a cross-class
+    # override to; only build_config_docs.py's merge_section()
+    # (multi-contributor) needs them.
+    entries, errors, warnings, _default_for_overrides, _pin_attributes_for_overrides = process_class(args.cpp_file, args.class_name)
 
     if errors:
         for e in errors:

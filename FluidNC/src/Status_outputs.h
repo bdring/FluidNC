@@ -61,26 +61,31 @@ public:
 
         // @config idle_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Active while machine status is Idle.
         handler.item("idle_pin", _Idle_pin);
 
         // @config run_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Active while machine status is Run.
         handler.item("run_pin", _Run_pin);
 
         // @config hold_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Active while machine status is Hold.
         handler.item("hold_pin", _Hold_pin);
 
         // @config alarm_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Active while machine status is Alarm.
         handler.item("alarm_pin", _Alarm_pin);
 
         // @config door_pin
         // @default NO_PIN
+        // @pin_attributes output
         // Active while the safety door input is active.
         handler.item("door_pin", _Door_pin);
     }

@@ -58,6 +58,7 @@ namespace MotorDrivers {
 
             // @config output_pin
             // @default NO_PIN
+            // @pin_attributes pwm
             // PWM signal output to the servo.
             handler.item("output_pin", _output_pin);
 
