@@ -4,7 +4,6 @@
 #pragma once
 
 #include "Servo.h"
-#include "RcServoSettings.h"
 #include "System.h"
 
 namespace MotorDrivers {
@@ -17,13 +16,13 @@ namespace MotorDrivers {
         void set_location();
 
         Pin      _output_pin;
-        uint32_t _pwm_freq = SERVO_PWM_FREQ_DEFAULT;  // 50 Hz
+        uint32_t _pwm_freq = 50;  // 50 Hz is standard for analog servos. Digital ones can repeat faster
         uint32_t _current_pwm_duty;
 
         bool _disabled;
 
-        uint32_t _min_pulse_us = SERVO_PULSE_US_MIN_DEFAULT;  // microseconds
-        uint32_t _max_pulse_us = SERVO_PULSE_US_MAX_DEFAULT;  // microseconds
+        uint32_t _min_pulse_us = 1000;  // microseconds
+        uint32_t _max_pulse_us = 2000;  // microseconds
 
         uint32_t _min_pulse_cnt = 0;  // microseconds
         uint32_t _max_pulse_cnt = 0;  // microseconds
@@ -67,26 +66,26 @@ namespace MotorDrivers {
             // @tuning typical
             // Servo PWM pulse repetition rate. 50Hz is the standard analog-servo value;
             // some digital servos can repeat faster.
-            handler.item("pwm_hz", _pwm_freq, SERVO_PWM_FREQ_MIN, SERVO_PWM_FREQ_MAX);
+            handler.item("pwm_hz", _pwm_freq, 50, 200);
 
             // @config min_pulse_us
             // @default 1000
             // @tuning per-machine
             // Pulse width, in microseconds, corresponding to one end of the servo's travel.
-            handler.item("min_pulse_us", _min_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
+            handler.item("min_pulse_us", _min_pulse_us, 500, 2500);
 
             // @config max_pulse_us
             // @default 2000
             // @tuning per-machine
             // Pulse width, in microseconds, corresponding to the other end of the servo's
             // travel.
-            handler.item("max_pulse_us", _max_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
+            handler.item("max_pulse_us", _max_pulse_us, 500, 2500);
 
             // @config timer_ms
             // @default 20
             // @tuning typical
             // Update interval, in milliseconds, for refreshing the servo's PWM position.
-            handler.item("timer_ms", _timer_ms, TIMER_MS_MIN, TIMER_MS_MAX);
+            handler.item("timer_ms", _timer_ms, 20, 250);
 
             Servo::group(handler);
         }

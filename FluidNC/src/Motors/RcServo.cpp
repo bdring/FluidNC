@@ -20,7 +20,6 @@
 #include "Machine/MachineConfig.h"
 #include "System.h"  // motor_pos_to_steps() etc
 #include "Pin.h"
-#include "RcServoSettings.h"
 
 namespace MotorDrivers {
     void RcServo::init() {
@@ -96,8 +95,8 @@ namespace MotorDrivers {
         if (_disabled || _has_errors) {
             return;
         }
- 
-        read_settings();  
+
+        read_settings();
 
         steps_t steps = get_axis_steps(_axis);  // get the axis machine position in mm
 
@@ -105,11 +104,6 @@ namespace MotorDrivers {
         uint32_t pulse_count = mapConstrain(steps, _min_steps, _max_steps, (int32_t)_min_pulse_cnt, (int32_t)_max_pulse_cnt);
 
         _write_pwm(pulse_count);
-
-        // if (last_pc != pulse_count) {
-        //     log_info("pwm: " << pulse_count);
-        //     last_pc = pulse_count;
-        // }        
     }
 
     void RcServo::read_settings() {
