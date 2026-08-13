@@ -38,7 +38,7 @@ namespace Spindles {
             std::string _get_rpm_cmd;
 
             bool use_speed_feedback() const override { return !_get_rpm_cmd.empty(); }
-            bool safety_polling() const override { return true; }
+            bool safety_polling() const override { return _safetyPolling; }
 
         private:
             std::string _model;  // VFD Model name
