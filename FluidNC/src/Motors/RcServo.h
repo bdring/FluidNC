@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "Servo.h"
+#include "PwmServo.h"
 #include "System.h"
 
 namespace MotorDrivers {
-    class RcServo : public Servo {
+    class RcServo : public PwmServo {
     protected:
         int32_t _timer_ms = 20;
 
@@ -15,11 +15,7 @@ namespace MotorDrivers {
 
         void set_location();
 
-        Pin      _output_pin;
         uint32_t _pwm_freq = 50;  // 50 Hz is standard for analog servos. Digital ones can repeat faster
-        uint32_t _current_pwm_duty;
-
-        bool _disabled;
 
         uint32_t _min_pulse_us = 1000;  // microseconds
         uint32_t _max_pulse_us = 2000;  // microseconds
@@ -30,12 +26,10 @@ namespace MotorDrivers {
         steps_t _min_steps;
         steps_t _max_steps;
 
-        axis_t _axis = INVALID_AXIS;
-
         bool _has_errors = false;
 
     public:
-        RcServo(const char* name) : Servo(name) {}
+        RcServo(const char* name) : PwmServo(name) {}
         ~RcServo() {}
 
         void read_settings();
@@ -45,8 +39,6 @@ namespace MotorDrivers {
         bool set_homing_mode(bool isHoming) override;
         void set_disable(bool disable) override;
         void update() override;
-
-        void _write_pwm(uint32_t duty);
 
         // Configuration handlers:
         void group(Configuration::HandlerBase& handler) override {

@@ -55,8 +55,6 @@ namespace MotorDrivers {
 
         static std::vector<Dynamixel2*> _instances;
 
-        axis_t _axis;
-
         static Uart* _uart;
 
         int32_t _uart_num = -1;
@@ -102,7 +100,6 @@ namespace MotorDrivers {
         steps_t _min_steps;
         steps_t _max_steps;
 
-        bool        _disabled = true;
         static bool _has_errors;
 
         void add_position_to_message();

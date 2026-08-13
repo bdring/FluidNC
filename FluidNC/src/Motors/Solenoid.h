@@ -1,16 +1,16 @@
 #pragma once
 
-#include "RcServo.h"
+#include "PwmServo.h"
 
 namespace MotorDrivers {
-    class Solenoid : public RcServo {
+    class Solenoid : public PwmServo {
     protected:
         int32_t _timer_ms = 50;
 
         void config_message() override;
         void update() override;
 
-        static constexpr int _update_rate_ms = 50;
+        uint32_t _pwm_freq = 1000;
 
         float    _off_percent  = 0.0;
         float    _pull_percent = 100.0;
@@ -30,12 +30,15 @@ namespace MotorDrivers {
 
         SolenoidMode _current_mode = SolenoidMode::Off;
 
+        bool _has_errors = false;
+
     public:
-        Solenoid(const char* name) : RcServo(name) {}
+        Solenoid(const char* name) : PwmServo(name) {}
 
         void set_location();
         void init() override;
         void set_disable(bool disable) override;
+        bool set_homing_mode(bool isHoming) override;
 
         float _transition_point;
 
@@ -94,8 +97,10 @@ namespace MotorDrivers {
             // @default 50
             // @tuning typical
             // Update interval, in milliseconds, for the solenoid's PWM state machine
-            // (pull/hold timing).
-            handler.item("timer_ms", _timer_ms);
+            // (pull/hold timing). Also the divisor pull_ms is measured against
+            // (pull_ms / timer_ms update ticks) -- floored at 20, same as RcServo's
+            // own timer_ms, to keep that division away from zero.
+            handler.item("timer_ms", _timer_ms, 20, 250);
 
             Servo::group(handler);
         }

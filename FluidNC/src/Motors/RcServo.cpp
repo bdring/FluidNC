@@ -43,16 +43,6 @@ namespace MotorDrivers {
                         << " period:" << _output_pin.maxDuty() << ")");
     }
 
-    void RcServo::_write_pwm(uint32_t duty) {
-        // to prevent excessive calls to pwmSetDuty, make sure duty has changed
-        if (duty == _current_pwm_duty) {
-            return;
-        }
-
-        _current_pwm_duty = duty;
-        _output_pin.setDuty(duty);
-    }
-
     // sets the PWM to zero. This allows most servos to be manually moved
     void IRAM_ATTR RcServo::set_disable(bool disable) {
         //log_info("Set dsbl " << disable);

@@ -2005,8 +2005,8 @@ axes.<letter>.motorN.rc_servo:
 
   pwm_hz:
     type: integer
-    min: SERVO_PWM_FREQ_MIN
-    max: SERVO_PWM_FREQ_MAX
+    min: 50
+    max: 200
     default: '50'
     tuning: typical
     description: |
@@ -2014,8 +2014,8 @@ axes.<letter>.motorN.rc_servo:
 
   min_pulse_us:
     type: integer
-    min: SERVO_PULSE_US_MIN
-    max: SERVO_PULSE_US_MAX
+    min: 500
+    max: 2500
     default: '1000'
     tuning: per-machine
     description: |
@@ -2023,8 +2023,8 @@ axes.<letter>.motorN.rc_servo:
 
   max_pulse_us:
     type: integer
-    min: SERVO_PULSE_US_MIN
-    max: SERVO_PULSE_US_MAX
+    min: 500
+    max: 2500
     default: '2000'
     tuning: per-machine
     description: |
@@ -2032,8 +2032,8 @@ axes.<letter>.motorN.rc_servo:
 
   timer_ms:
     type: integer
-    min: TIMER_MS_MIN
-    max: TIMER_MS_MAX
+    min: 20
+    max: 250
     default: '20'
     tuning: typical
     description: |
@@ -2101,10 +2101,12 @@ axes.<letter>.motorN.solenoid:
 
   timer_ms:
     type: integer
+    min: 20
+    max: 250
     default: '50'
     tuning: typical
     description: |
-      Update interval, in milliseconds, for the solenoid's PWM state machine (pull/hold timing).
+      Update interval, in milliseconds, for the solenoid's PWM state machine (pull/hold timing). Also the divisor pull_ms is measured against (pull_ms / timer_ms update ticks) -- floored at 20, same as RcServo's own timer_ms, to keep that division away from zero.
 
 axes.<letter>.motorN.dynamixel2:
   uart_num:
