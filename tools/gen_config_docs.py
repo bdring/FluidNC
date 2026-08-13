@@ -94,6 +94,13 @@ VALID_PIN_ATTRIBUTES = {
 # which means the annotation is simply absent (an error, see missing_default).
 NO_LITERAL_DEFAULT = "(none)"
 
+# Stable suffix every @default-vs-initializer drift warning ends with (see
+# build_entry()'s own drift-check below) -- a shared constant, not a string
+# literal duplicated at each of the two sites that need it (here and
+# build_config_docs.py's --fail-on-drift check), so they can't quietly drift
+# apart from each other.
+DRIFT_WARNING_SUFFIX = "-- check for drift"
+
 
 def find_group_body(cpp_text: str, class_name: str, method_name: str = "group") -> str:
     # Out-of-line definition: void Class::method(Configuration::HandlerBase& h) { ... }
@@ -580,7 +587,7 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
                 if not numeric_match:
                     warnings.append(
                         f'"{name}": @default says {doc["default"]!r} but the field '
-                        f'initializer literal is {default_literal!r} -- check for drift'
+                        f'initializer literal is {default_literal!r} {DRIFT_WARNING_SUFFIX}'
                     )
     else:
         entry["default"] = None

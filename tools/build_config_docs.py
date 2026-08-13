@@ -409,6 +409,16 @@ def main():
         help="Output path (default: FluidNC/docs/config_items.yaml). "
         "build-release.py points this at release/current/docs/config_items.yaml.",
     )
+    ap.add_argument(
+        "--fail-on-drift", action="store_true",
+        help="Exit non-zero if any '@default says X but the field initializer literal is Y "
+        "-- check for drift' warning is emitted -- a genuine mismatch that either needs "
+        "fixing (the annotation or the code drifted) or an explicit @ignore_drift <reason> "
+        "(see ItemDocs.md) if it's expected and can't be resolved mechanically. Intended for "
+        "CI, so a real drift can't silently merge unnoticed the way this whole mechanism "
+        "exists to prevent. Off by default -- a plain local run still just warns, same as "
+        "always.",
+    )
     args = ap.parse_args()
 
     # Pass 1: compute every section's entries first (not renders yet) --
@@ -416,6 +426,7 @@ def main():
     # see every entry's values_name across the WHOLE document, not just one
     # section at a time.
     any_errors = False
+    any_drift_warnings = False
     section_results = []  # (section, entries_or_None, note)
     for section, contributors, note in SECTIONS:
         if not contributors:
@@ -429,6 +440,8 @@ def main():
             continue
         for w in warnings:
             print(f"warning [{section}]: {w}", file=sys.stderr)
+            if g.DRIFT_WARNING_SUFFIX in w:
+                any_drift_warnings = True
         section_results.append((section, entries, note))
 
     list_mode_results = []  # (section, entries)
@@ -442,6 +455,13 @@ def main():
         list_mode_results.append((section, entries))
 
     if any_errors:
+        raise SystemExit(1)
+    if args.fail_on_drift and any_drift_warnings:
+        print(
+            "error: drift warning(s) above -- fix the @default annotation or the code, or "
+            "add @ignore_drift <reason> if the mismatch is expected (see ItemDocs.md)",
+            file=sys.stderr,
+        )
         raise SystemExit(1)
 
     # Pass 2: collect every distinct enum type actually used (keyed by the
