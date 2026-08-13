@@ -336,6 +336,7 @@ void Uart::group(Configuration::HandlerBase& handler) {
 
     // @config mode
     // @default 8N1
+    // @ignore_drift UartData::Bits8 is one part (databits) of the 3-part mode code, not "8N1"
     // @tuning typical
     // Data format as a 3-character code: data bits (5-8), parity (N/E/O), stop bits
     // (1/1.5/2) -- e.g. 8N1. Always quote this value in YAML (see the config spec's note on
@@ -351,6 +352,7 @@ void Uart::group(Configuration::HandlerBase& handler) {
 
     // @config passthrough_mode
     // @default 8E1
+    // @ignore_drift UartData::Bits8 is one part (databits) of the 3-part mode code, not "8E1"
     // Data format (same 3-character code as mode) used while this UART is in passthrough
     // mode.
     handler.item("passthrough_mode", _passthrough_databits, _passthrough_parity, _passthrough_stopbits);

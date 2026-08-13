@@ -80,9 +80,34 @@ Rules:
   `(none)`, what actually determines the real default (engine's example
   above). A fuller explanation of *why* still belongs in the description
   below, not here -- keep this short.
+- An optional `@ignore_drift <reason>` line may follow `@default`/
+  `@default_note`, before `@tuning`. The generator cross-checks `@default`
+  against the field's own initializer literal and warns on an apparent
+  mismatch (see the last bullet below) -- but some mismatches are permanent
+  and correct, not drift: the initializer is a symbolic C++ constant this
+  script has no way to evaluate (an enum name like `Z_AXIS`, a macro,
+  `UartData::Bits8`, a brace-init array like `{ 0.0, 0.0, 0.0 }`), while
+  `@default` correctly states the item's real, human-meaningful value (`z`,
+  `8N1`, `0.0 0.0 0.0`). Without this tag, that warning fires on every
+  regeneration forever with no way to clear it -- which is exactly how a
+  warning stops meaning anything: reviewers (human or agent) learn to
+  scroll past the whole list instead of reading it, so a *genuine* new
+  regression hides in the noise. `@ignore_drift` marks that a person has
+  actually looked at this specific mismatch, confirmed the annotation is
+  right and the literal just can't be compared mechanically, and says why
+  -- it always requires reason text; a bare `@ignore_drift` with nothing
+  after it is a parse error, same as a missing `@default`, precisely so
+  suppressing a warning can't become a silent reflex either.
+
+  ```c++
+  // @config axis
+  // @default z
+  // @ignore_drift Z_AXIS is the enum value axis_t::Z (== 'z'), not a plain literal
+  handler.item("axis", _axis, Z_AXIS, ...);
+  ```
 - An optional `@tuning <typical|per-machine>` line may follow
-  `@default`/`@default_note`, before `@unit`/the description. It answers a
-  narrower question than
+  `@default`/`@default_note`/`@ignore_drift`, before `@unit`/the
+  description. It answers a narrower question than
   "does a compiled default exist" (true of nearly every item): is that
   default likely *correct, or at least safe/harmless, for most machines* --
   `typical` -- or is it a placeholder/starting point that needs real
@@ -148,7 +173,9 @@ Rules:
   on an apparent mismatch -- that's a strong signal the annotation drifted
   from a later code change, e.g. someone changed the initializer without
   updating the comment. Skipped entirely when `@default` is `(none)` -- there's
-  no literal to compare against by definition.
+  no literal to compare against by definition -- or when `@ignore_drift` is
+  present (see its own bullet above), for a mismatch that's permanent and
+  correct rather than drift.
 - Every `handler.item(...)` call gets a `@config`/`@default` block, full
   stop -- the generator treats a call with no matching block as an error.
   This is a change from an earlier version of this convention, which allowed

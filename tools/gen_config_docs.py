@@ -61,6 +61,13 @@ PIN_ATTRIBUTES_TAG_RE = re.compile(r'^\s*//\s*@pin_attributes\s+(\S+)\s*$')
 # concrete type.
 PIN_ATTRIBUTES_FOR_TAG_RE = re.compile(r'^\s*//\s*@pin_attributes_for\s+(\S+)\s*$')
 UNIT_TAG_RE = re.compile(r'^\s*//\s*@unit\s+(.+?)\s*$')
+# @ignore_drift <reason> -- see ItemDocs.md. Deliberately requires a reason
+# (never a bare flag): a silent, unexplained suppression is exactly the kind
+# of warning-that-nobody-reads this exists to prevent. IGNORE_DRIFT_BARE_RE
+# catches the no-reason form so it's a hard parse error, not a silently
+# swallowed line that quietly becomes part of the field's description.
+IGNORE_DRIFT_TAG_RE = re.compile(r'^\s*//\s*@ignore_drift\s+(.+?)\s*$')
+IGNORE_DRIFT_BARE_RE = re.compile(r'^\s*//\s*@ignore_drift\s*$')
 COMMENT_LINE_RE = re.compile(r'^\s*//(.*)$')
 
 # The only two values @tuning may take -- see ItemDocs.md. Anything else is
@@ -124,10 +131,10 @@ def find_group_body(cpp_text: str, class_name: str, method_name: str = "group") 
 def parse_doc_blocks(body: str):
     """Return (docs, missing_default, bad_tuning, bad_pin_attributes,
     default_for_overrides, missing_default_for, pin_attributes_for_overrides,
-    bad_pin_attributes_for, missing_pin_attributes_for) from @config,
-    @default_for, and @pin_attributes_for blocks.
+    bad_pin_attributes_for, missing_pin_attributes_for, bad_ignore_drift)
+    from @config, @default_for, and @pin_attributes_for blocks.
 
-    docs: {item_name: {"default": str|None, "default_note": str|None, "tuning": str|None, "pin_attributes": str|None, "unit": str|None, "description": str}}
+    docs: {item_name: {"default": str|None, "default_note": str|None, "ignore_drift": str|None, "tuning": str|None, "pin_attributes": str|None, "unit": str|None, "description": str}}
     missing_default: names of @config blocks that had no immediately-following
     @default line -- a required field per ItemDocs.md, reported as an error
     by the caller rather than silently treated as "no default."
@@ -153,6 +160,9 @@ def parse_doc_blocks(body: str):
     output_pin: plain Output for OnOff/Relay/DAC, PWM for PWM/Laser/10V/BESC).
     bad_pin_attributes_for/missing_pin_attributes_for: same treatment as
     bad_pin_attributes/missing_default_for.
+    bad_ignore_drift: names of @config blocks with a bare @ignore_drift tag
+    (no reason text) -- reported as an error, same reasoning as missing_default
+    -- see @ignore_drift's own tag-declaration comment.
     """
     docs = {}
     missing_default = []
@@ -163,6 +173,7 @@ def parse_doc_blocks(body: str):
     pin_attributes_for_overrides = {}
     bad_pin_attributes_for = []
     missing_pin_attributes_for = []
+    bad_ignore_drift = []
     lines = body.splitlines()
     i = 0
     while i < len(lines):
@@ -225,6 +236,15 @@ def parse_doc_blocks(body: str):
             if dnm:
                 default_note = dnm.group(1)
                 i += 1
+        ignore_drift = None
+        if i < len(lines):
+            idm = IGNORE_DRIFT_TAG_RE.match(lines[i])
+            if idm:
+                ignore_drift = idm.group(1)
+                i += 1
+            elif IGNORE_DRIFT_BARE_RE.match(lines[i]):
+                bad_ignore_drift.append(name)
+                i += 1
         tuning = None
         if i < len(lines):
             tm = TUNING_TAG_RE.match(lines[i])
@@ -269,6 +289,7 @@ def parse_doc_blocks(body: str):
         docs[name] = {
             "default": default,
             "default_note": default_note,
+            "ignore_drift": ignore_drift,
             "tuning": tuning,
             "pin_attributes": pin_attributes,
             "unit": unit,
@@ -276,7 +297,7 @@ def parse_doc_blocks(body: str):
         }
     return (
         docs, missing_default, bad_tuning, bad_pin_attributes, default_for_overrides, missing_default_for,
-        pin_attributes_for_overrides, bad_pin_attributes_for, missing_pin_attributes_for,
+        pin_attributes_for_overrides, bad_pin_attributes_for, missing_pin_attributes_for, bad_ignore_drift,
     )
 
 
@@ -406,6 +427,37 @@ def normalize_type(raw: str) -> str:
     return t.rstrip('&').strip()
 
 
+def _number_lists_match(cpp_literal: str, doc_default: str) -> bool:
+    """Array-vs-array counterpart of the plain numeric-equality check above --
+    a C++ brace-init list (e.g. "{ 0.0, 0.0, 0.0 }") and @default's own
+    whitespace-separated Float Array syntax (e.g. "0.0 0.0 0.0", per
+    ItemDocs.md/the config spec's own grammar) are never going to look alike
+    as plain substrings, even when every element is identical -- the braces
+    and commas are pure C++ syntax with no config.yaml meaning at all. Strips
+    them from both sides, splits on whitespace, then compares element-by-
+    element (numerically where both sides parse as numbers, so "0.50" still
+    matches "0.5" per-element too). Returns False (not a match) for anything
+    that isn't actually list-shaped -- a single bare scalar has no "{"/","
+    to strip, so this can only ever add matches on top of the plain
+    substring/numeric checks, never take one away.
+    """
+    strip_chars = str.maketrans('', '', '{},')
+    cpp_tokens = cpp_literal.translate(strip_chars).split()
+    doc_tokens = doc_default.translate(strip_chars).split()
+    if len(cpp_tokens) < 2 or len(cpp_tokens) != len(doc_tokens):
+        return False
+    for cpp_tok, doc_tok in zip(cpp_tokens, doc_tokens):
+        if cpp_tok == doc_tok:
+            continue
+        try:
+            if float(cpp_tok) == float(doc_tok):
+                continue
+        except ValueError:
+            pass
+        return False
+    return True
+
+
 def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings, class_hierarchy=None):
     """Build one entry. The @default annotation is the authoritative default --
     see ItemDocs.md for why (some real defaults, e.g. board-dependent or
@@ -491,7 +543,7 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
             entry["unit"] = doc["unit"]
         entry["description"] = doc["description"]
 
-        if default_literal is not None and doc["default"] is not None and doc["default"] != NO_LITERAL_DEFAULT:
+        if default_literal is not None and doc["default"] is not None and doc["default"] != NO_LITERAL_DEFAULT and not doc.get("ignore_drift"):
             # Best-effort cross-check: the annotated text should at least
             # mention the literal the initializer shows (e.g. "255" appearing
             # somewhere in "255 -- special ..."). A miss doesn't necessarily
@@ -501,7 +553,12 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
             # (0.002f -> 0.002) first -- otherwise every plain float default
             # would spuriously warn, since the annotation naturally omits it.
             # Skipped entirely when @default is the (none) sentinel -- see
-            # ItemDocs.md -- there's deliberately no literal to compare.
+            # ItemDocs.md -- there's deliberately no literal to compare -- or
+            # when @ignore_drift is present: a human has already looked at
+            # this exact mismatch and confirmed it's not real drift (e.g. a
+            # symbolic C++ constant this script has no way to evaluate), so
+            # skip re-flagging it forever rather than training reviewers to
+            # scroll past a warning they can never actually clear.
             literal_for_compare = re.sub(r'(?<=[0-9])[fFlL]$', '', default_literal)
             if literal_for_compare not in doc["default"]:
                 # Substring match failed -- before warning, also try a numeric
@@ -518,6 +575,8 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
                     numeric_match = float(literal_for_compare) == float(doc["default"])
                 except ValueError:
                     pass
+                if not numeric_match and _number_lists_match(literal_for_compare, doc["default"]):
+                    numeric_match = True
                 if not numeric_match:
                     warnings.append(
                         f'"{name}": @default says {doc["default"]!r} but the field '
@@ -680,7 +739,7 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     body = find_group_body(cpp_text, class_name, method_name)
     (
         docs, missing_default, bad_tuning, bad_pin_attributes, default_for_overrides, missing_default_for,
-        pin_attributes_for_overrides, bad_pin_attributes_for, missing_pin_attributes_for,
+        pin_attributes_for_overrides, bad_pin_attributes_for, missing_pin_attributes_for, bad_ignore_drift,
     ) = parse_doc_blocks(body)
     calls = parse_item_calls(body)
 
@@ -725,6 +784,8 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
         errors.append(f'handler.item("{name}", ...) has no @config/@default annotation')
     for name in missing_default:
         errors.append(f'@config {name} is missing its required @default line')
+    for name in bad_ignore_drift:
+        errors.append(f'@config {name} has a bare @ignore_drift with no reason text -- see ItemDocs.md')
     for name, value in bad_tuning:
         errors.append(f'@config {name} has @tuning {value!r} -- must be one of {sorted(VALID_TUNING_VALUES)}')
     for name, value in bad_pin_attributes:

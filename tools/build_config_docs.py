@@ -306,9 +306,13 @@ def list_mode_section(rel_file, kind_for=None):
     # subclass overriding a shared base class's item, which doesn't arise in
     # this data-driven-list shape (same reasoning as default_for_overrides
     # just above).
+    # bad_ignore_drift is unused here too -- @ignore_drift (see ItemDocs.md)
+    # exists to suppress the @default-vs-initializer drift check, which never
+    # runs in this data-driven-list shape at all (there's no single
+    # handler.item() call to find a field initializer next to).
     (
         docs, missing_default, bad_tuning, bad_pin_attributes, _default_for_overrides, _missing_default_for,
-        _pin_attributes_for_overrides, _bad_pin_attributes_for, _missing_pin_attributes_for,
+        _pin_attributes_for_overrides, _bad_pin_attributes_for, _missing_pin_attributes_for, _bad_ignore_drift,
     ) = g.parse_doc_blocks(text)
     entries = {}
     errors = []
