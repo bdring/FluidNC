@@ -504,10 +504,25 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
             # ItemDocs.md -- there's deliberately no literal to compare.
             literal_for_compare = re.sub(r'(?<=[0-9])[fFlL]$', '', default_literal)
             if literal_for_compare not in doc["default"]:
-                warnings.append(
-                    f'"{name}": @default says {doc["default"]!r} but the field '
-                    f'initializer literal is {default_literal!r} -- check for drift'
-                )
+                # Substring match failed -- before warning, also try a numeric
+                # match (e.g. "0.50" in the initializer vs "0.5" in @default,
+                # or "133.50" vs "133.5"): same value, just a different
+                # trailing-zero rendering between C++ and the hand-written
+                # annotation, not real drift. Only kicks in when BOTH sides
+                # actually parse as plain numbers -- a symbolic constant
+                # (Z_AXIS, SERVO_PWM_FREQ_DEFAULT, UartData::Bits8, a
+                # brace-init array, ...) still can't be resolved this way and
+                # correctly falls through to a real warning.
+                numeric_match = False
+                try:
+                    numeric_match = float(literal_for_compare) == float(doc["default"])
+                except ValueError:
+                    pass
+                if not numeric_match:
+                    warnings.append(
+                        f'"{name}": @default says {doc["default"]!r} but the field '
+                        f'initializer literal is {default_literal!r} -- check for drift'
+                    )
     else:
         entry["default"] = None
 
