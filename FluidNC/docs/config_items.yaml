@@ -17,6 +17,18 @@ enum_types:
   stepTypes: &stepTypes [Timed, RMT, I2S_STATIC, I2S_STREAM, Simulator, PIO]
   trinamicModes: &trinamicModes [StealthChop, CoolStep, StallGuard]
 
+# Which of the section keys below are spindle types (see SPINDLE_SECTIONS
+# in tools/build_config_docs.py) -- lets a consumer (e.g. the wizard) tell
+# "this section is a spindle type" without a hand-maintained list of its own.
+spindle_sections: [PWM, Laser, 10V, BESC, HBridge, OnOff, Relay, DAC, PlasmaSpindle, ModbusVFD, NoSpindle]
+
+# Which of ModbusVFD's own fields are raw Modbus-protocol definition
+# (see vfd_protocol_fields() in tools/build_config_docs.py) -- only
+# meaningful for a custom/unsupported VFD (the plain ModbusVFD: key); a
+# named model's own compiled-in class supplies working values for all of
+# them instead, independent of config.yaml.
+vfd_protocol_fields: [model, min_RPM, max_RPM, cw_cmd, ccw_cmd, off_cmd, set_rpm_cmd, get_min_rpm_cmd, get_max_rpm_cmd, get_rpm_cmd]
+
 (top-level machine items):
   board:
     type: string

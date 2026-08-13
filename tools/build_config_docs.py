@@ -229,6 +229,22 @@ SECTIONS = [
     ),
 ]
 
+# Every SECTIONS entry that's a concrete SpindleFactory-registered type --
+# derived from which entries' contributors live under Spindles/, so this
+# tracks SECTIONS automatically rather than needing its own upkeep as new
+# spindle types are added. NoSpindle is the one unavoidable exception: its
+# SECTIONS entry has an empty contributor list by design (it defines zero
+# real config items, see its own note above), so there's nothing to derive
+# "this is a spindle type" from mechanically -- appended explicitly instead.
+# Exposed in config_items.yaml (see main()'s spindle_sections: line below) so
+# a consumer -- e.g. the wizard's buildSpindleTypes() -- can tell "this
+# section is a spindle type" without a hand-maintained list of its own (that
+# was fluidnc-config-schema.json's job before this; see ItemDocs.md's "What
+# this feeds" section for the broader plan to retire that file).
+SPINDLE_SECTIONS = [
+    section for section, contributors, _ in SECTIONS if any(f.startswith("Spindles/") for f, *_ in contributors)
+] + ["NoSpindle"]
+
 # "Data-driven list" files (see ItemDocs.md): the item's real name comes from a
 # runtime .legend()/.name() call, not a string literal passed to handler.item(),
 # so gen_config_docs's normal item()-call parser can't see these at all. Their
@@ -294,6 +310,36 @@ def merge_section(contributors):
             continue
         entries[name]["pin_attributes"] = pin_attributes
     return entries, all_errors, all_warnings
+
+
+def vfd_protocol_fields():
+    """The field names ModbusVFD's own group() contributes directly -- the
+    10 raw Modbus-protocol fields (model, min_RPM, max_RPM, and the 7
+    command templates) that only mean anything under the plain ModbusVFD:
+    key, for a custom/unsupported VFD; a named model (H2A, Huanyang, ...)
+    has its own compiled-in class supplying working values for all of them
+    instead, entirely independent of config.yaml.
+
+    Derived mechanically from ModbusVFD's own SECTIONS entry: its
+    contributors are ordered base-first (Spindle, then
+    Spindle.groupDelaySettings, then VFDSpindle, then ModbusVFD itself
+    last) -- the earlier three supply every OTHER ModbusVFD field
+    (tool_num, speed_map, off_on_alarm, atc, m6_macro, s0_with_disable,
+    disable_with_s0, spinup_ms, spindown_ms, modbus_id), and none of their
+    field names overlap with ModbusVFD's own, so "exactly what ModbusVFD's
+    own (last) contributor declares" is exactly this set -- no separate
+    annotation needed to mark them.
+
+    Exposed in config_items.yaml (see main()'s vfd_protocol_fields: line)
+    so a consumer (e.g. the wizard's own vfdProtocolFields()) doesn't need
+    fluidnc-config-schema.json's now-retired spindle_VFD_named/
+    spindle_ModbusVFD $def diff to derive the same set.
+    """
+    contributors = next(contributors for section, contributors, _ in SECTIONS if section == "ModbusVFD")
+    rel_file, class_name = contributors[-1][0], contributors[-1][1]
+    method_name = contributors[-1][2] if len(contributors[-1]) > 2 else "group"
+    entries, _, _, _, _ = g.process_class(SRC / rel_file, class_name, method_name)
+    return list(entries.keys())
 
 
 def list_mode_section(rel_file, kind_for=None):
@@ -446,6 +492,34 @@ def main():
             vals = ", ".join(enum_types[name])
             out_lines.append(f"  {name}: &{name} [{vals}]")
         out_lines.append("")
+
+    out_lines.append(
+        "# Which of the section keys below are spindle types (see SPINDLE_SECTIONS"
+    )
+    out_lines.append(
+        "# in tools/build_config_docs.py) -- lets a consumer (e.g. the wizard) tell"
+    )
+    out_lines.append(
+        "# \"this section is a spindle type\" without a hand-maintained list of its own."
+    )
+    out_lines.append(f"spindle_sections: [{', '.join(SPINDLE_SECTIONS)}]")
+    out_lines.append("")
+
+    out_lines.append(
+        "# Which of ModbusVFD's own fields are raw Modbus-protocol definition"
+    )
+    out_lines.append(
+        "# (see vfd_protocol_fields() in tools/build_config_docs.py) -- only"
+    )
+    out_lines.append(
+        "# meaningful for a custom/unsupported VFD (the plain ModbusVFD: key); a"
+    )
+    out_lines.append(
+        "# named model's own compiled-in class supplies working values for all of"
+    )
+    out_lines.append("# them instead, independent of config.yaml.")
+    out_lines.append(f"vfd_protocol_fields: [{', '.join(vfd_protocol_fields())}]")
+    out_lines.append("")
 
     for section, entries, note in section_results:
         if entries is None:
