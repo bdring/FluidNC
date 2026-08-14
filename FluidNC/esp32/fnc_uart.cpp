@@ -3,7 +3,6 @@
 
 #include <driver/uart.h>
 #include "fnc_idf_uart.h"
-#include <esp_ipc.h>
 #include "hal/uart_hal.h"
 #include "Protocol.h"
 
