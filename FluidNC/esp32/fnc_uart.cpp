@@ -70,11 +70,11 @@ void uart_init(uint32_t uart_num) {
     // For other UARTs, use core 0 to avoid StepTimer conflicts
     if (uart_num == 0) {
         // Install UART0 on the current core so ISR can signal this task properly
-        uart_driver_install(uart_num, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
+        uart_driver_install(port, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
     } else {
         // We init other UARTs on core 0 so the interrupt handler runs there,
         // thus avoiding conflicts.
-        init_uart_on_core(0, uart_num);
+        init_uart_on_core(0, port);
     }
 }
 
