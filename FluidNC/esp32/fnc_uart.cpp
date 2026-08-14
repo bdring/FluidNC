@@ -7,6 +7,10 @@
 #include "hal/uart_hal.h"
 #include "Protocol.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+
 const int PINNUM_MAX                        = 64;
 bool      events_enabled[UART_NUM_MAX]      = { false };
 InputPin* objects[UART_NUM_MAX][PINNUM_MAX] = { nullptr };
@@ -41,13 +45,23 @@ void uart_register_input_pin(uint32_t uart_num, pinnum_t pinnum, InputPin* objec
     last[uart_num]            = 0;
 }
 
-static void uart_driver_n_install(void* arg) {
-    uart_port_t port = *((uart_port_t*)arg);
-    if (port) {
-        fnc_uart_driver_install(port, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
-    } else {
-        uart_driver_install(port, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
-    }
+static SemaphoreHandle_t s_done;
+
+static void uart_init_on_core_task(void* arg) {
+    uart_port_t port = ((uart_port_t)(uintptr_t)arg);
+
+    fnc_uart_driver_install(port, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
+    fnc_uart_set_data_callback(port, uart_data_callback);
+
+    xSemaphoreGive(s_done);
+    vTaskDelete(NULL);
+}
+
+void init_uart_on_core(BaseType_t core_id, uart_port_t uart_num) {
+    s_done = xSemaphoreCreateBinary();
+    xTaskCreatePinnedToCore(uart_init_on_core_task, "uart_init", 4096, (void*)(uintptr_t)uart_num, 5, NULL, core_id);
+    xSemaphoreTake(s_done, portMAX_DELAY);
+    vSemaphoreDelete(s_done);
 }
 
 void uart_init(uint32_t uart_num) {
@@ -57,12 +71,11 @@ void uart_init(uint32_t uart_num) {
     // For other UARTs, use core 0 to avoid StepTimer conflicts
     if (uart_num == 0) {
         // Install UART0 on the current core so ISR can signal this task properly
-        uart_driver_n_install(&port);
+        uart_driver_install(uart_num, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
     } else {
         // We init other UARTs on core 0 so the interrupt handler runs there,
         // thus avoiding conflicts.
-        esp_ipc_call_blocking(0, uart_driver_n_install, &uart_num);
-        fnc_uart_set_data_callback(port, uart_data_callback);
+        init_uart_on_core(0, uart_num);
     }
 }
 
