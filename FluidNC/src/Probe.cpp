@@ -35,11 +35,13 @@ void Probe::validate() {}
 void Probe::group(Configuration::HandlerBase& handler) {
     // @config pin
     // @default NO_PIN
+    // @pin_attributes input
     // The probe input signal. G38 probing moves trigger on either edge of this pin.
     handler.item("pin", _probePin);
 
     // @config toolsetter_pin
     // @default NO_PIN
+    // @pin_attributes input
     // An optional second probe input, treated identically to pin -- G38 can't target one
     // or the other specifically, either triggers the same probe action. Having two lets
     // N.C./N.O. (or PNP/NPN) probes be wired without an external OR'ing circuit, and each

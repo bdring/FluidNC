@@ -3,12 +3,11 @@
 
 #pragma once
 
-#include "Servo.h"
-#include "RcServoSettings.h"
+#include "PwmServo.h"
 #include "System.h"
 
 namespace MotorDrivers {
-    class RcServo : public Servo {
+    class RcServo : public PwmServo {
     protected:
         int32_t _timer_ms = 20;
 
@@ -16,14 +15,10 @@ namespace MotorDrivers {
 
         void set_location();
 
-        Pin      _output_pin;
-        uint32_t _pwm_freq = SERVO_PWM_FREQ_DEFAULT;  // 50 Hz
-        uint32_t _current_pwm_duty;
+        uint32_t _pwm_freq = 50;  // 50 Hz is standard for analog servos. Digital ones can repeat faster
 
-        bool _disabled;
-
-        uint32_t _min_pulse_us = SERVO_PULSE_US_MIN_DEFAULT;  // microseconds
-        uint32_t _max_pulse_us = SERVO_PULSE_US_MAX_DEFAULT;  // microseconds
+        uint32_t _min_pulse_us = 1000;  // microseconds
+        uint32_t _max_pulse_us = 2000;  // microseconds
 
         uint32_t _min_pulse_cnt = 0;  // microseconds
         uint32_t _max_pulse_cnt = 0;  // microseconds
@@ -31,12 +26,10 @@ namespace MotorDrivers {
         steps_t _min_steps;
         steps_t _max_steps;
 
-        axis_t _axis = INVALID_AXIS;
-
         bool _has_errors = false;
 
     public:
-        RcServo(const char* name) : Servo(name) {}
+        RcServo(const char* name) : PwmServo(name) {}
         ~RcServo() {}
 
         void read_settings();
@@ -47,8 +40,6 @@ namespace MotorDrivers {
         void set_disable(bool disable) override;
         void update() override;
 
-        void _write_pwm(uint32_t duty);
-
         // Configuration handlers:
         void group(Configuration::HandlerBase& handler) override {
             // A hobby RC servo used as a virtual linear/rotary axis. The servo's physical
@@ -58,6 +49,7 @@ namespace MotorDrivers {
 
             // @config output_pin
             // @default NO_PIN
+            // @pin_attributes pwm
             // PWM signal output to the servo.
             handler.item("output_pin", _output_pin);
 
@@ -66,26 +58,26 @@ namespace MotorDrivers {
             // @tuning typical
             // Servo PWM pulse repetition rate. 50Hz is the standard analog-servo value;
             // some digital servos can repeat faster.
-            handler.item("pwm_hz", _pwm_freq, SERVO_PWM_FREQ_MIN, SERVO_PWM_FREQ_MAX);
+            handler.item("pwm_hz", _pwm_freq, 50, 200);
 
             // @config min_pulse_us
             // @default 1000
             // @tuning per-machine
             // Pulse width, in microseconds, corresponding to one end of the servo's travel.
-            handler.item("min_pulse_us", _min_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
+            handler.item("min_pulse_us", _min_pulse_us, 500, 2500);
 
             // @config max_pulse_us
             // @default 2000
             // @tuning per-machine
             // Pulse width, in microseconds, corresponding to the other end of the servo's
             // travel.
-            handler.item("max_pulse_us", _max_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
+            handler.item("max_pulse_us", _max_pulse_us, 500, 2500);
 
             // @config timer_ms
             // @default 20
             // @tuning typical
             // Update interval, in milliseconds, for refreshing the servo's PWM position.
-            handler.item("timer_ms", _timer_ms, TIMER_MS_MIN, TIMER_MS_MAX);
+            handler.item("timer_ms", _timer_ms, 20, 250);
 
             Servo::group(handler);
         }

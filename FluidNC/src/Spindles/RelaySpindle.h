@@ -22,6 +22,16 @@ namespace Spindles {
 
         ~Relay() {}
 
+        // Configuration handlers: no fields of its own -- exists so this class
+        // has its own real group() for the doc generator to find (see
+        // tools/build_config_docs.py's SECTIONS table), matching PWM/Laser/
+        // BESC/etc.'s own-file-per-type convention, rather than Relay silently
+        // sharing OnOff's config_items.yaml section (or having none at all).
+        // No @default_for override needed here -- Relay never overrides
+        // OnOff::init()'s speed_map default (unlike Dac, see DacSpindle.h),
+        // so it correctly inherits OnOff's own @default_for as-is.
+        void group(Configuration::HandlerBase& handler) override { OnOff::group(handler); }
+
     protected:
     };
 }

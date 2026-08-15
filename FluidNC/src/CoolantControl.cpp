@@ -87,6 +87,7 @@ void CoolantControl::off() {
 void CoolantControl::group(Configuration::HandlerBase& handler) {
     // @config flood_pin
     // @default NO_PIN
+    // @pin_attributes output
     // Controls a flood coolant device (traditionally a liquid coolant, though many machines
     // repurpose this output for other things, e.g. dust extraction). M8 turns it on, M9
     // turns it off.
@@ -94,6 +95,7 @@ void CoolantControl::group(Configuration::HandlerBase& handler) {
 
     // @config mist_pin
     // @default NO_PIN
+    // @pin_attributes output
     // Controls a mist coolant device. M7 turns it on, M9 turns it off.
     handler.item("mist_pin", _mist);
 

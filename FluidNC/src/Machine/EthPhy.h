@@ -58,17 +58,20 @@ namespace Machine {
         void group(Configuration::HandlerBase& handler) override {
             // @config cs_pin
             // @default NO_PIN
+            // @pin_attributes output
             // SPI chip-select pin for the Ethernet controller. The SPI bus itself
             // (sck/mosi/miso) is the machine's shared spi: section, same as SDCard.
             handler.item("cs_pin", _cs);
 
             // @config int_pin
             // @default NO_PIN
+            // @pin_attributes input
             // Optional interrupt pin. If not defined, the PHY is polled instead.
             handler.item("int_pin", _int);
 
             // @config rst_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Optional hardware reset pin for the PHY.
             handler.item("rst_pin", _rst);
 

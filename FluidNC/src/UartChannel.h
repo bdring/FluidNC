@@ -75,6 +75,7 @@ public:
 
         // @config message_level
         // @default Verbose
+        // @ignore_drift MsgLevelVerbose is the enum value for "Verbose", not a plain literal
         // Limits which log messages are sent to this channel, ordered from least to most
         // verbose: None < Error < Warn < Info < Debug < Verbose. Only messages at or below
         // the chosen verbosity are sent -- e.g. Info sends None/Error/Warn/Info messages but

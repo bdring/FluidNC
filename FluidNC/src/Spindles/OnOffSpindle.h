@@ -21,12 +21,15 @@ namespace Spindles {
         void groupCommon(Configuration::HandlerBase& handler) {
             // @config output_pin
             // @default NO_PIN
-            // On/off (or PWM duty, depending on the concrete spindle type) output signal.
-            // Turns off with M5.
+            // @pin_attributes output
+            // On/off (or PWM duty, depending on the concrete spindle type -- see that
+            // type's own @pin_attributes_for output_pin override, e.g. PWMSpindle.h)
+            // output signal. Turns off with M5.
             handler.item("output_pin", _output_pin);
 
             // @config enable_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Optional enable signal, separate from output_pin.
             handler.item("enable_pin", _enable_pin);
 
@@ -57,9 +60,14 @@ namespace Spindles {
         void group(Configuration::HandlerBase& handler) override {
             // @config direction_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Optional direction signal. M4 (spindle-reverse) is only accepted when a real
             // pin is assigned here -- without one, only M3/M5 are meaningful.
             handler.item("direction_pin", _direction_pin);
+
+            // @default_for speed_map
+            // @default 0=0% 1=100%
+            // @default_note applied by OnOff::init() only when unset -- step function: 0 is off, any nonzero S is full on
             groupCommon(handler);
             Spindle::groupDelaySettings(handler);
         }

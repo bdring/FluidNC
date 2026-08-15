@@ -26,5 +26,15 @@ namespace MotorDrivers {
     protected:
         static void update_servo(TimerHandle_t timer);
         static void schedule_update(Servo* object, uint32_t interval);
+
+        // Common to every concrete Servo driver (RcServo, Solenoid, Dynamixel2):
+        // which axis this instance is driving, and whether it's currently
+        // disabled. Deliberately NOT _has_errors -- that one has genuinely
+        // different semantics per driver (e.g. Dynamixel2's is a single
+        // static flag shared across every instance on its UART bus, since
+        // one erroring servo likely means the whole bus is broken; a plain
+        // per-instance member here would silently change that).
+        axis_t _axis     = INVALID_AXIS;
+        bool   _disabled = true;
     };
 }

@@ -114,10 +114,11 @@ namespace Spindles {
             // @config speed_map
             // @default ""
             // @default_note empty
-            // @tuning per-machine
+            // @tuning typical
             // Maps GCode S values to actual spindle speeds/PWM duty -- lets the S-to-speed
-            // relationship be linearized or clamped to a minimum speed. See the speed-map
-            // documentation for the full syntax.
+            // relationship be linearized or clamped to a minimum speed. See the wiki
+            // documentation for the full syntax.  The default value is empty, which
+            // automatically creates a typical speed map for the individual spindle type.
             handler.item("speed_map", _speeds);
 
             // @config off_on_alarm

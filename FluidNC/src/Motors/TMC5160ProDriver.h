@@ -49,6 +49,7 @@ namespace MotorDrivers {
 
             // @config cs_pin
             // @default NO_PIN
+            // @pin_attributes output
             // SPI chip-select for this driver. In independent (non-daisy-chained) SPI mode
             // each driver needs its own; in a daisy chain, define this only on the motor
             // with spi_index: 1.

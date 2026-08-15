@@ -63,6 +63,7 @@ namespace Spindles {
             // user choose.
             // @config pwm_hz
             // @default 5000
+            // @tuning typical
             // PWM signal frequency. Resolution trades off against frequency -- 76Hz or
             // less gets the full 20-bit duty-cycle resolution, roughly halving for every
             // doubling of frequency above that, down to 4 levels (2 bits) at the 20MHz
@@ -71,20 +72,26 @@ namespace Spindles {
 
             // @config output_cw_pin
             // @default NO_PIN
+            // @pin_attributes pwm
             // Clockwise PWM output. While this pin is toggling, output_ccw_pin is held low.
             handler.item("output_cw_pin", _output_cw_pin);
 
             // @config output_ccw_pin
             // @default NO_PIN
+            // @pin_attributes pwm
             // Counter-clockwise PWM output. While this pin is toggling, output_cw_pin is
             // held low.
             handler.item("output_ccw_pin", _output_ccw_pin);
 
             // @config enable_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Optional enable signal for the H-bridge driver.
             handler.item("enable_pin", _enable_pin);
 
+            // @default_for speed_map
+            // @default 0=0% 10000=100%
+            // @default_note applied by HBridge::init() only when speed_map is left unset
             Spindle::group(handler);
             Spindle::groupDelaySettings(handler);
         }

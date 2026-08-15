@@ -19,11 +19,13 @@ namespace Machine {
     void I2CBus::group(Configuration::HandlerBase& handler) {
         // @config sda_pin
         // @default NO_PIN
+        // @pin_attributes i2c
         // I2C data line for this bus.
         handler.item("sda_pin", _sda);
 
         // @config scl_pin
         // @default NO_PIN
+        // @pin_attributes i2c
         // I2C clock line for this bus.
         handler.item("scl_pin", _scl);
 

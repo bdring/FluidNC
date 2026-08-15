@@ -75,14 +75,21 @@ namespace Spindles {
                 // @config model
                 // @default ""
                 // @default_note empty
+                // @tuning per-machine
                 // VFD model name. Informational (used for support purposes) -- not itself
                 // used to select protocol behavior; the cw_cmd/ccw_cmd/etc. fields below
-                // are what actually define the protocol.
+                // are what actually define the protocol. Only meaningful under the plain
+                // ModbusVFD: top-level key, for a custom/unsupported VFD -- a supported
+                // model (e.g. H2A, Huanyang) is instead selected by using that model's own
+                // top-level config key, which supplies all of the fields below itself; this
+                // field is never read at runtime, so setting it under ModbusVFD: does NOT
+                // apply that model's own values.
                 handler.item("model", _model);
 
                 // @config min_RPM
                 // @default 0xffffffff
                 // @default_note uninitialized sentinel
+                // @tuning per-machine
                 // Minimum spindle RPM, in Hz-derived RPM terms. Normally left unset and
                 // retrieved from the VFD itself via get_min_rpm_cmd at startup.
                 handler.item("min_RPM", _minRPM);
@@ -90,6 +97,7 @@ namespace Spindles {
                 // @config max_RPM
                 // @default 0xffffffff
                 // @default_note uninitialized sentinel
+                // @tuning per-machine
                 // Maximum spindle RPM. Normally left unset and retrieved from the VFD
                 // itself via get_max_rpm_cmd at startup.
                 handler.item("max_RPM", _maxRPM);
@@ -97,30 +105,35 @@ namespace Spindles {
                 // @config cw_cmd
                 // @default ""
                 // @default_note empty
+                // @tuning per-machine
                 // Modbus command template for clockwise spindle rotation.
                 handler.item("cw_cmd", _cw_cmd);
 
                 // @config ccw_cmd
                 // @default ""
                 // @default_note empty
+                // @tuning per-machine
                 // Modbus command template for counter-clockwise spindle rotation.
                 handler.item("ccw_cmd", _ccw_cmd);
 
                 // @config off_cmd
                 // @default ""
                 // @default_note empty
+                // @tuning per-machine
                 // Modbus command template to stop the spindle.
                 handler.item("off_cmd", _off_cmd);
 
                 // @config set_rpm_cmd
                 // @default ""
                 // @default_note empty
+                // @tuning per-machine
                 // Modbus command template to set the spindle speed.
                 handler.item("set_rpm_cmd", _set_rpm_cmd);
 
                 // @config get_min_rpm_cmd
                 // @default ""
                 // @default_note empty
+                // @tuning per-machine
                 // Modbus command template to query the VFD's minimum RPM. If left unset,
                 // speed_map must be configured manually instead of being auto-derived.
                 handler.item("get_min_rpm_cmd", _get_min_rpm_cmd);
@@ -128,6 +141,7 @@ namespace Spindles {
                 // @config get_max_rpm_cmd
                 // @default ""
                 // @default_note empty
+                // @tuning per-machine
                 // Modbus command template to query the VFD's maximum RPM. If left unset,
                 // speed_map must be configured manually instead of being auto-derived.
                 handler.item("get_max_rpm_cmd", _get_max_rpm_cmd);
@@ -135,6 +149,7 @@ namespace Spindles {
                 // @config get_rpm_cmd
                 // @default ""
                 // @default_note empty
+                // @tuning per-machine
                 // Modbus command template to query the VFD's current RPM. spinup_ms/
                 // spindown_ms (Spindle::groupDelaySettings()) are always present in
                 // config.yaml for a VFD spindle regardless of this field -- what this

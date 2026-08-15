@@ -295,12 +295,14 @@ void Uart::group(Configuration::HandlerBase& handler) {
 
     // @config txd_pin
     // @default NO_PIN
+    // @pin_attributes uart
     // Pin used to transmit data from the MCU. At least one of txd_pin/rxd_pin must be set;
     // a txd_pin-only UART (e.g. a read-only display) is valid.
     handler.item("txd_pin", _txd_pin);
 
     // @config rxd_pin
     // @default NO_PIN
+    // @pin_attributes uart
     // Pin used to receive data from the connected device. At least one of txd_pin/rxd_pin
     // must be set. An rxd_pin-only UART (e.g. a button panel) is valid, but be aware the
     // Grbl "ok" response flow-control won't be sent on an rx-only UART -- real-time
@@ -309,12 +311,14 @@ void Uart::group(Configuration::HandlerBase& handler) {
 
     // @config rts_pin
     // @default NO_PIN
+    // @pin_attributes uart
     // Request-To-Send output, controlled by the MCU -- commonly used for hardware flow
     // control, and required by some UART-to-RS485 adapters.
     handler.item("rts_pin", _rts_pin);
 
     // @config cts_pin
     // @default NO_PIN
+    // @pin_attributes uart
     // Clear-To-Send input, controlled by the MCU -- used for hardware flow control.
     // Rarely needed (Grbl's own command protocol uses its "ok" response for flow control).
     handler.item("cts_pin", _cts_pin);
@@ -332,6 +336,7 @@ void Uart::group(Configuration::HandlerBase& handler) {
 
     // @config mode
     // @default 8N1
+    // @ignore_drift UartData::Bits8 is one part (databits) of the 3-part mode code, not "8N1"
     // @tuning typical
     // Data format as a 3-character code: data bits (5-8), parity (N/E/O), stop bits
     // (1/1.5/2) -- e.g. 8N1. Always quote this value in YAML (see the config spec's note on
@@ -347,6 +352,7 @@ void Uart::group(Configuration::HandlerBase& handler) {
 
     // @config passthrough_mode
     // @default 8E1
+    // @ignore_drift UartData::Bits8 is one part (databits) of the 3-part mode code, not "8E1"
     // Data format (same 3-character code as mode) used while this UART is in passthrough
     // mode.
     handler.item("passthrough_mode", _passthrough_databits, _passthrough_parity, _passthrough_stopbits);

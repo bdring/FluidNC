@@ -80,9 +80,34 @@ Rules:
   `(none)`, what actually determines the real default (engine's example
   above). A fuller explanation of *why* still belongs in the description
   below, not here -- keep this short.
+- An optional `@ignore_drift <reason>` line may follow `@default`/
+  `@default_note`, before `@tuning`. The generator cross-checks `@default`
+  against the field's own initializer literal and warns on an apparent
+  mismatch (see the last bullet below) -- but some mismatches are permanent
+  and correct, not drift: the initializer is a symbolic C++ constant this
+  script has no way to evaluate (an enum name like `Z_AXIS`, a macro,
+  `UartData::Bits8`, a brace-init array like `{ 0.0, 0.0, 0.0 }`), while
+  `@default` correctly states the item's real, human-meaningful value (`z`,
+  `8N1`, `0.0 0.0 0.0`). Without this tag, that warning fires on every
+  regeneration forever with no way to clear it -- which is exactly how a
+  warning stops meaning anything: reviewers (human or agent) learn to
+  scroll past the whole list instead of reading it, so a *genuine* new
+  regression hides in the noise. `@ignore_drift` marks that a person has
+  actually looked at this specific mismatch, confirmed the annotation is
+  right and the literal just can't be compared mechanically, and says why
+  -- it always requires reason text; a bare `@ignore_drift` with nothing
+  after it is a parse error, same as a missing `@default`, precisely so
+  suppressing a warning can't become a silent reflex either.
+
+  ```c++
+  // @config axis
+  // @default z
+  // @ignore_drift Z_AXIS is the enum value axis_t::Z (== 'z'), not a plain literal
+  handler.item("axis", _axis, Z_AXIS, ...);
+  ```
 - An optional `@tuning <typical|per-machine>` line may follow
-  `@default`/`@default_note`, before `@unit`/the description. It answers a
-  narrower question than
+  `@default`/`@default_note`/`@ignore_drift`, before `@unit`/the
+  description. It answers a narrower question than
   "does a compiled default exist" (true of nearly every item): is that
   default likely *correct, or at least safe/harmless, for most machines* --
   `typical` -- or is it a placeholder/starting point that needs real
@@ -99,10 +124,43 @@ Rules:
   generated from source instead of hand-maintained (see
   FluidNC-config-wizard's `TUNING_CLASSIFICATION_REVIEW.md` for the review
   that produced the first pass of these).
+- An optional `@pin_attributes <value>` line, valid only on a `type: pin`
+  item, may follow `@default`/`@default_note`/`@tuning`, before `@unit`/the
+  description. A single bare value from a fixed vocabulary -- never
+  composed (e.g. never `output spi`) -- describing what a physical board
+  pin needs to be eligible for this field:
+  - `input` / `output` / `io` / `pwm` / `isr` -- an ordinary GPIO-style
+    field, matched against a board's own generic-pin role selector.
+    `pwm`/`isr` are for a field that needs that specific hardware
+    capability, not just a plain direction. `io`/`adc`/`dac` are reserved
+    -- valid values, but no current field needs them. `io` in particular
+    is for a genuinely bidirectional field with no dedicated hardware bus
+    block behind it -- e.g. a future bit-banged I2C driver's sda/scl,
+    where the pins are plain GPIOs toggled directly in software rather
+    than handed to the native I2C peripheral. Not needed for `i2cN.sda_pin`
+    /`scl_pin` today, even though I2C is electrically bidirectional too --
+    see `i2c` below, which already covers that case more specifically for
+    the one real (hardware-block) I2C driver that exists now.
+  - `spi` / `i2s` / `uart` / `i2c` -- this field IS one of that bus's own
+    native signal lines (e.g. `spi.mosi_pin`, `uartN.txd_pin`), resolved
+    against the board's fixed peripheral wiring, not the generic-pin role
+    selector -- so no separate direction value is needed alongside it (a
+    board's own `spi:` block, for instance, already establishes mosi as an
+    output; the field doesn't need to repeat that).
+
+  This is deliberately explicit rather than derived from the nearest
+  `Pin::setAttr(Pin::Attr::...)` call in source, even though one usually
+  exists: some classes call `setAttr(Pin::Attr::Input)` again in `deinit()`
+  to release/tri-state the pin on teardown (e.g. every `OnOffSpindle.h`
+  subclass's `deinit()`), which would make a naive scrape see two
+  conflicting calls per field and have no principled way to prefer the
+  "real" one. A human-authored value that a reviewer can check against the
+  nearest non-`deinit()` `setAttr()` call is simpler and more reliable than
+  teaching a script to know which call sites to ignore.
 - An optional `@unit <text>` line may follow `@default`/`@default_note`/
-  `@tuning`, before the description, when the field name's own suffix
-  (`_ms`, `_us`, `_mm`, `_amps`, ...) doesn't already say it plainly enough
-  to be worth restating -- most fields don't need this.
+  `@tuning`/`@pin_attributes`, before the description, when the field
+  name's own suffix (`_ms`, `_us`, `_mm`, `_amps`, ...) doesn't already say
+  it plainly enough to be worth restating -- most fields don't need this.
 - Every plain `//` comment line after that (no intervening code, no blank
   line) is part of the description, in order. A blank comment line (`//`
   alone) is a paragraph break; anything else joins with a single space.
@@ -115,7 +173,9 @@ Rules:
   on an apparent mismatch -- that's a strong signal the annotation drifted
   from a later code change, e.g. someone changed the initializer without
   updating the comment. Skipped entirely when `@default` is `(none)` -- there's
-  no literal to compare against by definition.
+  no literal to compare against by definition -- or when `@ignore_drift` is
+  present (see its own bullet above), for a mismatch that's permanent and
+  correct rather than drift.
 - Every `handler.item(...)` call gets a `@config`/`@default` block, full
   stop -- the generator treats a call with no matching block as an error.
   This is a change from an earlier version of this convention, which allowed
@@ -129,6 +189,72 @@ Rules:
 // @default 4
 handler.item("pulse_us", _pulseUsecs, 0, 30);
 ```
+
+## Overriding an inherited item's effective default: `@default_for`
+
+Some items are declared once in a shared base class's `group()` (one
+`@config`/`@default`/`handler.item()` site, documented once, same rule as
+above) but a concrete subclass establishes a *different* real default for
+it at a separate point in code -- typically `init()`, not `group()` --
+via a call the generator has no way to connect back to the item by name.
+`Spindle::speed_map` is the motivating case: `handler.item("speed_map",
+_speeds)` lives once in `Spindle::group()` with default `""` (empty --
+genuinely correct when nothing else applies), but every concrete spindle
+type's `init()` does `if (_speeds.size() == 0) { linearSpeeds(...); }` (or
+`shelfSpeeds(...)`) to install its own real working curve when the config
+left it unset -- and the two arguments differ by type (PWM's is not
+Laser's is not BESC's).
+
+For this shape, place a `@default_for <name>` block *inside that
+subclass's own* `group()`/`groupCommon()` body (anywhere in it -- it isn't
+tied to a specific `handler.item()` call the way `@config` is, since the
+call that actually establishes the value lives elsewhere). Same two lines
+as `@config`'s opening -- `@default <literal>` required, `@default_note
+<text>` optional -- but nothing else: no `@tuning`/`@unit`/description
+follows, and it does **not** need a matching `handler.item()` call in this
+class's own body (unlike `@config`, an orphan `@default_for` -- one whose
+name never appears in the section's fully-merged item set -- is a
+warning, not an error, since the generator can't always see far enough
+ahead in the merge to be sure).
+
+```c++
+// In PWMSpindle.h's PWM::group():
+// @default_for speed_map
+// @default 0=0% 10000=100%
+// @default_note applied by PWM::init() only when speed_map is left unset
+OnOff::group(handler);
+```
+
+The generator applies `@default_for` overrides as a final pass after
+merging every contributor for a section (see `tools/build_config_docs.py`'s
+`merge_section()`) -- so a subclass's own override always wins over
+whatever the shared base class declared, regardless of contributor order,
+and a class with nothing to override (e.g. `Relay`, which reuses `OnOff`'s
+default unchanged) simply doesn't need one.
+
+## Overriding an inherited item's `@pin_attributes`: `@pin_attributes_for`
+
+Same shape and purpose as `@default_for` above, one level over: a shared
+base class's `output_pin`-style field has one real `@pin_attributes` value
+for most concrete subclasses but a genuinely different one for others,
+established by each subclass's own `init()`. `OnOffSpindle.h`'s
+`output_pin` is the motivating case: plain `output` (a digital on/off
+signal) for `OnOff`/`Relay`/`DAC`, but `pwm` for `PWM`/`Laser`/`10V`/`BESC`
+-- each of those calls its own `_output_pin.setAttr(Pin::Attr::PWM, ...)`
+in its own `init()`, never reusing `OnOff::init()`'s plain
+`Pin::Attr::Output` for that field.
+
+```c++
+// In PWMSpindle.h's PWM::group():
+// @pin_attributes_for output_pin
+// @pin_attributes pwm
+OnOff::group(handler);
+```
+
+Same override-as-final-pass timing as `@default_for` -- a subclass's own
+`@pin_attributes_for` always wins over whatever the shared base class's
+own `@pin_attributes` declared. A class that reuses the base value
+unchanged (e.g. `Relay`, `DAC`) simply doesn't need one.
 
 ## Data-driven item lists (no per-item `handler.item()` call to annotate)
 

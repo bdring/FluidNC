@@ -89,6 +89,7 @@ idf_component_register(SRCS BTConfig.cpp
 							Motors/Dynamixel2.cpp
 							Motors/MotorDriver.cpp
 							Motors/NullMotor.cpp
+							Motors/PwmServo.cpp
 							Motors/RcServo.cpp
 							Motors/Servo.cpp
 							Motors/Solenoid.cpp

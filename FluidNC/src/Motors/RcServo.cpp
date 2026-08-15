@@ -20,7 +20,6 @@
 #include "Machine/MachineConfig.h"
 #include "System.h"  // motor_pos_to_steps() etc
 #include "Pin.h"
-#include "RcServoSettings.h"
 
 namespace MotorDrivers {
     void RcServo::init() {
@@ -42,16 +41,6 @@ namespace MotorDrivers {
     void RcServo::config_message() {
         log_info("    " << name() << " Pin:" << _output_pin.name() << " Pulse Len(" << _min_pulse_us << "," << _max_pulse_us
                         << " period:" << _output_pin.maxDuty() << ")");
-    }
-
-    void RcServo::_write_pwm(uint32_t duty) {
-        // to prevent excessive calls to pwmSetDuty, make sure duty has changed
-        if (duty == _current_pwm_duty) {
-            return;
-        }
-
-        _current_pwm_duty = duty;
-        _output_pin.setDuty(duty);
     }
 
     // sets the PWM to zero. This allows most servos to be manually moved
@@ -96,8 +85,8 @@ namespace MotorDrivers {
         if (_disabled || _has_errors) {
             return;
         }
- 
-        read_settings();  
+
+        read_settings();
 
         steps_t steps = get_axis_steps(_axis);  // get the axis machine position in mm
 
@@ -105,11 +94,6 @@ namespace MotorDrivers {
         uint32_t pulse_count = mapConstrain(steps, _min_steps, _max_steps, (int32_t)_min_pulse_cnt, (int32_t)_max_pulse_cnt);
 
         _write_pwm(pulse_count);
-
-        // if (last_pc != pulse_count) {
-        //     log_info("pwm: " << pulse_count);
-        //     last_pc = pulse_count;
-        // }        
     }
 
     void RcServo::read_settings() {

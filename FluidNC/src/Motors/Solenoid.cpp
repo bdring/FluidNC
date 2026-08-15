@@ -10,8 +10,9 @@
     When active the PWM will come on at the pull_percent value. After pull_ms time, it will change 
     to the hold_percent value. This can be used to keep the coil cooler.
 
-    The feature runs on a 50ms update timer. The solenoid should react within 50ms of the position. 
-    The pull_ms also used that 50ms update resolution.
+    The feature runs on a timer_ms update timer (50ms by default). The solenoid should react
+    within timer_ms of the position. pull_ms is also measured in units of that same update
+    resolution (pull_ms / timer_ms update ticks).
 
     The PWM can be inverted using the :low attribute on the output pin. This inverts the signal in case
     you need it. It is not used to invert the direction logic. 
@@ -62,11 +63,30 @@ namespace MotorDrivers {
 
         _current_pwm_duty = 0;
 
-        schedule_update(this, _update_rate_ms);
+        schedule_update(this, _timer_ms);
     }
 
     void Solenoid::update() {
         set_location();
+    }
+
+    bool Solenoid::set_homing_mode(bool isHoming) {
+        if (_has_errors) {
+            return false;
+        }
+
+        if (isHoming) {
+            auto  axisConfig = Axes::_axis[_axis];
+            auto  homing     = axisConfig->_homing;
+            float motor_pos  = homing ? config->_kinematics->max_motor_pos(_axis) : 0;
+            set_steps(_axis, motor_pos_to_steps(motor_pos, _axis));
+
+            float home_time_sec = (axisConfig->_maxTravel / axisConfig->_maxRate * 60 * 1.1);  // 1.1 fudge factor for accell time.
+
+            set_location();                                        // force the solenoid state to update now
+            dwell_ms(home_time_sec * 1000, DwellMode::SysSuspend);  // give time to move
+        }
+        return false;  // Cannot be homed in the conventional way
     }
 
     void Solenoid::config_message() {
@@ -91,7 +111,7 @@ namespace MotorDrivers {
             case SolenoidMode::Off:
                 if (is_solenoid_on) {
                     _current_mode  = SolenoidMode::Pull;
-                    _pull_off_time = _pull_ms / _update_rate_ms;
+                    _pull_off_time = _pull_ms / _timer_ms;
                 }
                 break;
             case SolenoidMode::Pull:

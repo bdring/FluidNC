@@ -203,6 +203,7 @@ void Parking::group(Configuration::HandlerBase& handler) {
 
     // @config axis
     // @default z
+    // @ignore_drift Z_AXIS is axis_t's enum value for 'z', not a plain literal
     // @tuning per-machine
     // Which axis performs the parking retract/return sequence. Typically Z. Homing that
     // axis is required -- parking silently does nothing until it has been homed.

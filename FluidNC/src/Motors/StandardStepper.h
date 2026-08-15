@@ -37,16 +37,19 @@ namespace MotorDrivers {
 
             // @config step_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Step pulse output to the driver.
             handler.item("step_pin", _step_pin);
 
             // @config direction_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Direction output to the driver.
             handler.item("direction_pin", _dir_pin);
 
             // @config disable_pin
             // @default NO_PIN
+            // @pin_attributes output
             // Enable/disable output to the driver (active state depends on the driver
             // hardware -- invert with the pin's :low attribute if needed).
             handler.item("disable_pin", _disable_pin);

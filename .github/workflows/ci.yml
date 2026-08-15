@@ -3,6 +3,26 @@ on:
   pull_request:
   workflow_dispatch:
 jobs:
+  config-docs:
+    # Regenerates config_items.yaml from source (see ItemDocs.md) and fails
+    # if that turns up a @default-vs-initializer drift warning -- a real
+    # mismatch that needs fixing, or an explicit @ignore_drift <reason> if
+    # it's expected and can't be resolved mechanically (see
+    # DRIFT_WARNING_SUFFIX/--fail-on-drift in tools/gen_config_docs.py and
+    # tools/build_config_docs.py). Doesn't need PlatformIO at all -- both
+    # scripts are pure-stdlib Python, so this job is deliberately its own
+    # fast, independent check rather than a step tacked onto the firmware
+    # build below.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Regenerate config_items.yaml, fail on drift warnings
+        run: python3 tools/build_config_docs.py --fail-on-drift
+
   build:
     strategy:
       matrix:
