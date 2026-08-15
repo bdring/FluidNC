@@ -33,9 +33,10 @@
  */
 
 #include "xmodem.h"
+#include "Driver/watchdog.h"
 
-static Channel* serialPort;
-static Print*   file;
+static Channel*     serialPort;
+static FileStream*  file;
 
 static int32_t _inbyte(uint16_t timeout) {
     uint8_t data;
@@ -130,7 +131,24 @@ static void flushinput(void) {
 static uint8_t held_packet[1024];
 static size_t  held_packet_len;
 
-static void flush_packet(size_t packet_len, size_t& total_len) {
+// Xmodem has no way to announce the total upload size in advance, so we
+// can't check free space once up front. Instead, before every write we
+// check that there's room for it, and treat a short write (or a write we
+// know in advance won't fit) as a fatal, cleanly-reported error rather
+// than letting the filesystem driver try (and possibly hang/crash) on a
+// write that can't succeed. This is what protects against the crash in
+// https://github.com/bdring/FluidNC/issues/1788: uploading a file larger
+// than the free space on the (usually nearly-full) target filesystem.
+static bool writeChecked(const uint8_t* buf, size_t count) {
+    std::error_code ec;
+    auto            space = stdfs::space(file->fpath(), ec);
+    if (ec || space.available < count) {
+        return false;
+    }
+    return file->write(buf, count) == count;
+}
+
+static bool flush_packet(size_t packet_len, size_t& total_len) {
     if (held_packet_len > 0) {
         // Remove trailing ctrl-z's on the final packet
         size_t count;
@@ -139,19 +157,25 @@ static void flush_packet(size_t packet_len, size_t& total_len) {
                 break;
             }
         }
-        file->write(held_packet, count);
+        if (!writeChecked(held_packet, count)) {
+            return false;
+        }
         total_len += count;
         held_packet_len = 0;
     }
+    return true;
 }
-static void write_packet(uint8_t* buf, size_t packet_len, size_t& total_len) {
+static bool write_packet(uint8_t* buf, size_t packet_len, size_t& total_len) {
     if (held_packet_len > 0) {
-        file->write(held_packet, held_packet_len);
+        if (!writeChecked(held_packet, held_packet_len)) {
+            return false;
+        }
         total_len += held_packet_len;
         held_packet_len = 0;
     }
     memcpy(held_packet, buf, packet_len);
     held_packet_len = packet_len;
+    return true;
 }
 int32_t xmodemReceive(Channel* serial, FileStream* out) {
     serialPort      = serial;
@@ -171,6 +195,7 @@ int32_t xmodemReceive(Channel* serial, FileStream* out) {
 
     for (;;) {
         for (retry = 0; retry < 16; ++retry) {
+            feed_watchdog();
             if (trychar)
                 _outbyte(trychar);
             if ((c = _inbyte((DLY_1S) << 1)) >= 0) {
@@ -182,7 +207,13 @@ int32_t xmodemReceive(Channel* serial, FileStream* out) {
                         bufsz = 1024;
                         goto start_recv;
                     case EOT:
-                        flush_packet(bufsz, len);
+                        if (!flush_packet(bufsz, len)) {
+                            flushinput();
+                            _outbyte(CAN);
+                            _outbyte(CAN);
+                            _outbyte(CAN);
+                            return -6; /* not enough free space */
+                        }
                         _outbyte(ACK);
                         flushinput();
                         return len; /* normal end */
@@ -222,7 +253,13 @@ int32_t xmodemReceive(Channel* serial, FileStream* out) {
 
         if (xbuff[1] == (uint8_t)(~xbuff[2]) && (xbuff[1] == packetno || xbuff[1] == packetno - 1) && check(crc, &xbuff[3], bufsz)) {
             if (xbuff[1] == packetno) {
-                write_packet(xbuff + 3, bufsz, len);
+                if (!write_packet(xbuff + 3, bufsz, len)) {
+                    flushinput();
+                    _outbyte(CAN);
+                    _outbyte(CAN);
+                    _outbyte(CAN);
+                    return -6; /* not enough free space */
+                }
                 ++packetno;
                 retrans = MAXRETRANS + 1;
             }
@@ -256,6 +293,7 @@ int32_t xmodemTransmit(Channel* serial, FileStream* infile) {
 
     for (;;) {
         for (retry = 0; retry < 16; ++retry) {
+            feed_watchdog();
             if ((c = _inbyte((DLY_1S) << 1)) >= 0) {
                 switch (c) {
                     case 'C':
@@ -312,6 +350,7 @@ int32_t xmodemTransmit(Channel* serial, FileStream* infile) {
                     xbuff[bufsz + 3] = ccks;
                 }
                 for (retry = 0; retry < MAXRETRANS; ++retry) {
+                    feed_watchdog();
                     _outbytes(xbuff, bufsz + 4 + (crc ? 1 : 0));
                     if ((c = _inbyte(DLY_1S)) >= 0) {
                         switch (c) {
@@ -339,6 +378,7 @@ int32_t xmodemTransmit(Channel* serial, FileStream* infile) {
                 return -4; /* xmit error */
             } else {
                 for (retry = 0; retry < 10; ++retry) {
+                    feed_watchdog();
                     _outbyte(EOT);
                     c = _inbyte((DLY_1S) << 1);
                     if (c == ACK || c == -1)

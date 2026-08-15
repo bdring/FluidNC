@@ -618,12 +618,23 @@ static Error xmodem_receive(const char* value, AuthenticationLevel auth_level, C
     pollingPaused = false;
     if (len >= 0) {
         log_info("Received " << len << " bytes to file " << outfile->path());
+    } else if (len == -6) {
+        log_info("Reception failed: not enough free space on the target filesystem");
     } else {
         log_info("Reception failed or was canceled");
     }
     std::filesystem::path fname = outfile->fpath();
     delete outfile;
-    HashFS::rehash_file(fname);
+    if (len < 0) {
+        // Don't leave a truncated, incomplete file behind - especially
+        // important for the not-enough-space case, where leaving the
+        // partial file around would eat into the free space a retry needs.
+        std::error_code ec;
+        stdfs::remove(fname, ec);
+        HashFS::delete_file(fname);
+    } else {
+        HashFS::rehash_file(fname);
+    }
 
     return len < 0 ? Error::UploadFailed : Error::Ok;
 }
