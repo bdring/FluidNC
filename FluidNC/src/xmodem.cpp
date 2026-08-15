@@ -33,6 +33,7 @@
  */
 
 #include "xmodem.h"
+#include "Driver/watchdog.h"
 
 static Channel* serialPort;
 static Print*   file;
@@ -171,6 +172,7 @@ int32_t xmodemReceive(Channel* serial, FileStream* out) {
 
     for (;;) {
         for (retry = 0; retry < 16; ++retry) {
+            feed_watchdog();
             if (trychar)
                 _outbyte(trychar);
             if ((c = _inbyte((DLY_1S) << 1)) >= 0) {
@@ -256,6 +258,7 @@ int32_t xmodemTransmit(Channel* serial, FileStream* infile) {
 
     for (;;) {
         for (retry = 0; retry < 16; ++retry) {
+            feed_watchdog();
             if ((c = _inbyte((DLY_1S) << 1)) >= 0) {
                 switch (c) {
                     case 'C':
@@ -312,6 +315,7 @@ int32_t xmodemTransmit(Channel* serial, FileStream* infile) {
                     xbuff[bufsz + 3] = ccks;
                 }
                 for (retry = 0; retry < MAXRETRANS; ++retry) {
+                    feed_watchdog();
                     _outbytes(xbuff, bufsz + 4 + (crc ? 1 : 0));
                     if ((c = _inbyte(DLY_1S)) >= 0) {
                         switch (c) {
@@ -339,6 +343,7 @@ int32_t xmodemTransmit(Channel* serial, FileStream* infile) {
                 return -4; /* xmit error */
             } else {
                 for (retry = 0; retry < 10; ++retry) {
+                    feed_watchdog();
                     _outbyte(EOT);
                     c = _inbyte((DLY_1S) << 1);
                     if (c == ACK || c == -1)

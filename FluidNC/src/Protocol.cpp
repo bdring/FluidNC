@@ -143,6 +143,7 @@ void polling_loop(void* unused) {
         /*feedLoopWDT(), */ vTaskDelay(1);
         // Polling is paused when xmodem is using a channel for binary upload
         if (pollingPaused) {
+            feed_watchdog();
             vTaskDelay(100);
             continue;
         }

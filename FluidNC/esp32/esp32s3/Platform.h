@@ -90,9 +90,17 @@ inline void platform_preinit() {
     // Ethernet link-up wait, which doesn't feed the watchdog. So instead of
     // adding a second subscription, actively remove whatever subscription
     // the framework already created.
-    esp_err_t err = esp_task_wdt_delete(NULL);  // NULL means current task
-    if (err != ESP_OK && err != ESP_ERR_NOT_FOUND) {
-        log_error("esp_task_wdt_delete failed: " << esp_err_to_name(err));
+    // Only call esp_task_wdt_delete() if we're actually subscribed --
+    // esp_task_wdt_delete() logs its own "task not found" error internally
+    // when the current task isn't subscribed, before returning
+    // ESP_ERR_NOT_FOUND to us, so checking first (rather than just tolerating
+    // that return code below) avoids a spurious log line on every boot where
+    // the framework's auto-subscription hasn't happened yet at this point.
+    if (esp_task_wdt_status(NULL) == ESP_OK) {
+        esp_err_t err = esp_task_wdt_delete(NULL);  // NULL means current task
+        if (err != ESP_OK) {
+            log_error("esp_task_wdt_delete failed: " << esp_err_to_name(err));
+        }
     }
 #endif
 }
