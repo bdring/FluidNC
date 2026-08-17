@@ -361,6 +361,8 @@ void report_gcode_modes(Channel& channel) {
 
 // Prints build info line
 void report_build_info(const char* line, Channel& channel) {
+    constexpr size_t max_reported_cluster_size = 16;
+
     log_stream(channel, "[VER:" << grbl_version << " FluidNC " << git_info << " (" << MCU << "-" << VARIANT << ") :" << line);
 
     // The option message is included for backwards compatibility but
@@ -392,6 +394,7 @@ void report_build_info(const char* line, Channel& channel) {
         msg += "W";  // Shown when disabled.
     }
     log_stream(channel, "[OPT:" << msg);
+    log_stream(channel, "[CLUSTER:" << max_reported_cluster_size);
 
     log_msg_to(channel, "Machine: " << config->_name);
 

@@ -16,6 +16,7 @@
 #include "State.h"           // State
 
 #include <cmath>
+#include <vector>
 
 // M_PI is not defined in standard C/C++ but some compilers
 // support it anyway.  The following suppresses Intellisense
@@ -114,6 +115,53 @@ bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
         }
     }
     return mc_linear_no_check(target, pl_data, position);
+}
+
+void mc_clustered_linear_move(float* target, plan_line_data_t* pl_data, float* position, const std::vector<float>& clustered_values) {
+    float segment_start[MAX_N_AXIS];
+    float segment_target[MAX_N_AXIS];
+    float increment[MAX_N_AXIS];
+
+    size_t cluster_count = clustered_values.size();
+    if (cluster_count == 0) {
+        return;
+    }
+
+    copyAxes(segment_start, position);
+    copyAxes(segment_target, position);
+
+    auto n_axis = Axes::_numberAxis;
+    for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+        increment[axis] = (target[axis] - position[axis]) / float(cluster_count);
+    }
+
+    for (size_t cluster = 0; cluster < cluster_count; cluster++) {
+        plan_line_data_t segment_data = *pl_data;
+
+        if (segment_data.motion.inverseTime) {
+            // G93 inverse-time feed specifies the total move duration. When one
+            // logical move is split into multiple planner blocks, each block must
+            // be assigned a proportionally shorter duration so the overall time
+            // remains unchanged.
+            segment_data.feed_rate *= float(cluster_count);
+        }
+
+        for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
+            if (cluster + 1 == cluster_count) {
+                segment_target[axis] = target[axis];
+            } else {
+                segment_target[axis] += increment[axis];
+            }
+        }
+
+        segment_data.spindle_speed = static_cast<SpindleSpeed>(clustered_values[cluster]);
+        mc_linear(segment_target, &segment_data, segment_start);
+        if (sys.abort()) {
+            return;
+        }
+
+        copyAxes(segment_start, segment_target);
+    }
 }
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
