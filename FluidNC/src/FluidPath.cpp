@@ -120,10 +120,8 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
             // Try to reuse existing mount state if another FluidPath still owns it
             static std::weak_ptr<SDMountState> cached_mount;
             if (auto mount = cached_mount.lock()) {
-                log_info("was lock");
                 _sd_mount_state = mount;
             } else {
-                log_info("make shared");
                 _sd_mount_state = std::make_shared<SDMountState>();
                 cached_mount    = _sd_mount_state;
             }
