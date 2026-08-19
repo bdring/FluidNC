@@ -24,7 +24,9 @@ jobs:
     - name: Cache PlatformIO
       uses: actions/cache@v4
       with:
-        path: ~/.platformio
+        path: |
+          ~/.platformio
+          ~/.platformio-esp32s3
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     - name: Set up Python
       uses: actions/setup-python@v2

@@ -21,16 +21,36 @@ def buildEmbeddedPage():
     print('Building embedded web page')
     return subprocess.run(["python", "build.py"], cwd="embedded").returncode
 
-def buildEnv(pioEnv, verbose=True, extraArgs=None):
+# esp32 (classic) and esp32s3 platforms disagree about which version of
+# framework-arduinoespressif32 they want, but PlatformIO installs that
+# package into a single shared, unversioned directory under the core dir.
+# Building one family after the other in the same core dir leaves the
+# package mismatched for whichever family didn't build last, which
+# PlatformIO doesn't always recover from cleanly (e.g. crashing with
+# "FRAMEWORK_DIR" resolving to None deep inside SCons). Giving the s3
+# family its own core dir keeps its packages from colliding with the
+# classic esp32 family's.
+s3CoreDir = os.path.join(os.path.expanduser('~'), '.platformio-esp32s3')
+
+def environFor(mcu):
+    if mcu == 'esp32s3':
+        e = dict(environ)
+        e['PLATFORMIO_CORE_DIR'] = s3CoreDir
+        return e
+    return environ
+
+def buildEnv(pioEnv, verbose=True, extraArgs=None, env=None):
     cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv]
     if extraArgs:
         cmd.append(extraArgs)
     displayName = pioEnv
     print('Building firmware for ' + displayName)
+    if env is None:
+        env = environ
     if verbose:
-        app = subprocess.Popen(cmd, env=environ)
+        app = subprocess.Popen(cmd, env=env)
     else:
-        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        app = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
@@ -39,15 +59,17 @@ def buildEnv(pioEnv, verbose=True, extraArgs=None):
     print()
     return app.returncode
 
-def buildFs(pioEnv, verbose=verbose, extraArgs=None):
+def buildFs(pioEnv, verbose=verbose, extraArgs=None, env=None):
     cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv, '-t', 'buildfs']
     if extraArgs:
         cmd.append(extraArgs)
     print('Building file system for ' + pioEnv)
+    if env is None:
+        env = environ
     if verbose:
-        app = subprocess.Popen(cmd, env=environ)
+        app = subprocess.Popen(cmd, env=env)
     else:
-        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        app = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
@@ -266,9 +288,10 @@ bootloader = 'bootloader.bin'
 for version in versions:
     mcu = version["mcu"]
     suffix = version["env_suffix"]
+    buildEnviron = environFor(mcu)
     for buildName in version["builds"]:
         envName = buildName + suffix
-        if buildEnv(envName, verbose=verbose) != 0:
+        if buildEnv(envName, verbose=verbose, env=buildEnviron) != 0:
             sys.exit(1)
         buildDir = os.path.join('.pio', 'build', envName)
         elfRelPath = os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.elf')
@@ -296,13 +319,14 @@ for version in versions:
         addImage(mcu + '-' + buildName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + buildName)
 
         if buildName == 'wifi':
-            if buildFs(envName, verbose=verbose) != 0:
+            if buildFs(envName, verbose=verbose, env=buildEnviron) != 0:
                sys.exit(1)
 
             # bootapp is a data partition that the bootloader and OTA use to determine which
             # image to run.  Its initial value is in a file "boot_app0.bin" in the platformio
             # framework package.  We copy it to the build directory so addImage can find it
-            bootappsrc = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools','partitions', bootapp)
+            coreDir = buildEnviron.get('PLATFORMIO_CORE_DIR', os.path.join(os.path.expanduser('~'), '.platformio'))
+            bootappsrc = os.path.join(coreDir,'packages','framework-arduinoespressif32','tools','partitions', bootapp)
             shutil.copy(bootappsrc, buildDir)
 
             addImage(mcu + '-' + buildName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + buildName + '/' + flashsize)
