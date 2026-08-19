@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Driver/fluidnc_gpio.h"
 #include <system_error>
 
