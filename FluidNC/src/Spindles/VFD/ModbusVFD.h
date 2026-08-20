@@ -27,6 +27,8 @@ namespace Spindles {
             response_parser get_current_direction(ModbusCommand& data) override { return nullptr; };
             response_parser get_status_ok(ModbusCommand& data) override { return nullptr; }
 
+            bool _safetyPolling = false;
+
             std::string _cw_cmd;
             std::string _ccw_cmd;
             std::string _off_cmd;
@@ -36,7 +38,7 @@ namespace Spindles {
             std::string _get_rpm_cmd;
 
             bool use_speed_feedback() const override { return !_get_rpm_cmd.empty(); }
-            bool safety_polling() const override { return false; }
+            bool safety_polling() const override { return _safetyPolling; }
 
         private:
             std::string _model;  // VFD Model name
@@ -67,6 +69,12 @@ namespace Spindles {
                 _set_rpm_cmd(set_rpm_cmd), _get_min_rpm_cmd(get_min_rpm_cmd), _get_max_rpm_cmd(get_max_rpm_cmd), _get_rpm_cmd(get_rpm_cmd) {}
 
             void group(Configuration::HandlerBase& handler) override {
+                // @config model
+                // @default false
+                // @default_note ""
+                // VFD is is polled for speed continously
+                handler.item("safety_polling", _safetyPolling);
+
                 // Generic/raw ModbusVFD spindle -- use this directly only for an
                 // unsupported VFD model; a supported model (e.g. Huanyang) instead
                 // registers under its own model-specific config name, but shows every one
