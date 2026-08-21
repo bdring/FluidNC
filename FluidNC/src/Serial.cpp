@@ -60,17 +60,30 @@
 SemaphoreHandle_t AllChannels::_mutex_general = xSemaphoreCreateMutex();
 SemaphoreHandle_t AllChannels::_mutex_pollLine = xSemaphoreCreateMutex();
 
+namespace {
+    class SemaphoreLock {
+    public:
+        explicit SemaphoreLock(SemaphoreHandle_t semaphore) : _semaphore(semaphore) { xSemaphoreTake(_semaphore, portMAX_DELAY); }
+        ~SemaphoreLock() { xSemaphoreGive(_semaphore); }
+
+        SemaphoreLock(const SemaphoreLock&) = delete;
+        SemaphoreLock& operator=(const SemaphoreLock&) = delete;
+
+    private:
+        SemaphoreHandle_t _semaphore;
+    };
+}
+
 std::vector<Channel*> AllChannels::snapshot_channels() {
     std::vector<Channel*> channels;
 
-    xSemaphoreTake(_mutex_general, portMAX_DELAY);
+    SemaphoreLock lock(_mutex_general);
     channels.reserve(_channelq.size());
     for (auto channel : _channelq) {
         if (channel->try_acquire_processing_ref()) {
             channels.push_back(channel);
         }
     }
-    xSemaphoreGive(_mutex_general);
 
     return channels;
 }
@@ -117,28 +130,22 @@ void AllChannels::ready() {
     }
 }
 
-void AllChannels::kill(Channel* channel) {
-    if (_killQueue) {
-        xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10));
-    }
+bool AllChannels::kill(Channel* channel) {
+    return _killQueue && xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10)) == pdTRUE;
 }
 
 void AllChannels::registration(Channel* channel) {
-    xSemaphoreTake(_mutex_general, portMAX_DELAY);
-    xSemaphoreTake(_mutex_pollLine, portMAX_DELAY);
+    SemaphoreLock generalLock(_mutex_general);
+    SemaphoreLock pollLock(_mutex_pollLine);
     _channelq.push_back(channel);
-    xSemaphoreGive(_mutex_pollLine);
-    xSemaphoreGive(_mutex_general);
 }
 void AllChannels::deregistration(Channel* channel) {
-    xSemaphoreTake(_mutex_general, portMAX_DELAY);
-    xSemaphoreTake(_mutex_pollLine, portMAX_DELAY);
+    SemaphoreLock generalLock(_mutex_general);
+    SemaphoreLock pollLock(_mutex_pollLine);
     if (channel == _lastChannel) {
         _lastChannel = nullptr;
     }
     _channelq.erase(std::remove(_channelq.begin(), _channelq.end(), channel), _channelq.end());
-    xSemaphoreGive(_mutex_pollLine);
-    xSemaphoreGive(_mutex_general);
 }
 
 void AllChannels::listChannels(Channel& out) {
@@ -213,14 +220,12 @@ void AllChannels::print_msg(MsgLevel level, const char* msg) {
 }
 
 Channel* AllChannels::find(const std::string_view name) {
-    xSemaphoreTake(_mutex_general, portMAX_DELAY);
+    SemaphoreLock lock(_mutex_general);
     for (auto channel : _channelq) {
         if (channel->name() == name) {
-            xSemaphoreGive(_mutex_general);
             return channel;
         }
     }
-    xSemaphoreGive(_mutex_general);
     return nullptr;
 }
 Channel* AllChannels::poll(char* line) {
@@ -238,27 +243,25 @@ Channel* AllChannels::poll(char* line) {
     // To avoid starving other channels when one has a lot
     // of traffic, we poll the other channels before the last
     // one that returned a line.
-    xSemaphoreTake(_mutex_pollLine, portMAX_DELAY);
-
-    for (auto channel : _channelq) {
-        // Skip the last channel in the loop
-
-        if (channel == _lastChannel) {
-            continue;
-        }
-
-        auto status = channel->pollLine(line);
-
-        if (status == Error::Ok) {
-            if (!channel->try_acquire_processing_ref()) {
+    {
+        SemaphoreLock lock(_mutex_pollLine);
+        for (auto channel : _channelq) {
+            // Skip the last channel in the loop
+            if (channel == _lastChannel) {
                 continue;
             }
-            _lastChannel = channel;
-            xSemaphoreGive(_mutex_pollLine);
-            return _lastChannel;
+
+            auto status = channel->pollLine(line);
+
+            if (status == Error::Ok) {
+                if (!channel->try_acquire_processing_ref()) {
+                    continue;
+                }
+                _lastChannel = channel;
+                return _lastChannel;
+            }
         }
     }
-    xSemaphoreGive(_mutex_pollLine);
     // If no other channel returned a line, try the last one
     if (_lastChannel) {
         auto status = _lastChannel->pollLine(line);

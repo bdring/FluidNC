@@ -38,6 +38,8 @@ namespace WebUI {
         void        autoReport() override;
         void        active(bool is_active);
         std::string session() { return _session; };
+        uint32_t    lastPongAt() const { return _lastPongAt; }
+        void        notePong(uint32_t now) { _lastPongAt = now; }
 
     private:
         AsyncWebSocket* _server;
@@ -46,6 +48,7 @@ namespace WebUI {
 
         std::string   _output_line;
         unsigned long _last_queue_full = 0;
+        uint32_t      _lastPongAt      = 0;
 
         // Instead of queueing realtime characters, we put them here
         // so they can be processed immediately during operations like
@@ -60,6 +63,7 @@ namespace WebUI {
 
         static WSChannel* _lastWSChannel;
         static WSChannel* getWSChannel(objnum_t pageid, std::string session);
+        static void       notePong(objnum_t pageid, uint32_t now);
 
         static std::vector<std::pair<pinnum_t, InputPin*>> _pins;
 
@@ -69,6 +73,7 @@ namespace WebUI {
 
         static bool runGCode(uint32_t pageid, std::string_view cmd, std::string session);
         static bool sendError(uint32_t pageid, std::string error, std::string session);
+        static bool abortSessionChannels(const std::string& session);
         static void closeSessionChannels(const std::string& session, objnum_t exceptId = 0);
         static void sendPing();
         static void handleEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len);

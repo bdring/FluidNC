@@ -7,6 +7,7 @@
 #include "Error.h"     // ErrorException
 
 #include "WebUIServer.h"
+#include "WebResourcePolicy.h"
 
 #include "Driver/fluidnc_mdns.h"
 #include "NetSettings.h"
@@ -32,9 +33,16 @@
 
 #include "HashFS.h"
 #include <cstdio>
+#include <array>
+#include <atomic>
 #include <list>
 #include <algorithm>
+#include <limits>
 #include <memory>
+#include <new>
+
+#include <esp_heap_caps.h>
+#include <esp_timer.h>
 
 #include "Mime.h"  // getContentType
 
@@ -49,6 +57,458 @@ namespace WebUI {
 #endif
 
 namespace {
+    struct PendingWebSocketSlot {
+        AsyncWebServerRequest* request  = nullptr;
+        AsyncClient*           transport = nullptr;
+        uint32_t               reserved = 0;
+    };
+
+    struct ActiveWebSocketSlot {
+        uint32_t id         = 0;
+        bool     used       = false;
+        bool     connecting = false;
+    };
+
+    struct DeferredWebSocketClose {
+        uint32_t id   = 0;
+        bool     used = false;
+    };
+
+    portMUX_TYPE web_resource_mux = portMUX_INITIALIZER_UNLOCKED;
+    std::array<PendingWebSocketSlot, WebUI::ResourcePolicy::max_websocket_clients> pending_websocket_slots {};
+    std::array<ActiveWebSocketSlot, WebUI::ResourcePolicy::max_websocket_clients> active_websocket_slots {};
+    std::array<DeferredWebSocketClose, WebUI::ResourcePolicy::max_websocket_clients> deferred_websocket_closes {};
+    std::array<WebUI::WebClient*, WebUI::ResourcePolicy::max_websocket_clients> deferred_webclient_kills {};
+    size_t active_file_streams = 0;
+    size_t active_heavy_http_responses = 0;
+    uint32_t websocket_client_limit_rejections = 0;
+    uint32_t websocket_heap_rejections         = 0;
+    uint32_t websocket_recovery_admissions     = 0;
+    uint32_t file_stream_starts                 = 0;
+    uint32_t file_stream_completions            = 0;
+    uint32_t file_stream_rejections             = 0;
+    uint32_t heavy_http_rejections              = 0;
+    size_t last_websocket_observed_free          = 0;
+    size_t last_websocket_largest_block          = 0;
+    size_t last_websocket_effective_free         = 0;
+    size_t last_websocket_occupied_slots         = 0;
+    uint32_t websocket_zero_occupancy_since      = 0;
+    bool websocket_zero_occupancy_mature         = false;
+    std::atomic<uint32_t> firmware_ota_active { 0 };
+    std::atomic<uint32_t> firmware_ota_expected_bytes { 0 };
+    std::atomic<uint32_t> firmware_ota_accepted_bytes { 0 };
+    std::atomic<uint32_t> firmware_ota_max_write_us { 0 };
+    std::atomic<uint32_t> firmware_ota_disconnect_aborts { 0 };
+    std::atomic<uint32_t> firmware_ota_failures { 0 };
+    std::atomic<uint32_t> firmware_ota_failure_recorded { 0 };
+    std::atomic<uint32_t> firmware_ota_update_started { 0 };
+
+    class WebResourceLock {
+    public:
+        WebResourceLock() { portENTER_CRITICAL(&web_resource_mux); }
+        ~WebResourceLock() { portEXIT_CRITICAL(&web_resource_mux); }
+
+        WebResourceLock(const WebResourceLock&) = delete;
+        WebResourceLock& operator=(const WebResourceLock&) = delete;
+    };
+
+    size_t subtract_reservation(size_t available, size_t reserved) { return available > reserved ? available - reserved : 0; }
+
+    void increment_saturating(uint32_t& value) {
+        if (value < static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+            ++value;
+        }
+    }
+
+    void update_max(std::atomic<uint32_t>& destination, uint32_t value) {
+        uint32_t observed = destination.load(std::memory_order_relaxed);
+        while (observed < value &&
+               !destination.compare_exchange_weak(observed, value, std::memory_order_relaxed, std::memory_order_relaxed)) {
+        }
+    }
+
+    void record_firmware_ota_failure() {
+        if (firmware_ota_failure_recorded.exchange(1, std::memory_order_relaxed) == 0) {
+            firmware_ota_failures.fetch_add(1, std::memory_order_relaxed);
+        }
+    }
+
+    void expire_pending_websocket_slots_locked(uint32_t now) {
+        for (auto& slot : pending_websocket_slots) {
+            if (slot.request && WebUI::ResourcePolicy::elapsed(now, slot.reserved, WebUI::ResourcePolicy::pending_socket_timeout_ms)) {
+                slot = {};
+            }
+        }
+    }
+
+    size_t pending_websocket_count_locked() {
+        size_t count = 0;
+        for (const auto& slot : pending_websocket_slots) {
+            count += slot.request != nullptr;
+        }
+        return count;
+    }
+
+    size_t active_websocket_count_locked() {
+        size_t count = 0;
+        for (const auto& slot : active_websocket_slots) {
+            count += slot.used;
+        }
+        return count;
+    }
+
+    size_t connecting_websocket_count_locked() {
+        size_t count = 0;
+        for (const auto& slot : active_websocket_slots) {
+            count += slot.used && slot.connecting;
+        }
+        return count;
+    }
+
+    size_t untracked_deferred_close_count_locked() {
+        size_t count = 0;
+        for (const auto& deferred : deferred_websocket_closes) {
+            if (!deferred.used) {
+                continue;
+            }
+            bool tracked = false;
+            for (const auto& active : active_websocket_slots) {
+                tracked = tracked || (active.used && active.id == deferred.id);
+            }
+            count += !tracked;
+        }
+        return count;
+    }
+
+    size_t deferred_websocket_count_locked() {
+        size_t count = 0;
+        for (const auto& deferred : deferred_websocket_closes) {
+            count += deferred.used;
+        }
+        return count;
+    }
+
+    size_t websocket_occupied_count_locked() {
+        return pending_websocket_count_locked() + active_websocket_count_locked() + untracked_deferred_close_count_locked();
+    }
+
+    void note_websocket_occupancy_locked(uint32_t now) {
+        if (websocket_occupied_count_locked() == 0) {
+            if (websocket_zero_occupancy_since == 0) {
+                websocket_zero_occupancy_since = now == 0 ? UINT32_MAX : now;
+                websocket_zero_occupancy_mature = false;
+            }
+            websocket_zero_occupancy_mature = WebUI::ResourcePolicy::first_socket_recovery_timer_mature(
+                now, websocket_zero_occupancy_since, websocket_zero_occupancy_mature);
+        } else {
+            websocket_zero_occupancy_since = 0;
+            websocket_zero_occupancy_mature = false;
+        }
+    }
+
+    bool try_reserve_websocket_slot(
+        AsyncWebServerRequest* request, size_t freeHeap, size_t largestBlock, bool replacesSession) {
+        if (!request) {
+            return false;
+        }
+
+        WebResourceLock lock;
+        const auto now = millis();
+        expire_pending_websocket_slots_locked(now);
+        const auto pending = pending_websocket_count_locked();
+        const auto deferred = untracked_deferred_close_count_locked();
+        const auto occupied = pending + active_websocket_count_locked() + deferred;
+        note_websocket_occupancy_locked(now);
+        const auto existingSocketReservations = pending + connecting_websocket_count_locked() + deferred;
+        const auto reserved = existingSocketReservations * WebUI::ResourcePolicy::additional_socket_reservation_bytes +
+                              WebUI::ResourcePolicy::pending_socket_reservation(occupied, replacesSession) +
+                              active_file_streams * WebUI::ResourcePolicy::file_stream_reservation_bytes +
+                              active_heavy_http_responses * WebUI::ResourcePolicy::heavy_http_reservation_bytes;
+        const auto effectiveFree = subtract_reservation(freeHeap, reserved);
+        last_websocket_observed_free  = freeHeap;
+        last_websocket_largest_block  = largestBlock;
+        last_websocket_effective_free = effectiveFree;
+        last_websocket_occupied_slots = occupied;
+        const auto recoveryEligible = WebUI::ResourcePolicy::first_socket_recovery_eligible(
+            websocket_zero_occupancy_mature, occupied);
+        const auto admission = WebUI::ResourcePolicy::websocket_admission(effectiveFree, largestBlock, occupied, recoveryEligible);
+        if (!admission.allowed) {
+            if (admission.reason == WebUI::ResourcePolicy::WebSocketAdmissionReason::ClientLimit) {
+                increment_saturating(websocket_client_limit_rejections);
+            } else {
+                increment_saturating(websocket_heap_rejections);
+            }
+            return false;
+        }
+
+        for (auto& slot : pending_websocket_slots) {
+            if (!slot.request) {
+                slot = { request, request->client(), now };
+                websocket_zero_occupancy_since = 0;
+                websocket_zero_occupancy_mature = false;
+                if (admission.usedRecovery) {
+                    increment_saturating(websocket_recovery_admissions);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool promote_websocket_slot(AsyncWebServerRequest* request, AsyncClient* transport, uint32_t clientId) {
+        WebResourceLock lock;
+        const auto now = millis();
+        expire_pending_websocket_slots_locked(now);
+
+        PendingWebSocketSlot* pending = nullptr;
+        for (auto& slot : pending_websocket_slots) {
+            if (slot.request == request && slot.transport == transport) {
+                pending = &slot;
+                break;
+            }
+        }
+        if (!pending) {
+            return false;
+        }
+
+        for (auto& slot : active_websocket_slots) {
+            if (!slot.used) {
+                slot    = { clientId, true, true };
+                *pending = {};
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void complete_websocket_slot(uint32_t clientId) {
+        WebResourceLock lock;
+        for (auto& slot : active_websocket_slots) {
+            if (slot.used && slot.id == clientId) {
+                slot.connecting = false;
+                return;
+            }
+        }
+    }
+
+    void release_websocket_slot(uint32_t clientId) {
+        WebResourceLock lock;
+        const auto now = millis();
+        for (auto& slot : active_websocket_slots) {
+            if (slot.used && slot.id == clientId) {
+                slot = {};
+                break;
+            }
+        }
+        for (auto& deferred : deferred_websocket_closes) {
+            if (deferred.used && deferred.id == clientId) {
+                deferred = {};
+            }
+        }
+        note_websocket_occupancy_locked(now);
+    }
+
+    void schedule_websocket_close(uint32_t clientId) {
+        WebResourceLock lock;
+        for (const auto& deferred : deferred_websocket_closes) {
+            if (deferred.used && deferred.id == clientId) {
+                return;
+            }
+        }
+        for (auto& deferred : deferred_websocket_closes) {
+            if (!deferred.used) {
+                deferred = { clientId, true };
+                return;
+            }
+        }
+    }
+
+    void expire_pending_websocket_slots() {
+        WebResourceLock lock;
+        const auto now = millis();
+        expire_pending_websocket_slots_locked(now);
+        note_websocket_occupancy_locked(now);
+    }
+
+    bool try_reserve_file_stream(size_t freeHeap, size_t largestBlock) {
+        WebResourceLock lock;
+        const auto socketReservations = pending_websocket_count_locked() + connecting_websocket_count_locked() +
+                                        untracked_deferred_close_count_locked();
+        const auto reserved = socketReservations * WebUI::ResourcePolicy::additional_socket_reservation_bytes;
+        const auto effectiveFree = subtract_reservation(freeHeap, reserved);
+        if (!WebUI::ResourcePolicy::file_stream_admission(
+                effectiveFree, largestBlock, active_file_streams, active_heavy_http_responses)) {
+            increment_saturating(file_stream_rejections);
+            return false;
+        }
+        ++active_file_streams;
+        increment_saturating(file_stream_starts);
+        return true;
+    }
+
+    void release_file_stream() {
+        WebResourceLock lock;
+        if (active_file_streams) {
+            --active_file_streams;
+            increment_saturating(file_stream_completions);
+        }
+    }
+
+    bool try_reserve_heavy_http_response(size_t freeHeap, size_t largestBlock) {
+        WebResourceLock lock;
+        const auto socketReservations = pending_websocket_count_locked() + connecting_websocket_count_locked() +
+                                        untracked_deferred_close_count_locked();
+        const auto reserved = socketReservations * WebUI::ResourcePolicy::additional_socket_reservation_bytes;
+        const auto effectiveFree = subtract_reservation(freeHeap, reserved);
+        if (!WebUI::ResourcePolicy::heavy_http_admission(
+                effectiveFree, largestBlock, active_file_streams, active_heavy_http_responses)) {
+            increment_saturating(heavy_http_rejections);
+            return false;
+        }
+        ++active_heavy_http_responses;
+        return true;
+    }
+
+    void release_heavy_http_response() {
+        WebResourceLock lock;
+        if (active_heavy_http_responses) {
+            --active_heavy_http_responses;
+        }
+    }
+
+    class HeavyHttpReservation {
+    public:
+        explicit HeavyHttpReservation(bool required) : _held(!required || try_reserve_heavy_http_response(
+                                                                           heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                                                                           heap_caps_get_largest_free_block(MALLOC_CAP_8BIT))),
+                                                       _ownsSlot(required && _held) {}
+        ~HeavyHttpReservation() {
+            if (_ownsSlot) {
+                release_heavy_http_response();
+            }
+        }
+
+        explicit operator bool() const { return _held; }
+        void transfer() { _ownsSlot = false; }
+
+        HeavyHttpReservation(const HeavyHttpReservation&) = delete;
+        HeavyHttpReservation& operator=(const HeavyHttpReservation&) = delete;
+
+    private:
+        bool _held;
+        bool _ownsSlot;
+    };
+
+    class FileStreamReservation {
+    public:
+        FileStreamReservation() : _held(try_reserve_file_stream(
+                                      heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                                      heap_caps_get_largest_free_block(MALLOC_CAP_8BIT))) {}
+        ~FileStreamReservation() {
+            if (_held) {
+                release_file_stream();
+            }
+        }
+
+        explicit operator bool() const { return _held; }
+        void transfer() { _held = false; }
+
+        FileStreamReservation(const FileStreamReservation&) = delete;
+        FileStreamReservation& operator=(const FileStreamReservation&) = delete;
+
+    private:
+        bool _held;
+    };
+
+    struct ActiveFileStream {
+        FileStream* stream    = nullptr;
+        bool        owns_slot = false;
+
+        ~ActiveFileStream() {
+            delete stream;
+            if (owns_slot) {
+                release_file_stream();
+            }
+        }
+    };
+
+    void close_request_client(AsyncWebServerRequest* request) {
+        if (request && request->client()) {
+            request->client()->close();
+        }
+    }
+
+    void abort_request_client(AsyncWebServerRequest* request) {
+        if (request && request->client()) {
+            request->client()->abort();
+        }
+    }
+
+    bool schedule_deferred_webclient_kill(WebUI::WebClient* client) {
+        if (!client) {
+            return true;
+        }
+        WebResourceLock lock;
+        for (auto* deferred : deferred_webclient_kills) {
+            if (deferred == client) {
+                return true;
+            }
+        }
+        for (auto& deferred : deferred_webclient_kills) {
+            if (!deferred) {
+                deferred = client;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void process_deferred_webclient_kills() {
+        std::array<WebUI::WebClient*, WebUI::ResourcePolicy::max_websocket_clients> pending {};
+        {
+            WebResourceLock lock;
+            pending = deferred_webclient_kills;
+        }
+        for (auto* client : pending) {
+            if (!client || !allChannels.kill(client)) {
+                continue;
+            }
+            WebResourceLock lock;
+            for (auto& deferred : deferred_webclient_kills) {
+                if (deferred == client) {
+                    deferred = nullptr;
+                    break;
+                }
+            }
+        }
+    }
+
+    void process_deferred_websocket_closes(AsyncWebSocket* server) {
+        std::array<uint32_t, WebUI::ResourcePolicy::max_websocket_clients> clientIds {};
+        size_t clientCount = 0;
+        {
+            WebResourceLock lock;
+            for (const auto& deferred : deferred_websocket_closes) {
+                if (deferred.used) {
+                    clientIds[clientCount++] = deferred.id;
+                }
+            }
+        }
+
+        for (size_t index = 0; index < clientCount; ++index) {
+            const auto clientId = clientIds[index];
+            if (server) {
+                try {
+                    server->close(clientId);
+                } catch (const std::bad_alloc&) {
+                    // Keep the client and its resource slot accounted for. A later
+                    // poll retries without dereferencing a client pointer outside
+                    // the WebSocket server's internal lock.
+                }
+            }
+        }
+    }
+
     struct FileListChunkState {
         enum class Phase : uint8_t { Begin, FileEntries, Footer, End, Done };
 
@@ -228,6 +688,43 @@ namespace {
     }
 }
 
+extern "C" uint32_t fluidnc_ota_active() { return firmware_ota_active.load(std::memory_order_relaxed); }
+extern "C" uint32_t fluidnc_ota_expected_bytes() { return firmware_ota_expected_bytes.load(std::memory_order_relaxed); }
+extern "C" uint32_t fluidnc_ota_accepted_bytes() { return firmware_ota_accepted_bytes.load(std::memory_order_relaxed); }
+extern "C" uint32_t fluidnc_ota_max_write_us() { return firmware_ota_max_write_us.load(std::memory_order_relaxed); }
+extern "C" uint32_t fluidnc_ota_disconnect_aborts() { return firmware_ota_disconnect_aborts.load(std::memory_order_relaxed); }
+extern "C" uint32_t fluidnc_ota_failures() { return firmware_ota_failures.load(std::memory_order_relaxed); }
+extern "C" uint32_t fluidnc_ota_update_owned() { return firmware_ota_update_started.load(std::memory_order_relaxed); }
+
+namespace WebUI::ResourcePolicy {
+    RuntimeSnapshot runtime_snapshot() {
+        WebResourceLock lock;
+        const auto now = millis();
+        const auto zeroIdleMs = first_socket_zero_idle_ms(
+            now, websocket_zero_occupancy_since, websocket_zero_occupancy_mature);
+        return {
+            pending_websocket_count_locked(),
+            active_websocket_count_locked(),
+            connecting_websocket_count_locked(),
+            deferred_websocket_count_locked(),
+            active_file_streams,
+            active_heavy_http_responses,
+            websocket_client_limit_rejections,
+            websocket_heap_rejections,
+            websocket_recovery_admissions,
+            file_stream_starts,
+            file_stream_completions,
+            file_stream_rejections,
+            heavy_http_rejections,
+            last_websocket_observed_free,
+            last_websocket_largest_block,
+            last_websocket_effective_free,
+            last_websocket_occupied_slots,
+            zeroIdleMs,
+        };
+    }
+}
+
 using namespace asyncsrv;
 
 //embedded response file if no files on LocalFS
@@ -250,7 +747,8 @@ namespace WebUI {
     bool     WebUI_Server::_schedule_reboot      = false;
     uint32_t WebUI_Server::_schedule_reboot_time = 0;
 
-    UploadStatus               WebUI_Server::_upload_status   = UploadStatus::NONE;
+    UploadStatus               WebUI_Server::_upload_status            = UploadStatus::NONE;
+    AsyncWebServerRequest*     WebUI_Server::_firmware_upload_request  = nullptr;
     AsyncWebServer*            WebUI_Server::_webserver       = NULL;
     AsyncWebServer*            WebUI_Server::_websocketserver = NULL;
     AsyncHeaderFreeMiddleware* WebUI_Server::_headerFilter    = NULL;
@@ -330,9 +828,56 @@ namespace WebUI {
         // 4 - Potentially check for a difference in requests headers of v2 vs v3 to dynamically send the proper payload in the same handler
         // For now, I've settled with #3
         _socket_server = new AsyncWebSocket("/");
+        _socket_server->handleHandshake([](AsyncWebServerRequest* request) {
+            bool replacesSession = false;
+            try {
+                // A reconnect from the same browser session is a replacement, not
+                // additional capacity. Abort its older transport before admission
+                // so a stale socket cannot consume the heap needed to replace it.
+                replacesSession = WSChannels::abortSessionChannels(WebUI_Server::getWebSocketSession(request));
+            } catch (const std::bad_alloc&) {
+                // This handler returns false to the patched ESPAsyncWebServer
+                // fail-closed abort path.  Attribute the exceptional admission
+                // refusal too, otherwise a client can observe a transport close
+                // without a matching resource-policy counter.
+                WebResourceLock lock;
+                increment_saturating(websocket_heap_rejections);
+                return false;
+            }
+            return try_reserve_websocket_slot(
+                request,
+                heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+                replacesSession);
+        });
         _socket_server->onEvent(
             [](AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
-                WSChannels::handleEvent(server, client, type, arg, data, len);
+                const auto clientId = client ? client->id() : 0;
+                if (type == WS_EVT_CONNECT) {
+                    auto* request = static_cast<AsyncWebServerRequest*>(arg);
+                    if (!client || !promote_websocket_slot(request, client ? client->client() : nullptr, clientId)) {
+                        if (client) {
+                            schedule_websocket_close(clientId);
+                        }
+                        return;
+                    }
+                } else if (type == WS_EVT_DISCONNECT) {
+                    release_websocket_slot(clientId);
+                }
+
+                try {
+                    WSChannels::handleEvent(server, client, type, arg, data, len);
+                    if (type == WS_EVT_CONNECT) {
+                        complete_websocket_slot(clientId);
+                    }
+                } catch (const std::bad_alloc&) {
+                    if (type != WS_EVT_DISCONNECT) {
+                        WSChannels::removeChannel(clientId);
+                        schedule_websocket_close(clientId);
+                    } else {
+                        release_websocket_slot(clientId);
+                    }
+                }
             });
 
         _webserver->addHandler(_socket_server);
@@ -366,7 +911,7 @@ namespace WebUI {
 
 #ifdef HAVE_UPDATE
         //web update
-        _webserver->on("/updatefw", HTTP_ANY, handleUpdate, WebUpdateUpload);
+        _webserver->on("/updatefw", HTTP_POST, handleUpdate, WebUpdateUpload);
 #endif
 
         //Direct SD management
@@ -473,126 +1018,150 @@ namespace WebUI {
     }
     // Send a file, either the specified path or path.gz
     bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
-        std::error_code ec;
-        FluidPath       fpath { path, LocalFS, ec };
-        if (ec) {
-            return false;
-        }
-
-        bool acceptGz = false;
-        if (request->hasHeader("Accept-Encoding")) {
-            auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
-            if (encodings.find("gzip") != std::string::npos) {
-                acceptGz = true;
-            }
-        }
-
-        std::string hash;
-
-        // If you load or reload WebUI while a program is running, there is a high
-        // risk of stalling the motion because serving a file from
-        // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
-        // a request for a file when running, reject it to preserve the motion
-        // integrity.
-        // This can make it hard to debug ISR IRAM problems, because the easiest
-        // way to trigger such problems is to refresh WebUI during motion.
-        if (http_block_during_motion->get() && inMotionState()) {
-            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH
-            hash = HashFS::hash(fpath, true);
-            if (!hash.length() && acceptGz) {
-                std::filesystem::path gzpath(fpath);
-                gzpath += ".gz";
-                hash = HashFS::hash(gzpath, true);
-            }
-
-            if (hash.length() && request->hasHeader("If-None-Match") &&
-                std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
-                request->send(304);
+        try {
+            // Reserve before constructing paths, parsing headers, or hashing the
+            // file. Those operations allocate too and must not run concurrently
+            // outside the same bound that protects the FileStream response.
+            FileStreamReservation reservation;
+            if (!reservation) {
+                close_request_client(request);
                 return true;
             }
 
-            WebUI_Server::handleReloadBlocked(request);
-            return true;
-        }
+            std::error_code ec;
+            FluidPath       fpath { path, LocalFS, ec };
+            if (ec) {
+                return false;
+            }
 
-        // Check for browser cache match
-        hash = HashFS::hash(fpath);
-        if (!hash.length() && acceptGz) {
-            std::filesystem::path gzpath(fpath);
-            gzpath += ".gz";
-            hash = HashFS::hash(gzpath);
-        }
-        if (hash.length() && request->hasHeader("If-None-Match") &&
-            std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
+            bool acceptGz = false;
+            if (request->hasHeader("Accept-Encoding")) {
+                auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
+                if (encodings.find("gzip") != std::string::npos) {
+                    acceptGz = true;
+                }
+            }
+
+            std::string hash;
+
+            // If you load or reload WebUI while a program is running, there is a high
+            // risk of stalling the motion because serving a file from
+            // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
+            // a request for a file when running, reject it to preserve the motion
+            // integrity.
+            // This can make it hard to debug ISR IRAM problems, because the easiest
+            // way to trigger such problems is to refresh WebUI during motion.
+            if (http_block_during_motion->get() && inMotionState()) {
+                // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH
+                hash = HashFS::hash(fpath, true);
+                if (!hash.length() && acceptGz) {
+                    std::filesystem::path gzpath(fpath);
+                    gzpath += ".gz";
+                    hash = HashFS::hash(gzpath, true);
+                }
+
+                if (hash.length() && request->hasHeader("If-None-Match") &&
+                    std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
+                    request->send(304);
+                    return true;
+                }
+
+                WebUI_Server::handleReloadBlocked(request);
+                return true;
+            }
+
+            // Check for browser cache match
+            hash = HashFS::hash(fpath);
+            if (!hash.length() && acceptGz) {
+                std::filesystem::path gzpath(fpath);
+                gzpath += ".gz";
+                hash = HashFS::hash(gzpath);
+            }
+            if (hash.length() && request->hasHeader("If-None-Match") &&
+                std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
+                if (setSession && getSessionCookie(request) == "") {
+                    char session[9];
+                    get_random_string(session, sizeof(session) - 1);
+                    std::unique_ptr<AsyncWebServerResponse> response(request->beginResponse(304));
+                    response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
+                    auto* rawResponse = response.get();
+                    request->send(rawResponse);
+                    if (request->getResponse() == rawResponse) {
+                        response.release();
+                    }
+                } else {
+                    request->send(304);
+                }
+                return true;
+            }
+
+            auto file       = std::make_shared<ActiveFileStream>();
+            file->owns_slot = true;
+            reservation.transfer();
+
+            bool isGzip = false;
+            try {
+                file->stream = new FileStream(fpath, "r", LocalFS);
+            } catch (const ErrorException&) {
+                if (acceptGz) {
+                    try {
+                        fpath += ".gz";
+                        file->stream = new FileStream(fpath, "r");
+                        isGzip      = true;
+                    } catch (const ErrorException&) {}
+                }
+            }
+            if (!file->stream) {
+                log_debug(path << " not found");
+                return false;
+            }
+
+            std::unique_ptr<AsyncWebServerResponse> response(request->beginResponse(
+                getContentType(path), file->stream->size(), [file, request](uint8_t* buffer, size_t maxLen, size_t total) -> size_t {
+                    auto* stream = file->stream;
+                    if (!stream) {
+                        close_request_client(request);
+                        return 0;  // RESPONSE_TRY_AGAIN only works for a chunked response.
+                    }
+                    if (total >= stream->size() || request->method() != HTTP_GET) {
+                        return 0;
+                    }
+                    size_t bytes  = min(stream->size() - total, maxLen);
+                    int    actual = stream->read(buffer, bytes);  // Returns 0 if no bytes were loaded.
+                    return actual;
+                }));
+            if (!response) {
+                close_request_client(request);
+                return true;
+            }
+
             if (setSession && getSessionCookie(request) == "") {
                 char session[9];
                 get_random_string(session, sizeof(session) - 1);
-                AsyncWebServerResponse* response = request->beginResponse(304);
                 response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
-                request->send(response);
+            }
+            if (download) {
+                response->addHeader("Content-Disposition", "attachment");
+            }
+            if (hash.length()) {
+                response->addHeader("ETag", hash.c_str());
+            }
+            if (isGzip) {
+                response->addHeader(T_Content_Encoding, T_gzip);
+            }
+
+            auto* rawResponse = response.get();
+            request->send(rawResponse);
+            if (request->getResponse() == rawResponse) {
+                response.release();
             } else {
-                request->send(304);
+                close_request_client(request);
             }
             return true;
+        } catch (const std::bad_alloc&) {
+            close_request_client(request);
+            return true;
         }
-
-        bool        isGzip = false;
-        FileStream* file   = NULL;
-        try {
-            file = new FileStream(fpath, "r", LocalFS);
-        } catch (const ErrorException& err) {
-            if (acceptGz) {
-                try {
-                    fpath += ".gz";
-                    file   = new FileStream(fpath, "r");
-                    isGzip = true;
-                } catch (const ErrorException& err) {}
-            }
-        }
-        if (!file) {
-            log_debug(path << " not found");
-            return false;
-        }
-
-        AsyncWebServerResponse* response = request->beginResponse(
-            getContentType(path), file->size(), [file, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
-                if (!file) {
-                    request->client()->close();
-                    return 0;  //RESPONSE_TRY_AGAIN; // This only works for ChunkedResponse
-                }
-                if (total >= file->size() || request->method() != HTTP_GET) {
-                    file = nullptr;
-                    return 0;
-                }
-                size_t bytes  = min(file->size() - total, maxLen);
-                int    actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
-                if (actual == 0 || (actual + total) >= file->size()) {
-                    file = nullptr;
-                }
-                return actual;  // Return actual bytes read, not requested bytes
-            });
-
-        request->onDisconnect([request, file]() { delete file; });
-
-        if (setSession && getSessionCookie(request) == "") {
-            char session[9];
-            get_random_string(session, sizeof(session) - 1);
-            response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
-        }
-        if (download) {
-            response->addHeader("Content-Disposition", "attachment");
-        }
-        if (hash.length()) {
-            response->addHeader("ETag", hash.c_str());
-        }
-        // content length is set automatically
-        // response->setContentLength(file->size());
-        if (isGzip) {
-            response->addHeader(T_Content_Encoding, T_gzip);
-        }
-        request->send(response);
-
-        return true;
     }
     void WebUI_Server::sendWithOurAddress(AsyncWebServerRequest* request, const char* content, uint16_t code) {
         std::string ipstr = webServerIp();
@@ -677,8 +1246,8 @@ namespace WebUI {
             return;
         }
 
-        std::string path(request->url().c_str());  //request->urlDecode(request->url()).c_str());
-        if (path.rfind("/api/", 0) == 0) {
+        const auto& path = request->url();
+        if (path.startsWith("/api/")) {
             request->send(404);
             return;
         }
@@ -719,32 +1288,87 @@ namespace WebUI {
         }
         char line[256];
         strncpy(line, cmd, 255);
-        AsyncWebServerResponse* response;
+        line[255] = '\0';
         if (request->method() == HTTP_GET) {
-            WebClient* webClient = new WebClient();
-            webClient->attachWS(silent);
-            webClient->executeCommandBackground(line);
-            response = request->beginChunkedResponse("", [webClient, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
-                // The method can change before the end... not good
-                //if(request->method() != HTTP_GET)
-                //    return 0;
-                auto ret = webClient->copyBufferSafe(buffer, min((int)maxLen, 1024), total);
-                return ret;
-            });
-            // onDisconnect MUST always happen, otherwise commands being processed will wait indefinitly to be read
-            // by the callback that may never happen if the client is dead
-            // We rely on AsyncWebServer to take care of that
-            request->onDisconnect([webClient]() {
-                webClient->detachWS();
-                allChannels.kill(webClient);
-                // Should not delete, kill() takes care of that
-                //delete webClient;
-            });
-        } else
-            response = request->beginResponse(200, "", "");
-        response->addHeader(T_Cache_Control, T_no_cache);
-        request->send(response);
-        return;
+            const bool heavy = WebUI::ResourcePolicy::is_heavy_http_command(cmd);
+            HeavyHttpReservation reservation(heavy);
+            if (!reservation) {
+                try {
+                    request->send(503, "text/plain", "Web response resources busy\n");
+                } catch (const std::bad_alloc&) {
+                    abort_request_client(request);
+                }
+                return;
+            }
+
+            try {
+                std::unique_ptr<WebClient> webClient(
+                    new WebClient(heavy ? release_heavy_http_response : nullptr));
+                if (heavy) {
+                    reservation.transfer();
+                }
+                webClient->attachWS(silent);
+                auto* clientOwner = webClient.get();
+                std::unique_ptr<AsyncWebServerResponse> response(request->beginChunkedResponse(
+                    "", [clientOwner, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
+                        return clientOwner->copyBufferSafe(buffer, min((int)maxLen, 1024), total);
+                    }));
+                if (!response) {
+                    abort_request_client(request);
+                    return;
+                }
+                response->addHeader(T_Cache_Control, T_no_cache);
+
+                // Publish the WebClient to the disconnect/reap path only after
+                // the response and callback are fully constructed.  Before
+                // this point local unique_ptr ownership is exception-safe.
+                request->onDisconnect([clientOwner]() {
+                    clientOwner->detachWS();
+                    if (!allChannels.kill(clientOwner) && !schedule_deferred_webclient_kill(clientOwner)) {
+                        // WebClient is never registered in allChannels and
+                        // detachWS() has joined its only background owner, so
+                        // direct destruction is the bounded last-resort path.
+                        delete clientOwner;
+                    }
+                });
+                webClient.release();
+
+                if (!clientOwner->executeCommandBackground(line)) {
+                    clientOwner->cancelPendingCommand();
+                    abort_request_client(request);
+                    return;
+                }
+
+                auto* rawResponse = response.get();
+                request->send(rawResponse);
+                if (request->getResponse() == rawResponse) {
+                    response.release();
+                } else {
+                    abort_request_client(request);
+                }
+            } catch (const std::bad_alloc&) {
+                abort_request_client(request);
+            }
+            return;
+        }
+
+        try {
+            std::unique_ptr<AsyncWebServerResponse> response(request->beginResponse(200, "", ""));
+            if (!response) {
+                abort_request_client(request);
+                return;
+            }
+            response->addHeader(T_Cache_Control, T_no_cache);
+            auto* rawResponse = response.get();
+            request->send(rawResponse);
+            if (request->getResponse() == rawResponse) {
+                response.release();
+            } else {
+                abort_request_client(request);
+            }
+        } catch (const std::bad_alloc&) {
+            abort_request_client(request);
+        }
     }
 
     std::string getSession(AsyncClient* client) {
@@ -1106,7 +1730,6 @@ namespace WebUI {
     void WebUI_Server::handleUpdate(AsyncWebServerRequest* request) {
         AuthenticationLevel auth_level = is_authenticated();
         if (auth_level != AuthenticationLevel::LEVEL_ADMIN) {
-            _upload_status = UploadStatus::NONE;
             request->send(403, "text/plain", "Not allowed, log in first!\n");
             return;
         }
@@ -1118,34 +1741,96 @@ namespace WebUI {
             _schedule_reboot      = true;
         } else {
             sendStatus(request, 200, std::to_string(int(_upload_status)).c_str());
-            _upload_status = UploadStatus::NONE;
+            if (_upload_status != UploadStatus::ONGOING) {
+                _upload_status = UploadStatus::NONE;
+            }
         }
     }
 
 #ifdef HAVE_UPDATE
     //File upload for Web update
     void WebUI_Server::WebUpdateUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+        constexpr uint32_t firmwareUploadRxTimeoutSeconds = 30;
         static size_t   last_upload_update;
-        static uint32_t maxSketchSpace = UINT32_MAX;
+        uint32_t maxSketchSpace = firmware_ota_expected_bytes.load(std::memory_order_relaxed);
 
         //only admin can update FW
         if (is_authenticated() != AuthenticationLevel::LEVEL_ADMIN) {
-            _upload_status = UploadStatus::FAILED;
+            if (_firmware_upload_request == request) {
+                _upload_status = UploadStatus::FAILED;
+            }
             log_info("Upload rejected");
             sendAuthFailed(request);
+            request->abort();
+            return;
             //pushError(request, ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
         } else {
             //Upload start
             //**************
             if (!index) {  //upload.status == UPLOAD_FILE_START) {
+                if (_firmware_upload_request != nullptr && _firmware_upload_request != request) {
+                    log_warn("Concurrent firmware upload rejected");
+                    firmware_ota_failures.fetch_add(1, std::memory_order_relaxed);
+                    request->abort();
+                    return;
+                }
+                if (Update.isRunning()) {
+                    log_warn("Firmware upload rejected because an updater is already active");
+                    firmware_ota_failures.fetch_add(1, std::memory_order_relaxed);
+                    request->abort();
+                    return;
+                }
+
+                try {
+                    request->onDisconnect([request]() {
+                        if (_firmware_upload_request == request) {
+                            if (firmware_ota_update_started.load(std::memory_order_relaxed) != 0 && Update.isRunning()) {
+                                Update.abort();
+                                firmware_ota_disconnect_aborts.fetch_add(1, std::memory_order_relaxed);
+                                record_firmware_ota_failure();
+                            }
+                            firmware_ota_update_started.store(0, std::memory_order_relaxed);
+                            if (_upload_status == UploadStatus::ONGOING) {
+                                _upload_status = UploadStatus::FAILED;
+                            }
+                            _firmware_upload_request = nullptr;
+                            firmware_ota_active.store(0, std::memory_order_relaxed);
+                        }
+                    });
+                } catch (const std::bad_alloc&) {
+                    firmware_ota_failures.fetch_add(1, std::memory_order_relaxed);
+                    request->abort();
+                    return;
+                }
+
+                _firmware_upload_request = request;
+                firmware_ota_active.store(1, std::memory_order_relaxed);
+                firmware_ota_expected_bytes.store(0, std::memory_order_relaxed);
+                firmware_ota_accepted_bytes.store(0, std::memory_order_relaxed);
+                firmware_ota_max_write_us.store(0, std::memory_order_relaxed);
+                firmware_ota_failure_recorded.store(0, std::memory_order_relaxed);
+                firmware_ota_update_started.store(0, std::memory_order_relaxed);
+                request->client()->setRxTimeout(firmwareUploadRxTimeoutSeconds);
+
                 log_info("Update Firmware");
                 _upload_status = UploadStatus::ONGOING;
                 std::string sizeargname(filename.c_str());
                 sizeargname += "S";
-                if (request->hasParam(sizeargname.c_str()))
-                    maxSketchSpace = request->getParam(sizeargname.c_str())->value().toInt();
-                else if (request->hasHeader("Content-Length"))
-                    maxSketchSpace = request->getHeader("Content-Length")->value().toInt();
+                if (request->hasParam(sizeargname.c_str(), true)) {
+                    const int32_t requestedSize = request->getParam(sizeargname.c_str(), true)->value().toInt();
+                    if (requestedSize > 0) {
+                        maxSketchSpace = static_cast<uint32_t>(requestedSize);
+                        firmware_ota_expected_bytes.store(maxSketchSpace, std::memory_order_relaxed);
+                    } else {
+                        _upload_status = UploadStatus::FAILED;
+                        record_firmware_ota_failure();
+                        pushError(request, ESP_ERROR_UPLOAD, "Upload rejected, invalid firmware size");
+                    }
+                } else {
+                    _upload_status = UploadStatus::FAILED;
+                    record_firmware_ota_failure();
+                    pushError(request, ESP_ERROR_UPLOAD, "Upload rejected, missing firmware size");
+                }
                 //check space
                 size_t flashsize = 0;
                 if (esp_ota_get_running_partition()) {
@@ -1158,15 +1843,18 @@ namespace WebUI {
                     String msg = String("Upload rejected, not enough space (needs " + String(maxSketchSpace) + ", has " + String(flashsize));
                     pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, msg.c_str());
                     _upload_status = UploadStatus::FAILED;
+                    record_firmware_ota_failure();
                     log_info("Update cancelled");
                 }
                 if (_upload_status != UploadStatus::FAILED) {
                     last_upload_update = 0;
-                    if (!Update.begin()) {  //start with max available size
+                    if (!Update.begin(maxSketchSpace, U_FLASH)) {
                         _upload_status = UploadStatus::FAILED;
+                        record_firmware_ota_failure();
                         log_info("Update cancelled");
                         pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
                     } else {
+                        firmware_ota_update_started.store(1, std::memory_order_relaxed);
                         log_info("Update 0%");
                     }
                 }
@@ -1184,8 +1872,16 @@ namespace WebUI {
 
                     log_info("Update " << last_upload_update << "%");
                 }
-                if (Update.write(data, len) != len) {
+                const int64_t writeStartedUs = esp_timer_get_time();
+                const size_t written = Update.write(data, len);
+                const uint64_t writeElapsedUs = static_cast<uint64_t>(esp_timer_get_time() - writeStartedUs);
+                update_max(firmware_ota_max_write_us,
+                           static_cast<uint32_t>(std::min<uint64_t>(writeElapsedUs, std::numeric_limits<uint32_t>::max())));
+                if (written == len) {
+                    firmware_ota_accepted_bytes.store(static_cast<uint32_t>(index + written), std::memory_order_relaxed);
+                } else {
                     _upload_status = UploadStatus::FAILED;
+                    record_firmware_ota_failure();
                     log_info("Update write failed");
                     pushError(request, ESP_ERROR_FILE_WRITE, "File write failed");
                 }
@@ -1193,12 +1889,18 @@ namespace WebUI {
             //Upload end
             //**************
             if (final) {
-                if (_upload_status == UploadStatus::ONGOING && Update.end(true)) {  //true to set the size to the current progress
+                if (_upload_status == UploadStatus::ONGOING && index + len == maxSketchSpace && Update.end(false)) {
+                    firmware_ota_update_started.store(0, std::memory_order_relaxed);
                     //Now Reboot
                     log_info("Update 100%");
                     _upload_status = UploadStatus::SUCCESSFUL;
                 } else {
+                    if (Update.isRunning()) {
+                        Update.abort();
+                    }
+                    firmware_ota_update_started.store(0, std::memory_order_relaxed);
                     _upload_status = UploadStatus::FAILED;
+                    record_firmware_ota_failure();
                     log_info("Update failed");
                     pushError(request, ESP_ERROR_UPLOAD, "Update upload failed");
                 }
@@ -1443,24 +2145,33 @@ namespace WebUI {
     }
 
     void WebUI_Server::poll() {
-        static uint32_t start_time = millis();
+        static uint32_t cleanup_time = millis();
+        static uint32_t ping_time    = millis();
 #ifdef HAVE_DNS
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();
         }
 #endif
+        expire_pending_websocket_slots();
+        process_deferred_websocket_closes(_socket_server);
+        process_deferred_webclient_kills();
         if (_schedule_reboot and _schedule_reboot_time == millis()) {
             _schedule_reboot = false;
             protocol_send_event(&fullResetEvent);
         }
-        if ((millis() - start_time) > 10000) {
+        if ((millis() - cleanup_time) > 1000) {
+            if (_socket_server) {
+                _socket_server->cleanupClients(ResourcePolicy::max_websocket_clients);
+            }
+            cleanup_time = millis();
+        }
+        if ((millis() - ping_time) > 10000) {
             uint32_t heapsize = xPortGetFreeHeapSize();
             log_verbose("memory: " << heapsize << " min: " << heapLowWater);
             if (_socket_server) {
-                _socket_server->cleanupClients();
                 WSChannels::sendPing();
             }
-            start_time = millis();
+            ping_time = millis();
         }
     }
 

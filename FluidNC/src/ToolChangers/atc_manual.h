@@ -55,11 +55,45 @@ namespace ATCs {
         void validate() override {}
 
         void group(Configuration::HandlerBase& handler) override {
+            // Manual tool-change ATC: prompts the operator to swap tools by hand, with an
+            // optional electronic tool setter (ETS) probe to re-establish tool length
+            // offset afterward.
+
+            // @config safe_z_mpos_mm
+            // @default 50.0
+            // Machine-space Z position safe to travel at without hitting the workpiece or
+            // fixtures, used while moving to/from the tool-change and tool-setter
+            // locations.
             handler.item("safe_z_mpos_mm", _safe_z, -100000, 100000);
+
+            // @config probe_seek_rate_mm_per_min
+            // @default 200.0
+            // Feed rate for the initial (fast) probe move onto the electronic tool setter.
             handler.item("probe_seek_rate_mm_per_min", _probe_seek_rate, 1, 10000);
+
+            // @config probe_feed_rate_mm_per_min
+            // @default 80.0
+            // Feed rate for the precise (slow) second probe touch on the electronic tool
+            // setter.
             handler.item("probe_feed_rate_mm_per_min", _probe_feed_rate, 1, 10000);
+
+            // @config change_mpos_mm
+            // @default 0.0 0.0 0.0 0.0 0.0 0.0
+            // Machine-space position to move to for the operator to manually swap tools --
+            // one float per axis, whitespace-separated (see the config spec's Float Array
+            // grammar).
             handler.item("change_mpos_mm", _change_mpos);
+
+            // @config ets_mpos_mm
+            // @default 0.0 0.0 0.0 0.0 0.0 0.0
+            // Machine-space position of the electronic tool setter (ETS) probe -- one
+            // float per axis, whitespace-separated.
             handler.item("ets_mpos_mm", _ets_mpos);
+
+            // @config ets_rapid_z_mpos_mm
+            // @default 0.0
+            // Z position to rapid to before starting the ETS probe approach, giving
+            // clearance above the probe before the slower seek/feed moves begin.
             handler.item("ets_rapid_z_mpos_mm", _ets_rapid_z_mpos);
         }
     };

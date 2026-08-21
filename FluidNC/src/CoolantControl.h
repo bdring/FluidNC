@@ -32,6 +32,10 @@ public:
     // Immediately disables coolant pins.
     void stop();
 
+    // Main/Protocol task only. Disables coolant pins and publishes real
+    // logical ON->OFF transitions to the optional URL-action worker.
+    void stop_and_notify();
+
     // Sets the coolant pins according to state specified.
     void off();
     void set_state(CoolantState state);

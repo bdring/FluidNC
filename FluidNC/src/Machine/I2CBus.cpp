@@ -17,8 +17,19 @@ namespace Machine {
     }
 
     void I2CBus::group(Configuration::HandlerBase& handler) {
+        // @config sda_pin
+        // @default NO_PIN
+        // I2C data line for this bus.
         handler.item("sda_pin", _sda);
+
+        // @config scl_pin
+        // @default NO_PIN
+        // I2C clock line for this bus.
         handler.item("scl_pin", _scl);
+
+        // @config frequency
+        // @default 100000
+        // I2C bus clock frequency, in Hz (100000 = standard-mode I2C, 100kHz).
         handler.item("frequency", _frequency);
     }
 

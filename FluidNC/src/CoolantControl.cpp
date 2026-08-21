@@ -5,6 +5,23 @@
 #include "CoolantControl.h"
 #include "System.h"
 
+#include <cstdint>
+
+// Implemented by the optional WiFi output-url module.  Bluetooth/no-radio
+// builds retain a null weak seam and do not enqueue network work.
+extern "C" void fluidnc_output_url_transition(uint8_t logical_output, bool state) __attribute__((weak));
+
+namespace {
+    constexpr uint8_t OutputUrlFlood = 1;
+    constexpr uint8_t OutputUrlMist  = 2;
+
+    void notify_output_url_transition(uint8_t logical_output, bool state) {
+        if (fluidnc_output_url_transition) {
+            fluidnc_output_url_transition(logical_output, state);
+        }
+    }
+}  // namespace
+
 void CoolantControl::init() {
     static bool init_message = true;  // used to show messages only once.
 
@@ -64,6 +81,17 @@ void CoolantControl::stop() {
     write(disable);
 }
 
+void CoolantControl::stop_and_notify() {
+    const auto previous = _previous_state;
+    stop();
+    if (previous.Flood) {
+        notify_output_url_transition(OutputUrlFlood, false);
+    }
+    if (previous.Mist) {
+        notify_output_url_transition(OutputUrlMist, false);
+    }
+}
+
 // Main program only. Immediately sets flood coolant running state and also mist coolant,
 // if enabled. Also sets a flag to report an update to a coolant state.
 // Called by coolant toggle override, parking restore, parking retract, sleep mode, g-code
@@ -85,7 +113,22 @@ void CoolantControl::off() {
 }
 
 void CoolantControl::group(Configuration::HandlerBase& handler) {
+    // @config flood_pin
+    // @default NO_PIN
+    // Controls a flood coolant device (traditionally a liquid coolant, though many machines
+    // repurpose this output for other things, e.g. dust extraction). M8 turns it on, M9
+    // turns it off.
     handler.item("flood_pin", _flood);
+
+    // @config mist_pin
+    // @default NO_PIN
+    // Controls a mist coolant device. M7 turns it on, M9 turns it off.
     handler.item("mist_pin", _mist);
+
+    // @config delay_ms
+    // @default 0
+    // Delay, in milliseconds, after M7/M8 turns a coolant output on, before motion resumes
+    // -- gives the coolant device time to actually start flowing. Not applied if that
+    // coolant output is already on, and not applied to M9 (turning off).
     handler.item("delay_ms", _delay_ms, 0, 10000);
 }

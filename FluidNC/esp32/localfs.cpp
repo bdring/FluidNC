@@ -1,6 +1,7 @@
 #include "Driver/localfs.h"
 #include "Driver/spiffs.h"    // spiffs_format
 #include "Driver/littlefs.h"  // littlefs_format
+#include "DebugRecovery/RecoveryPolicy.h"
 #include "FluidPath.h"
 #include <cstddef>  // NULL
 #include <cstring>
@@ -27,8 +28,9 @@ bool localfs_mount() {
         LocalFS.prefix = spiffsPrefix;
         return true;
     }
-    // Mount LittleFS, create if necessary
-    if (littlefs_mount(littlefsPartition, true) == ESP_OK || littlefs_mount(spiffsPartition, true) == ESP_OK) {
+    const bool formatOnMountFailure = DebugRecovery::automatic_filesystem_format_allowed();
+    if (littlefs_mount(littlefsPartition, formatOnMountFailure) == ESP_OK ||
+        littlefs_mount(spiffsPartition, formatOnMountFailure) == ESP_OK) {
         LocalFS.prefix = littlefsPrefix;
         return true;
     }

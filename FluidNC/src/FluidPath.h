@@ -29,7 +29,7 @@ private:
     bool                          _isSD = false;
 
 public:
-    FluidPath(const std::string_view name, const Volume& fs, std::error_code& ec) noexcept : FluidPath(name, fs, &ec) {}
+    FluidPath(const std::string_view name, const Volume& fs, std::error_code& ec) : FluidPath(name, fs, &ec) {}
     FluidPath(const std::string_view name, const Volume& fs) : FluidPath(name, fs, nullptr) {}
 
     ~FluidPath() = default;

@@ -22,6 +22,8 @@
 #    include "FluidPath.h"
 
 #    include "Driver/localfs.h"
+#    include "DebugRecovery/DebugRecovery.h"
+#    include "DebugRecovery/DebugSupervisor.h"
 
 #    include "ToolChangers/atc.h"
 
@@ -57,6 +59,8 @@ void setup() {
         if (localfs_mount()) {
             log_info("Local filesystem is " << LocalFS.prefix);
         }
+
+        DebugRecovery::initialize_after_localfs_mount();
 
         config->load();
 
@@ -163,6 +167,9 @@ void setup() {
         // Log exception:
         log_config_error("Critical error in setup(): " << ex.what());
     }
+
+    DebugRecovery::mark_phase(DebugRecovery::BootPhase::Runtime);
+    DebugRecovery::start_debug_supervisor();
 
     poll_gpios();  // Initial poll to send events for initial pin states
 

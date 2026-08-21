@@ -18,10 +18,34 @@ namespace Machine {
     }
 
     void I2SOBus::group(Configuration::HandlerBase& handler) {
+        // @config bck_pin
+        // @default NO_PIN
+        // I2S bit-clock line, wired to the external I2S output shift-register chain.
+        // Required (along with data_pin/ws_pin) if any i2so.N pin is used anywhere in the
+        // config.
         handler.item("bck_pin", _bck);
+
+        // @config data_pin
+        // @default NO_PIN
+        // I2S serial data line, wired to the external I2S output shift-register chain.
         handler.item("data_pin", _data);
+
+        // @config ws_pin
+        // @default NO_PIN
+        // I2S word-select (latch) line, wired to the external I2S output shift-register
+        // chain.
         handler.item("ws_pin", _ws);
+
+        // @config min_pulse_us
+        // @default 2
+        // Minimum output pulse width, in microseconds, for an i2so.N pin -- one of 1, 2, or
+        // 4 (see pulseUsValues above). Increase if downstream hardware needs a wider pulse
+        // to register a state change reliably.
         handler.item("min_pulse_us", _min_pulse_us, pulseUsValues);
+
+        // @config oe_pin
+        // @default NO_PIN
+        // Optional output-enable pin for the I2S shift-register chain.
         handler.item("oe_pin", _oe);
     }
 

@@ -74,14 +74,51 @@ namespace MotorDrivers {
         TrinamicBase(const char* name) : StandardStepper(name) {}
 
         void group(Configuration::HandlerBase& handler) override {
+            // Shared field set for every Trinamic driver (SPI or UART), inherited via
+            // TrinamicBase::group() -- annotated once here, not repeated per driver type.
+
             StandardStepper::group(handler);
 
+            // @config r_sense_ohms
+            // @default 0.0
+            // Sense resistor value for the physical driver module, in ohms. The 0.0 default
+            // is not a real, functional value -- TrinamicBase itself has no correct generic
+            // default, since this is purely a property of the specific module in hand
+            // (e.g. 0.11 is typical for genuine TMC2130/TMC2208/TMC2209 modules, 0.075 for
+            // TMC5160). A real value appropriate to the actual hardware must always be set
+            // explicitly.
             handler.item("r_sense_ohms", _r_sense, 0.0, 1.00);
+
+            // @config run_amps
+            // @default 0.5
+            // Motor current while running, in amps RMS.
             handler.item("run_amps", _run_current, 0.05, 10.0);
+
+            // @config hold_amps
+            // @default 0.5
+            // Motor current while holding position (not moving), in amps RMS.
             handler.item("hold_amps", _hold_current, 0.05, 10.0);
+
+            // @config microsteps
+            // @default 16
+            // Microstep resolution. Needs to be reflected in the axis's steps_per_mm.
             handler.item("microsteps", _microsteps, 1, 256);
+
+            // @config toff_disable
+            // @default 0
+            // TOFF (off-time) register value used while the driver is disabled.
             handler.item("toff_disable", _toff_disable, 0, 15);
+
+            // @config toff_stealthchop
+            // @default 5
+            // TOFF (off-time) register value used in StealthChop mode.
             handler.item("toff_stealthchop", _toff_stealthchop, 2, 15);
+
+            // @config use_enable
+            // @default false
+            // Uses disable_pin as an active enable signal (inverted sense) instead of the
+            // ordinary active-disable sense -- some driver modules wire this pin the
+            // opposite way from the FluidNC default.
             handler.item("use_enable", _use_enable);
         }
     };

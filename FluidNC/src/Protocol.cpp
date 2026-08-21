@@ -140,7 +140,8 @@ void polling_loop(void* unused) {
         }
 
         // Poll the input sources waiting for a complete line to arrive
-        /*feedLoopWDT(), */ vTaskDelay(1);
+        vTaskDelay(1);
+        feed_watchdog();
         // Polling is paused when xmodem is using a channel for binary upload
         if (pollingPaused) {
             vTaskDelay(100);
@@ -903,7 +904,7 @@ static void protocol_do_late_reset() {
     // Kill spindle and coolant.
     spindle->stop();
     report_ovr_counter = 0;  // Set to report change immediately
-    config->_coolant->stop();
+    config->_coolant->stop_and_notify();
 
     protocol_disable_steppers();
     Stepping::reset();

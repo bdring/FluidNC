@@ -11,8 +11,26 @@
 #include "Job.h"
 #include <string_view>
 #include <algorithm>
+#include <new>
 
 namespace {
+    std::atomic<uint32_t> channel_queue_mutex_created_count { 0 };
+    std::atomic<uint32_t> channel_queue_mutex_destroyed_count { 0 };
+
+    void note_channel_queue_mutex_created(SemaphoreHandle_t mutex) {
+        if (mutex) {
+            channel_queue_mutex_created_count.fetch_add(1, std::memory_order_relaxed);
+        }
+    }
+
+    SemaphoreHandle_t create_channel_queue_mutex_or_throw() {
+        auto mutex = xSemaphoreCreateMutex();
+        if (!mutex) {
+            throw std::bad_alloc();
+        }
+        return mutex;
+    }
+
     constexpr TickType_t message_queue_retry_ticks = 10;
     constexpr uint32_t   message_queue_max_retries = 25;
 
@@ -31,12 +49,36 @@ namespace {
     }
 }
 
-Channel::Channel(const std::string& name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
-Channel::Channel(const char* name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
+extern "C" uint32_t channel_queue_mutex_created() {
+    return channel_queue_mutex_created_count.load(std::memory_order_relaxed);
+}
+
+extern "C" uint32_t channel_queue_mutex_destroyed() {
+    return channel_queue_mutex_destroyed_count.load(std::memory_order_relaxed);
+}
+
+Channel::Channel(const std::string& name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {
+    _queue_mutex = create_channel_queue_mutex_or_throw();
+    note_channel_queue_mutex_created(_queue_mutex);
+}
+Channel::Channel(const char* name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {
+    _queue_mutex = create_channel_queue_mutex_or_throw();
+    note_channel_queue_mutex_created(_queue_mutex);
+}
 Channel::Channel(const char* name, objnum_t num, bool addCR) : _name(name) {
     _name += std::to_string(num);
     _linelen = 0;
     _addCR   = addCR;
+    _queue_mutex = create_channel_queue_mutex_or_throw();
+    note_channel_queue_mutex_created(_queue_mutex);
+}
+
+Channel::~Channel() {
+    if (_queue_mutex) {
+        vSemaphoreDelete(_queue_mutex);
+        _queue_mutex = nullptr;
+        channel_queue_mutex_destroyed_count.fetch_add(1, std::memory_order_relaxed);
+    }
 }
 
 bool Channel::try_acquire_log_ref() {

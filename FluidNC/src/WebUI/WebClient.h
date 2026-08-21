@@ -21,7 +21,9 @@ namespace WebUI {
 
     class WebClient : public Channel {
     public:
-        WebClient();
+        using ResourceRelease = void (*)();
+
+        explicit WebClient(ResourceRelease resourceRelease = nullptr);
         ~WebClient();
 
         void attachWS(bool silent);
@@ -37,7 +39,8 @@ namespace WebUI {
 
         void sendError(uint16_t code, const std::string& line);
 
-        void executeCommandBackground(const char* cmd);
+        bool executeCommandBackground(const char* cmd);
+        void cancelPendingCommand();
 
         bool anyOutput() { return _buflen > 0; }
 
@@ -52,6 +55,8 @@ namespace WebUI {
                                                 // which also mean all write events have occured
 
     private:
+        void releaseResource();
+
         bool                    _silent = false;  // Used to get no response, but also to discard data after a client may have disconnected
         static const size_t     BUFLEN  = 1024;
         char*                   _buffer = nullptr;  //[BUFLEN];
@@ -59,5 +64,6 @@ namespace WebUI {
         size_t                  _allocsize = 0;
         AsyncWebServerResponse* _response  = nullptr;
         FileStream*             _fs        = nullptr;
+        ResourceRelease         _resourceRelease = nullptr;
     };
 }

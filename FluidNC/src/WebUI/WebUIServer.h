@@ -73,6 +73,7 @@ namespace WebUI {
 
         static uint16_t     _port;
         static UploadStatus _upload_status;
+        static AsyncWebServerRequest* _firmware_upload_request;
         static FileStream*  _uploadFile;
         static std::string  _uploadPath;  // Store upload directory path for listing
         static bool         _schedule_reboot;

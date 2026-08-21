@@ -36,7 +36,7 @@ class AllChannels : public Channel {
 public:
     AllChannels() : Channel("all") { _killQueue = xQueueCreate(16, sizeof(Channel*)); }
 
-    void kill(Channel* channel);
+    bool kill(Channel* channel);
 
     void registration(Channel* channel);
     void deregistration(Channel* channel);

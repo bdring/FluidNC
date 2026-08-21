@@ -293,13 +293,53 @@ void Uart::group(Configuration::HandlerBase& handler) {
         return;
     }
 
+    // @config txd_pin
+    // @default NO_PIN
+    // Pin used to transmit data from the MCU. At least one of txd_pin/rxd_pin must be set;
+    // a txd_pin-only UART (e.g. a read-only display) is valid.
     handler.item("txd_pin", _txd_pin);
+
+    // @config rxd_pin
+    // @default NO_PIN
+    // Pin used to receive data from the connected device. At least one of txd_pin/rxd_pin
+    // must be set. An rxd_pin-only UART (e.g. a button panel) is valid, but be aware the
+    // Grbl "ok" response flow-control won't be sent on an rx-only UART -- real-time
+    // commands are safe, but other commands may be problematic.
     handler.item("rxd_pin", _rxd_pin);
+
+    // @config rts_pin
+    // @default NO_PIN
+    // Request-To-Send output, controlled by the MCU -- commonly used for hardware flow
+    // control, and required by some UART-to-RS485 adapters.
     handler.item("rts_pin", _rts_pin);
+
+    // @config cts_pin
+    // @default NO_PIN
+    // Clear-To-Send input, controlled by the MCU -- used for hardware flow control.
+    // Rarely needed (Grbl's own command protocol uses its "ok" response for flow control).
     handler.item("cts_pin", _cts_pin);
 
+    // @config baud
+    // @default 115200
+    // UART data baud rate.
     handler.item("baud", _baud, 2400, 10000000);
+
+    // @config mode
+    // @default 8N1
+    // Data format as a 3-character code: data bits (5-8), parity (N/E/O), stop bits
+    // (1/1.5/2) -- e.g. 8N1. Always quote this value in YAML (see the config spec's note on
+    // 8E1 being ambiguous with scientific-notation floats to generic YAML parsers).
     handler.item("mode", _dataBits, _parity, _stopBits);
+
+    // @config passthrough_baud
+    // @default 0 (not configured)
+    // Baud rate used while this UART is in passthrough mode (e.g. forwarding firmware
+    // uploads from FluidTerm). 0 means passthrough is not configured for this UART.
     handler.item("passthrough_baud", _passthrough_baud, 0, 10000000);  // 0 means not configured
+
+    // @config passthrough_mode
+    // @default 8E1
+    // Data format (same 3-character code as mode) used while this UART is in passthrough
+    // mode.
     handler.item("passthrough_mode", _passthrough_databits, _passthrough_parity, _passthrough_stopbits);
 }

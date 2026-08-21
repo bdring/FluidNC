@@ -22,8 +22,8 @@
 #include "Configuration/AfterParse.h"
 #include "Config.h"  // ENABLE_*
 
-#include "Driver/restart.h"
 #include "Driver/backtrace.h"
+#include "DebugRecovery/DebugRecovery.h"
 
 #include <cstdio>
 #include <cstring>
@@ -36,8 +36,22 @@ Machine::MachineConfig* config;
 
 namespace Machine {
     void MachineConfig::group(Configuration::HandlerBase& handler) {
+        // @config board
+        // @default "None"
+        // Descriptive text for the controller board, e.g. "ESP32 Dev Controller V4".
+        // Informational only -- not validated against a list of known boards, and not
+        // used to select behavior.
         handler.item("board", _board);
+
+        // @config name
+        // @default "None"
+        // A basic description of the machine, e.g. "Router XYYZ 10V Spindle" -- shown in
+        // startup/status messages.
         handler.item("name", _name);
+
+        // @config meta
+        // @default "" (empty)
+        // Free-form notes about the config file itself, e.g. "B. Dring 2022-03-15 Rev 2".
         handler.item("meta", _meta);
 
         handler.section("stepping", _stepping);
@@ -88,12 +102,56 @@ namespace Machine {
 #endif
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
+
+        // @config arc_tolerance_mm
+        // @default 0.002
+        // Maximum deviation, in mm, allowed when tessellating G2/G3 arcs into straight-line
+        // segments. Smaller values produce smoother arcs at the cost of more segments (and
+        // therefore more planner/computation work). Rarely changed from the default.
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
+
+        // @config junction_deviation_mm
+        // @default 0.01
+        // Controls how aggressively the planner slows down at sharp corners between
+        // consecutive moves (the Grbl-style "junction deviation" cornering algorithm).
+        // Smaller values force more slowdown at corners; larger values allow faster
+        // cornering at the cost of more deviation from the programmed path. Rarely changed
+        // from the default -- see the planner source for the full derivation.
         handler.item("junction_deviation_mm", _junctionDeviation, 0.01, 1.0);
+
+        // @config verbose_errors
+        // @default true
+        // Includes descriptive text alongside the numeric error code in error responses.
+        // Some GCode senders may not parse the extra text correctly.
         handler.item("verbose_errors", _verboseErrors);
+
+        // @config report_inches
+        // @default false
+        // Reports position and feed rate values in inches instead of millimeters. This
+        // only affects reporting, not how input values in the GCode/config are interpreted.
         handler.item("report_inches", _reportInches);
+
+        // @config enable_parking_override_control
+        // @default false
+        // Enables the M56 GCode command, which lets a running program toggle the parking-
+        // motion override on/off at runtime (M56 P0 disables parking, M56 P1 enables it).
+        // This only gates whether M56 has any effect; start.deactivate_parking sets what
+        // the override defaults to, and parking.enable is the separate switch for the
+        // parking feature existing at all.
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
+
+        // @config use_line_numbers
+        // @default false
+        // When true, line numbers written into GCode as N<number> (e.g. N100) are tracked
+        // and echoed back in status reports as Ln:100, so a report can be correlated with
+        // the source line currently being executed. Reports Ln:0 when the GCode has no line
+        // number information.
         handler.item("use_line_numbers", _useLineNumbers);
+
+        // @config planner_blocks
+        // @default 16
+        // Number of motion blocks held in the look-ahead planner buffer. Leave at the
+        // default unless tuning for a special application.
         handler.item("planner_blocks", _planner_blocks, 10, 120);
     }
 
@@ -186,10 +244,8 @@ namespace Machine {
     const char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
 
     void MachineConfig::load() {
-        // If the system crashes we skip the config file and use the default
-        // builtin config.  This helps prevent reset loops on bad config files.
-        if (restart_was_panic()) {
-            log_error("Skipping configuration file due to panic");
+        const bool wasCrashReset = DebugRecovery::previous_reset_was_crash();
+        if (wasCrashReset) {
             backtrace_t bt;
             if (backtrace_get(&bt)) {
                 char buf[16];
@@ -203,12 +259,26 @@ namespace Machine {
                 }
                 log_error(btLine.c_str());
             }
+        }
+
+        DebugRecovery::mark_phase(DebugRecovery::BootPhase::LoadingConfig);
+        const std::string configuredFilename = config_filename->get();
+        DebugRecovery::record_config_identity(configuredFilename.c_str());
+
+        const auto recoveryDecision =
+            DebugRecovery::config_recovery_decision(wasCrashReset, DebugRecovery::previous_phase());
+        if (recoveryDecision == DebugRecovery::ConfigRecoveryDecision::LoadBuiltInDefault) {
+            log_error("Skipping configuration file because the previous panic occurred while loading it");
             log_info("Using default configuration");
             load_yaml(defaultConfig);
             set_state(State::ConfigAlarm);
         } else {
-            load_file(config_filename->get());
+            if (wasCrashReset) {
+                log_info("Reloading configured file after a runtime crash or watchdog reset");
+            }
+            load_file(configuredFilename);
         }
+        DebugRecovery::mark_phase(DebugRecovery::BootPhase::ConfigLoaded);
     }
 
     void MachineConfig::load_file(const std::string_view filename) {

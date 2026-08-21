@@ -7,6 +7,10 @@
 #include "Config.h"
 #include <esp_idf_version.h>
 
+#if defined(CONFIG_ESP_TASK_WDT) || defined(CONFIG_ESP_TASK_WDT_EN)
+#    define FLUIDNC_TASK_WDT_ENABLED 1
+#endif
+
 static TaskHandle_t wdt_task_handle = nullptr;
 
 static void get_wdt_task_handle() {
@@ -32,7 +36,7 @@ static void get_wdt_task_handle() {
 
 // cppcheck-suppress unusedFunction
 void enable_core0_WDT() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     if (!wdt_task_handle) {
         return;
     }
@@ -45,7 +49,7 @@ void enable_core0_WDT() {
 
 // cppcheck-suppress unusedFunction
 void disable_core0_WDT() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     get_wdt_task_handle();
     if (!wdt_task_handle) {
         return;
@@ -58,13 +62,13 @@ void disable_core0_WDT() {
 }
 
 void feed_watchdog() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     esp_task_wdt_reset();
 #endif
 }
 
 void add_watchdog_to_task() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     esp_task_wdt_add(NULL);  // NULL means current task
 #endif
 }

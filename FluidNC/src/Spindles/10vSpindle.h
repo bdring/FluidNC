@@ -36,8 +36,25 @@ namespace Spindles {
         void validate() override { PWM::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
+            // Designed for controllers with a 0-10V analog control input plus separate
+            // forward/reverse direction pins. The ESP32 can't generate 0-10V directly, but
+            // some FluidNC controllers include a hardware adapter that produces it from a
+            // PWM-driven GPIO; the plain PWM spindle type can drive the same adapter too,
+            // but without separate direction pins -- use this type only when that specific
+            // direction-pin wiring is needed.
+
+            // @config forward_pin
+            // @default NO_PIN
+            // Signals forward rotation when using separate forward/reverse pins. May
+            // remain on after M5; turns off after M4.
             handler.item("forward_pin", _forward_pin);
+
+            // @config reverse_pin
+            // @default NO_PIN
+            // Signals reverse rotation when using separate forward/reverse pins. May
+            // remain on after M5; turns off after M3.
             handler.item("reverse_pin", _reverse_pin);
+
             PWM::group(handler);
         }
 

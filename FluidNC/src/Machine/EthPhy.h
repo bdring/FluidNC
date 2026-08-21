@@ -56,11 +56,39 @@ namespace Machine {
         bool config_ok = false;
 
         void group(Configuration::HandlerBase& handler) override {
+            // @config cs_pin
+            // @default NO_PIN
+            // SPI chip-select pin for the Ethernet controller. The SPI bus itself
+            // (sck/mosi/miso) is the machine's shared spi: section, same as SDCard.
             handler.item("cs_pin", _cs);
+
+            // @config int_pin
+            // @default NO_PIN
+            // Optional interrupt pin. If not defined, the PHY is polled instead.
             handler.item("int_pin", _int);
+
+            // @config rst_pin
+            // @default NO_PIN
+            // Optional hardware reset pin for the PHY.
             handler.item("rst_pin", _rst);
+
+            // @config phy_type
+            // @default W5500
+            // Which SPI-attached Ethernet PHY chip is present. W5500 is the only one
+            // actually tested; KSZ8851/DM9051 use the same SPI+CS wiring and ETH.begin()
+            // call shape with a different chip-type constant, so they're offered too.
+            // RMII-attached PHYs (LAN8720 and similar) are a different wiring/API shape
+            // entirely and aren't supported by this section.
             handler.item("phy_type", _phy_type, phyTypes);
+
+            // @config phy_addr
+            // @default 1
+            // SPI/management address of the PHY chip.
             handler.item("phy_addr", _phy_addr, 0, 31);
+
+            // @config frequency_hz
+            // @default 20000000
+            // SPI clock speed used to talk to the Ethernet controller.
             handler.item("frequency_hz", _frequency_hz, 1000000, 80000000);
         }
 

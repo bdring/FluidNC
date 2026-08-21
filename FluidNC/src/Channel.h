@@ -58,7 +58,7 @@ protected:
     bool        _addCR         = false;
     char        _lastWasCR     = false;
 
-    mutable SemaphoreHandle_t _queue_mutex = xSemaphoreCreateMutex();
+    mutable SemaphoreHandle_t _queue_mutex = nullptr;
     std::queue<uint8_t> _queue;
 
     uint32_t _reportInterval = 0;
@@ -97,7 +97,7 @@ public:
     explicit Channel(const std::string& name, bool addCR = false);
     explicit Channel(const char* name, bool addCR = false);
     Channel(const char* name, objnum_t num, bool addCR = false);
-    virtual ~Channel() = default;
+    virtual ~Channel();
 
     int8_t _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
