@@ -2,6 +2,7 @@
 #include "EnumItem.h"
 #include "Stepping.h"
 #include "Machine/MachineConfig.h"  // config
+#include "Motors/MotorDriver.h"     // MotorDrivers::MotorDriver
 
 #include <atomic>
 
@@ -72,10 +73,19 @@ void Stepping::assignMotor(axis_t axis, motor_t motor, pinnum_t step_pin, bool s
     m->dir_invert            = dir_invert;
     m->blocked               = false;
     m->limited               = false;
+    m->driver                = nullptr;
 
     if (motor == 0 && dir_invert) {
         set_bitnum(direction_mask, axis);
     }
+}
+
+void Stepping::assignMotorDriver(axis_t axis, motor_t motor, MotorDrivers::MotorDriver* driver) {
+    // Value-initialize, since the step/dir pin fields are unused for a motor
+    // whose driver does its own stepping.
+    auto m                   = new motor_pins_t {};
+    axis_motors[axis][motor] = m;
+    m->driver                = driver;
 }
 
 steps_t Stepping::axis_steps[MAX_N_AXIS] = { 0 };
@@ -129,7 +139,11 @@ void IRAM_ATTR Stepping::step(AxisMask step_mask, AxisMask dir_mask) {
                 for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
                     auto m = axis_motors[axis][motor];
                     if (m) {
-                        _engine->set_dir_pin(m->dir_pin, dir ^ m->dir_invert);
+                        if (m->driver) {
+                            m->driver->set_direction(dir);
+                        } else {
+                            _engine->set_dir_pin(m->dir_pin, dir ^ m->dir_invert);
+                        }
                     }
                 }
             }
@@ -149,7 +163,11 @@ void IRAM_ATTR Stepping::step(AxisMask step_mask, AxisMask dir_mask) {
             for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
                 auto m = axis_motors[axis][motor];
                 if (m && !m->blocked && !m->limited) {
-                    _engine->set_step_pin(m->step_pin, !m->step_invert);
+                    if (m->driver) {
+                        m->driver->step();
+                    } else {
+                        _engine->set_step_pin(m->step_pin, !m->step_invert);
+                    }
                 }
             }
         }
@@ -165,7 +183,9 @@ void IRAM_ATTR Stepping::unstep() {
     for (axis_t axis = X_AXIS; axis < Axes::_numberAxis; axis++) {
         for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
             auto m = axis_motors[axis][motor];
-            if (m) {
+            // Driver-stepped motors hold their outputs between steps, so there
+            // is no pulse to end for them.
+            if (m && !m->driver) {
                 _engine->set_step_pin(m->step_pin, m->step_invert);
             }
         }
