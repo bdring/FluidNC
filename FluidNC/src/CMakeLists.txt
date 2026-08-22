@@ -105,6 +105,7 @@ idf_component_register(SRCS BTConfig.cpp
 							Motors/TrinamicBase.cpp
 							Motors/TrinamicSpiDriver.cpp
 							Motors/TrinamicUartDriver.cpp
+							Motors/UnipolarMotor.cpp
 							Pins/ChannelPinDetail.cpp
 							Pins/DebugPinDetail.cpp
 							Pins/ErrorPinDetail.cpp

@@ -113,6 +113,7 @@ SECTIONS = [
     ("axes.<letter>.motorN.rc_servo", [("Motors/RcServo.h", "RcServo")], None),
     ("axes.<letter>.motorN.solenoid", [("Motors/Solenoid.h", "Solenoid")], None),
     ("axes.<letter>.motorN.dynamixel2", [("Motors/Dynamixel2.h", "Dynamixel2")], None),
+    ("axes.<letter>.motorN.unipolar", [("Motors/UnipolarMotor.h", "UnipolarMotor")], None),
     ("axes.<letter>.motorN.null_motor", [], "Explicit no-op driver -- takes no fields."),
     (
         "PWM",
