@@ -34,7 +34,14 @@ namespace WebUI {
 #endif
     }
 
-    void TelnetClient::handle() {}
+    void TelnetClient::handle() {
+        // Drain leftovers from a previous burst even if nothing new is being
+        // written (otherwise the tail of a long reply -- typically the final
+        // "ok" -- would sit in the ring until the next status report).
+        if (!_disconnected.load() && _txTail != _txHead) {
+            flushQueue();
+        }
+    }
 
     void TelnetClient::closeOnDisconnectLocked() {
         if (!_wifiClient->connected()) {
@@ -70,13 +77,18 @@ namespace WebUI {
     }
 
     bool TelnetClient::queueLine(const uint8_t* data, size_t len, size_t reserve) {
+        // Held under _wifiMutex because flushQueue() (which consumes the ring)
+        // can now also run from handle() on the polling task.
+        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
         if (len + reserve > queueFree()) {
+            xSemaphoreGive(_wifiMutex);
             return false;
         }
         for (size_t i = 0; i < len; ++i) {
             _txQueue[_txHead] = data[i];
             _txHead           = (_txHead + 1) % TX_QUEUE_SIZE;
         }
+        xSemaphoreGive(_wifiMutex);
         return true;
     }
 
@@ -113,11 +125,13 @@ namespace WebUI {
     // and go out on the next write().
     void TelnetClient::flushQueue() {
         xSemaphoreTake(_wifiMutex, portMAX_DELAY);
+        bool progress = false;
         while (_txTail != _txHead) {
             size_t contiguous = _txHead > _txTail ? _txHead - _txTail : TX_QUEUE_SIZE - _txTail;
             int    sent       = trySend(_txQueue.data() + _txTail, contiguous);
             if (sent > 0) {
-                _txTail = (_txTail + (size_t)sent) % TX_QUEUE_SIZE;
+                _txTail  = (_txTail + (size_t)sent) % TX_QUEUE_SIZE;
+                progress = true;
                 continue;
             }
             if (sent < 0) {
@@ -131,13 +145,20 @@ namespace WebUI {
             break;  // sent == 0: socket not ready right now
         }
 
-        if (_txTail == _txHead) {
-            _txStallCount = 0;  // fully drained
-        } else if (++_txStallCount >= TX_STALL_LIMIT) {
-            // Connected but not draining what we send it -- wedged peer.
-            // Force it out so the slot can be reused.
-            _wifiClient->stop();
-            closeOnDisconnectLocked();
+        if (_txTail == _txHead || progress) {
+            _txStallSince = 0;  // drained, or the peer is draining (just slower than we produce)
+        } else {
+            // Backlog present and the socket accepted nothing this time.
+            // Only a sustained no-progress window means a wedged peer.
+            const uint32_t now = millis();
+            if (_txStallSince == 0) {
+                _txStallSince = now;
+            } else if (now - _txStallSince >= TX_STALL_TIMEOUT_MS) {
+                // Connected but not draining what we send it -- wedged peer.
+                // Force it out so the slot can be reused.
+                _wifiClient->stop();
+                closeOnDisconnectLocked();
+            }
         }
         xSemaphoreGive(_wifiMutex);
     }

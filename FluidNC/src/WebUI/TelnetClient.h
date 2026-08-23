@@ -46,11 +46,18 @@ namespace WebUI {
         // draining what we send it -- a frozen terminal, a dead network path,
         // a zero TCP window. That alone doesn't fill the ring buffer's
         // TX_CRITICAL_RESERVE headroom, so it isn't caught by queueLine()'s
-        // critical-line disconnect. Count consecutive flushQueue() calls that
-        // fail to fully drain the backlog and force the client out once it's
-        // wedged for TX_STALL_LIMIT of them in a row, freeing the slot.
-        static constexpr int TX_STALL_LIMIT = 10;
-        int                  _txStallCount  = 0;
+        // critical-line disconnect.
+        //
+        // The stall must be measured in TIME, not in flushQueue() calls:
+        // flushQueue() runs once per written line, so a multi-line burst
+        // (e.g. $Errors/List, 35 lines in a few ms) calls it dozens of times
+        // while lwIP is still pushing the first segment out over the air.
+        // Counting those calls as "stalls" kicks a perfectly healthy client
+        // after ~1 KB. Instead: any forward progress resets the timer, and
+        // the client is only dropped after TX_STALL_TIMEOUT_MS with a backlog
+        // and zero bytes accepted by the socket.
+        static constexpr uint32_t TX_STALL_TIMEOUT_MS = 5000;
+        uint32_t                  _txStallSince       = 0;  // millis() of first no-progress flush; 0 = healthy
 
         int32_t     _state = 0;
         std::string _txLine;             // output accumulated until a full line
