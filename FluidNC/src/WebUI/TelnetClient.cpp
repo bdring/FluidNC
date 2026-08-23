@@ -38,7 +38,8 @@ namespace WebUI {
         // Drain leftovers from a previous burst even if nothing new is being
         // written (otherwise the tail of a long reply -- typically the final
         // "ok" -- would sit in the ring until the next status report).
-        if (!_disconnected.load() && _txTail != _txHead) {
+        if (!_disconnected.load() &&
+            _txTail.load(std::memory_order_relaxed) != _txHead.load(std::memory_order_relaxed)) {
             flushQueue();
         }
     }
@@ -72,7 +73,9 @@ namespace WebUI {
     }
 
     size_t TelnetClient::queueFree() const {
-        size_t used = (_txHead + TX_QUEUE_SIZE - _txTail) % TX_QUEUE_SIZE;
+        const size_t head = _txHead.load(std::memory_order_relaxed);
+        const size_t tail = _txTail.load(std::memory_order_relaxed);
+        size_t       used = (head + TX_QUEUE_SIZE - tail) % TX_QUEUE_SIZE;
         return TX_QUEUE_SIZE - used - 1;
     }
 
@@ -84,10 +87,12 @@ namespace WebUI {
             xSemaphoreGive(_wifiMutex);
             return false;
         }
+        size_t head = _txHead.load(std::memory_order_relaxed);
         for (size_t i = 0; i < len; ++i) {
-            _txQueue[_txHead] = data[i];
-            _txHead           = (_txHead + 1) % TX_QUEUE_SIZE;
+            _txQueue[head] = data[i];
+            head           = (head + 1) % TX_QUEUE_SIZE;
         }
+        _txHead.store(head, std::memory_order_relaxed);
         xSemaphoreGive(_wifiMutex);
         return true;
     }
@@ -126,11 +131,16 @@ namespace WebUI {
     void TelnetClient::flushQueue() {
         xSemaphoreTake(_wifiMutex, portMAX_DELAY);
         bool progress = false;
-        while (_txTail != _txHead) {
-            size_t contiguous = _txHead > _txTail ? _txHead - _txTail : TX_QUEUE_SIZE - _txTail;
-            int    sent       = trySend(_txQueue.data() + _txTail, contiguous);
+        // Safe to snapshot: queueLine() also holds _wifiMutex, so the head
+        // cannot advance while this loop runs.
+        const size_t head = _txHead.load(std::memory_order_relaxed);
+        size_t       tail = _txTail.load(std::memory_order_relaxed);
+        while (tail != head) {
+            size_t contiguous = head > tail ? head - tail : TX_QUEUE_SIZE - tail;
+            int    sent       = trySend(_txQueue.data() + tail, contiguous);
             if (sent > 0) {
-                _txTail  = (_txTail + (size_t)sent) % TX_QUEUE_SIZE;
+                tail = (tail + (size_t)sent) % TX_QUEUE_SIZE;
+                _txTail.store(tail, std::memory_order_relaxed);
                 progress = true;
                 continue;
             }
@@ -145,13 +155,13 @@ namespace WebUI {
             break;  // sent == 0: socket not ready right now
         }
 
-        if (_txTail == _txHead || progress) {
-            _txStallSince = 0;  // drained, or the peer is draining (just slower than we produce)
+        if (tail == head || progress) {
+            _txStallSince = TX_STALL_NONE;  // drained, or the peer is draining (just slower than we produce)
         } else {
             // Backlog present and the socket accepted nothing this time.
             // Only a sustained no-progress window means a wedged peer.
             const uint32_t now = millis();
-            if (_txStallSince == 0) {
+            if (_txStallSince == TX_STALL_NONE) {
                 _txStallSince = now;
             } else if (now - _txStallSince >= TX_STALL_TIMEOUT_MS) {
                 // Connected but not draining what we send it -- wedged peer.

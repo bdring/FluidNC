@@ -9,6 +9,8 @@
 // so WiFi symbols are visible without arduino:: qualification.
 #include <Arduino.h>
 #include <array>
+#include <atomic>
+#include <cstdint>
 #include <WiFi.h>
 #include <string>
 
@@ -57,15 +59,30 @@ namespace WebUI {
         // the client is only dropped after TX_STALL_TIMEOUT_MS with a backlog
         // and zero bytes accepted by the socket.
         static constexpr uint32_t TX_STALL_TIMEOUT_MS = 5000;
-        uint32_t                  _txStallSince       = 0;  // millis() of first no-progress flush; 0 = healthy
+        // The "no stall in progress" sentinel cannot be 0, because millis()
+        // itself returns 0 -- for one millisecond after boot, and again on
+        // every 49.7-day wrap. A timestamp recorded then would read back as
+        // "healthy" on the next flush and restart the window. UINT32_MAX is
+        // never a value millis() can return.
+        static constexpr uint32_t TX_STALL_NONE       = UINT32_MAX;
+        uint32_t                  _txStallSince       = TX_STALL_NONE;
 
         int32_t     _state = 0;
         std::string _txLine;             // output accumulated until a full line
         uint8_t     _txLastChar = '\0';  // for \n -> \r\n across write() calls
 
         std::array<uint8_t, TX_QUEUE_SIZE> _txQueue {};
-        size_t                             _txHead = 0;
-        size_t                             _txTail = 0;
+        // Atomic because handle() compares them on the polling task without
+        // holding _wifiMutex, while queueLine()/flushQueue() mutate them on
+        // the output task. Relaxed ordering is sufficient: the unlocked read
+        // is only a hint about whether calling flushQueue() is worthwhile,
+        // and flushQueue() re-reads under the mutex before touching the ring,
+        // so a stale hint costs at most one extra poll cycle. Taking the
+        // mutex in handle() instead would serialise the polling task against
+        // every write, thousands of times per second, only to answer a
+        // question that is harmless to get wrong.
+        std::atomic<size_t>                _txHead { 0 };
+        std::atomic<size_t>                _txTail { 0 };
 
         static bool isCriticalLine(const std::string& line);
         size_t      queueFree() const;
