@@ -1415,7 +1415,17 @@ namespace WebUI {
             _uploadFile = nullptr;
             log_debug("pathname " << pathname);
 
-            FluidPath filepath { pathname, LocalFS };
+            // Use the non-throwing constructor.  This runs in an async web
+            // server callback, so an escaping exception would terminate the
+            // task and reboot the controller instead of reporting the error.
+            std::error_code ec;
+            FluidPath       filepath { pathname, LocalFS, ec };
+            if (ec) {
+                _upload_status = UploadStatus::FAILED;
+                log_info("Upload failed - filesystem inaccessible after write");
+                pushError(request, ESP_ERROR_UPLOAD, "Upload failed, filesystem inaccessible");
+                return;
+            }
 
             HashFS::rehash_file(filepath);
 
