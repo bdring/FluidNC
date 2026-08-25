@@ -4,6 +4,17 @@
 #include "FileStream.h"
 #include "Machine/MachineConfig.h"  // config->
 
+// Writes reach this class in small pieces -- a WebUI upload arrives at about
+// the TCP segment size -- and stdio coalesces them into buffer-sized calls
+// down to the filesystem.  Sizing the buffer at several sectors means FATFS
+// sees longer runs of whole sectors and can issue them as SD multi-block
+// writes rather than a shorter transfer per stdio flush.  On the host, this
+// cuts write() calls per megabyte fourfold versus a 1 KiB buffer; on the
+// device the gain was not separable from run-to-run variation in the card
+// itself, so treat it as cheap insurance rather than a measured win.  Costs
+// 4 KiB of heap per open file.
+static constexpr size_t FILE_BUFFER_SIZE = 4096;
+
 std::string FileStream::path() {
     return _fpath.string();
 }
@@ -73,6 +84,9 @@ void FileStream::setup(const char* mode) {
         bool opening = strcmp(mode, "w");
         throw ErrorException(opening ? Error::FsFailedOpenFile : Error::FsFailedCreateFile);
     }
+    // Must happen before any I/O on the stream.  A failure here is not fatal;
+    // the stream just keeps the default buffer and runs slower.
+    setvbuf(_fd, nullptr, _IOFBF, FILE_BUFFER_SIZE);
     _size = stdfs::file_size(_fpath);
 }
 

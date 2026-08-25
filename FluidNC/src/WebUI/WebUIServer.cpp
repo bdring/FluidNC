@@ -1388,8 +1388,16 @@ namespace WebUI {
         }
     }
 
+    // Chunks arrive at roughly the TCP segment size, so delaying on every one
+    // costs about a millisecond per kilobyte -- seconds on a large file.
+    // Yielding periodically keeps the original intent at a fraction of the cost.
+    static constexpr uint32_t UPLOAD_CHUNKS_PER_YIELD = 32;
+
     void WebUI_Server::uploadWrite(AsyncWebServerRequest* request, uint8_t* buffer, size_t length) {
-        delay_ms(1);
+        static uint32_t chunk_count = 0;
+        if ((++chunk_count % UPLOAD_CHUNKS_PER_YIELD) == 0) {
+            delay_ms(1);
+        }
         if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
             //no error write post data
             if (length != _uploadFile->write(buffer, length)) {
@@ -1411,15 +1419,23 @@ namespace WebUI {
             // _uploadFile = nullptr;
 
             std::string pathname = _uploadFile->fpath();
+
+            // Take the reference to the volume before closing the file, so the
+            // mount count never drops to zero here.  Re-establishing it after
+            // the close costs a full card re-initialization, and when heap is
+            // tight it can fail outright -- which would discard a file that had
+            // in fact been written successfully.
+            //
+            // The non-throwing constructor matters because this runs in an
+            // async web server callback, where an escaping exception would
+            // terminate the task and reboot the controller.
+            std::error_code ec;
+            FluidPath       filepath { pathname, LocalFS, ec };
+
             delete _uploadFile;
             _uploadFile = nullptr;
             log_debug("pathname " << pathname);
 
-            // Use the non-throwing constructor.  This runs in an async web
-            // server callback, so an escaping exception would terminate the
-            // task and reboot the controller instead of reporting the error.
-            std::error_code ec;
-            FluidPath       filepath { pathname, LocalFS, ec };
             if (ec) {
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload failed - filesystem inaccessible after write");
