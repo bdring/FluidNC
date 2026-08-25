@@ -1,0 +1,51 @@
+name: "WASM test machine"
+board: "None"
+
+stepping:
+  engine: timed
+  idle_ms: 255
+  dir_delay_us: 10
+  pulse_us: 1
+  disable_delay_us: 0
+
+axes:
+  x:
+    steps_per_mm: 800
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 100
+    max_travel_mm: 300
+    motor0:
+      standard_stepper:
+        step_pin: gpio.10
+        direction_pin: gpio.11
+
+  y:
+    steps_per_mm: 800
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 100
+    max_travel_mm: 300
+    motor0:
+      standard_stepper:
+        step_pin: gpio.13
+        direction_pin: gpio.14
+
+  z:
+    steps_per_mm: 800
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 100
+    max_travel_mm: 300
+    motor0:
+      standard_stepper:
+        step_pin: gpio.16
+        direction_pin: gpio.17
+
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.21
+  sck_pin: gpio.18
+
+sdcard:
+  cs_pin: gpio.5
+
+start:
+  must_home: false

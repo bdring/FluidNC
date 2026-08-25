@@ -576,69 +576,47 @@ self.fluidncOnShimOutput = (text) => {
   }
 };
 
-const TEST_CONFIG_YAML = `
-name: "WASM test machine"
-board: "None"
-
-stepping:
-  engine: timed
-  idle_ms: 255
-  dir_delay_us: 10
-  pulse_us: 1
-  disable_delay_us: 0
-
-axes:
-  x:
-    steps_per_mm: 800
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 100
-    max_travel_mm: 300
-    motor0:
-      standard_stepper:
-        step_pin: gpio.10
-        direction_pin: gpio.11
-
-  y:
-    steps_per_mm: 800
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 100
-    max_travel_mm: 300
-    motor0:
-      standard_stepper:
-        step_pin: gpio.13
-        direction_pin: gpio.14
-
-  z:
-    steps_per_mm: 800
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 100
-    max_travel_mm: 300
-    motor0:
-      standard_stepper:
-        step_pin: gpio.16
-        direction_pin: gpio.17
-
-spi:
-  miso_pin: gpio.19
-  mosi_pin: gpio.21
-  sck_pin: gpio.18
-
-sdcard:
-  cs_pin: gpio.5
-
-start:
-  must_home: false
-`;
-
-const TEST_GCODE = `; sample job for $SD/List and $SD/Run
-G21 G90
-G0 X0 Y0
-G1 X10 Y0 F500
-G1 X10 Y10
-G1 X0 Y10
-G1 X0 Y0
-M30
-`;
+// Seed content for native_localfs/native_sd (config.yaml, a sample job)
+// lives as plain files under seed-localfs//seed-sd/, fetched at boot
+// (see seedFs() below) rather than embedded here -- same-origin fetch()
+// isn't affected by the COOP/COEP headers serve.py/_headers set (those
+// only restrict *cross-origin* loads lacking a CORP header), and Netlify/
+// serve.py both already serve everything under demo/ as plain static
+// files, so no build step is needed to get the content into the page.
+// Adding a seed file is just adding it under the right seed-*/ directory
+// and listing it in that directory's manifest.json (a static host can't
+// be asked to list a directory's contents itself).
+//
+// Only files missing from the restored (persisted) filesystem are staged,
+// so a user's copy wins -- see restorePersistentFs(). Fetched as bytes and
+// written with FS.writeFile rather than stageFile(), whose C-string content
+// argument would truncate a binary seed file at its first NUL. A failed
+// fetch is logged and skipped rather than blocking startup.
+async function seedFs(FS, root, dir) {
+  let manifest;
+  try {
+    manifest = await (await fetch(`${dir}/manifest.json`)).json();
+  } catch (err) {
+    console.error(`seedFs: no manifest for ${dir}:`, err);
+    return;
+  }
+  for (const path of manifest) {
+    const full = `/${root}/${path}`;
+    if (FS.analyzePath(full).exists) {
+      continue;
+    }
+    try {
+      const res = await fetch(`${dir}/${path}`);
+      if (!res.ok) {
+        throw new Error(`${res.status} ${res.statusText}`);
+      }
+      FS.mkdirTree(full.slice(0, full.lastIndexOf('/')));
+      FS.writeFile(full, new Uint8Array(await res.arrayBuffer()));
+    } catch (err) {
+      console.error(`seedFs: failed to stage ${full}:`, err);
+    }
+  }
+}
 </script>
 <script src="program.js"></script>
 <script>
@@ -747,13 +725,8 @@ FluidNCModule().then(async (Module) => {
   // Before fsOps is set, so iframe fs requests stay queued (see the
   // message listener) until they can see the restored files.
   await restorePersistentFs(Module.FS);
-  const seedIfMissing = (root, path, content) => {
-    if (!Module.FS.analyzePath(`/${root}/${path}`).exists) {
-      stageFile(root, path, content);
-    }
-  };
-  seedIfMissing('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
-  seedIfMissing('native_sd', 'square.nc', TEST_GCODE);
+  await seedFs(Module.FS, 'native_localfs', 'seed-localfs');
+  await seedFs(Module.FS, 'native_sd', 'seed-sd');
   savePersistentFs();
 
   fsOps = {

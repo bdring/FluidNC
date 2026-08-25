@@ -53,6 +53,25 @@ python3 serve.py 8767
 
 Then open `http://127.0.0.1:8767/index.html`.
 
+### Seed files (native_localfs/native_sd)
+
+`config.yaml` and a sample job are staged into the running instance at
+boot from `demo/seed-localfs/` and `demo/seed-sd/` -- plain files,
+fetched client-side (see `seedFs()` in `index.html`) rather than
+embedded in the page, since Netlify (and `serve.py` locally) already
+serve everything under `demo/` as static files, same-origin `fetch()`
+isn't affected by the COOP/COEP headers above, and a static host can't
+be asked to list a directory's contents -- each `seed-*/manifest.json`
+does that instead. To add a seed file, drop it under the right
+directory and add its relative path to that directory's
+`manifest.json`.
+
+Seed files fill in only what is missing: the demo persists
+native_localfs, native_sd and native_nvs in the browser's IndexedDB, so a
+file the user has edited or uploaded overrides the seed copy, while a
+seed file added in a later deploy still appears. The demo page's "Reset
+files and settings" button discards the saved copies.
+
 ## 4. Deploy to Netlify
 
 One-time: install the Netlify CLI and log in (opens a browser to
