@@ -17,9 +17,16 @@ int FileStream::available() {
 }
 
 int FileStream::read() {
+    if (!_fd) {
+        return -1;
+    }
     char   data;
     size_t res = fread(&data, 1, 1, _fd);
     return res == 1 ? data : -1;
+}
+
+bool FileStream::read_failed() {
+    return _io_error || (_fd && ferror(_fd) != 0);
 }
 
 int FileStream::peek() {
@@ -29,7 +36,17 @@ int FileStream::peek() {
 void FileStream::flush() {}
 
 int FileStream::read(char* buffer, size_t length) {
-    return fread(buffer, 1, length, _fd);
+    if (!_fd) {
+        return -1;
+    }
+    size_t got = fread(buffer, 1, length, _fd);
+    // Report the failure once the buffered data has been handed back, so
+    // callers that check for a negative return actually see one.  Previously
+    // this could only ever return >= 0, which made those checks dead code.
+    if (got == 0 && read_failed()) {
+        return -1;
+    }
+    return static_cast<int>(got);
 }
 
 size_t FileStream::write(uint8_t c) {
@@ -45,7 +62,8 @@ size_t FileStream::size() {
 }
 
 size_t FileStream::position() {
-    return ftell(_fd);
+    // While saved, the file is closed and _saved_position is where we left off.
+    return _fd ? ftell(_fd) : _saved_position;
 }
 
 void FileStream::setup(const char* mode) {
@@ -82,7 +100,13 @@ void FileStream::restore() {
     if (_fd) {
         fseek(_fd, _saved_position, SEEK_SET);
     } else {
-        // XXX need to unwind the job stack somehow
+        // The file could not be reopened - the SD card was pulled, or the
+        // mount dropped.  Record it so the next read reports an error.  It
+        // used to just leave _fd null, and a read from a null FILE* reports
+        // end of file, which the job machinery reads as "program complete":
+        // the job would stop partway through and claim it had finished.
+        _io_error = true;
+        log_error("Cannot reopen " << _fpath.string() << "; the job will be stopped");
     }
 }
 

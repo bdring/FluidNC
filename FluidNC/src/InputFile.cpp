@@ -32,6 +32,11 @@ Error InputFile::readLine(char* line, size_t maxlen) {
         line[len++] = c;
     }
     line[len] = '\0';
+    if (read_failed()) {
+        // An I/O error is not end of file.  Do not hand back the partial line
+        // either: a truncated GCode line is a wrong move, not a short one.
+        return Error::FsFailedRead;
+    }
     return len || c >= 0 ? Error::Ok : Error::Eof;
 }
 
@@ -46,7 +51,6 @@ void InputFile::ack(Error status) {
         }
     }
 }
-
 
 void InputFile::end_message() {
     _progress = "SD: ";

@@ -29,6 +29,10 @@ class FileStream : public Channel {
     long        _saved_position;  // Used when the
     const char* _mode;
 
+    // Set when the file could not be reopened after a save().  Sticky, because
+    // the resulting read failures must not be mistaken for end-of-file.
+    bool _io_error = false;
+
     void setup(const char* mode);
 
 public:
@@ -47,6 +51,11 @@ public:
     void        flush() override;
 
     //    size_t readBytes(char* buffer, size_t length) override { return read((uint8_t*)buffer, length); }
+
+    // fread() returning short does not distinguish end-of-file from an I/O
+    // error, and for a GCode file those mean opposite things: one is a job
+    // that finished, the other is a job that must not be reported as done.
+    bool read_failed();
 
     int read(char* buffer, size_t length);  // read chars from stream into buffer
     int read(uint8_t* buffer, size_t length) { return read((char*)buffer, length); }
