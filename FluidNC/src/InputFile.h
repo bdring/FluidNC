@@ -48,7 +48,12 @@ public:
     Error readLine(char* line, size_t len);
 
     // Channel methods
+    // An InputFile is opened read-only, so discard anything written to it as
+    // a Channel.  Both overloads must be overridden; otherwise a job with no
+    // leader channel would send its output to FileStream::write(), which
+    // would try to write the report text into the GCode file being read.
     size_t write(uint8_t c) override { return 0; }
+    size_t write(const uint8_t* buffer, size_t length) override { return 0; }
     void   ack(Error status) override;
     Error  pollLine(char* line) override;
 

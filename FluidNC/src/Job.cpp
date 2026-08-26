@@ -61,7 +61,20 @@ void Job::nest(Channel* in_channel, Channel* out_channel) {
     JobLock lock;
     auto source = new JobSource(in_channel);
     if (out_channel && job.empty()) {
-        leader = out_channel;
+        // Hold a processing reference for the duration of the job.  A leader
+        // can die while the job runs - a WebSocket or an HTTP client
+        // disappears as soon as WiFi connectivity is lost - and the channel is
+        // then deregistered and deleted as soon as its reference counts reach
+        // zero, which between GCode lines is immediately.  The reference keeps
+        // the object alive, so leader stays a valid pointer; writes to a
+        // channel that is closing are discarded by the channel itself.
+        //
+        // leader_channel() returning nullptr once the stack is empty guards
+        // against reading it after the job, but not against the object being
+        // freed during the job.
+        if (out_channel->try_acquire_processing_ref()) {
+            leader = out_channel;
+        }
     }
     job.push_back(source);
 }
@@ -71,6 +84,14 @@ void Job::pop() {
     job.pop_back();
     delete source;
     if (job.empty()) {
+        release_leader();
+    }
+}
+
+// Caller holds s_job_mutex.
+void Job::release_leader() {
+    if (leader) {
+        leader->release_processing_ref();
         leader = nullptr;
     }
 }
@@ -108,6 +129,13 @@ Channel* Job::channel() {
 }
 Channel* Job::leader_channel() {
     JobLock lock;
+    if (leader && leader->is_closing()) {
+        // The channel that launched the job has gone away.  Stop reporting to
+        // it and let it be reaped, but keep the job running: losing the WebUI
+        // connection is not a reason to abandon a cut already underway.
+        log_info("Job output channel " << leader->name() << " closed; the job continues");
+        release_leader();
+    }
     return job.empty() ? nullptr : leader;
 }
 
