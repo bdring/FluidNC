@@ -17,8 +17,8 @@ Volume SD { "sd" };
 Volume LocalFS { "localfs" };
 
 namespace {
-    SemaphoreHandle_t sd_mount_lock = xSemaphoreCreateMutex();
-    SemaphoreHandle_t sd_state_lock = xSemaphoreCreateMutex();
+    SemaphoreHandle_t sd_lifecycle_lock = xSemaphoreCreateMutex();
+    uint32_t          sd_mount_users    = 0;
 
     class SDLock {
     public:
@@ -39,51 +39,34 @@ namespace {
         bool              _locked = false;
     };
 
-    std::weak_ptr<SDMountState> cached_sd_mount;
-
     std::error_code sd_lock_error() {
         return std::make_error_code(std::errc::not_enough_memory);
     }
 }
 
-// SDMountState manages SD card mount/unmount lifecycle
-// It is instantiated as a shared_ptr that is automatically
-// reference-counted.  The constructor is called on the
-// first instance, thus mounting the SD card.  The destructor
-// is called when the count goes to 0.
+// SDMountState manages the SD card mount/unmount lifecycle. FluidPath copies
+// share a state, while independently created paths may have separate states.
+// The protected user count keeps the card mounted until the last state exits.
 SDMountState::SDMountState() {
-    SDLock lock(sd_mount_lock);
+    SDLock lock(sd_lifecycle_lock);
     if (!lock.locked()) {
         throw stdfs::filesystem_error { "Failed to lock SD card mount state", sd_lock_error() };
     }
-    auto ec = sd_mount();
-    if (ec) {
-        throw stdfs::filesystem_error { "Failed to mount SD card", ec };
+
+    if (sd_mount_users == 0) {
+        auto ec = sd_mount();
+        if (ec) {
+            throw stdfs::filesystem_error { "Failed to mount SD card", ec };
+        }
     }
+    ++sd_mount_users;
 }
 
 SDMountState::~SDMountState() {
-    SDLock lock(sd_mount_lock);
-    if (lock.locked()) {
+    SDLock lock(sd_lifecycle_lock);
+    if (lock.locked() && sd_mount_users && --sd_mount_users == 0) {
         sd_unmount();
     }
-}
-
-static std::shared_ptr<SDMountState> acquire_sd_mount() {
-    // The weak pointer and state creation must be one atomic operation.  If two
-    // tasks both create a state, either destructor can unmount the card while
-    // the other task is still using FatFS.
-    SDLock lock(sd_state_lock);
-    if (!lock.locked()) {
-        throw stdfs::filesystem_error { "Failed to lock SD card state", sd_lock_error() };
-    }
-
-    auto mount = cached_sd_mount.lock();
-    if (!mount) {
-        mount           = std::make_shared<SDMountState>();
-        cached_sd_mount = mount;
-    }
-    return mount;
 }
 
 const std::string FluidPath::canonPath(std::string_view filename, const Volume& defaultFs) {
@@ -151,7 +134,7 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
             throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
         }
         try {
-            _sd_mount_state = acquire_sd_mount();
+            _sd_mount_state = std::make_shared<SDMountState>();
         } catch (const stdfs::filesystem_error& ex) {
             if (ecptr) {
                 *ecptr = ex.code();
