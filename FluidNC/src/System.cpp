@@ -155,7 +155,7 @@ void set_state(State s) {
         allChannels.notifyState();
     }
 }
-bool state_is(State s) {
+bool IRAM_ATTR state_is(State s) {
     return sys.state() == s;
 }
 

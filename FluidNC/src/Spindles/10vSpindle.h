@@ -29,6 +29,7 @@ namespace Spindles {
         void init() override;
         void config_message() override;
         void setSpeedfromISR(uint32_t dev_speed) override;
+        IsrSpeedFn isr_speed_fn() override;
 
         void deinit() override;
 

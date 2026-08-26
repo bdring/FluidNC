@@ -70,6 +70,15 @@ namespace Spindles {
 
         virtual void setSpeedfromISR(uint32_t dev_speed) = 0;
 
+        // Reaching setSpeedfromISR() through the vtable is not safe from the
+        // step ISR: vtables are linked into flash, and the ISR can run while
+        // the flash cache is disabled.  Any class that overrides
+        // setSpeedfromISR() must also override this, returning an IRAM_ATTR
+        // thunk that calls its own version non-virtually.  Stepper uses the
+        // cached pointer, refreshed whenever the active spindle changes.
+        using IsrSpeedFn = void (*)(Spindle*, uint32_t);
+        virtual IsrSpeedFn isr_speed_fn() = 0;
+
         void spinDown() { setState(SpindleState::Disable, 0); }
 
         bool                  is_reversable;
@@ -189,3 +198,7 @@ namespace Spindles {
     using SpindleFactory = Configuration::GenericFactory<Spindle>;
 }
 extern Spindles::Spindle* spindle;
+
+// Resolved from the active spindle whenever it changes, so that the step ISR
+// never has to read a vtable out of flash.  May be null before setup finishes.
+extern Spindles::Spindle::IsrSpeedFn spindle_isr_speed_fn;

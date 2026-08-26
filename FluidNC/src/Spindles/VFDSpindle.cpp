@@ -273,4 +273,14 @@ namespace Spindles {
         Spindle::groupDelaySettings(handler);
         detail_->group(handler);
     }
+
+    // Called from the step ISR in place of a virtual dispatch, which would have
+    // to read this class's vtable out of flash.  IRAM_ATTR, and the qualified
+    // call keeps it non-virtual.
+    static void IRAM_ATTR vfdspindle_speed_thunk(Spindle* s, uint32_t dev_speed) {
+        static_cast<VFDSpindle*>(s)->VFDSpindle::setSpeedfromISR(dev_speed);
+    }
+    Spindle::IsrSpeedFn VFDSpindle::isr_speed_fn() {
+        return vfdspindle_speed_thunk;
+    }
 }
