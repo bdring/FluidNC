@@ -16,38 +16,61 @@
 Volume SD { "sd" };
 Volume LocalFS { "localfs" };
 
-static SemaphoreHandle_t sd_mount_lock = nullptr;
+namespace {
+    SemaphoreHandle_t sd_lifecycle_lock = xSemaphoreCreateMutex();
+    uint32_t          sd_mount_users    = 0;
 
-static void ensure_sd_locks() {
-    if (!sd_mount_lock) {
-        sd_mount_lock = xSemaphoreCreateBinary();
-        if (sd_mount_lock) {
-            xSemaphoreGive(sd_mount_lock);
+    class SDLock {
+    public:
+        explicit SDLock(SemaphoreHandle_t lock) : _lock(lock) {
+            _locked = _lock && xSemaphoreTake(_lock, portMAX_DELAY) == pdTRUE;
         }
+
+        SDLock(const SDLock&)            = delete;
+        SDLock& operator=(const SDLock&) = delete;
+        SDLock(SDLock&&)                 = delete;
+        SDLock& operator=(SDLock&&)      = delete;
+
+        ~SDLock() {
+            if (_locked) {
+                xSemaphoreGive(_lock);
+            }
+        }
+
+        bool locked() const { return _locked; }
+
+    private:
+        SemaphoreHandle_t _lock   = nullptr;
+        bool              _locked = false;
+    };
+
+    std::error_code sd_lock_error() {
+        return std::make_error_code(std::errc::not_enough_memory);
     }
 }
 
-// SDMountState manages SD card mount/unmount lifecycle
-// It is instantiated as a shared_ptr that is automatically
-// reference-counted.  The constructor is called on the
-// first instance, thus mounting the SD card.  The destructor
-// is called when the count goes to 0.
+// SDMountState manages the SD card mount/unmount lifecycle. FluidPath copies
+// share a state, while independently created paths may have separate states.
+// The protected user count keeps the card mounted until the last state exits.
 SDMountState::SDMountState() {
-    ensure_sd_locks();
-    xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
-    auto ec = sd_mount();
-    xSemaphoreGive(sd_mount_lock);
-    if (ec) {
-        throw stdfs::filesystem_error { "Failed to mount SD card", ec };
+    SDLock lock(sd_lifecycle_lock);
+    if (!lock.locked()) {
+        throw stdfs::filesystem_error { "Failed to lock SD card mount state", sd_lock_error() };
     }
+
+    if (sd_mount_users == 0) {
+        auto ec = sd_mount();
+        if (ec) {
+            throw stdfs::filesystem_error { "Failed to mount SD card", ec };
+        }
+    }
+    ++sd_mount_users;
 }
 
 SDMountState::~SDMountState() {
-    // Use 100ms timeout to avoid deadlock if operations are still in progress
-    //    if (xSemaphoreTake(sd_mount_lock, pdMS_TO_TICKS(100)) == pdTRUE) {
-    if (xSemaphoreTake(sd_mount_lock, portMAX_DELAY)) {
+    SDLock lock(sd_lifecycle_lock);
+    if (lock.locked() && sd_mount_users && --sd_mount_users == 0) {
         sd_unmount();
-        xSemaphoreGive(sd_mount_lock);
     }
 }
 
@@ -104,7 +127,6 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
 
 FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_code* ecptr) : stdfs::path(canonPath(name, fs)) {
     auto mount = *(++begin());  // Use the path iterator to get the first component
-    ensure_sd_locks();
     _isSD = mount == "sd";
 
     if (_isSD) {
@@ -117,14 +139,7 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
             throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
         }
         try {
-            // Try to reuse existing mount state if another FluidPath still owns it
-            static std::weak_ptr<SDMountState> cached_mount;
-            if (auto mount = cached_mount.lock()) {
-                _sd_mount_state = mount;
-            } else {
-                _sd_mount_state = std::make_shared<SDMountState>();
-                cached_mount    = _sd_mount_state;
-            }
+            _sd_mount_state = std::make_shared<SDMountState>();
         } catch (const stdfs::filesystem_error& ex) {
             if (ecptr) {
                 *ecptr = ex.code();
