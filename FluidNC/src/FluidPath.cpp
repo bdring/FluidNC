@@ -26,6 +26,11 @@ namespace {
             _locked = _lock && xSemaphoreTake(_lock, portMAX_DELAY) == pdTRUE;
         }
 
+        SDLock(const SDLock&)            = delete;
+        SDLock& operator=(const SDLock&) = delete;
+        SDLock(SDLock&&)                 = delete;
+        SDLock& operator=(SDLock&&)      = delete;
+
         ~SDLock() {
             if (_locked) {
                 xSemaphoreGive(_lock);
