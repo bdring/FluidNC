@@ -47,6 +47,9 @@ public:
     size_t write(uint8_t c) override;
     size_t write(const uint8_t* buf, size_t size) override;
     int    available() override;
+    int    read() override;
+    int    peek() override;
+    int    rx_buffer_available() override;
     Error  pollLine(char* line) override;
     void   flushRx() override;
 
@@ -159,8 +162,9 @@ private:
     QueueHandle_t           _pairing_queue      = nullptr;
     QueueHandle_t           _pair_confirm_queue = nullptr;
 
-    void rxPush(uint8_t byte);
-    void drainRxBuffer();
+    void   rxPush(uint8_t byte);
+    size_t rxBuffered() const;
+    size_t rxFree() const;
     void processPacket(const RxPacket& packet);
     void processPairingTransaction();
     void clearPairingTransaction(bool restore_peer);

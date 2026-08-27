@@ -910,15 +910,18 @@ void ESPNowChannel::rxPush(uint8_t byte) {
     _rx_head.store(next, std::memory_order_release);
 }
 
-void ESPNowChannel::drainRxBuffer() {
+size_t ESPNowChannel::rxBuffered() const {
     int head = _rx_head.load(std::memory_order_acquire);
-    int tail = _rx_tail.load(std::memory_order_relaxed);
-    while (tail != head) {
-        uint8_t byte = _rx_buf[tail];
-        tail         = (tail + 1) % RX_BUF_SIZE;
-        _rx_tail.store(tail, std::memory_order_release);
-        Channel::push(byte);
+    int tail = _rx_tail.load(std::memory_order_acquire);
+    if (head >= tail) {
+        return (size_t)(head - tail);
     }
+    return RX_BUF_SIZE - (size_t)(tail - head);
+}
+
+size_t ESPNowChannel::rxFree() const {
+    // One slot is kept empty to distinguish a full ring from an empty one.
+    return RX_BUF_SIZE - 1 - rxBuffered();
 }
 
 void ESPNowChannel::poll() {
@@ -1009,16 +1012,47 @@ void ESPNowChannel::poll() {
         }
     }
 
-    drainRxBuffer();
 }
 
 int ESPNowChannel::available() {
-    drainRxBuffer();
-    return _queue.size();
+    return (int)(queued_bytes() + rxBuffered());
+}
+
+int ESPNowChannel::read() {
+    int tail = _rx_tail.load(std::memory_order_relaxed);
+    if (tail == _rx_head.load(std::memory_order_acquire)) {
+        return -1;
+    }
+
+    uint8_t byte = _rx_buf[tail];
+    _rx_tail.store((tail + 1) % RX_BUF_SIZE, std::memory_order_release);
+    return byte;
+}
+
+int ESPNowChannel::peek() {
+    int tail = _rx_tail.load(std::memory_order_acquire);
+    if (tail == _rx_head.load(std::memory_order_acquire)) {
+        return -1;
+    }
+    return _rx_buf[tail];
+}
+
+int ESPNowChannel::rx_buffer_available() {
+    size_t pending = queued_bytes() + rxBuffered();
+    return pending < 256 ? 256 - (int)pending : 0;
 }
 
 Error ESPNowChannel::pollLine(char* line) {
-    drainRxBuffer();
+    if (!line) {
+        // PKT_REALTIME is processed directly by handleRealtime().  Don't read
+        // ordinary data here: Channel::pollLine(nullptr) would move it into the
+        // heap-backed Channel queue while an SD/macro job is active.
+        handle();
+        if (_active) {
+            autoReport();
+        }
+        return Error::NoData;
+    }
     return Channel::pollLine(line);
 }
 
@@ -1546,15 +1580,28 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
         refreshReportInterval();
     }
 
-    // Reassembly complete — push bytes -> ring buffer
+    size_t reassembled_size = 0;
+    for (uint8_t i = 0; i < total_frags; ++i) {
+        reassembled_size += peer.frag.sizes[i];
+    }
+    bool append_newline =
+        peer.frag.sizes[total_frags - 1] == 0 ||
+        peer.frag.data[total_frags - 1][peer.frag.sizes[total_frags - 1] - 1] != '\n';
+
+    // Preserve msg boundaries.
+    if (reassembled_size + (append_newline ? 1 : 0) > rxFree()) {
+        peer.frag.active = false;
+        return;
+    }
+
+    // Reassembly complete — push the whole message into the bounded ring.
     for (uint8_t i = 0; i < total_frags; i++) {
         for (uint16_t j = 0; j < peer.frag.sizes[i]; j++) {
             rxPush(peer.frag.data[i][j]);
         }
     }
 
-    if (peer.frag.sizes[total_frags - 1] == 0 ||
-        peer.frag.data[total_frags - 1][peer.frag.sizes[total_frags - 1] - 1] != '\n') {
+    if (append_newline) {
         rxPush('\n');
     }
 
@@ -1567,41 +1614,56 @@ void ESPNowChannel::handleRealtime(int peer_index, const uint8_t* data, int len)
         return;
     }
 
-    PeerStateLock peer_lock(_peer_mutex);
-    if (!peer_lock.locked()) {
+    uint8_t command_byte = data[1 + ART_TAG_SIZE];
+    if (!is_realtime_command(command_byte)) {
         return;
     }
 
-    size_t paired_count = _paired_count.load(std::memory_order_acquire);
-    if (peer_index < 0 || peer_index >= (int)paired_count) {
-        return;
+    Cmd command = static_cast<Cmd>(command_byte);
+    bool flush_rx         = false;
+    bool refresh_interval = false;
+
+    {
+        PeerStateLock peer_lock(_peer_mutex);
+        if (!peer_lock.locked()) {
+            return;
+        }
+
+        size_t paired_count = _paired_count.load(std::memory_order_acquire);
+        if (peer_index < 0 || peer_index >= (int)paired_count) {
+            return;
+        }
+
+        auto& peer = _paired_peers[peer_index];
+        uint32_t nonce, counter;
+        memcpy(&nonce,   data + 1, 4);
+        memcpy(&counter, data + 5, 4);
+        if (!ESPNowCrypto::acceptReplay(peer.rx_nonce, peer.rx_replay, nonce, counter, (uint32_t)millis())) {
+            return;  // replay / stale ->>> drop
+        }
+        if (espnowRealtimeIsSafety(command)) {
+            if (counter > peer.motion_barrier_counter) {
+                peer.motion_barrier_counter = counter;
+            }
+            flush_rx = command == Cmd::JogCancel;
+        }
+        uint32_t now = (uint32_t)millis();
+        bool claims_control = espnowRealtimeClaimsControl(command);
+        if (claims_control && !claimControlLeaseLocked(peer_index, now)) {
+            return;
+        }
+        refresh_interval = notePeerAuthenticatedLocked(peer_index, claims_control, now);
     }
 
-    auto& peer = _paired_peers[peer_index];
-    uint32_t nonce, counter;
-    memcpy(&nonce,   data + 1, 4);
-    memcpy(&counter, data + 5, 4);
-    if (!ESPNowCrypto::acceptReplay(peer.rx_nonce, peer.rx_replay, nonce, counter, (uint32_t)millis())) {
-        return;  // replay / stale ->>> drop
+    // Do not run command handlers while holding the peer-state mutex.  In
+    // particular, JogCancel flushes receive state and takes that mutex again.
+    if (flush_rx) {
+        flushRx();
     }
-    Cmd command = static_cast<Cmd>(data[1 + ART_TAG_SIZE]);
-    if (espnowRealtimeIsSafety(command)) {
-        if (counter > peer.motion_barrier_counter) {
-            peer.motion_barrier_counter = counter;
-        }
-        if (command == Cmd::JogCancel) {
-            flushRx();
-        }
-    }
-    uint32_t now = (uint32_t)millis();
-    bool claims_control = espnowRealtimeClaimsControl(command);
-    if (claims_control && !claimControlLeaseLocked(peer_index, now)) {
-        return;
-    }
-    if (notePeerAuthenticatedLocked(peer_index, claims_control, now)) {
+    if (refresh_interval) {
         refreshReportInterval();
     }
-    rxPush(data[1 + ART_TAG_SIZE]);
+    Channel::push(command_byte);
 }
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
