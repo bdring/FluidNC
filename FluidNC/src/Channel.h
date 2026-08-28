@@ -59,7 +59,7 @@ protected:
     char        _lastWasCR     = false;
 
     mutable SemaphoreHandle_t _queue_mutex = xSemaphoreCreateMutex();
-    std::queue<uint8_t> _queue;
+    std::queue<uint8_t>       _queue;
 
     uint32_t _reportInterval = 0;
     int32_t  _nextReportTime = 0;
@@ -73,9 +73,9 @@ protected:
     std::string _lastPinString    = "";
 
     bool       _reportState = true;
-    bool       _reportOvr = true;
-    bool       _reportWco = true;
-    CoordIndex _reportNgc = CoordIndex::End;
+    bool       _reportOvr   = true;
+    bool       _reportWco   = true;
+    CoordIndex _reportNgc   = CoordIndex::End;
 
     Cmd _last_rt_cmd = Cmd::None;
 
@@ -87,8 +87,8 @@ protected:
     bool _percent = false;
 
 protected:
-    bool _active = true;
-    bool _paused = false;
+    bool                  _active = true;
+    bool                  _paused = false;
     std::atomic<uint32_t> _queued_log_refs { 0 };
     std::atomic<uint32_t> _processing_refs { 0 };
     std::atomic<bool>     _closing { false };
@@ -97,7 +97,18 @@ public:
     explicit Channel(const std::string& name, bool addCR = false);
     explicit Channel(const char* name, bool addCR = false);
     Channel(const char* name, objnum_t num, bool addCR = false);
-    virtual ~Channel() = default;
+
+    Channel(const Channel&)            = delete;
+    Channel& operator=(const Channel&) = delete;
+    Channel(Channel&&)                 = delete;
+    Channel& operator=(Channel&&)      = delete;
+
+    virtual ~Channel() {
+        if (_queue_mutex) {
+            vSemaphoreDelete(_queue_mutex);
+            _queue_mutex = nullptr;
+        }
+    }
 
     int8_t _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
