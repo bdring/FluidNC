@@ -97,6 +97,12 @@ public:
     explicit Channel(const std::string& name, bool addCR = false);
     explicit Channel(const char* name, bool addCR = false);
     Channel(const char* name, objnum_t num, bool addCR = false);
+
+    Channel(const Channel&)            = delete;
+    Channel& operator=(const Channel&) = delete;
+    Channel(Channel&&)                 = delete;
+    Channel& operator=(Channel&&)      = delete;
+
     virtual ~Channel() {
         if (_queue_mutex) {
             vSemaphoreDelete(_queue_mutex);
