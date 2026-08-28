@@ -46,6 +46,12 @@ SECTIONS = [
         "Lives under FluidNC/esp32/ (an ESP32-specific module), not FluidNC/src/ like every "
         "other section here -- the relative path above deliberately escapes SRC to reach it.",
     ),
+    (
+        "ts35",
+        [("../esp32/TS35Module.cpp", "TS35Module")],
+        "Lives under FluidNC/esp32/ for the same reason as oled just above -- the relative "
+        "path deliberately escapes SRC to reach it.",
+    ),
     ("atc_manual", [("ToolChangers/atc_manual.h", "Manual_ATC")], None),
     (
         "extenders.pinextenderN.<i2c_chip>",
