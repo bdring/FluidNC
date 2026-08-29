@@ -30,6 +30,9 @@
 
 #include "FluidPath.h"
 #include "HashFS.h"
+#ifdef HEAPDIFF
+#    include "HeapDiff.h"
+#endif
 
 #include <cstring>
 #include <string_view>
@@ -1081,6 +1084,11 @@ void make_user_commands() {
 
     new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
     new UserCommand("Heap", "Heap/Show", showHeap, anyState);
+#ifdef HEAPDIFF
+    new UserCommand("HS", "Heap/Snapshot", heap_snapshot, anyState);
+    new UserCommand("HD", "Heap/Diff", heap_diff, anyState);
+    new UserCommand("HRef", "Heap/Refs", heap_refs, anyState);
+#endif
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
     new UserCommand("BS", "Backtrace/Show", showBacktrace, anyState);
 #ifdef CRASH_TEST
