@@ -338,7 +338,7 @@ Error heap_snapshot(const char* value, AuthenticationLevel, Channel& out) {
 
 Error heap_diff(const char* value, AuthenticationLevel, Channel& out) {
     if (!g_snapA_valid) {
-        log_error_to(out, "Run $HeapSnap first");
+        log_error_to(out, "Run $Heap/Snapshot first");
         return Error::InvalidStatement;
     }
 
@@ -359,7 +359,7 @@ Error heap_diff(const char* value, AuthenticationLevel, Channel& out) {
 
     log_info_to(out,
                 "HeapDiff: A=" << g_snapA_n << " B=" << g_walk_blocks << "  added=" << g_added_n << " freed=" << g_freed_n
-                              << (g_diff_over ? "  ADD-OVERFLOW" : "") << (g_layout_ok ? "" : "  (layout suspect)"));
+                               << (g_diff_over ? "  ADD-OVERFLOW" : "") << (g_layout_ok ? "" : "  (layout suspect)"));
 
     char hx[12];
 
@@ -384,7 +384,7 @@ Error heap_diff(const char* value, AuthenticationLevel, Channel& out) {
 
 Error heap_refs(const char* value, AuthenticationLevel, Channel& out) {
     if (!value || !*value) {
-        log_error_to(out, "usage: $HeapRefs <hexaddr> [span]");
+        log_error_to(out, "usage: $Heap/Refs=<hexaddr>[,span]");
         return Error::InvalidStatement;
     }
     char*    end    = nullptr;
