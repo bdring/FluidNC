@@ -68,58 +68,34 @@ namespace WebUI {
         return write(&c, 1);
     }
 
-    size_t WSChannel::write(const uint8_t* buffer, size_t size) {
-        if (buffer == NULL || !_active || !size) {
-            return 0;
-        }
-
+    // Emit one WebSocket binary frame for `out`/`outlen`, applying the queue
+    // backpressure that keeps a big multi-line response from flooding the
+    // client send queue.  Returns false (and marks the channel inactive) if the
+    // client went away.
+    bool WSChannel::send_frame(const uint8_t* out, size_t outlen, bool may_block) {
         auto client = get_client(_server, _clientNum);
         if (!client) {
             _active = false;
-            return 0;
+            return false;
         }
 
-        bool complete_line = buffer[size - 1] == '\n';
-
-        const uint8_t* out;
-        size_t         outlen;
-        if (_output_line.length() == 0 && complete_line) {
-            // Avoid the overhead of std::string if the
-            // input is a complete line and nothing is pending.
-            out    = buffer;
-            outlen = size;
-        } else {
-            // Otherwise collect input until we have line.
-            _output_line.append((char*)buffer, size);
-            if (!complete_line) {
-                return size;
-            }
-
-            out    = (uint8_t*)_output_line.c_str();
-            outlen = _output_line.length();
-        }
-        // With the session cookie we no longer need to broadcast to all
-        //_server->binaryAll(out, outlen);
-
-        // For commands like $esp400, buffering multiple lines into one websocket message would be faster,
-        // however we don't get any event when the command response is completed,
-        // some commands respond with "ok" at the end, but not all of them.
-        // Also, for larges response commands (again like $esp400), there is just too many lines
-        // in the response (>32KB of json), so we need to check if the websocket buffer is full before continuing
-        // The delay seems to do the trick.
-        // It would be a lot better to always force these commands to return as a http response instead of websocket,
-        // however, Webui(3) expects the command $$ to come back from a websocket, which is at least one reason why we can't send all back as a http response
         if (!inMotionState()) {
             const auto queue_limit = max(WS_MAX_QUEUED_MESSAGES - 2, 1);
-            auto       wait_start  = millis();
-            while ((client = get_client(_server, _clientNum)) && client->queueLen() >= queue_limit) {
-                if ((millis() - wait_start) > 250) {
-                    log_debug_to(Console, "Websocket queue stalled for cid#" << _clientNum << ", closing");
-                    client->close();
-                    _active = false;
-                    return 0;
+            if (!may_block) {
+                if (client->queueLen() >= queue_limit) {
+                    return false;  // caller keeps _output_line pending, retries later
                 }
-                delay(1);
+            } else {
+                auto wait_start = millis();
+                while ((client = get_client(_server, _clientNum)) && client->queueLen() >= queue_limit) {
+                    if ((millis() - wait_start) > 250) {
+                        log_debug_to(Console, "Websocket queue stalled for cid#" << _clientNum << ", closing");
+                        client->close();
+                        _active = false;
+                        return false;
+                    }
+                    delay(1);
+                }
             }
         } else {
             // To test this mechanism, try setting WS_MAX_QUEUED_MESSAGES to 2 and have 2 browsers on different PCs or your smartphone
@@ -131,38 +107,71 @@ namespace WebUI {
         client = get_client(_server, _clientNum);
         if (!client) {
             _active = false;
-            return 0;
+            return false;
         }
-        // No need to set active false, we continue to send and let the websocket drop if buffer is too high
-        // and disconnect if client timeout
         bool sent = false;
         try {
             sent = _server->binary(_clientNum, out, outlen);
-        } catch (const std::exception&) {
-            if (client) {
-                client->close();
-            }
-            _active = false;
-            return 0;
         } catch (...) {
-            if (client) {
-                client->close();
-            }
+            client->close();
             _active = false;
-            return 0;
+            return false;
         }
         if (!sent) {
             if (client->queueIsFull()) {
                 client->close();
             }
             _active = false;
+            return false;
+        }
+        return true;
+    }
+
+    // Ship whatever is pending in _output_line as a single frame.  With
+    // may_block=false a full send queue just leaves the data pending.
+    void WSChannel::flush_output(bool may_block) {
+        if (_output_line.empty()) {
+            return;
+        }
+        if (send_frame(reinterpret_cast<const uint8_t*>(_output_line.data()), _output_line.length(), may_block)) {
+            std::string().swap(_output_line);  // keeps the (bounded, ~WS_OUT_FLUSH_LEN) capacity
+            // _output_line.clear();  // keeps the (bounded, ~WS_OUT_FLUSH_LEN) capacity
+            _output_pending_since = 0;
+        }
+    }
+
+    void WSChannel::flush() {
+        flush_output(true);
+    }
+
+    size_t WSChannel::write(const uint8_t* buffer, size_t size) {
+        if (buffer == NULL || !_active || !size) {
+            return 0;
         }
 
-        if (_output_line.length()) {
-            _output_line = "";
+        // Coalesce output: accumulate here and emit at most one frame per
+        // WS_OUT_FLUSH_LEN bytes.  The tail of a burst is shipped from
+        // pollLine() once output goes idle, or explicitly via flush().  This
+        // turns a multi-line command response from N tiny frames (each costing
+        // a full-MSS oversized pbuf until ACK) into a couple of large ones.
+        if (_output_line.empty()) {
+            _output_pending_since = millis();
         }
+        _output_line.append(reinterpret_cast<const char*>(buffer), size);
 
+        if (_output_line.length() >= WS_OUT_FLUSH_LEN) {
+            flush_output(true);
+        }
         return size;
+    }
+
+    Error WSChannel::pollLine(char* line) {
+        // Runs under AllChannels' poll mutex, so never spin here - a full queue
+        // just defers the flush to the next poll.
+        if (!_output_line.empty() && (int32_t)(millis() - _output_pending_since) >= (int32_t)WS_OUT_IDLE_MS) {
+            flush_output(false);
+        }
+        return Channel::pollLine(line);
     }
 
     bool WSChannel::sendTXT(std::string_view s) {

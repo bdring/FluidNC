@@ -18,6 +18,9 @@ namespace WebUI {
 
         size_t write(uint8_t c) override;
         size_t write(const uint8_t* buffer, size_t size) override;
+        void   flush() override;
+
+        Error pollLine(char* line) override;
 
         bool sendTXT(std::string_view s);
 
@@ -44,8 +47,21 @@ namespace WebUI {
         objnum_t        _clientNum;
         std::string     _session;
 
-        std::string   _output_line;
-        unsigned long _last_queue_full = 0;
+        // WebSocket output is coalesced here and emitted as one frame per
+        // ~WS_OUT_FLUSH_LEN bytes (or when idle - see pollLine()/flush()).
+        // Sending each small line as its own frame costs a full-MSS oversized
+        // pbuf per frame (lwip TCP_OVERSIZE == MSS), which shreds the largest
+        // free heap block during the WebUI load burst.
+        static constexpr size_t   WS_OUT_FLUSH_LEN = 1400;
+        static constexpr uint32_t WS_OUT_IDLE_MS   = 8;
+        std::string               _output_line;
+        uint32_t                  _output_pending_since = 0;
+        unsigned long             _last_queue_full      = 0;
+
+        // may_block=false: if the client send queue is full, give up rather than
+        // spin (used from pollLine(), which runs under AllChannels' poll mutex).
+        bool send_frame(const uint8_t* out, size_t outlen, bool may_block);
+        void flush_output(bool may_block = true);
 
         // Instead of queueing realtime characters, we put them here
         // so they can be processed immediately during operations like
