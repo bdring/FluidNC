@@ -19,6 +19,7 @@
 #include "Limit.h"                // homingAxes
 #include "SettingsDefinitions.h"  // build_info
 #include "Protocol.h"             // LINE_BUFFER_SIZE
+#include "Driver/heap.h"          // platform_max_free_block()
 #include "UartChannel.h"          // UartChannel
 #include "FileStream.h"           // FileStream()
 #include "StartupLog.h"           // startupLog
@@ -1000,7 +1001,12 @@ static Error sendAlarm(const char* value, AuthenticationLevel auth_level, Channe
 }
 
 static Error showHeap(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
+    if (size_t maxBlock = platform_max_free_block()) {
+        log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater << " max block: " << (unsigned)maxBlock
+                               << " min max block: " << maxBlockLowWater);
+    } else {
+        log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
+    }
     return Error::Ok;
 }
 

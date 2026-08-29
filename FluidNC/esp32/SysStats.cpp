@@ -1,8 +1,14 @@
 #include "Driver/SysStats.h"
+#include "Driver/heap.h"
 #include <sstream>
 #include <iomanip>
 
 #include <Esp.h>
+#include <esp_heap_caps.h>
+
+size_t platform_max_free_block() {
+    return heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+}
 
 void platform_sys_stats(JSONencoder& j) {
     j.id_value_object("Chip ID", (uint16_t)(ESP.getEfuseMac() >> 32));

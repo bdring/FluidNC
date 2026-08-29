@@ -1,7 +1,13 @@
 #include "Driver/SysStats.h"
+#include "Driver/heap.h"
 #include "hardware/flash.h"
 #include <RP2040Support.h>
 #include <sstream>
+
+// The RP2040 SDK has no "largest free block" query.
+size_t platform_max_free_block() {
+    return 0;
+}
 
 void platform_sys_stats(JSONencoder& j) {
     j.id_value_object("Chip ID", rp2040.getChipID());
