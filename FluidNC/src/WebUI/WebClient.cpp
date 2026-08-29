@@ -47,12 +47,11 @@ namespace WebUI {
         }
     }
 
-    WebClient::WebClient() : Channel("webclient") {
-        xBufferLock = xSemaphoreCreateMutex();
-        if (WebClients::_background_task_queue == nullptr) {  // If we are the first instanciation ever, create the event queue
-            WebClients::_background_task_queue = xQueueCreate(64, sizeof(WebClient*));
+    void WebClients::init() {
+        if (_background_task_queue == nullptr) {  // If we are the first instanciation ever, create the event queue
+            _background_task_queue = xQueueCreate(64, sizeof(WebClient*));
         }
-        if (WebClients::_background_task_handle == nullptr) {  // Same here, create the unique background task
+        if (_background_task_handle == nullptr) {  // Same here, create the unique background task
 #if defined(PICO_RP2040) || defined(PICO_RP2350)
             xTaskCreateAffinitySet(WebClients::background_task,  // task
                                    "WebClient_background_task",  // name for task
@@ -60,17 +59,22 @@ namespace WebUI {
                                    NULL,                         // parameters
                                    webclient_task_priority(),  // Keep within configMAX_PRIORITIES
                                    (1 << SUPPORT_TASK_CORE),  // affinity mask
-                                   &WebClients::_background_task_handle);
+                                   &_background_task_handle);
 #else
             xTaskCreatePinnedToCore(WebClients::background_task,
                                     "WebClient_background_task",
                                     5 * 1024,
                                     NULL,
                                     webclient_task_priority(),
-                                    &WebClients::_background_task_handle,
+                                    &_background_task_handle,
                                     SUPPORT_TASK_CORE);
 #endif
         }
+    }
+
+    WebClient::WebClient() : Channel("webclient") {
+        xBufferLock = xSemaphoreCreateMutex();
+        WebClients::init();  // no-op after the first call
     }
 
     WebClient::~WebClient() {

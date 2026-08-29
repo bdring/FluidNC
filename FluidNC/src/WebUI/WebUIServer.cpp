@@ -289,6 +289,11 @@ namespace WebUI {
 
         _port = http_port->get();
 
+        // Allocate the WebClient background-task stack now, while the heap is
+        // nearly empty, rather than lazily on the first [ESP...] command during
+        // the WebUI load burst.
+        WebClients::init();
+
         //create instance
         _webserver    = new AsyncWebServer(_port);
         _headerFilter = new AsyncHeaderFreeMiddleware();

@@ -17,6 +17,12 @@ namespace WebUI {
         static QueueHandle_t _background_task_queue;
         static TaskHandle_t  _background_task_handle;
         static void          background_task(void* pvParameters);
+
+        // Create the shared queue and background task if they do not exist yet.
+        // Idempotent. Call once at startup so the ~5 KB task stack is allocated
+        // when the heap is nearly empty, not lazily during the first WebUI load
+        // when it stacks onto the connection-burst low-water dip.
+        static void init();
     };
 
     class WebClient : public Channel {
