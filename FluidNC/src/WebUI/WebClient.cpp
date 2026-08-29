@@ -48,27 +48,36 @@ namespace WebUI {
     }
 
     void WebClients::init() {
-        if (_background_task_queue == nullptr) {  // If we are the first instanciation ever, create the event queue
+        if (_background_task_queue == nullptr) {  // first call: create the shared event queue
             _background_task_queue = xQueueCreate(64, sizeof(WebClient*));
+            if (_background_task_queue == nullptr) {
+                log_error("WebClient: could not allocate background task queue");
+                return;  // don't start a task that would xQueueReceive() a null handle
+            }
         }
-        if (_background_task_handle == nullptr) {  // Same here, create the unique background task
+        if (_background_task_handle == nullptr) {  // first call: create the unique background task
+            BaseType_t ok =
 #if defined(PICO_RP2040) || defined(PICO_RP2350)
-            xTaskCreateAffinitySet(WebClients::background_task,  // task
-                                   "WebClient_background_task",  // name for task
-                                   5 * 1024,                     // 4KB seems enough, 3.5 crash, setting to 5KB
-                                   NULL,                         // parameters
-                                   webclient_task_priority(),  // Keep within configMAX_PRIORITIES
-                                   (1 << SUPPORT_TASK_CORE),  // affinity mask
-                                   &_background_task_handle);
+                xTaskCreateAffinitySet(WebClients::background_task,  // task
+                                       "WebClient_background_task",  // name for task
+                                       5 * 1024,                     // 4KB seems enough, 3.5 crash, setting to 5KB
+                                       NULL,                         // parameters
+                                       webclient_task_priority(),    // Keep within configMAX_PRIORITIES
+                                       (1 << SUPPORT_TASK_CORE),      // affinity mask
+                                       &_background_task_handle);
 #else
-            xTaskCreatePinnedToCore(WebClients::background_task,
-                                    "WebClient_background_task",
-                                    5 * 1024,
-                                    NULL,
-                                    webclient_task_priority(),
-                                    &_background_task_handle,
-                                    SUPPORT_TASK_CORE);
+                xTaskCreatePinnedToCore(WebClients::background_task,
+                                        "WebClient_background_task",
+                                        5 * 1024,
+                                        NULL,
+                                        webclient_task_priority(),
+                                        &_background_task_handle,
+                                        SUPPORT_TASK_CORE);
 #endif
+            if (ok != pdPASS) {
+                log_error("WebClient: could not create background task");
+                _background_task_handle = nullptr;
+            }
         }
     }
 

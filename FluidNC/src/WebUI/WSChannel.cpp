@@ -127,15 +127,18 @@ namespace WebUI {
         return true;
     }
 
-    // Ship whatever is pending in _output_line as a single frame.  With
-    // may_block=false a full send queue just leaves the data pending.
+    // Ship whatever is pending in _output_line as a single frame.  The buffer
+    // (capacity included) is released on success, and also when the client has
+    // gone away - send_frame() clears _active in that case and the pending
+    // bytes will never be sent.  A transient failure with may_block=false (send
+    // queue full, client still connected) leaves the data pending for the next
+    // flush from pollLine().
     void WSChannel::flush_output(bool may_block) {
         if (_output_line.empty()) {
             return;
         }
-        if (send_frame(reinterpret_cast<const uint8_t*>(_output_line.data()), _output_line.length(), may_block)) {
-            std::string().swap(_output_line);  // keeps the (bounded, ~WS_OUT_FLUSH_LEN) capacity
-            // _output_line.clear();  // keeps the (bounded, ~WS_OUT_FLUSH_LEN) capacity
+        if (send_frame(reinterpret_cast<const uint8_t*>(_output_line.data()), _output_line.length(), may_block) || !_active) {
+            std::string().swap(_output_line);  // frees the buffer, unlike clear()
             _output_pending_since = 0;
         }
     }
