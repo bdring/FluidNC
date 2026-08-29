@@ -9,6 +9,8 @@
 // so WiFi symbols are visible without arduino:: qualification.
 #include <Arduino.h>
 #include <array>
+#include <atomic>
+#include <cstdint>
 #include <WiFi.h>
 #include <string>
 
@@ -46,19 +48,41 @@ namespace WebUI {
         // draining what we send it -- a frozen terminal, a dead network path,
         // a zero TCP window. That alone doesn't fill the ring buffer's
         // TX_CRITICAL_RESERVE headroom, so it isn't caught by queueLine()'s
-        // critical-line disconnect. Count consecutive flushQueue() calls that
-        // fail to fully drain the backlog and force the client out once it's
-        // wedged for TX_STALL_LIMIT of them in a row, freeing the slot.
-        static constexpr int TX_STALL_LIMIT = 10;
-        int                  _txStallCount  = 0;
+        // critical-line disconnect.
+        //
+        // The stall must be measured in TIME, not in flushQueue() calls:
+        // flushQueue() runs once per written line, so a multi-line burst
+        // (e.g. $Errors/List, 35 lines in a few ms) calls it dozens of times
+        // while lwIP is still pushing the first segment out over the air.
+        // Counting those calls as "stalls" kicks a perfectly healthy client
+        // after ~1 KB. Instead: any forward progress resets the timer, and
+        // the client is only dropped after TX_STALL_TIMEOUT_MS with a backlog
+        // and zero bytes accepted by the socket.
+        static constexpr uint32_t TX_STALL_TIMEOUT_MS = 5000;
+        // The "no stall in progress" sentinel cannot be 0, because millis()
+        // itself returns 0 -- for one millisecond after boot, and again on
+        // every 49.7-day wrap. A timestamp recorded then would read back as
+        // "healthy" on the next flush and restart the window. UINT32_MAX is
+        // never a value millis() can return.
+        static constexpr uint32_t TX_STALL_NONE       = UINT32_MAX;
+        uint32_t                  _txStallSince       = TX_STALL_NONE;
 
         int32_t     _state = 0;
         std::string _txLine;             // output accumulated until a full line
         uint8_t     _txLastChar = '\0';  // for \n -> \r\n across write() calls
 
         std::array<uint8_t, TX_QUEUE_SIZE> _txQueue {};
-        size_t                             _txHead = 0;
-        size_t                             _txTail = 0;
+        // Atomic because handle() compares them on the polling task without
+        // holding _wifiMutex, while queueLine()/flushQueue() mutate them on
+        // the output task. Relaxed ordering is sufficient: the unlocked read
+        // is only a hint about whether calling flushQueue() is worthwhile,
+        // and flushQueue() re-reads under the mutex before touching the ring,
+        // so a stale hint costs at most one extra poll cycle. Taking the
+        // mutex in handle() instead would serialise the polling task against
+        // every write, thousands of times per second, only to answer a
+        // question that is harmless to get wrong.
+        std::atomic<size_t>                _txHead { 0 };
+        std::atomic<size_t>                _txTail { 0 };
 
         static bool isCriticalLine(const std::string& line);
         size_t      queueFree() const;
