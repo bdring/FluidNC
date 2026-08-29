@@ -1,8 +1,14 @@
 #include "Driver/SysStats.h"
+#include "Driver/heap.h"
 #include "NutsBolts.h"
 
 #include <freertos/FreeRTOS.h>
 #include <thread>
+
+// No largest-free-block query on the native host build.
+size_t platform_max_free_block() {
+    return 0;
+}
 
 namespace {
     const char* host_platform_name() {

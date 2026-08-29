@@ -116,3 +116,4 @@ void protocol_send_event_from_ISR(const Event* evt, void* arg = 0);
 void drain_messages();
 
 extern uint32_t heapLowWater;
+extern uint32_t maxBlockLowWater;  // largest-free-block low-water; UINT_MAX where unavailable

@@ -22,6 +22,7 @@
 #include "Job.h"
 #include "Driver/restart.h"
 #include "Driver/watchdog.h"
+#include "Driver/heap.h"  // platform_max_free_block()
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
@@ -252,6 +253,12 @@ uint32_t heapLowWater           = UINT_MAX;
 uint32_t heapLowWaterReported   = UINT_MAX;
 int32_t  heapLowWaterReportTime = 0;
 
+// Low-water mark of the largest contiguous free block, i.e. the biggest single
+// allocation that would have succeeded.  Tracks fragmentation, which total-free
+// low-water misses.  Stays UINT_MAX on platforms where platform_max_free_block()
+// returns 0 (no API).
+uint32_t maxBlockLowWater = UINT_MAX;
+
 void protocol_main_loop() {
     add_watchdog_to_task();
     start_polling();
@@ -319,6 +326,11 @@ void protocol_main_loop() {
         uint32_t newHeapSize = xPortGetFreeHeapSize();
         if (newHeapSize < heapLowWater) {
             heapLowWater = newHeapSize;
+        }
+        if (size_t maxBlock = platform_max_free_block()) {
+            if (maxBlock < maxBlockLowWater) {
+                maxBlockLowWater = maxBlock;
+            }
         }
         // Consider reporting when the minimum has not yet been reported and it is low enough.
         if (heapLowWater < heapLowWaterReported && heapLowWater < heapWarnThreshold) {

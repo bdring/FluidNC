@@ -41,6 +41,16 @@
 #include <AsyncTCP.h>
 #include "WebDAV.h"
 
+// Upper bound on concurrent WebSocket clients. Each client carries a WSChannel
+// (line-assembly std::string) plus an AsyncWebSocket send queue of up to
+// WS_MAX_QUEUED_MESSAGES malloc'd frames, so this directly bounds WS heap use.
+// AsyncWebSocket's own default (DEFAULT_MAX_WS_CLIENTS) is 8; a CNC realistically
+// needs a browser plus a pendant or phone. cleanupClients() evicts the oldest
+// when the count exceeds this.
+#ifndef WEBUI_MAX_WS_CLIENTS
+#    define WEBUI_MAX_WS_CLIENTS 4
+#endif
+
 #ifdef HAVE_DNS
 namespace WebUI {
     const byte DNS_PORT = 53;
@@ -288,6 +298,11 @@ namespace WebUI {
         }
 
         _port = http_port->get();
+
+        // Allocate the WebClient background-task stack now, while the heap is
+        // nearly empty, rather than lazily on the first [ESP...] command during
+        // the WebUI load burst.
+        WebClients::init();
 
         //create instance
         _webserver    = new AsyncWebServer(_port);
@@ -1457,7 +1472,7 @@ namespace WebUI {
             uint32_t heapsize = xPortGetFreeHeapSize();
             log_verbose("memory: " << heapsize << " min: " << heapLowWater);
             if (_socket_server) {
-                _socket_server->cleanupClients();
+                _socket_server->cleanupClients(WEBUI_MAX_WS_CLIENTS);
                 WSChannels::sendPing();
             }
             start_time = millis();
