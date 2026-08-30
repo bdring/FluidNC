@@ -20,6 +20,12 @@ namespace {
     SemaphoreHandle_t sd_lifecycle_lock = xSemaphoreCreateMutex();
     uint32_t          sd_mount_users    = 0;
 
+    // Set when a mount attempt fails, so repeated requests do not each pay for
+    // a full card initialisation.  Cleared on the next success.
+    std::error_code       sd_failed_ec;
+    uint32_t              sd_failed_at         = 0;
+    constexpr uint32_t    sd_retry_holdoff_ms  = 3000;
+
     class SDLock {
     public:
         explicit SDLock(SemaphoreHandle_t lock) : _lock(lock) {
@@ -59,10 +65,24 @@ SDMountState::SDMountState() {
     }
 
     if (sd_mount_users == 0) {
+        // A card that cannot be initialised takes a long time to fail, and
+        // sd_mount() tries twice.  WebUI asks for a directory listing every few
+        // seconds, and each attempt runs on the network task, which the task
+        // watchdog watches - so an unreadable card used to reboot the board
+        // over and over rather than simply reporting that it is unusable.
+        // Remember a failure briefly and fail fast within that window.  The
+        // window is short enough that swapping in a working card still gets
+        // picked up on the next attempt.
+        if (sd_failed_ec && (millis() - sd_failed_at) < sd_retry_holdoff_ms) {
+            throw stdfs::filesystem_error { "Failed to mount SD card", sd_failed_ec };
+        }
         auto ec = sd_mount();
         if (ec) {
+            sd_failed_ec = ec;
+            sd_failed_at = millis();
             throw stdfs::filesystem_error { "Failed to mount SD card", ec };
         }
+        sd_failed_ec = {};
     }
     ++sd_mount_users;
 }

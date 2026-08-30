@@ -16,6 +16,7 @@
 #include <esp_error.hpp>
 
 #include "Driver/sdspi.h"
+#include "Driver/watchdog.h"  // feed_watchdog()
 #include "Config.h"
 
 #define CHECK_EXECUTE_RESULT(err, str)                                                                                                     \
@@ -161,8 +162,13 @@ std::error_code sd_mount(uint32_t max_files) {
     err = sdmmc_card_init(&host_config, card);
     if (err != ESP_OK) {
         // Some cards fail the first time after they are inserted, but then succeed,
-        // so we retry this step once.
+        // so we retry this step once.  Each attempt can take a long time on a card
+        // that answers badly, and mounting happens on whichever task asked for the
+        // card - including the watchdog-watched network task - so do not let the
+        // two attempts add up against the timeout.
+        feed_watchdog();
         err = sdmmc_card_init(&host_config, card);
+        feed_watchdog();
     }
     CHECK_EXECUTE_RESULT(err, "sdmmc_card_init failed");
 
