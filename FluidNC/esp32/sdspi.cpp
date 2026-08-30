@@ -158,7 +158,16 @@ std::error_code sd_mount(uint32_t max_files) {
     }
     // /mount_prepare_mem()
 
-    // probe and initialize card
+    // probe and initialize card.
+    //
+    // sdmmc_card_init() sleeps inside SPI transactions waiting for a card that
+    // may never answer properly, and a card that fails does so slowly - each
+    // command has to time out.  There is no way to feed the watchdog from
+    // inside it.  Mounting runs on whichever task wanted the card, including
+    // the watchdog-watched network task, so an unreadable card rebooted the
+    // board rather than reporting itself unusable.  Step out of the watchdog
+    // for the duration and step back in afterwards.
+    suspend_watchdog_for_task();
     err = sdmmc_card_init(&host_config, card);
     if (err != ESP_OK) {
         // Some cards fail the first time after they are inserted, but then succeed,
@@ -166,10 +175,9 @@ std::error_code sd_mount(uint32_t max_files) {
         // that answers badly, and mounting happens on whichever task asked for the
         // card - including the watchdog-watched network task - so do not let the
         // two attempts add up against the timeout.
-        feed_watchdog();
         err = sdmmc_card_init(&host_config, card);
-        feed_watchdog();
     }
+    resume_watchdog_for_task();
     CHECK_EXECUTE_RESULT(err, "sdmmc_card_init failed");
 
     err = mount_to_vfs_fat(max_files, card, pdrv, base_path);

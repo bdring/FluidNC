@@ -82,6 +82,29 @@ void feed_watchdog() {
 #endif
 }
 
+// Tracks whether this task was subscribed before we suspended it, so resume
+// does not add a task that was never watched in the first place.
+static thread_local bool wdt_was_subscribed = false;
+
+void suspend_watchdog_for_task() {
+#ifdef CONFIG_ESP_TASK_WDT_EN
+    wdt_was_subscribed = esp_task_wdt_status(NULL) == ESP_OK;
+    if (wdt_was_subscribed) {
+        esp_task_wdt_delete(NULL);
+    }
+#endif
+}
+
+void resume_watchdog_for_task() {
+#ifdef CONFIG_ESP_TASK_WDT_EN
+    if (wdt_was_subscribed) {
+        esp_task_wdt_add(NULL);
+        esp_task_wdt_reset();
+        wdt_was_subscribed = false;
+    }
+#endif
+}
+
 void add_watchdog_to_task() {
 #ifdef FLUIDNC_TASK_WDT_ENABLED
     esp_task_wdt_add(NULL);  // NULL means current task
