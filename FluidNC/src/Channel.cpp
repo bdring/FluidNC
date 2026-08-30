@@ -269,7 +269,8 @@ void Channel::autoReport() {
     if (_reportInterval) {
         const char* stateName = state_name();
         if (_reportOvr || _reportWco || _reportState || _lastPinString != report_pin_string ||
-            (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0) || (_lastJobActive != Job::active())) {
+            ((motionState() || _report_when_idle) && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0) ||
+            (_lastJobActive != Job::active())) {
             _reportState = false;
             if (_reportOvr) {
                 report_ovr_counter = 0;
