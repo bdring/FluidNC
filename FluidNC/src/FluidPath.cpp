@@ -26,10 +26,19 @@ namespace {
     uint32_t              sd_failed_at         = 0;
     constexpr uint32_t    sd_retry_holdoff_ms  = 3000;
 
+    // Waiting forever for this lock is not safe.  It is taken by whichever task
+    // wants the card, and a slow or failing card holds it for as long as the
+    // mount takes.  A web request blocked behind a mount running on the polling
+    // task sat there past the task watchdog timeout and rebooted the board -
+    // the watchdog then names async_tcp as the task that failed to check in,
+    // while the task actually running is the one holding the lock.  Give up
+    // instead, and report the card as unavailable.
+    constexpr TickType_t sd_lock_timeout = pdMS_TO_TICKS(2000);
+
     class SDLock {
     public:
-        explicit SDLock(SemaphoreHandle_t lock) : _lock(lock) {
-            _locked = _lock && xSemaphoreTake(_lock, portMAX_DELAY) == pdTRUE;
+        explicit SDLock(SemaphoreHandle_t lock, TickType_t timeout = sd_lock_timeout) : _lock(lock) {
+            _locked = _lock && xSemaphoreTake(_lock, timeout) == pdTRUE;
         }
 
         SDLock(const SDLock&)            = delete;
