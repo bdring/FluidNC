@@ -1346,6 +1346,19 @@ namespace WebUI {
     void WebUI_Server::uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const Volume& fs) {
         std::error_code ec;
 
+        // An upload that never finished leaves its file open.  The onDisconnect
+        // handler installed below normally closes it, but if that callback is
+        // missed for any reason the descriptor stays held for the rest of the
+        // session, and with only two SD descriptors that blocks every later
+        // upload until the board is restarted.  Reclaim it here as well:
+        // whatever it belonged to cannot still be running, because a new upload
+        // is starting and only one is tracked at a time.
+        if (_uploadFile) {
+            log_info("Reclaiming a previous upload that was never closed");
+            delete _uploadFile;
+            _uploadFile = nullptr;
+        }
+
         FluidPath fpath { filename, fs, ec };
         if (ec) {
             _upload_status = UploadStatus::FAILED;
