@@ -1379,6 +1379,36 @@ namespace WebUI {
             try {
                 _uploadFile    = new FileStream(fpath, "w");
                 _upload_status = UploadStatus::ONGOING;
+
+                // The upload handler is only called while chunks are arriving.
+                // If the client goes away mid-transfer - the browser cancels, or
+                // the connection drops - it is never called again, so neither
+                // uploadEnd() nor uploadStop() runs, and the open file is
+                // stranded.  There are only two SD file descriptors and a
+                // running job holds one, so a single abandoned upload makes
+                // every later upload fail with "no free file descriptors" until
+                // the board is restarted.
+                //
+                // Compare against the pointer this request opened: by the time
+                // the callback runs, a later upload may own _uploadFile, and
+                // closing that one would be worse than the leak.
+                FileStream* thisUpload = _uploadFile;
+                request->onDisconnect([thisUpload]() {
+                    if (!_uploadFile || _uploadFile != thisUpload) {
+                        return;  // already finished, or superseded
+                    }
+                    log_info("Upload aborted - discarding partial file");
+                    std::filesystem::path filepath = _uploadFile->fpath();
+                    delete _uploadFile;
+                    _uploadFile    = nullptr;
+                    _upload_status = UploadStatus::FAILED;
+                    _uploadPath.clear();
+                    // A half-written file is worse than none, particularly for
+                    // GCode, so drop it as uploadCheck() would have.
+                    std::error_code ec;
+                    stdfs::remove(filepath, ec);
+                    HashFS::rehash_file(filepath);
+                });
             } catch (const ErrorException& err) {
                 _uploadFile    = nullptr;
                 _upload_status = UploadStatus::FAILED;
