@@ -1041,19 +1041,19 @@ void make_user_commands() {
     new ReportCommand("", "Help", show_help, anyState);
     new ReportCommand("T", "State", showState, anyState);
 
-    new ReportCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
-    new ReportCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
+    new ReportCommand("$", "GrblSettings/List", report_normal_settings, anyState);
+    new ReportCommand("L", "GrblNames/List", list_grbl_names, anyState);
     new ReportCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
-    new ReportCommand("S", "Settings/List", list_settings, cycleOrHold);
-    new ReportCommand("SC", "Settings/ListChanged", list_changed_settings, cycleOrHold);
-    new ReportCommand("CMD", "Commands/List", list_commands, cycleOrHold);
+    new ReportCommand("S", "Settings/List", list_settings, anyState);
+    new ReportCommand("SC", "Settings/ListChanged", list_changed_settings, anyState);
+    new ReportCommand("CMD", "Commands/List", list_commands, anyState);
     new ReportCommand("A", "Alarms/List", listAlarms, anyState);
     new ReportCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
-    new ReportCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
+    new ReportCommand("#", "GCode/Offsets", report_ngc, anyState);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
@@ -1072,21 +1072,21 @@ void make_user_commands() {
     new UserCommand("HV", "Home/V", home_v, allowConfigStates);
     new UserCommand("HW", "Home/W", home_w, allowConfigStates);
 
-    new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
-    new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
-    new UserCommand("MC", "Msg/Channel", msg_to_channel, anyState);
-    new UserCommand("LM", "Log/Msg", cmd_log_msg, anyState);
-    new UserCommand("LE", "Log/Error", cmd_log_error, anyState);
-    new UserCommand("LW", "Log/Warn", cmd_log_warn, anyState);
-    new UserCommand("LI", "Log/Info", cmd_log_info, anyState);
-    new UserCommand("LD", "Log/Debug", cmd_log_debug, anyState);
-    new UserCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
+    new ReportCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
+    new ReportCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
+    new ReportCommand("MC", "Msg/Channel", msg_to_channel, anyState);
+    new ReportCommand("LM", "Log/Msg", cmd_log_msg, anyState);
+    new ReportCommand("LE", "Log/Error", cmd_log_error, anyState);
+    new ReportCommand("LW", "Log/Warn", cmd_log_warn, anyState);
+    new ReportCommand("LI", "Log/Info", cmd_log_info, anyState);
+    new ReportCommand("LD", "Log/Debug", cmd_log_debug, anyState);
+    new ReportCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
-    new ReportCommand("I", "Build/Info", get_report_build_info, allowConfigStates);
+    new ReportCommand("I", "Build/Info", get_report_build_info, anyState);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
-    new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
+    new ReportCommand("SA", "Alarm/Send", sendAlarm, anyState);
     new ReportCommand("Heap", "Heap/Show", showHeap, anyState);
 #ifdef HEAPDIFF
     new ReportCommand("HS", "Heap/Snapshot", heap_snapshot, anyState);
@@ -1104,7 +1104,7 @@ void make_user_commands() {
 
     new ReportCommand("13", "Report/Inches", switchInchMM, notIdleOrAlarm);
 
-    new ReportCommand("GS", "GRBL/Show", report_init_message_cmd, notIdleOrAlarm);
+    new ReportCommand("GS", "GRBL/Show", report_init_message_cmd, anyState);
 
     new AsyncUserCommand("J", "Jog", doJog, notIdleOrJog);
     new ReportCommand("G", "GCode/Modes", report_gcode, anyState);
