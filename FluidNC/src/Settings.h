@@ -443,7 +443,11 @@ public:
                      permissions_t auth = WG) :
         UserCommand(grblName, name, action, cmdChecker, auth, /*needs_protocol_context=*/true, /*drains_buffer=*/false) {}
 };
-// A pure observer: reads state and prints.  No protocol context, no buffer sync.
+// A command with no protocol-task dependency: it touches no planner, no state
+// machine, no event-queue consumer, and nests no job, so it runs on the
+// polling task and never drains the motion buffer.  Most are pure reports; a
+// few have a small non-motion side effect ($RI sets a channel's report
+// interval, $SA posts an alarm event).
 class ReportCommand : public UserCommand {
 public:
     ReportCommand(const char* grblName,

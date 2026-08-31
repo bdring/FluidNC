@@ -1314,8 +1314,10 @@ Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_
     bool needs_context = line_needs_protocol_context(line);
 
     if (!on_protocol_task) {
-        // Called from the polling task.
-        if (Job::active() && &channel != Job::channel()) {
+        // Called from the polling task.  One locked read: jc is nullptr when
+        // no job is running, so this classification cannot race a nest/unnest.
+        Channel* jc = Job::channel();
+        if (jc && &channel != jc) {
             // Interloper while a job runs: reject anything that needs the
             // protocol task; run the side-effect-free rest here so it is not
             // stuck behind a consumer that is blocked in the planner.

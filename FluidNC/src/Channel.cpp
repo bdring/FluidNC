@@ -127,8 +127,13 @@ void Channel::queue_push(uint8_t byte) {
             _queue_at_line_start = true;
         }
     } else if (_queue_at_line_start && _queue.size() >= _queue_limit) {
-        _queue_discarding      = true;
-        _queue_at_line_start   = false;
+        // No room for another line.  A newline here is an empty line - drop it
+        // and stay at a line boundary so the next line gets a fresh check;
+        // otherwise discard the whole incoming line through its newline.
+        if (!is_newline) {
+            _queue_discarding    = true;
+            _queue_at_line_start = false;
+        }
         log_now                = !_queue_overflow_logged;
         _queue_overflow_logged = true;
     } else {
