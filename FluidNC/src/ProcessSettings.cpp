@@ -279,17 +279,21 @@ static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_leve
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
-    if (state_is(State::Alarm)) {
-        if (config->_control->safety_door_ajar()) {
-            send_alarm(ExecAlarm::StartupPin);
-            return Error::CheckDoor;
-        }
-        Homing::set_all_axes_homed();
-        config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
-        report_feedback_message(Message::AlarmUnlock);
-        set_state(State::Idle);
+    if (!state_is(State::Alarm)) {
+        // Nothing is locked, so $X is a no-op.  In particular it must not run
+        // the after_unlock macro while a job is running - that would nest a
+        // macro job into the middle of the program.
+        return Error::Ok;
     }
-    // Run the after_unlock macro even if no unlock was necessary
+    if (config->_control->safety_door_ajar()) {
+        send_alarm(ExecAlarm::StartupPin);
+        return Error::CheckDoor;
+    }
+    Homing::set_all_axes_homed();
+    config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
+    report_feedback_message(Message::AlarmUnlock);
+    set_state(State::Idle);
+
     config->_macros->_after_unlock.run(&out);
     return Error::Ok;
 }
