@@ -430,6 +430,10 @@ public:
 // Execute the startup script lines stored in non-volatile storage upon initialization
 Error settings_execute_line(const char* line, Channel& out, AuthenticationLevel);
 Error do_command_or_setting(std::string_view key, std::string_view value, AuthenticationLevel auth_level, Channel&);
-Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level);
+// on_protocol_task: true when called from protocol_main_loop (run it now);
+// false when called from the polling task (run side-effect-free commands
+// inline, hand anything needing the protocol context to cmd_queue, reject
+// interloper gcode/commands during a job).
+Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level, bool on_protocol_task);
 
 extern const enum_opt_t onoffOptions;

@@ -1250,7 +1250,43 @@ Error settings_execute_line(const char* line, Channel& out, AuthenticationLevel 
     return do_command_or_setting(key, value, auth_level, out);
 }
 
-Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level) {
+// Does this line have to run on the protocol task?  gcode always does; a '['
+// WebUI command does until WebCommand is classified (see the worry-later
+// list); a '$' command is looked up and answers with needs_protocol_context();
+// an unregistered "$name" is a yaml/NVS setting - a write must be ordered, a
+// read may run anywhere.  Called with leading whitespace already skipped and
+// line[0] != 0.
+static bool line_needs_protocol_context(const char* line) {
+    if (line[0] == '[') {
+        return true;
+    }
+    if (line[0] != '$') {
+        return true;  // gcode
+    }
+    size_t end = 1;
+    while (line[end] && line[end] != '=' && line[end] != ' ' && line[end] != '\t') {
+        ++end;
+    }
+    std::string_view name(line + 1, end - 1);
+    for (Command* cp : Command::List) {
+        if ((cp->getGrblName() && string_util::equal_ignore_case(cp->getGrblName(), name)) ||
+            string_util::equal_ignore_case(cp->getName(), name)) {
+            return cp->needs_protocol_context();
+        }
+    }
+    return line[end] == '=';  // unregistered: yaml/NVS write must be ordered
+}
+
+// Run a '$' / '[' command right here (the polling task or the protocol task).
+// Never reaches gcode or the planner.
+static Error run_command_inline(const char* line, Channel& channel, AuthenticationLevel auth_level) {
+    if (gc_state.skip_blocks) {
+        return Error::Ok;
+    }
+    return settings_execute_line(line, channel, auth_level);
+}
+
+Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level, bool on_protocol_task) {
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {
         return Error::Ok;
@@ -1259,13 +1295,31 @@ Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_
     while (isspace(*line)) {
         ++line;
     }
-    // User '$' or WebUI '[ESPxxx]' command
-    if (line[0] == '$' || line[0] == '[') {
-        if (gc_state.skip_blocks) {
-            return Error::Ok;
-        }
+    if (line[0] == 0) {
+        return Error::Ok;
+    }
 
-        return settings_execute_line(line, channel, auth_level);
+    bool needs_context = line_needs_protocol_context(line);
+
+    if (!on_protocol_task) {
+        // Called from the polling task.
+        if (Job::active() && &channel != Job::channel()) {
+            // Interloper while a job runs: reject anything that needs the
+            // protocol task; run the side-effect-free rest here so it is not
+            // stuck behind a consumer that is blocked in the planner.
+            if (needs_context) {
+                return Error::AnotherInterfaceBusy;
+            }
+            return run_command_inline(line, channel, auth_level);
+        }
+        // The job's own line, or any line when no job is running: hand it to
+        // protocol_main_loop so ordering and reply routing are unchanged.
+        return cmd_queue_defer(line, channel) ? Error::Deferred : Error::AnotherInterfaceBusy;
+    }
+
+    // on_protocol_task: run it for real.
+    if (line[0] == '$' || line[0] == '[') {
+        return run_command_inline(line, channel, auth_level);
     }
     // Everything else is gcode. Block if in alarm or jog mode.
     if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Jog)) {
