@@ -106,7 +106,45 @@ void Channel::flushRx() {
     while (_queue.size()) {
         _queue.pop();
     }
+    _queue_at_line_start   = true;
+    _queue_discarding      = false;
+    _queue_overflow_logged = false;
     xSemaphoreGive(_queue_mutex);
+}
+
+// Enqueue one non-realtime byte.  Drop policy is whole-line: if a new line
+// starts while _queue is already at _queue_limit, the whole line is discarded
+// through its newline.  A line already in progress finishes, so _queue never
+// holds a partial line.  Worst-case size is _queue_limit + one maxLine line.
+void Channel::queue_push(uint8_t byte) {
+    bool is_newline = byte == '\n' || byte == '\r';
+    bool log_now    = false;
+
+    xSemaphoreTake(_queue_mutex, portMAX_DELAY);
+    if (_queue_discarding) {
+        if (is_newline) {
+            _queue_discarding    = false;  // over-limit line consumed; re-check at the next one
+            _queue_at_line_start = true;
+        }
+    } else if (_queue_at_line_start && _queue.size() >= _queue_limit) {
+        // No room for another line.  A newline here is an empty line - drop it
+        // and stay at a line boundary so the next line gets a fresh check;
+        // otherwise discard the whole incoming line through its newline.
+        if (!is_newline) {
+            _queue_discarding    = true;
+            _queue_at_line_start = false;
+        }
+        log_now                = !_queue_overflow_logged;
+        _queue_overflow_logged = true;
+    } else {
+        _queue.push(byte);
+        _queue_at_line_start = is_newline;
+    }
+    xSemaphoreGive(_queue_mutex);
+
+    if (log_now) {
+        log_debug("Input queue full on " << _name << "; dropping lines");
+    }
 }
 
 size_t Channel::queued_bytes() const {
@@ -124,6 +162,12 @@ bool Channel::try_pop_queued_byte(uint8_t& byte) {
     }
     byte = _queue.front();
     _queue.pop();
+    if (_queue.empty()) {
+        // Fully drained: reset framing state and re-arm the overflow warning.
+        _queue_at_line_start   = true;
+        _queue_discarding      = false;
+        _queue_overflow_logged = false;
+    }
     xSemaphoreGive(_queue_mutex);
     return true;
 }
@@ -297,9 +341,7 @@ void Channel::push(uint8_t byte) {
     if (is_realtime_command(byte)) {
         handleRealtimeCharacter(byte);
     } else {
-        xSemaphoreTake(_queue_mutex, portMAX_DELAY);
-        _queue.push(byte);
-        xSemaphoreGive(_queue_mutex);
+        queue_push(byte);
     }
 }
 static int  _cnt = 10;
@@ -328,9 +370,7 @@ Error       Channel::pollLine(char* line) {
             continue;
         }
         if (!line) {
-            xSemaphoreTake(_queue_mutex, portMAX_DELAY);
-            _queue.push(ch);
-            xSemaphoreGive(_queue_mutex);
+            queue_push((uint8_t)ch);
             continue;
         }
         // Fall through if line is non-null and it is not a realtime character

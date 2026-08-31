@@ -75,6 +75,7 @@ enum class Error : uint8_t {
     Eof                          = 112,  // Not necessarily an error
     Reset                        = 113,
     NoData                       = 114,  // Not necessarily an error
+    Deferred                     = 115,  // Internal: handed to cmd_queue, ack comes later
     AnotherInterfaceBusy         = 120,
     JogCancelled                 = 130,
     BadPinSpecification          = 150,

@@ -24,6 +24,8 @@
 #include "Driver/watchdog.h"
 #include "Driver/heap.h"  // platform_max_free_block()
 
+#include <cstring>  // strncpy
+
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
 volatile const char* unwind_cause = nullptr;
@@ -126,11 +128,44 @@ void output_loop(void* unused) {
     }
 }
 
-Channel* activeChannel = nullptr;  // Channel associated with the input line
+// One line of input handed from the polling task (core 0, producer) to
+// protocol_main_loop (core 1, consumer).  The line is copied into the queue
+// item; xQueueSend/xQueueReceive supply the memory barrier that makes it safe
+// to read on the other core.  Depth 1 keeps the strict one-line-in-flight flow
+// control of the previous single-slot handoff.
+struct LineItem {
+    Channel* channel;  // source; holds a processing_ref until the line is acked
+    char     line[Channel::maxLine];
+};
+static constexpr UBaseType_t CMD_QUEUE_DEPTH = 1;
+QueueHandle_t                cmd_queue        = nullptr;
+
+bool cmd_queue_defer(const char* line, Channel& channel) {
+    LineItem item;
+    item.channel = &channel;
+    strncpy(item.line, line, Channel::maxLine - 1);
+    item.line[Channel::maxLine - 1] = '\0';
+    return xQueueSend(cmd_queue, &item, 0) == pdTRUE;
+}
 
 TaskHandle_t pollingTask = nullptr;
 
-char activeLine[Channel::maxLine];
+// Poll the registered serial-style channels for one line and route it through
+// execute_line() on the polling task.  When no job runs this feeds cmd_queue;
+// during a job it services interloper commands (run inline or rejected in
+// execute_line, never queued), so they are not stuck behind a consumer that is
+// blocked in the planner.
+static void poll_input_channel() {
+    char buf[Channel::maxLine];
+    if (Channel* ch = pollChannels(buf)) {
+        Error rc = execute_line(buf, *ch, AuthenticationLevel::LEVEL_GUEST, false);
+        if (rc != Error::Deferred) {
+            // Ran inline or was rejected - the polling task still holds the ref.
+            ch->ack(rc);
+            ch->release_processing_ref();
+        }
+    }
+}
 
 bool pollingPaused = false;
 void polling_loop(void* unused) {
@@ -158,55 +193,67 @@ void polling_loop(void* unused) {
             feed_watchdog();
         }
 
-        // If activeChannel is non-null, it means that we have received a line
-        // but the task running protocol_main_loop() has not yet picked it up.
-        // activeChannel is thus a form of flow control between the protocol
-        // task that processes GCode lines and other events and this task that
-        // handles IO from channels.
-        if (!activeChannel) {
-            // Job channels have priority
-            if (!Job::active()) {
+        if (!Job::active()) {
+            unwind_cause = nullptr;
+            // No job: every line goes to cmd_queue.  Gate on queue room so a
+            // slow consumer bounds read-ahead - the flow control the old
+            // single slot gave.
+            if (uxQueueSpacesAvailable(cmd_queue)) {
+                poll_input_channel();
+            }
+        } else {
+            if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Critical)) {
+                log_debug("Unwinding from Alarm");
+                Job::abort();
                 unwind_cause = nullptr;
-                // No job channel is active, so poll all of the serial-style
-                // channels to see if one has a line ready.
-                activeChannel = pollChannels(activeLine);
-            } else {
-                if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Critical)) {
-                    log_debug("Unwinding from Alarm");
-                    Job::abort();
-                    unwind_cause = nullptr;
-                    continue;
-                }
-                if (unwind_cause) {
-                    Job::abort();
-                    unwind_cause = nullptr;
-                    continue;
-                }
-                // A job channel is active, so accept line-oriented input only
-                // from the job channel on top of the job stack.
-                auto channel = Job::channel();
-                auto status  = channel->pollLine(activeLine);
-                switch (status) {
-                    case Error::Ok:
-                        activeChannel = channel;
-                        break;
-                    case Error::NoData:
-                        break;
-                    case Error::Eof:
-                        notifyf("Job done", "%s job sent", channel->name());
-                        log_debug(channel->name() << " job sent");
-                        Job::unnest();
-                        break;
-                    default:
-                        if (Job::leader) {
-                            log_error_to(*Job::leader,
-                                         static_cast<int>(status) << " (" << errorString(status) << ") in " << channel->name()
-                                                                  << " at line " << channel->lineNumber());
+                continue;
+            }
+            if (unwind_cause) {
+                Job::abort();
+                unwind_cause = nullptr;
+                continue;
+            }
+
+            // Job channel has priority: feed it while cmd_queue has room.
+            char buf[Channel::maxLine];
+            if (uxQueueSpacesAvailable(cmd_queue)) {
+                if (Channel* channel = Job::channel()) {
+                    auto status = channel->pollLine(buf);
+                    switch (status) {
+                        case Error::Ok:
+                            // From the job channel, so execute_line() defers it.
+                            // Hold a processing_ref from here to the consumer's ack.
+                            if (channel->try_acquire_processing_ref()) {
+                                if (execute_line(buf, *channel, AuthenticationLevel::LEVEL_GUEST, false) != Error::Deferred) {
+                                    channel->release_processing_ref();  // not queued after all
+                                }
+                            }
+                            break;
+                        case Error::NoData:
+                            break;
+                        case Error::Eof:
+                            notifyf("Job done", "%s job sent", channel->name());
+                            log_debug(channel->name() << " job sent");
+                            Job::unnest();
+                            break;
+                        default: {
+                            Channel* ldr = Job::leader_channel();
+                            if (ldr) {
+                                log_error_to(*ldr,
+                                             static_cast<int>(status) << " (" << errorString(status) << ") in "
+                                                                      << channel->name() << " at line " << channel->lineNumber());
+                            }
+                            Job::abort();
+                            break;
                         }
-                        Job::abort();
-                        break;
+                    }
                 }
             }
+
+            // Also service the other channels every pass, so interloper reads
+            // and rejections happen promptly.  execute_line() runs or rejects
+            // them on this task; they never enter cmd_queue, so no queue gate.
+            poll_input_channel();
         }
     }
 }
@@ -271,32 +318,29 @@ void protocol_main_loop() {
         if (should_exit()) {
             break;
         }
-        if (activeChannel) {
-            if (activeChannel->is_closing()) {
-                activeChannel->release_processing_ref();
-                activeChannel = nullptr;
-                continue;
+        // A line collected by the polling task.  xQueueReceive supplies the
+        // barrier that makes item.line fully visible here.
+        LineItem item;
+        if (xQueueReceive(cmd_queue, &item, 0)) {
+            Channel* channel = item.channel;
+            if (channel->is_closing()) {
+                channel->release_processing_ref();
+            } else {
+                if (gcode_echo->get()) {
+                    report_echo_line_received(item.line, allChannels);
+                }
+
+                Channel* ldr         = Job::leader_channel();
+                Channel* out_channel = ldr ? ldr : channel;
+
+                Error status_code = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
+
+                // If the line was aborted, the channel could be invalid.
+                if (!sys.abort()) {
+                    channel->ack(status_code);
+                }
+                channel->release_processing_ref();
             }
-
-            // The input polling task has collected a line of input
-            if (gcode_echo->get()) {
-                report_echo_line_received(activeLine, allChannels);
-            }
-
-            Channel* out_channel = Job::leader ? Job::leader : activeChannel;
-
-            Error status_code = execute_line(activeLine, *out_channel, AuthenticationLevel::LEVEL_GUEST);
-
-            // Tell the channel that the line has been processed.
-            // If the line was aborted, the channel could be invalid
-            if (!sys.abort()) {
-                activeChannel->ack(status_code);
-            }
-
-            // Tell the input polling task that the line has been processed,
-            // so it can give us another one when available
-            activeChannel->release_processing_ref();
-            activeChannel = nullptr;
         }
 
         // Auto-cycle start any queued moves.
@@ -1256,6 +1300,7 @@ QueueHandle_t event_queue;
 void protocol_init() {
     event_queue   = xQueueCreate(50, sizeof(EventItem));
     message_queue = xQueueCreate(15, sizeof(LogMessage));
+    cmd_queue     = xQueueCreate(CMD_QUEUE_DEPTH, sizeof(LineItem));
 }
 
 void IRAM_ATTR protocol_send_event_from_ISR(const Event* evt, void* arg) {

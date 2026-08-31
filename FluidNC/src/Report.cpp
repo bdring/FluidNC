@@ -600,8 +600,8 @@ void report_realtime_status(Channel& channel) {
             }
         }
     }
-    if (Job::active()) {
-        msg << "|" << Job::channel()->_progress;
+    if (Channel* jc = Job::channel()) {
+        msg << "|" << jc->_progress;
     }
 #ifdef DEBUG_STEPPER_ISR
     msg << "|ISRs:" << Stepper::isr_count;

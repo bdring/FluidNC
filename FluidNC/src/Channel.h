@@ -61,6 +61,21 @@ protected:
     mutable SemaphoreHandle_t _queue_mutex = xSemaphoreCreateMutex();
     std::queue<uint8_t>       _queue;
 
+    // _queue holds non-realtime input bytes seen by pollLine(nullptr) until a
+    // pollLine(line) call consumes them.  A channel that is polled for realtime
+    // characters but never for lines - e.g. any non-job channel while a job is
+    // running - would otherwise grow _queue without bound.  Bound it at a few
+    // lines of slack (~4).  When a new line arrives with the queue already at
+    // the bound, that whole line is discarded through its newline; a line
+    // already in progress is allowed to finish, so the queue never holds a
+    // partial line.  State below is touched only under _queue_mutex.
+    static constexpr size_t _queue_limit        = 4 * maxLine;
+    bool                    _queue_at_line_start = true;   // last queued byte ended a line (or queue empty)
+    bool                    _queue_discarding    = false;  // dropping the rest of an over-limit line
+    bool                    _queue_overflow_logged = false;  // one debug line per overflow episode
+    // Enqueue one non-realtime input byte, applying the whole-line drop policy.
+    void queue_push(uint8_t byte);
+
     uint32_t _reportInterval = 0;
     int32_t  _nextReportTime = 0;
 

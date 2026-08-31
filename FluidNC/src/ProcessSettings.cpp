@@ -279,17 +279,21 @@ static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_leve
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
-    if (state_is(State::Alarm)) {
-        if (config->_control->safety_door_ajar()) {
-            send_alarm(ExecAlarm::StartupPin);
-            return Error::CheckDoor;
-        }
-        Homing::set_all_axes_homed();
-        config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
-        report_feedback_message(Message::AlarmUnlock);
-        set_state(State::Idle);
+    if (!state_is(State::Alarm)) {
+        // Nothing is locked, so $X is a no-op.  In particular it must not run
+        // the after_unlock macro while a job is running - that would nest a
+        // macro job into the middle of the program.
+        return Error::Ok;
     }
-    // Run the after_unlock macro even if no unlock was necessary
+    if (config->_control->safety_door_ajar()) {
+        send_alarm(ExecAlarm::StartupPin);
+        return Error::CheckDoor;
+    }
+    Homing::set_all_axes_homed();
+    config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
+    report_feedback_message(Message::AlarmUnlock);
+    set_state(State::Idle);
+
     config->_macros->_after_unlock.run(&out);
     return Error::Ok;
 }
@@ -1025,37 +1029,37 @@ static Error list_parameters(const char* value, AuthenticationLevel auth_level, 
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
-    new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
+    new ReportCommand("GD", "GPIO/Dump", showGPIOs, anyState);
     new UserCommand("GI", "GPIO/Input", setGPIOInput, anyState);
     new UserCommand("GO", "GPIO/Output", setGPIOOutput, anyState);
     new UserCommand("G+", "GPIO/On", writeGPIOOn, anyState);
     new UserCommand("G-", "GPIO/Off", writeGPIOOff, anyState);
-    new UserCommand("GR", "GPIO/Read", readGPIO, anyState);
+    new ReportCommand("GR", "GPIO/Read", readGPIO, anyState);
 
-    new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
-    new UserCommand("CD", "Config/Dump", dump_config, anyState);
-    new UserCommand("", "Help", show_help, anyState);
-    new UserCommand("T", "State", showState, anyState);
+    new ReportCommand("CI", "Channel/Info", showChannelInfo, anyState);
+    new ReportCommand("CD", "Config/Dump", dump_config, anyState);
+    new ReportCommand("", "Help", show_help, anyState);
+    new ReportCommand("T", "State", showState, anyState);
 
-    new UserCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
-    new UserCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
-    new UserCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
-    new UserCommand("S", "Settings/List", list_settings, cycleOrHold);
-    new UserCommand("SC", "Settings/ListChanged", list_changed_settings, cycleOrHold);
-    new UserCommand("CMD", "Commands/List", list_commands, cycleOrHold);
-    new UserCommand("A", "Alarms/List", listAlarms, anyState);
-    new UserCommand("E", "Errors/List", listErrors, anyState);
+    new ReportCommand("$", "GrblSettings/List", report_normal_settings, anyState);
+    new ReportCommand("L", "GrblNames/List", list_grbl_names, anyState);
+    new ReportCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
+    new ReportCommand("S", "Settings/List", list_settings, anyState);
+    new ReportCommand("SC", "Settings/ListChanged", list_changed_settings, anyState);
+    new ReportCommand("CMD", "Commands/List", list_commands, anyState);
+    new ReportCommand("A", "Alarms/List", listAlarms, anyState);
+    new ReportCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
-    new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
-    new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
+    new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
+    new ReportCommand("#", "GCode/Offsets", report_ngc, anyState);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
     new UserCommand("RM", "Macros/Run", macros_run, nullptr);
-    new UserCommand("PL", "Parameters/List", list_parameters, nullptr);
+    new ReportCommand("PL", "Parameters/List", list_parameters, nullptr);
 
     new UserCommand("H", "Home", home_all, allowConfigStates);
     new UserCommand("HX", "Home/X", home_x, allowConfigStates);
@@ -1068,42 +1072,42 @@ void make_user_commands() {
     new UserCommand("HV", "Home/V", home_v, allowConfigStates);
     new UserCommand("HW", "Home/W", home_w, allowConfigStates);
 
-    new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
-    new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
-    new UserCommand("MC", "Msg/Channel", msg_to_channel, anyState);
-    new UserCommand("LM", "Log/Msg", cmd_log_msg, anyState);
-    new UserCommand("LE", "Log/Error", cmd_log_error, anyState);
-    new UserCommand("LW", "Log/Warn", cmd_log_warn, anyState);
-    new UserCommand("LI", "Log/Info", cmd_log_info, anyState);
-    new UserCommand("LD", "Log/Debug", cmd_log_debug, anyState);
-    new UserCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
+    new ReportCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
+    new ReportCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
+    new ReportCommand("MC", "Msg/Channel", msg_to_channel, anyState);
+    new ReportCommand("LM", "Log/Msg", cmd_log_msg, anyState);
+    new ReportCommand("LE", "Log/Error", cmd_log_error, anyState);
+    new ReportCommand("LW", "Log/Warn", cmd_log_warn, anyState);
+    new ReportCommand("LI", "Log/Info", cmd_log_info, anyState);
+    new ReportCommand("LD", "Log/Debug", cmd_log_debug, anyState);
+    new ReportCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
-    new UserCommand("I", "Build/Info", get_report_build_info, allowConfigStates);
+    new ReportCommand("I", "Build/Info", get_report_build_info, anyState);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
-    new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
-    new UserCommand("Heap", "Heap/Show", showHeap, anyState);
+    new ReportCommand("SA", "Alarm/Send", sendAlarm, anyState);
+    new ReportCommand("Heap", "Heap/Show", showHeap, anyState);
 #ifdef HEAPDIFF
-    new UserCommand("HS", "Heap/Snapshot", heap_snapshot, anyState);
-    new UserCommand("HD", "Heap/Diff", heap_diff, anyState);
-    new UserCommand("HRef", "Heap/Refs", heap_refs, anyState);
+    new ReportCommand("HS", "Heap/Snapshot", heap_snapshot, anyState);
+    new ReportCommand("HD", "Heap/Diff", heap_diff, anyState);
+    new ReportCommand("HRef", "Heap/Refs", heap_refs, anyState);
 #endif
-    new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
-    new UserCommand("BS", "Backtrace/Show", showBacktrace, anyState);
+    new ReportCommand("SS", "Startup/Show", showStartupLog, anyState);
+    new ReportCommand("BS", "Backtrace/Show", showBacktrace, anyState);
 #ifdef CRASH_TEST
     new UserCommand("CRASH", "Crash/Test", forceCrash, anyState);
 #endif
     new UserCommand("UP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarm);
 
-    new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
+    new ReportCommand("RI", "Report/Interval", setReportInterval, anyState);
 
-    new UserCommand("13", "Report/Inches", switchInchMM, notIdleOrAlarm);
+    new ReportCommand("13", "Report/Inches", switchInchMM, notIdleOrAlarm);
 
-    new UserCommand("GS", "GRBL/Show", report_init_message_cmd, notIdleOrAlarm);
+    new ReportCommand("GS", "GRBL/Show", report_init_message_cmd, anyState);
 
     new AsyncUserCommand("J", "Jog", doJog, notIdleOrJog);
-    new AsyncUserCommand("G", "GCode/Modes", report_gcode, anyState);
+    new ReportCommand("G", "GCode/Modes", report_gcode, anyState);
 };
 
 // This is the handler for all forms of settings commands,
@@ -1123,7 +1127,11 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
             if (auth_failed(cp, value, auth_level)) {
                 return Error::AuthenticationFailed;
             }
-            if (cp->synchronous()) {
+            // Run the state guard before draining the planner, so a command
+            // that is going to be rejected does not needlessly wait for
+            // motion to finish.  cp->action() re-checks the guard and returns
+            // the rejection code.
+            if (!cp->disallowed() && cp->drains_buffer()) {
                 protocol_buffer_synchronize();
             }
             if (value.empty()) {
@@ -1242,7 +1250,55 @@ Error settings_execute_line(const char* line, Channel& out, AuthenticationLevel 
     return do_command_or_setting(key, value, auth_level, out);
 }
 
-Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level) {
+// Does this line have to run on the protocol task?  gcode always does; a '$'
+// or '[' command is looked up in Command::List and answers with
+// needs_protocol_context() (WebCommand defaults true, WebReportCommand
+// false); an unregistered "$name" is a yaml/NVS setting - a write must be
+// ordered, a read may run anywhere; an unknown "[name]" is treated
+// conservatively.  Called with leading whitespace already skipped, line[0] != 0.
+static bool line_needs_protocol_context(const char* line) {
+    std::string_view name;
+    bool             has_value;
+    if (line[0] == '[') {
+        // [ESPxxx] or [Full/Name] - the name runs to the ']'.
+        const char* rb = strchr(line, ']');
+        if (!rb) {
+            return true;  // malformed
+        }
+        name      = std::string_view(line + 1, rb - (line + 1));
+        has_value = rb[1] != '\0';
+    } else if (line[0] == '$') {
+        size_t end = 1;
+        while (line[end] && line[end] != '=' && line[end] != ' ' && line[end] != '\t') {
+            ++end;
+        }
+        name      = std::string_view(line + 1, end - 1);
+        has_value = line[end] == '=';
+    } else {
+        return true;  // gcode
+    }
+
+    for (Command* cp : Command::List) {
+        if ((cp->getGrblName() && string_util::equal_ignore_case(cp->getGrblName(), name)) ||
+            string_util::equal_ignore_case(cp->getName(), name)) {
+            return cp->needs_protocol_context();
+        }
+    }
+    // Unregistered: a '$' name is a yaml/NVS setting - a write must be
+    // ordered; an unknown [ESPxxx] is treated conservatively.
+    return line[0] == '[' ? true : has_value;
+}
+
+// Run a '$' / '[' command right here (the polling task or the protocol task).
+// Never reaches gcode or the planner.
+static Error run_command_inline(const char* line, Channel& channel, AuthenticationLevel auth_level) {
+    if (gc_state.skip_blocks) {
+        return Error::Ok;
+    }
+    return settings_execute_line(line, channel, auth_level);
+}
+
+Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level, bool on_protocol_task) {
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {
         return Error::Ok;
@@ -1251,13 +1307,33 @@ Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_
     while (isspace(*line)) {
         ++line;
     }
-    // User '$' or WebUI '[ESPxxx]' command
-    if (line[0] == '$' || line[0] == '[') {
-        if (gc_state.skip_blocks) {
-            return Error::Ok;
-        }
+    if (line[0] == 0) {
+        return Error::Ok;
+    }
 
-        return settings_execute_line(line, channel, auth_level);
+    bool needs_context = line_needs_protocol_context(line);
+
+    if (!on_protocol_task) {
+        // Called from the polling task.  One locked read: jc is nullptr when
+        // no job is running, so this classification cannot race a nest/unnest.
+        Channel* jc = Job::channel();
+        if (jc && &channel != jc) {
+            // Interloper while a job runs: reject anything that needs the
+            // protocol task; run the side-effect-free rest here so it is not
+            // stuck behind a consumer that is blocked in the planner.
+            if (needs_context) {
+                return Error::AnotherInterfaceBusy;
+            }
+            return run_command_inline(line, channel, auth_level);
+        }
+        // The job's own line, or any line when no job is running: hand it to
+        // protocol_main_loop so ordering and reply routing are unchanged.
+        return cmd_queue_defer(line, channel) ? Error::Deferred : Error::AnotherInterfaceBusy;
+    }
+
+    // on_protocol_task: run it for real.
+    if (line[0] == '$' || line[0] == '[') {
+        return run_command_inline(line, channel, auth_level);
     }
     // Everything else is gcode. Block if in alarm or jog mode.
     if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Jog)) {

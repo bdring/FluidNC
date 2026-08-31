@@ -115,5 +115,10 @@ void protocol_send_event_from_ISR(const Event* evt, void* arg = 0);
 
 void drain_messages();
 
+// Copy a line onto cmd_queue for protocol_main_loop to execute.  Returns false
+// if the queue is full.  Called by execute_line() on the polling task.
+class Channel;
+bool cmd_queue_defer(const char* line, Channel& channel);
+
 extern uint32_t heapLowWater;
 extern uint32_t maxBlockLowWater;  // largest-free-block low-water; UINT_MAX where unavailable
