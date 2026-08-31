@@ -81,7 +81,15 @@ protected:
     bool (*_cmdChecker)();
 
 private:
-    bool _synchronous = true;
+    // _needs_protocol_context: the command must execute on the protocol task
+    //   because it touches the planner, the state machine, the event queue, or
+    //   nests a job.  Commands without it are pure observers that can run off
+    //   the protocol task.
+    // _drains_buffer: call protocol_buffer_synchronize() before the command
+    //   runs.  Only meaningful in the protocol context, so drains_buffer()
+    //   ANDs the two ($J needs the context but must not block on the buffer).
+    bool _needs_protocol_context = false;
+    bool _drains_buffer          = false;
 
 public:
     // Command::List is a vector of all commands,
@@ -95,14 +103,19 @@ public:
             const char*   grblName,
             const char*   fullName,
             bool (*cmdChecker)(),
-            bool synchronous = false);
+            bool needs_protocol_context = false,
+            bool drains_buffer          = false);
 
     // The default implementation of addWebui() does nothing.
     // Derived classes may override it to do something.
     virtual void addWebui(JSONencoder*) {};
 
     virtual Error action(const char* value, AuthenticationLevel auth_level, Channel& out) = 0;
-    bool          synchronous() { return _synchronous; }
+
+    bool needs_protocol_context() { return _needs_protocol_context; }
+    bool drains_buffer() { return _needs_protocol_context && _drains_buffer; }
+    // True if this command's state guard currently disallows it.
+    bool disallowed() { return _cmdChecker && _cmdChecker(); }
 };
 
 class Setting : public Word {
@@ -384,13 +397,16 @@ public:
                 const char* name,
                 Error (*action)(const char*, AuthenticationLevel, Channel&),
                 bool (*cmdChecker)(),
-                permissions_t auth        = WG,
-                bool          synchronous = true) :
-        Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker, synchronous),
+                permissions_t auth                   = WG,
+                bool          needs_protocol_context = true,
+                bool          drains_buffer          = true) :
+        Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker, needs_protocol_context, drains_buffer),
         _action(action) {}
 
     Error action(const char* value, AuthenticationLevel auth_level, Channel& response);
 };
+// Feeds the planner but must stay responsive: runs in the protocol context
+// without a preceding buffer sync.  (Currently just $J.)
 class AsyncUserCommand : public UserCommand {
 public:
     AsyncUserCommand(const char* grblName,
@@ -398,7 +414,17 @@ public:
                      Error (*action)(const char*, AuthenticationLevel, Channel&),
                      bool (*cmdChecker)(),
                      permissions_t auth = WG) :
-        UserCommand(grblName, name, action, cmdChecker, auth, false) {}
+        UserCommand(grblName, name, action, cmdChecker, auth, /*needs_protocol_context=*/true, /*drains_buffer=*/false) {}
+};
+// A pure observer: reads state and prints.  No protocol context, no buffer sync.
+class ReportCommand : public UserCommand {
+public:
+    ReportCommand(const char* grblName,
+                  const char* name,
+                  Error (*action)(const char*, AuthenticationLevel, Channel&),
+                  bool (*cmdChecker)()  = anyState,
+                  permissions_t auth    = WG) :
+        UserCommand(grblName, name, action, cmdChecker, auth, /*needs_protocol_context=*/false, /*drains_buffer=*/false) {}
 };
 
 // Execute the startup script lines stored in non-volatile storage upon initialization

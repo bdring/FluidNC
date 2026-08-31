@@ -1025,37 +1025,37 @@ static Error list_parameters(const char* value, AuthenticationLevel auth_level, 
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
-    new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
+    new ReportCommand("GD", "GPIO/Dump", showGPIOs, anyState);
     new UserCommand("GI", "GPIO/Input", setGPIOInput, anyState);
     new UserCommand("GO", "GPIO/Output", setGPIOOutput, anyState);
     new UserCommand("G+", "GPIO/On", writeGPIOOn, anyState);
     new UserCommand("G-", "GPIO/Off", writeGPIOOff, anyState);
-    new UserCommand("GR", "GPIO/Read", readGPIO, anyState);
+    new ReportCommand("GR", "GPIO/Read", readGPIO, anyState);
 
-    new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
-    new UserCommand("CD", "Config/Dump", dump_config, anyState);
-    new UserCommand("", "Help", show_help, anyState);
-    new UserCommand("T", "State", showState, anyState);
+    new ReportCommand("CI", "Channel/Info", showChannelInfo, anyState);
+    new ReportCommand("CD", "Config/Dump", dump_config, anyState);
+    new ReportCommand("", "Help", show_help, anyState);
+    new ReportCommand("T", "State", showState, anyState);
 
-    new UserCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
-    new UserCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
-    new UserCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
-    new UserCommand("S", "Settings/List", list_settings, cycleOrHold);
-    new UserCommand("SC", "Settings/ListChanged", list_changed_settings, cycleOrHold);
-    new UserCommand("CMD", "Commands/List", list_commands, cycleOrHold);
-    new UserCommand("A", "Alarms/List", listAlarms, anyState);
-    new UserCommand("E", "Errors/List", listErrors, anyState);
+    new ReportCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
+    new ReportCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
+    new ReportCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
+    new ReportCommand("S", "Settings/List", list_settings, cycleOrHold);
+    new ReportCommand("SC", "Settings/ListChanged", list_changed_settings, cycleOrHold);
+    new ReportCommand("CMD", "Commands/List", list_commands, cycleOrHold);
+    new ReportCommand("A", "Alarms/List", listAlarms, anyState);
+    new ReportCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
-    new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
-    new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
+    new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
+    new ReportCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
     new UserCommand("RM", "Macros/Run", macros_run, nullptr);
-    new UserCommand("PL", "Parameters/List", list_parameters, nullptr);
+    new ReportCommand("PL", "Parameters/List", list_parameters, nullptr);
 
     new UserCommand("H", "Home", home_all, allowConfigStates);
     new UserCommand("HX", "Home/X", home_x, allowConfigStates);
@@ -1079,31 +1079,31 @@ void make_user_commands() {
     new UserCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
-    new UserCommand("I", "Build/Info", get_report_build_info, allowConfigStates);
+    new ReportCommand("I", "Build/Info", get_report_build_info, allowConfigStates);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
     new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
-    new UserCommand("Heap", "Heap/Show", showHeap, anyState);
+    new ReportCommand("Heap", "Heap/Show", showHeap, anyState);
 #ifdef HEAPDIFF
-    new UserCommand("HS", "Heap/Snapshot", heap_snapshot, anyState);
-    new UserCommand("HD", "Heap/Diff", heap_diff, anyState);
-    new UserCommand("HRef", "Heap/Refs", heap_refs, anyState);
+    new ReportCommand("HS", "Heap/Snapshot", heap_snapshot, anyState);
+    new ReportCommand("HD", "Heap/Diff", heap_diff, anyState);
+    new ReportCommand("HRef", "Heap/Refs", heap_refs, anyState);
 #endif
-    new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
-    new UserCommand("BS", "Backtrace/Show", showBacktrace, anyState);
+    new ReportCommand("SS", "Startup/Show", showStartupLog, anyState);
+    new ReportCommand("BS", "Backtrace/Show", showBacktrace, anyState);
 #ifdef CRASH_TEST
     new UserCommand("CRASH", "Crash/Test", forceCrash, anyState);
 #endif
     new UserCommand("UP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarm);
 
-    new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
+    new ReportCommand("RI", "Report/Interval", setReportInterval, anyState);
 
-    new UserCommand("13", "Report/Inches", switchInchMM, notIdleOrAlarm);
+    new ReportCommand("13", "Report/Inches", switchInchMM, notIdleOrAlarm);
 
-    new UserCommand("GS", "GRBL/Show", report_init_message_cmd, notIdleOrAlarm);
+    new ReportCommand("GS", "GRBL/Show", report_init_message_cmd, notIdleOrAlarm);
 
     new AsyncUserCommand("J", "Jog", doJog, notIdleOrJog);
-    new AsyncUserCommand("G", "GCode/Modes", report_gcode, anyState);
+    new ReportCommand("G", "GCode/Modes", report_gcode, anyState);
 };
 
 // This is the handler for all forms of settings commands,
@@ -1123,7 +1123,11 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
             if (auth_failed(cp, value, auth_level)) {
                 return Error::AuthenticationFailed;
             }
-            if (cp->synchronous()) {
+            // Run the state guard before draining the planner, so a command
+            // that is going to be rejected does not needlessly wait for
+            // motion to finish.  cp->action() re-checks the guard and returns
+            // the rejection code.
+            if (!cp->disallowed() && cp->drains_buffer()) {
                 protocol_buffer_synchronize();
             }
             if (value.empty()) {
