@@ -24,6 +24,8 @@
 #include "Driver/watchdog.h"
 #include "Driver/heap.h"  // platform_max_free_block()
 
+#include <atomic>
+
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
 volatile const char* unwind_cause = nullptr;
@@ -126,7 +128,15 @@ void output_loop(void* unused) {
     }
 }
 
-Channel* activeChannel = nullptr;  // Channel associated with the input line
+// activeChannel is a single-slot handoff of one input line from the polling
+// task (core 0, producer) to protocol_main_loop (core 1, consumer):
+//   producer: fills activeLine, then publishes with a release store
+//   consumer: acquire-loads the pointer, reads activeLine, then clears with a
+//             release store so the producer only overwrites activeLine after
+//             the consumer is done with it.
+// The paired release/acquire is what makes activeLine safe to share unlocked
+// across the two cores; a plain pointer here is a data race.
+std::atomic<Channel*> activeChannel { nullptr };  // Channel associated with the input line
 
 TaskHandle_t pollingTask = nullptr;
 
@@ -163,13 +173,15 @@ void polling_loop(void* unused) {
         // activeChannel is thus a form of flow control between the protocol
         // task that processes GCode lines and other events and this task that
         // handles IO from channels.
-        if (!activeChannel) {
+        if (!activeChannel.load(std::memory_order_acquire)) {
             // Job channels have priority
             if (!Job::active()) {
                 unwind_cause = nullptr;
                 // No job channel is active, so poll all of the serial-style
-                // channels to see if one has a line ready.
-                activeChannel = pollChannels(activeLine);
+                // channels to see if one has a line ready.  pollChannels()
+                // fills activeLine before returning, so the release store
+                // publishes the buffer contents together with the pointer.
+                activeChannel.store(pollChannels(activeLine), std::memory_order_release);
             } else {
                 if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Critical)) {
                     log_debug("Unwinding from Alarm");
@@ -188,7 +200,7 @@ void polling_loop(void* unused) {
                 auto status  = channel->pollLine(activeLine);
                 switch (status) {
                     case Error::Ok:
-                        activeChannel = channel;
+                        activeChannel.store(channel, std::memory_order_release);
                         break;
                     case Error::NoData:
                         break;
@@ -271,10 +283,14 @@ void protocol_main_loop() {
         if (should_exit()) {
             break;
         }
-        if (activeChannel) {
-            if (activeChannel->is_closing()) {
-                activeChannel->release_processing_ref();
-                activeChannel = nullptr;
+        // Acquire-load pairs with the polling task's release store, so
+        // activeLine is fully visible here before we read it.
+        if (Channel* channel = activeChannel.load(std::memory_order_acquire)) {
+            if (channel->is_closing()) {
+                channel->release_processing_ref();
+                // Release store: the polling task must not overwrite activeLine
+                // until we are done with it (here, nothing more to do).
+                activeChannel.store(nullptr, std::memory_order_release);
                 continue;
             }
 
@@ -283,20 +299,22 @@ void protocol_main_loop() {
                 report_echo_line_received(activeLine, allChannels);
             }
 
-            Channel* out_channel = Job::leader ? Job::leader : activeChannel;
+            Channel* out_channel = Job::leader ? Job::leader : channel;
 
             Error status_code = execute_line(activeLine, *out_channel, AuthenticationLevel::LEVEL_GUEST);
 
             // Tell the channel that the line has been processed.
             // If the line was aborted, the channel could be invalid
             if (!sys.abort()) {
-                activeChannel->ack(status_code);
+                channel->ack(status_code);
             }
 
             // Tell the input polling task that the line has been processed,
-            // so it can give us another one when available
-            activeChannel->release_processing_ref();
-            activeChannel = nullptr;
+            // so it can give us another one when available.  The release store
+            // ensures our reads of activeLine / ack() / release_processing_ref()
+            // complete before the polling task sees the slot free.
+            channel->release_processing_ref();
+            activeChannel.store(nullptr, std::memory_order_release);
         }
 
         // Auto-cycle start any queued moves.
