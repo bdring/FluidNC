@@ -211,8 +211,8 @@ void collapseGCode(char* line) {
         // where the sequence of lines is potentially never-ending.  A sender that handles
         // files on the host system could apply the % semantics.
 
-        if (Job::active()) {
-            Job::channel()->percent();
+        if (Channel* jc = Job::channel()) {
+            jc->percent();
         }
         // Do not pass the % to the GCode interpreter
         *line = '\0';
@@ -1950,8 +1950,8 @@ Error gc_execute_line(const char* input_line) {
         case ProgramFlow::CompletedM30:
             protocol_buffer_synchronize();  // Sync and finish all remaining buffered motions before moving on.
 
-            if (Job::active()) {
-                Job::channel()->end();
+            if (Channel* jc = Job::channel()) {
+                jc->end();
             }
             // Upon program complete, only a subset of g-codes reset to certain defaults, according to
             // LinuxCNC's program end descriptions and testing. Only modal groups [G-code 1,2,3,5,7,12]

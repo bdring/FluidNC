@@ -40,11 +40,19 @@ public:
     ~JobSource() { delete _channel; }
 };
 
+// The job stack is mutated from two tasks: nest() runs on the protocol task
+// (via execute_line -> $SD/Run / macro run), while unnest()/abort() run on the
+// polling task.  Every method below takes an internal mutex, so individual
+// calls are atomic; callers that need a consistent value across several fields
+// should use one call (e.g. channel(), which returns nullptr when idle) rather
+// than active() followed by a second call.
 class Job {
 private:
-    static void pop();
+    static void pop();  // caller holds the job mutex
 
 public:
+    // Prefer leader_channel() for a locked read; the bare pointer is retained
+    // for existing call sites and is written only under the job mutex.
     static Channel* leader;
 
     static bool active();
@@ -54,14 +62,16 @@ public:
     static void       nest(Channel* in_channel, Channel* out_channel);
     static void       unnest();
     static void       abort();
-    static JobSource* source();
+    static JobSource* source();  // nullptr when no job is active
 
     static bool     get_param(const std::string& name, float& value);
     static bool     set_param(const std::string& name, float value);
     static bool     param_exists(const std::string& name);
-    static Channel* channel();
+    static Channel* channel();         // top-of-stack channel, or nullptr when idle
+    static Channel* leader_channel();  // job leader, or nullptr when idle
 
-    // Expose access to jobs stack for listing local parameters
+    // Snapshot of the stack for $Local/Params listing.  Not safe against a
+    // concurrent unnest()/abort(); only meaningful for interactive use.
     static const std::vector<JobSource*>& jobs_stack();
 };
 
