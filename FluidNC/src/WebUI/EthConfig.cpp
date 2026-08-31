@@ -213,7 +213,7 @@ namespace WebUI {
             _eth_gateway = new IPaddrSetting("Ethernet Static Gateway", WEBSET, WA, NULL, "Ethernet/Gateway", NULL_IP);
             _eth_netmask = new IPaddrSetting("Ethernet Static Mask", WEBSET, WA, NULL, "Ethernet/Netmask", NULL_IP);
 
-            new WebCommand(NULL, WEBCMD, WG, NULL, "Ethernet/Status", showEthStatus, anyState);
+            new WebReportCommand(NULL, WEBCMD, WG, NULL, "Ethernet/Status", showEthStatus, anyState);
             new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, NULL, "Ethernet/Setup", showSetEthParams);
             new WebCommand(NULL, WEBCMD, WA, "EI", "Ethernet/Init", initEth, anyState);
 

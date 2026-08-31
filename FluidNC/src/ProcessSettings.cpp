@@ -1250,31 +1250,43 @@ Error settings_execute_line(const char* line, Channel& out, AuthenticationLevel 
     return do_command_or_setting(key, value, auth_level, out);
 }
 
-// Does this line have to run on the protocol task?  gcode always does; a '['
-// WebUI command does until WebCommand is classified (see the worry-later
-// list); a '$' command is looked up and answers with needs_protocol_context();
-// an unregistered "$name" is a yaml/NVS setting - a write must be ordered, a
-// read may run anywhere.  Called with leading whitespace already skipped and
-// line[0] != 0.
+// Does this line have to run on the protocol task?  gcode always does; a '$'
+// or '[' command is looked up in Command::List and answers with
+// needs_protocol_context() (WebCommand defaults true, WebReportCommand
+// false); an unregistered "$name" is a yaml/NVS setting - a write must be
+// ordered, a read may run anywhere; an unknown "[name]" is treated
+// conservatively.  Called with leading whitespace already skipped, line[0] != 0.
 static bool line_needs_protocol_context(const char* line) {
+    std::string_view name;
+    bool             has_value;
     if (line[0] == '[') {
-        return true;
-    }
-    if (line[0] != '$') {
+        // [ESPxxx] or [Full/Name] - the name runs to the ']'.
+        const char* rb = strchr(line, ']');
+        if (!rb) {
+            return true;  // malformed
+        }
+        name      = std::string_view(line + 1, rb - (line + 1));
+        has_value = rb[1] != '\0';
+    } else if (line[0] == '$') {
+        size_t end = 1;
+        while (line[end] && line[end] != '=' && line[end] != ' ' && line[end] != '\t') {
+            ++end;
+        }
+        name      = std::string_view(line + 1, end - 1);
+        has_value = line[end] == '=';
+    } else {
         return true;  // gcode
     }
-    size_t end = 1;
-    while (line[end] && line[end] != '=' && line[end] != ' ' && line[end] != '\t') {
-        ++end;
-    }
-    std::string_view name(line + 1, end - 1);
+
     for (Command* cp : Command::List) {
         if ((cp->getGrblName() && string_util::equal_ignore_case(cp->getGrblName(), name)) ||
             string_util::equal_ignore_case(cp->getName(), name)) {
             return cp->needs_protocol_context();
         }
     }
-    return line[end] == '=';  // unregistered: yaml/NVS write must be ordered
+    // Unregistered: a '$' name is a yaml/NVS setting - a write must be
+    // ordered; an unknown [ESPxxx] is treated conservatively.
+    return line[0] == '[' ? true : has_value;
 }
 
 // Run a '$' / '[' command right here (the polling task or the protocol task).

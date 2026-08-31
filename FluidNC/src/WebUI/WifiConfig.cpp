@@ -697,10 +697,10 @@ namespace WebUI {
             _ntp_enable = new EnumSetting("NTP Enable", WEBSET, WA, NULL, "NTP/Enable", false, &onoffOptions);
 
             new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
-            new WebCommand(NULL, WEBCMD, WG, NULL, "wifi/status", showWiFiStatus, anyState);
-            new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/Info", showFwInfo, anyState);
+            new WebReportCommand(NULL, WEBCMD, WG, NULL, "wifi/status", showWiFiStatus, anyState);
+            new WebReportCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/Info", showFwInfo, anyState);
 
-            new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
+            new WebReportCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
             new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
 
             //stop active services

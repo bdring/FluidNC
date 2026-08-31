@@ -374,7 +374,22 @@ private:
     Error (*_action)(const char*, AuthenticationLevel, Channel& out);
     const char* password;
 
+protected:
+    WebCommand(const char*   description,
+               type_t        type,
+               permissions_t permissions,
+               const char*   grblName,
+               const char*   name,
+               Error (*action)(const char*, AuthenticationLevel, Channel& out),
+               bool (*cmdChecker)(),
+               bool          needs_protocol_context) :
+        Command(description, type, permissions, grblName, name, cmdChecker, needs_protocol_context, /*drains_buffer=*/false),
+        _action(action) {}
+
 public:
+    // [ESPxxx] commands touch the filesystem, NVS, the network, or restart the
+    // box, so by default they must run on the protocol task; the read-only
+    // status ones use WebReportCommand.
     WebCommand(const char*   description,
                type_t        type,
                permissions_t permissions,
@@ -382,10 +397,22 @@ public:
                const char*   name,
                Error (*action)(const char*, AuthenticationLevel, Channel& out),
                bool (*cmdChecker)() = notIdleOrAlarm) :
-        Command(description, type, permissions, grblName, name, cmdChecker),
-        _action(action) {}
+        WebCommand(description, type, permissions, grblName, name, action, cmdChecker, /*needs_protocol_context=*/true) {}
 
     Error action(const char* value, AuthenticationLevel auth_level, Channel& out);
+};
+
+// A read-only [ESPxxx] status/info command with no protocol-task dependency.
+class WebReportCommand : public WebCommand {
+public:
+    WebReportCommand(const char*   description,
+                     type_t        type,
+                     permissions_t permissions,
+                     const char*   grblName,
+                     const char*   name,
+                     Error (*action)(const char*, AuthenticationLevel, Channel& out),
+                     bool (*cmdChecker)() = anyState) :
+        WebCommand(description, type, permissions, grblName, name, action, cmdChecker, /*needs_protocol_context=*/false) {}
 };
 
 class UserCommand : public Command {
