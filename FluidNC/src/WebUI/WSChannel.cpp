@@ -7,6 +7,7 @@
 #include "WebUIServer.h"
 #include <cstdio>
 #include <memory>
+#include <algorithm>  // std::remove
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
 #include <freertos/semphr.h>
@@ -385,8 +386,8 @@ namespace WebUI {
                 }
                 WSChannel* newChannel = owned.get();
 
-                std::string uri((char*)server->url());
-                IPAddress   ip = client->remoteIP();
+                const char* uri = (const char*)server->url();  // borrowed, logged below; no allocation
+                IPAddress   ip  = client->remoteIP();
 
                 try {
                     xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
