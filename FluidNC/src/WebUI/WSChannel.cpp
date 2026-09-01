@@ -390,6 +390,12 @@ namespace WebUI {
                 const char* uri = (const char*)server->url();  // borrowed, logged below; no allocation
                 IPAddress   ip  = client->remoteIP();
 
+                // The newest websocket for a session wins. Actively close any older
+                // sockets instead of waiting for the old page to cooperate.  Done
+                // before newChannel is published so a throw here (it builds a
+                // std::vector) just unwinds `owned` with nothing left dangling.
+                closeSessionChannels(session, num);
+
                 bool listErr = false;
                 const bool held = xSemaphoreTake(ws_channels_mutex, portMAX_DELAY) == pdTRUE;
                 try {
@@ -406,10 +412,6 @@ namespace WebUI {
                     client->close();
                     break;  // owned destructs here -> channel freed
                 }
-
-                // The newest websocket for a session wins. Actively close any older
-                // sockets instead of waiting for the old page to cooperate.
-                closeSessionChannels(session, num);
 
                 try {
                     allChannels.registration(newChannel);
