@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <atomic>
 #include <list>
 #include <map>
 #include <ESPAsyncWebServer.h>
@@ -42,11 +43,13 @@ namespace WebUI {
         void        active(bool is_active);
         std::string session() { return _session; };
 
-        // Liveness: bumped on every inbound frame (data, ping, pong).  A socket
-        // that is RST without a FIN, or a sleeping browser tab, stops producing
-        // these; reapStaleChannels() closes it once it has been silent too long.
-        void     noteActivity(uint32_t now) { _lastActivityMs = now; }
-        uint32_t lastActivityMs() const { return _lastActivityMs; }
+        // Time (millis()) of the last inbound frame - data, ping or pong.  Set
+        // from the AsyncWebSocket event task and read from the WebUI poll task,
+        // hence atomic.  reapStaleChannels() uses it only as a debounce: a
+        // channel is removed when it is BOTH silent this long AND already
+        // disconnected, so this is not an idle timeout on live connections.
+        void     noteActivity(uint32_t now) { _lastActivityMs.store(now, std::memory_order_relaxed); }
+        uint32_t lastActivityMs() const { return _lastActivityMs.load(std::memory_order_relaxed); }
 
     private:
         AsyncWebSocket* _server;
@@ -63,7 +66,7 @@ namespace WebUI {
         std::string               _output_line;
         uint32_t                  _output_pending_since = 0;
         unsigned long             _last_queue_full      = 0;
-        uint32_t                  _lastActivityMs       = 0;
+        std::atomic<uint32_t>     _lastActivityMs { 0 };
 
         // may_block=false: if the client send queue is full, give up rather than
         // spin (used from pollLine(), which runs under AllChannels' poll mutex).
