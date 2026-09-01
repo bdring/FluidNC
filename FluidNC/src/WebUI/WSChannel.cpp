@@ -390,13 +390,18 @@ namespace WebUI {
                 const char* uri = (const char*)server->url();  // borrowed, logged below; no allocation
                 IPAddress   ip  = client->remoteIP();
 
+                bool listErr = false;
+                const bool held = xSemaphoreTake(ws_channels_mutex, portMAX_DELAY) == pdTRUE;
                 try {
-                    xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
                     _wsChannels.push_back(newChannel);
                     _lastWSChannel = newChannel;
-                    xSemaphoreGive(ws_channels_mutex);
                 } catch (...) {
-                    xSemaphoreGive(ws_channels_mutex);  // push_back threw while holding the lock
+                    listErr = true;  // vector reallocation ran out of heap
+                }
+                if (held) {
+                    xSemaphoreGive(ws_channels_mutex);
+                }
+                if (listErr) {
                     log_error_to(Console, "WebSocket channel list allocation failed cid#" << num);
                     client->close();
                     break;  // owned destructs here -> channel freed
@@ -409,12 +414,15 @@ namespace WebUI {
                 try {
                     allChannels.registration(newChannel);
                 } catch (...) {
-                    xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
+                    // erase/remove/back on a vector of pointers do not allocate.
+                    const bool unwindHeld = xSemaphoreTake(ws_channels_mutex, portMAX_DELAY) == pdTRUE;
                     _wsChannels.erase(std::remove(_wsChannels.begin(), _wsChannels.end(), newChannel), _wsChannels.end());
                     if (_lastWSChannel == newChannel) {
                         _lastWSChannel = _wsChannels.empty() ? nullptr : _wsChannels.back();
                     }
-                    xSemaphoreGive(ws_channels_mutex);
+                    if (unwindHeld) {
+                        xSemaphoreGive(ws_channels_mutex);
+                    }
                     log_error_to(Console, "WebSocket registration failed cid#" << num);
                     client->close();
                     break;  // owned destructs here -> channel freed
