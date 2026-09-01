@@ -6,6 +6,8 @@
 #include "Driver/Console.h"
 #include "WebUIServer.h"
 #include <cstdio>
+#include <memory>
+#include <algorithm>  // std::remove
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
 #include <freertos/semphr.h>
@@ -411,45 +413,82 @@ namespace WebUI {
                 log_debug_to(Console, "WebSocket disconnect cid#" << num);
                 break;
             case WS_EVT_CONNECT: {
-                auto*      request    = static_cast<AsyncWebServerRequest*>(arg);
-                auto       session    = request ? WebUI_Server::getWebSocketSession(request, client) : std::string {};
-                WSChannel* newChannel = new WSChannel(server, num, session);
-                if (!newChannel) {
-                    log_error_to(Console, "Creating WebSocket channel failed");
-                } else {
-                    std::string uri((char*)server->url());
-                    IPAddress   ip = client->remoteIP();
+                auto* request = static_cast<AsyncWebServerRequest*>(arg);
+                auto  session = request ? WebUI_Server::getWebSocketSession(request, client) : std::string {};
 
-                    std::string s;
-                    {
-                        xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
-                        _lastWSChannel = newChannel;
-                        _wsChannels.push_back(newChannel);
+                // Own the new channel locally until it is fully published.  If any
+                // step below throws (e.g. a vector reallocation running out of heap
+                // during a connection burst), the unique_ptr frees it and nothing
+                // is left dangling in _wsChannels or the AllChannels registry.
+                std::unique_ptr<WSChannel> owned;
+                try {
+                    owned = std::make_unique<WSChannel>(server, num, session);
+                } catch (...) {
+                    log_error_to(Console, "Creating WebSocket channel failed cid#" << num);
+                    client->close();  // don't leave an upgraded socket with no channel
+                    break;
+                }
+                WSChannel* newChannel = owned.get();
+
+                const char* uri = (const char*)server->url();  // borrowed, logged below; no allocation
+                IPAddress   ip  = client->remoteIP();
+
+                // The newest websocket for a session wins. Actively close any older
+                // sockets instead of waiting for the old page to cooperate.  Done
+                // before newChannel is published so a throw here (it builds a
+                // std::vector) just unwinds `owned` with nothing left dangling.
+                closeSessionChannels(session, num);
+
+                bool listErr = false;
+                const bool held = xSemaphoreTake(ws_channels_mutex, portMAX_DELAY) == pdTRUE;
+                try {
+                    _wsChannels.push_back(newChannel);
+                    _lastWSChannel = newChannel;
+                } catch (...) {
+                    listErr = true;  // vector reallocation ran out of heap
+                }
+                if (held) {
+                    xSemaphoreGive(ws_channels_mutex);
+                }
+                if (listErr) {
+                    log_error_to(Console, "WebSocket channel list allocation failed cid#" << num);
+                    client->close();
+                    break;  // owned destructs here -> channel freed
+                }
+
+                try {
+                    allChannels.registration(newChannel);
+                } catch (...) {
+                    // erase/remove/back on a vector of pointers do not allocate.
+                    const bool unwindHeld = xSemaphoreTake(ws_channels_mutex, portMAX_DELAY) == pdTRUE;
+                    _wsChannels.erase(std::remove(_wsChannels.begin(), _wsChannels.end(), newChannel), _wsChannels.end());
+                    if (_lastWSChannel == newChannel) {
+                        _lastWSChannel = _wsChannels.empty() ? nullptr : _wsChannels.back();
+                    }
+                    if (unwindHeld) {
                         xSemaphoreGive(ws_channels_mutex);
                     }
+                    log_error_to(Console, "WebSocket registration failed cid#" << num);
+                    client->close();
+                    break;  // owned destructs here -> channel freed
+                }
+                owned.release();  // ownership handed to _wsChannels / AllChannels
 
-                    // The newest websocket for a session wins. Actively close any older
-                    // sockets instead of waiting for the old page to cooperate.
-                    closeSessionChannels(session, num);
+                // This tells WebUI the ID of the newly-created websocket
+                // so it can include that ID in a PAGEID= argument to
+                // direct output to that websocket
 
-                    allChannels.registration(newChannel);
+                std::string s = "currentID:";  // webui3
+                s += std::to_string(num);
+                send_control_message(client, s);
 
-                    // This tells WebUI the ID of the newly-created websocket
-                    // so it can include that ID in a PAGEID= argument to
-                    // direct output to that websocket
+                s = "CURRENT_ID:";  // webui2
+                s += std::to_string(num);
+                send_control_message(client, s);
 
-                    s = "currentID:";  // webui3
-                    s += std::to_string(num);
-                    send_control_message(client, s);
-
-                    s = "CURRENT_ID:";  // webui2
-                    s += std::to_string(num);
-                    send_control_message(client, s);
-
-                    log_debug_to(Console, "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session);
-                    for (auto const pin : _pins) {
-                        newChannel->registerEvent(pin.first, pin.second);
-                    }
+                log_debug_to(Console, "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session);
+                for (auto const pin : _pins) {
+                    newChannel->registerEvent(pin.first, pin.second);
                 }
             } break;
             case WS_EVT_PING:
