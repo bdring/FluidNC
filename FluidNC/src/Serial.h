@@ -34,9 +34,14 @@ class AllChannels : public Channel {
     std::vector<Channel*> snapshot_channels();
 
 public:
-    AllChannels() : Channel("all") { _killQueue = xQueueCreate(16, sizeof(Channel*)); }
+    // Depth covers the worst realistic burst: every WebSocket client plus the
+    // telnet and HTTP-command channels being torn down between two poll cycles.
+    AllChannels() : Channel("all") { _killQueue = xQueueCreate(32, sizeof(Channel*)); }
 
-    void kill(Channel* channel);
+    // Queues a channel for deletion by the polling task.  Returns false if it
+    // could not be queued (kill queue full, or never created); the caller still
+    // owns the channel in that case and must retry.
+    bool kill(Channel* channel);
 
     void registration(Channel* channel);
     void deregistration(Channel* channel);

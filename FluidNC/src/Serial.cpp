@@ -117,10 +117,8 @@ void AllChannels::ready() {
     }
 }
 
-void AllChannels::kill(Channel* channel) {
-    if (_killQueue) {
-        xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10));
-    }
+bool AllChannels::kill(Channel* channel) {
+    return _killQueue && xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10)) == pdTRUE;
 }
 
 void AllChannels::registration(Channel* channel) {
@@ -227,7 +225,7 @@ Channel* AllChannels::poll(char* line) {
     reap_channels();
 
     Channel* deadChannel;
-    while (xQueueReceive(_killQueue, &deadChannel, 0)) {
+    while (_killQueue && xQueueReceive(_killQueue, &deadChannel, 0)) {
         deadChannel->begin_closing();
         deregistration(deadChannel);
         _zombies.push_back(deadChannel);

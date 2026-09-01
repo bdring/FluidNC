@@ -263,7 +263,13 @@ namespace WebUI {
                 wsChannel->flushRx();
 
                 _wsChannels.erase(it);
-                allChannels.kill(wsChannel);
+                if (!allChannels.kill(wsChannel)) {
+                    // Could not queue the channel for deletion (kill queue full,
+                    // or never created).  It is deactivated and off _wsChannels,
+                    // but still registered with AllChannels - it will keep being
+                    // polled (returning nothing) and its memory is not reclaimed.
+                    log_error_to(Console, "Could not queue WebSocket cid#" << num << " for deletion, leaking it");
+                }
                 break;
             }
         }

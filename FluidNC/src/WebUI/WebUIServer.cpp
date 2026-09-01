@@ -751,9 +751,10 @@ namespace WebUI {
             // We rely on AsyncWebServer to take care of that
             request->onDisconnect([webClient]() {
                 webClient->detachWS();
-                allChannels.kill(webClient);
-                // Should not delete, kill() takes care of that
-                //delete webClient;
+                // Should not delete here, kill() takes care of that once no refs remain
+                if (!allChannels.kill(webClient)) {
+                    log_error("Could not queue HTTP command channel for deletion, leaking it");
+                }
             });
         } else
             response = request->beginResponse(200, "", "");
