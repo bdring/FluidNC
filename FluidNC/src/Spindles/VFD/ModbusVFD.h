@@ -69,7 +69,7 @@ namespace Spindles {
                 _set_rpm_cmd(set_rpm_cmd), _get_min_rpm_cmd(get_min_rpm_cmd), _get_max_rpm_cmd(get_max_rpm_cmd), _get_rpm_cmd(get_rpm_cmd) {}
 
             void group(Configuration::HandlerBase& handler) override {
-                // @config model
+                // @config safety_polling
                 // @default false
                 // @default_note ""
                 // VFD is is polled for speed continously
