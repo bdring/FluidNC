@@ -225,7 +225,7 @@ Channel* AllChannels::poll(char* line) {
     reap_channels();
 
     Channel* deadChannel;
-    while (xQueueReceive(_killQueue, &deadChannel, 0)) {
+    while (_killQueue && xQueueReceive(_killQueue, &deadChannel, 0)) {
         deadChannel->begin_closing();
         deregistration(deadChannel);
         _zombies.push_back(deadChannel);

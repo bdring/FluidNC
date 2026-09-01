@@ -264,10 +264,11 @@ namespace WebUI {
 
                 _wsChannels.erase(it);
                 if (!allChannels.kill(wsChannel)) {
-                    // Queue full and the poll task did not drain it in time.  The
-                    // channel is already deactivated and off the list; it will not
-                    // be polled again, but its memory is not reclaimed here.
-                    log_error_to(Console, "WebSocket kill queue full, leaking cid#" << num);
+                    // Could not queue the channel for deletion (kill queue full,
+                    // or never created).  It is deactivated and off _wsChannels,
+                    // but still registered with AllChannels - it will keep being
+                    // polled (returning nothing) and its memory is not reclaimed.
+                    log_error_to(Console, "Could not queue WebSocket cid#" << num << " for deletion, leaking it");
                 }
                 break;
             }

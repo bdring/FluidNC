@@ -753,7 +753,7 @@ namespace WebUI {
                 webClient->detachWS();
                 // Should not delete here, kill() takes care of that once no refs remain
                 if (!allChannels.kill(webClient)) {
-                    log_error("WebClient kill queue full, leaking HTTP command channel");
+                    log_error("Could not queue HTTP command channel for deletion, leaking it");
                 }
             });
         } else

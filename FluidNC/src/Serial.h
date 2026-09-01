@@ -38,8 +38,8 @@ public:
     // telnet and HTTP-command channels being torn down between two poll cycles.
     AllChannels() : Channel("all") { _killQueue = xQueueCreate(32, sizeof(Channel*)); }
 
-    // Queues a channel for deletion by the polling task.  Returns false if the
-    // kill queue was full and the channel could NOT be queued; the caller still
+    // Queues a channel for deletion by the polling task.  Returns false if it
+    // could not be queued (kill queue full, or never created); the caller still
     // owns the channel in that case and must retry.
     bool kill(Channel* channel);
 
