@@ -360,7 +360,7 @@ namespace WebUI {
     // (often an RST with no FIN) but the WS_EVT_DISCONNECT event that would have
     // called removeChannel() never arrived, orphaning the channel and its heap.
     // The connection check means a live-but-idle client is never touched.
-    void WSChannels::reapStaleChannels(uint32_t stale_ms) {
+    void WSChannels::reapStaleChannels(AsyncWebSocket* server, uint32_t stale_ms) {
         const uint32_t now = millis();
 
         // Collect candidates into a fixed stack buffer so nothing is allocated
@@ -384,7 +384,7 @@ namespace WebUI {
         }
 
         for (size_t i = 0; i < candidateCount; ++i) {
-            if (get_client(_server, candidateIds[i])) {
+            if (get_client(server, candidateIds[i])) {
                 continue;  // still connected at the WS layer - leave it alone
             }
             log_debug_to(Console, "Reaping orphaned WebSocket cid#" << candidateIds[i]);

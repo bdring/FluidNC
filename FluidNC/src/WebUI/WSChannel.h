@@ -100,7 +100,7 @@ namespace WebUI {
 
         // Close and remove any channel with no inbound traffic for stale_ms.
         // Safe to call from the WebUI poll task alongside sendPing().
-        static void reapStaleChannels(uint32_t stale_ms);
+        static void reapStaleChannels(AsyncWebSocket* server, uint32_t stale_ms);
         static void handleEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len);
 
         static void showChannels();

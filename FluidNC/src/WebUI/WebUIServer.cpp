@@ -1477,7 +1477,7 @@ namespace WebUI {
                 // Clean up channels whose socket died without a DISCONNECT event.
                 // Only silent-AND-disconnected channels are reaped, so the 60 s
                 // window is just debounce against a slow initial handshake.
-                WSChannels::reapStaleChannels(60 * 1000);
+                WSChannels::reapStaleChannels(_socket_server, 60 * 1000);
             }
             start_time = millis();
         }
