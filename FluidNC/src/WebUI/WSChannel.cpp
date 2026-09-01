@@ -363,11 +363,17 @@ namespace WebUI {
     void WSChannels::reapStaleChannels(uint32_t stale_ms) {
         const uint32_t now = millis();
 
+        // Reserve before taking the lock so the push_back loop below cannot
+        // allocate (and therefore cannot throw) while ws_channels_mutex is held.
+        // Candidates are always a subset of _wsChannels, and a channel added
+        // after this snapshot is by definition not yet stale, so this capacity
+        // is sufficient.
         std::vector<objnum_t> candidateIds;
+        candidateIds.reserve(_wsChannels.size() + 2);
         {
             xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
             for (auto const wsChannel : _wsChannels) {
-                if ((now - wsChannel->lastActivityMs()) >= stale_ms) {
+                if ((now - wsChannel->lastActivityMs()) >= stale_ms && candidateIds.size() < candidateIds.capacity()) {
                     candidateIds.push_back(wsChannel->id());
                 }
             }
