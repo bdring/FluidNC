@@ -382,6 +382,7 @@ namespace WebUI {
                     owned = std::make_unique<WSChannel>(server, num, session);
                 } catch (...) {
                     log_error_to(Console, "Creating WebSocket channel failed cid#" << num);
+                    client->close();  // don't leave an upgraded socket with no channel
                     break;
                 }
                 WSChannel* newChannel = owned.get();
@@ -397,6 +398,7 @@ namespace WebUI {
                 } catch (...) {
                     xSemaphoreGive(ws_channels_mutex);  // push_back threw while holding the lock
                     log_error_to(Console, "WebSocket channel list allocation failed cid#" << num);
+                    client->close();
                     break;  // owned destructs here -> channel freed
                 }
 
@@ -410,10 +412,11 @@ namespace WebUI {
                     xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
                     _wsChannels.erase(std::remove(_wsChannels.begin(), _wsChannels.end(), newChannel), _wsChannels.end());
                     if (_lastWSChannel == newChannel) {
-                        _lastWSChannel = nullptr;
+                        _lastWSChannel = _wsChannels.empty() ? nullptr : _wsChannels.back();
                     }
                     xSemaphoreGive(ws_channels_mutex);
                     log_error_to(Console, "WebSocket registration failed cid#" << num);
+                    client->close();
                     break;  // owned destructs here -> channel freed
                 }
                 owned.release();  // ownership handed to _wsChannels / AllChannels
