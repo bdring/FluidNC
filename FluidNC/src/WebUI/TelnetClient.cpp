@@ -45,10 +45,12 @@ namespace WebUI {
     }
 
     void TelnetClient::closeOnDisconnectLocked() {
-        if (!_wifiClient->connected()) {
-            bool expected = false;
-            if (_disconnected.compare_exchange_strong(expected, true)) {
-                allChannels.kill(this);
+        if (!_wifiClient->connected() && !_disconnected.load()) {
+            // Latch _disconnected only once the channel is actually queued for
+            // deletion.  If the kill queue is momentarily full, a later call
+            // (this runs from every read/peek/poll path) will retry.
+            if (allChannels.kill(this)) {
+                _disconnected.store(true);
             }
         }
     }

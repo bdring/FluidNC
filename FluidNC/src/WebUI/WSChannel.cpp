@@ -263,7 +263,12 @@ namespace WebUI {
                 wsChannel->flushRx();
 
                 _wsChannels.erase(it);
-                allChannels.kill(wsChannel);
+                if (!allChannels.kill(wsChannel)) {
+                    // Queue full and the poll task did not drain it in time.  The
+                    // channel is already deactivated and off the list; it will not
+                    // be polled again, but its memory is not reclaimed here.
+                    log_error_to(Console, "WebSocket kill queue full, leaking cid#" << num);
+                }
                 break;
             }
         }

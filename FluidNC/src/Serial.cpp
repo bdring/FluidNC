@@ -117,10 +117,8 @@ void AllChannels::ready() {
     }
 }
 
-void AllChannels::kill(Channel* channel) {
-    if (_killQueue) {
-        xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10));
-    }
+bool AllChannels::kill(Channel* channel) {
+    return _killQueue && xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10)) == pdTRUE;
 }
 
 void AllChannels::registration(Channel* channel) {
