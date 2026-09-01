@@ -363,29 +363,32 @@ namespace WebUI {
     void WSChannels::reapStaleChannels(uint32_t stale_ms) {
         const uint32_t now = millis();
 
-        // Reserve before taking the lock so the push_back loop below cannot
-        // allocate (and therefore cannot throw) while ws_channels_mutex is held.
-        // Candidates are always a subset of _wsChannels, and a channel added
-        // after this snapshot is by definition not yet stale, so this capacity
-        // is sufficient.
-        std::vector<objnum_t> candidateIds;
-        candidateIds.reserve(_wsChannels.size() + 2);
+        // Collect candidates into a fixed stack buffer so nothing is allocated
+        // (and nothing can throw) while ws_channels_mutex is held, and reap only
+        // a few per call: an orphan is rare, so clearing a handful per poll
+        // keeps us well under the AllChannels kill-queue depth.
+        static constexpr size_t maxPerCycle = 4;
+        objnum_t                candidateIds[maxPerCycle];
+        size_t                  candidateCount = 0;
         {
             xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
             for (auto const wsChannel : _wsChannels) {
-                if ((now - wsChannel->lastActivityMs()) >= stale_ms && candidateIds.size() < candidateIds.capacity()) {
-                    candidateIds.push_back(wsChannel->id());
+                if (candidateCount >= maxPerCycle) {
+                    break;
+                }
+                if ((now - wsChannel->lastActivityMs()) >= stale_ms) {
+                    candidateIds[candidateCount++] = wsChannel->id();
                 }
             }
             xSemaphoreGive(ws_channels_mutex);
         }
 
-        for (auto const channelId : candidateIds) {
-            if (get_client(_server, channelId)) {
+        for (size_t i = 0; i < candidateCount; ++i) {
+            if (get_client(_server, candidateIds[i])) {
                 continue;  // still connected at the WS layer - leave it alone
             }
-            log_debug_to(Console, "Reaping orphaned WebSocket cid#" << channelId);
-            removeChannel(channelId);
+            log_debug_to(Console, "Reaping orphaned WebSocket cid#" << candidateIds[i]);
+            removeChannel(candidateIds[i]);
         }
     }
 
