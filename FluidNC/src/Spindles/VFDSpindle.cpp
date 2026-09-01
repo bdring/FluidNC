@@ -254,7 +254,7 @@ namespace Spindles {
         handler.item("modbus_id", _modbus_id, 0, 247);  // per https://modbus.org/docs/PI_MBUS_300.pdf
 
         // @config debug
-        // @default 2
+        // @default 1
         // Debug message verbosity: 0-1 no debug info, 2 shows missing responses and speed
         // info, 3+ also shows raw Rx/Tx Modbus messages.
         handler.item("debug", _debug, 0, 5);
