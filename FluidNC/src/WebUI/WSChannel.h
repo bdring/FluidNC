@@ -42,6 +42,12 @@ namespace WebUI {
         void        active(bool is_active);
         std::string session() { return _session; };
 
+        // Liveness: bumped on every inbound frame (data, ping, pong).  A socket
+        // that is RST without a FIN, or a sleeping browser tab, stops producing
+        // these; reapStaleChannels() closes it once it has been silent too long.
+        void     noteActivity(uint32_t now) { _lastActivityMs = now; }
+        uint32_t lastActivityMs() const { return _lastActivityMs; }
+
     private:
         AsyncWebSocket* _server;
         objnum_t        _clientNum;
@@ -57,6 +63,7 @@ namespace WebUI {
         std::string               _output_line;
         uint32_t                  _output_pending_since = 0;
         unsigned long             _last_queue_full      = 0;
+        uint32_t                  _lastActivityMs       = 0;
 
         // may_block=false: if the client send queue is full, give up rather than
         // spin (used from pollLine(), which runs under AllChannels' poll mutex).
@@ -87,6 +94,10 @@ namespace WebUI {
         static bool sendError(uint32_t pageid, std::string error, std::string session);
         static void closeSessionChannels(const std::string& session, objnum_t exceptId = 0);
         static void sendPing();
+
+        // Close and remove any channel with no inbound traffic for stale_ms.
+        // Safe to call from the WebUI poll task alongside sendPing().
+        static void reapStaleChannels(uint32_t stale_ms);
         static void handleEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len);
 
         static void showChannels();

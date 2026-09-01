@@ -35,7 +35,7 @@ namespace WebUI {
     }
 
     WSChannel::WSChannel(AsyncWebSocket* server, objnum_t clientNum, std::string session) :
-        Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {
+        Channel("websocket"), _server(server), _clientNum(clientNum), _session(session), _lastActivityMs(millis()) {
         setReportInterval(200);  // we will set automatic reporting on by default for now
         if (auto client = get_client(_server, _clientNum)) {
             client->setCloseClientOnQueueFull(false);
@@ -355,6 +355,34 @@ namespace WebUI {
         }
     }
 
+    // Reap WSChannels that have been silent for stale_ms AND whose underlying
+    // AsyncWebSocketClient is no longer connected - i.e. the socket went away
+    // (often an RST with no FIN) but the WS_EVT_DISCONNECT event that would have
+    // called removeChannel() never arrived, orphaning the channel and its heap.
+    // The connection check means a live-but-idle client is never touched.
+    void WSChannels::reapStaleChannels(uint32_t stale_ms) {
+        const uint32_t now = millis();
+
+        std::vector<objnum_t> candidateIds;
+        {
+            xSemaphoreTake(ws_channels_mutex, portMAX_DELAY);
+            for (auto const wsChannel : _wsChannels) {
+                if ((now - wsChannel->lastActivityMs()) >= stale_ms) {
+                    candidateIds.push_back(wsChannel->id());
+                }
+            }
+            xSemaphoreGive(ws_channels_mutex);
+        }
+
+        for (auto const channelId : candidateIds) {
+            if (get_client(_server, channelId)) {
+                continue;  // still connected at the WS layer - leave it alone
+            }
+            log_debug_to(Console, "Reaping orphaned WebSocket cid#" << channelId);
+            removeChannel(channelId);
+        }
+    }
+
     void WSChannels::handleEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
         uint32_t num = client->id();
         _server      = server;
@@ -409,10 +437,17 @@ namespace WebUI {
                     }
                 }
             } break;
+            case WS_EVT_PING:
+            case WS_EVT_PONG: {
+                if (auto wsChannel = getWSChannel(num, {})) {
+                    wsChannel->noteActivity(millis());
+                }
+            } break;
             case WS_EVT_DATA: {
                 AwsFrameInfo* info      = (AwsFrameInfo*)arg;
                 auto          wsChannel = getWSChannel(num, {});
                 if (wsChannel) {
+                    wsChannel->noteActivity(millis());
                     if (info->opcode == WS_TEXT) {
                         //data[len]=0; // !!! this should not be safe? but was there before,
                         // will copy to a std::string of specified length to be on the safe side
