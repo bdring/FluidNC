@@ -154,12 +154,24 @@ namespace Configuration {
     }
     void JsonGenerator::item(const char* name, step_engine*& value) {
         enter(name);
-        _encoder.begin_webui(_currentPath, "B", value->name);
+
+        // WebUI renders a "B" (enumerated) item as a dropdown and matches the
+        // current value "V" against the integer ids in the "O" option list, so
+        // "V" must be the option index, not the engine name.
+        int32_t selected_index = 0;
+        for (size_t index = 0; index < step_engines.size(); ++index) {
+            if (step_engines[index] == value) {
+                selected_index = static_cast<int32_t>(index);
+                break;
+            }
+        }
+
+        _encoder.begin_webui(_currentPath, "B", selected_index);
         _encoder.begin_array("O");
 
         for (size_t index = 0; index < step_engines.size(); ++index) {
             _encoder.begin_object();
-            _encoder.member(step_engines[index]->name, index);
+            _encoder.member(step_engines[index]->name, static_cast<int32_t>(index));
             _encoder.end_object();
         }
 
