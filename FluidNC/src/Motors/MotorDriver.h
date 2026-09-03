@@ -26,6 +26,13 @@
 #include <cstdint>
 
 namespace MotorDrivers {
+    class MotorDriver;
+
+    // Plain function pointers used in place of virtual calls from the step ISR;
+    // see isr_step_fn() below.  Repeated in Stepping.h.
+    using IsrStepFn = void (*)(MotorDriver*);
+    using IsrDirFn  = void (*)(MotorDriver*, bool);
+
     class MotorDriver : public Configuration::Configurable {
         const char* _name;
 
@@ -61,6 +68,31 @@ namespace MotorDrivers {
         // set_disable() disables or enables a motor.  It is used to
         // make a motor transition between idle and non-idle states.
         virtual void set_disable(bool disable);
+
+        // set_direction() and step() are for motor types that generate their own
+        // step waveform instead of pulsing a step pin - currently just unipolar.
+        // Such a driver registers itself with Stepping::assignMotorDriver(), and
+        // Stepping::step() then calls these instead of driving step/dir pins via
+        // the stepping engine.  Both run in ISR context, so overrides must be
+        // IRAM_ATTR and must not block.
+
+        // set_direction() records the direction of travel for subsequent steps.
+        // It is called only when the direction changes, not on every step.
+        virtual void set_direction(bool dir);
+
+        // step() advances the motor by one step in the current direction.
+        virtual void step();
+
+        // Calling the two methods above through the vtable is not safe from the
+        // step ISR: the vtable is in flash, and the ISR can run while the flash
+        // cache is disabled.  A driver that does its own stepping therefore also
+        // supplies plain function pointers, which Stepping caches in RAM at
+        // registration time and calls instead.  The functions they point at must
+        // be IRAM_ATTR and must not touch flash themselves.
+        // Null unless the driver does its own stepping; Stepping checks before
+        // calling, so a driver that uses step/dir pins need not supply them.
+        virtual IsrStepFn isr_step_fn() { return nullptr; }
+        virtual IsrDirFn  isr_dir_fn() { return nullptr; }
 
         // this is used to configure and test motors. This would be used for Trinamic
         virtual void config_motor() {}
@@ -99,7 +131,7 @@ namespace MotorDrivers {
         //   tables can be indexed by these variables.
         // TODO Architecture: It might be useful to cache a
         // reference to the axis settings entry.
-        axis_t axis_index() const;       // X_AXIS, etc
+        axis_t  axis_index() const;       // X_AXIS, etc
         motor_t dual_axis_index() const;  // motor number 0 or 1
     };
 
