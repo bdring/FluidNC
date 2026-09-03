@@ -7,6 +7,15 @@
 #include "Config.h"
 #include <esp_idf_version.h>
 
+// ESP-IDF v5 names this CONFIG_ESP_TASK_WDT_EN; v4.x names it
+// CONFIG_ESP_TASK_WDT.  Testing only the v5 name leaves every function in this
+// file compiled to an empty body on v4.x, so feed_watchdog() feeds nothing and
+// add_watchdog_to_task() subscribes nothing, while the task watchdog itself is
+// enabled and will panic on expiry.  Accept either name.
+#if defined(CONFIG_ESP_TASK_WDT_EN) || defined(CONFIG_ESP_TASK_WDT)
+#    define FLUIDNC_TASK_WDT_ENABLED 1
+#endif
+
 static TaskHandle_t wdt_task_handle = nullptr;
 
 static void get_wdt_task_handle() {
@@ -32,7 +41,7 @@ static void get_wdt_task_handle() {
 
 // cppcheck-suppress unusedFunction
 void enable_core0_WDT() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     if (!wdt_task_handle) {
         return;
     }
@@ -45,7 +54,7 @@ void enable_core0_WDT() {
 
 // cppcheck-suppress unusedFunction
 void disable_core0_WDT() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     get_wdt_task_handle();
     if (!wdt_task_handle) {
         return;
@@ -58,7 +67,7 @@ void disable_core0_WDT() {
 }
 
 void feed_watchdog() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     // esp_task_wdt_reset() logs an error ("task not found") if the current
     // task isn't subscribed to the TWDT, instead of silently no-opping.
     // FluidNC's watchdog is opt-in (see add_watchdog_to_task()), and several
@@ -74,7 +83,7 @@ void feed_watchdog() {
 }
 
 void add_watchdog_to_task() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     esp_task_wdt_add(NULL);  // NULL means current task
 #endif
 }
