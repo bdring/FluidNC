@@ -2151,6 +2151,41 @@ axes.<letter>.motorN.dynamixel2:
     description: |
       Update interval, in milliseconds, for refreshing the servo's commanded position.
 
+axes.<letter>.motorN.unipolar:
+  phase0_pin:
+    type: pin
+    default: 'NO_PIN'
+    pin_attributes: output
+    description: |
+      Coil A drive output, e.g. IN1 on a ULN2003 board.
+
+  phase1_pin:
+    type: pin
+    default: 'NO_PIN'
+    pin_attributes: output
+    description: |
+      Coil B drive output, e.g. IN2 on a ULN2003 board.
+
+  phase2_pin:
+    type: pin
+    default: 'NO_PIN'
+    pin_attributes: output
+    description: |
+      Coil C drive output, e.g. IN3 on a ULN2003 board.
+
+  phase3_pin:
+    type: pin
+    default: 'NO_PIN'
+    pin_attributes: output
+    description: |
+      Coil D drive output, e.g. IN4 on a ULN2003 board.
+
+  half_step:
+    type: boolean
+    default: 'true'
+    description: |
+      Uses the 8-phase half-step sequence, which gives twice the resolution and smoother motion than the 4-phase full-step sequence at some cost in torque. Halving this also halves the effective steps_per_mm.
+
 # Explicit no-op driver -- takes no fields.
 axes.<letter>.motorN.null_motor:
 PWM:
