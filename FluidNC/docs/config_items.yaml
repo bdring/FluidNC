@@ -740,6 +740,294 @@ oled:
     description: |
       Delay, in milliseconds, before the display shows radio (WiFi/BT) connection info after boot -- gives the radio hardware time to come up first.
 
+# Lives under FluidNC/esp32/ for the same reason as oled just above -- the relative path deliberately escapes SRC to reach it.
+ts35:
+  report_interval_ms:
+    type: integer
+    min: 100
+    max: 5000
+    default: '200'
+    tuning: typical
+    description: |
+      How often the module asks the machine for a status report. This is the channel's own report interval, independent of what other channels use.
+
+  render_interval_ms:
+    type: integer
+    min: 100
+    max: 2000
+    default: '200'
+    tuning: typical
+    description: |
+      Lower bound between screen repaints. Only fields whose text actually changed are redrawn, so raising this costs responsiveness, not bandwidth.
+
+  touch_interval_ms:
+    type: integer
+    min: 20
+    max: 500
+    default: '40'
+    tuning: typical
+    description: |
+      How often the touch controller is sampled. Below about 20 ms the SPI traffic starts competing with the display writes for the same bus.
+
+  controls_enabled:
+    type: boolean
+    default: 'false'
+    tuning: per-machine
+    description: |
+      Master gate for every control that moves the machine or changes its coordinates. Leave it false until the touch calibration below has been verified on the bench: an uncalibrated panel will send taps to the wrong button.
+
+  allow_jog:
+    type: boolean
+    default: 'true'
+    tuning: per-machine
+    description: |
+      Allows the jog buttons, subject to controls_enabled.
+
+  allow_zero:
+    type: boolean
+    default: 'true'
+    tuning: per-machine
+    description: |
+      Allows setting work zero from the screen, subject to controls_enabled. Zeroing uses G10 L20 P0, so it updates the active coordinate system and shows up on the other channels at the next report.
+
+  allow_homing:
+    type: boolean
+    default: 'false'
+    tuning: per-machine
+    description: |
+      Allows starting a homing cycle from the screen.
+
+  allow_unlock:
+    type: boolean
+    default: 'false'
+    tuning: per-machine
+    description: |
+      Allows $X from the Control page. Not needed when allow_alarm_clear is true, which offers the same thing where the alarm is actually shown.
+
+  allow_soft_reset:
+    type: boolean
+    default: 'false'
+    tuning: per-machine
+    description: |
+      Allows sending a soft reset from the Control page.
+
+  allow_alarm_clear:
+    type: boolean
+    default: 'false'
+    tuning: per-machine
+    description: |
+      Shows an alarm banner with an unlock button on every page whenever the machine is in Alarm. The button sends a soft reset and then $X. This is deliberately independent of controls_enabled, because neither command produces motion, so a machine can be recovered from an alarm while the screen is otherwise read-only.
+
+  jog_step_mm:
+    type: float
+    min: 0.001f
+    max: 100.0f
+    default: '0.100'
+    tuning: per-machine
+    description: |
+      Starting jog increment. The STEP button cycles it through 0.01, 0.1, 1, 10 and 100 mm, capped as described under jog_step_max_mm; this value only picks where that ladder starts. The screen's own selection is not written back here, so $CD still reports what the config file asked for.
+
+  jog_feed_xy_mm_min:
+    type: float
+    min: 1.0f
+    max: 100000.0f
+    default: '1000.000'
+    tuning: per-machine
+    description: |
+      Feed rate used for jogs on X and Y.
+
+  jog_feed_z_mm_min:
+    type: float
+    min: 1.0f
+    max: 100000.0f
+    default: '500.000'
+    tuning: per-machine
+    description: |
+      Feed rate used for jogs on Z.
+
+  jog_step_max_mm:
+    type: float
+    min: 0.01f
+    max: 100.0f
+    default: '10.000'
+    tuning: per-machine
+    description: |
+      Largest jog increment applied to X and Y. The STEP button cycles the ladder 0.01, 0.1, 1, 10, 100 mm up to whichever of the two caps is higher, then wraps back to 0.01.
+
+  jog_percent:
+    type: integer
+    min: 1
+    max: 100
+    default: '80'
+    tuning: typical
+    description: |
+      Starting speed for the jog buttons, as a percentage of the two feed rates above. The SPEED button cycles it through 10, 25, 50, 80 and 100, so those feeds are the ceiling rather than the working value; set them to what the machine can actually sustain and steer from the panel. As with jog_step_mm, the screen's selection stays out of the saved config.
+
+  jog_step_max_z_mm:
+    type: float
+    min: 0.01f
+    max: 100.0f
+    default: '10.000'
+    tuning: per-machine
+    description: |
+      Same, for Z. It is separate because Z usually has an order of magnitude less travel than X and Y, and with soft_limits off an increment longer than the travel that is left drives the axis into its hard limit. When the selected step is above this cap, a Z jog moves this much instead and the jog page says so.
+
+  touch_x_min:
+    type: integer
+    min: 0
+    max: 4095
+    default: '300'
+    tuning: per-machine
+    description: |
+      Raw ADC reading at the left edge of the panel. Read the raw values from the Info page while touching the edges and put them here.
+
+  touch_x_max:
+    type: integer
+    min: 0
+    max: 4095
+    default: '3600'
+    tuning: per-machine
+    description: |
+      Raw ADC reading at the right edge of the panel.
+
+  touch_y_min:
+    type: integer
+    min: 0
+    max: 4095
+    default: '300'
+    tuning: per-machine
+    description: |
+      Raw ADC reading at the top edge of the panel.
+
+  touch_y_max:
+    type: integer
+    min: 0
+    max: 4095
+    default: '3600'
+    tuning: per-machine
+    description: |
+      Raw ADC reading at the bottom edge of the panel.
+
+  touch_pressure_threshold:
+    type: integer
+    min: 0
+    max: 4095
+    default: '350'
+    tuning: per-machine
+    description: |
+      Minimum pressure reading for a sample to count as a touch. Raise it if the screen registers phantom taps, lower it if firm taps are missed.
+
+  touch_max_sample_spread:
+    type: integer
+    min: 0
+    max: 4095
+    default: '40'
+    tuning: typical
+    description: |
+      Rejects a reading whose samples disagree by more than this, which is what a finger sliding off the panel looks like.
+
+  touch_samples:
+    type: integer
+    min: 1
+    max: 9
+    default: '5'
+    tuning: typical
+    description: |
+      Samples per reading, median filtered. Odd values give a true median.
+
+  touch_swap_xy:
+    type: boolean
+    default: 'true'
+    tuning: per-machine
+    description: |
+      Swaps the panel's two axes before mapping them to the screen. Needed when the resistive panel is wired at ninety degrees to the LCD scan order.
+
+  touch_invert_x:
+    type: boolean
+    default: 'true'
+    tuning: per-machine
+    description: |
+      Mirrors the horizontal axis of the touch panel.
+
+  touch_invert_y:
+    type: boolean
+    default: 'false'
+    tuning: per-machine
+    description: |
+      Mirrors the vertical axis of the touch panel.
+
+  lcd_clock_hz:
+    type: integer
+    min: 1000000
+    max: 40000000
+    default: '40000000'
+    tuning: typical
+    description: |
+      SPI clock for the display. Reduce it if a long or poorly seated ribbon cable produces visible corruption.
+
+  touch_clock_hz:
+    type: integer
+    min: 100000
+    max: 2000000
+    default: '2000000'
+    tuning: typical
+    description: |
+      SPI clock for the touch controller. The ADS7843/XPT2046 is specified well below the display's clock and should not be run at the same rate.
+
+  invert_display:
+    type: boolean
+    default: 'false'
+    tuning: per-machine
+    description: |
+      Sends the panel's colour inversion command at startup. Some ST7796 panels ship inverted relative to the reference module.
+
+  tft_cs_pin:
+    type: pin
+    default: 'NO_PIN'
+    tuning: per-machine
+    pin_attributes: output
+    description: |
+      Chip select for the display controller. Must be a native MCU pin with output capability; a pin extender cannot keep up with the bus. Required. The SPI bus itself (sck/mosi/miso) is the machine's shared spi: section, same as SDCard.
+
+  tft_dc_pin:
+    type: pin
+    default: 'NO_PIN'
+    tuning: per-machine
+    pin_attributes: output
+    description: |
+      Data/command line of the display controller. Must be a native MCU pin with output capability. Required.
+
+  touch_cs_pin:
+    type: pin
+    default: 'NO_PIN'
+    tuning: per-machine
+    pin_attributes: output
+    description: |
+      Chip select for the touch controller, which shares the bus with the display. Must be a native MCU pin with output capability. Required.
+
+  tft_reset_pin:
+    type: pin
+    default: 'NO_PIN'
+    tuning: per-machine
+    pin_attributes: output
+    description: |
+      Hardware reset line of the display controller. Optional: leave it out on a panel whose reset is tied to the board's own reset.
+
+  backlight_pin:
+    type: pin
+    default: 'NO_PIN'
+    tuning: per-machine
+    pin_attributes: output
+    description: |
+      Switches the backlight. Optional: leave it out on a panel that is lit whenever it is powered.
+
+  backlight_active_low:
+    type: boolean
+    default: 'true'
+    tuning: per-machine
+    description: |
+      Set when the backlight pin is pulled low to light the panel. Boards differ here, sometimes within the same model, so this is worth checking on the bench before assuming the display is dead.
+
 atc_manual:
   safe_z_mpos_mm:
     type: float
