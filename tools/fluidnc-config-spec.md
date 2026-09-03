@@ -272,7 +272,7 @@ motor0:
   hard_limits: false        # Boolean, default false
   pulloff_mm: 1.000         # Float, 0.1-100000.0, default 1.000
 
-  <driver_type>:             # exactly one driver-type block, dispatched via MotorFactory::factory() — see 5.4.1 - 5.4.11
+  <driver_type>:             # exactly one driver-type block, dispatched via MotorFactory::factory() — see 5.4.1 - 5.4.12
     ...
 ```
 
@@ -476,6 +476,21 @@ motor1:
   null_motor:
 ```
 Explicitly declares "this motor slot is unused." Takes no sub-keys. Used for `motor1:` on single-motor axes, and required as a placeholder in some daisy-chain scenarios. Also confirmed as the automatic fallback: `Motor::afterParse()` constructs a `null_motor` itself whenever no driver-type key was given at all, so an entirely empty `motor1: {}` (or omitting `motor1:` altogether — though the section is always registered per §5.1) behaves the same as writing `null_motor:` explicitly.
+
+#### 5.4.12 `unipolar:` — unipolar stepper driven a coil at a time (28BYJ-48 via ULN2003)
+
+Ground truth: `UnipolarMotor::group()`. Unlike every other driver type above, this one has **no `step_pin` or `direction_pin`** — the motor has no step/dir inputs at all. The four coil phases are energised in sequence by the driver itself, so the four phase pins are the entire pin set. A config generator should therefore not try to assign step/dir roles to this motor type.
+```yaml
+unipolar:
+  phase0_pin: NO_PIN      # Pin (output), must be gpio — coil A, e.g. IN1 on a ULN2003 board
+  phase1_pin: NO_PIN      # Pin (output), must be gpio — coil B, e.g. IN2
+  phase2_pin: NO_PIN      # Pin (output), must be gpio — coil C, e.g. IN3
+  phase3_pin: NO_PIN      # Pin (output), must be gpio — coil D, e.g. IN4
+  half_step: true          # Boolean, default true — 8-phase half-step sequence
+```
+The phase pins must be `gpio.` pins; `UnipolarMotor::validate()` rejects anything else, because they are written directly from the step ISR rather than through the stepping engine.
+
+`half_step: true` (the default) uses the 8-phase half-step sequence, giving twice the resolution and smoother motion than the 4-phase full-step sequence at some cost in torque. Setting it `false` halves the number of steps per revolution, so `steps_per_mm` on the owning axis must be halved to match.
 
 ---
 ## 6. `spi:` and `sdcard:` sections (only needed if using an SD card)

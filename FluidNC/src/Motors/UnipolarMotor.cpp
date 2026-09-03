@@ -58,10 +58,14 @@ namespace MotorDrivers {
 
     void IRAM_ATTR UnipolarMotor::set_disable(bool disable) {
         if (disable) {
-            _pin_phase0.off();
-            _pin_phase1.off();
-            _pin_phase2.off();
-            _pin_phase3.off();
+            // gpio_write() for the same reason step_isr() uses it: this is
+            // IRAM_ATTR so that it stays safe when the flash cache is
+            // disabled, and Pin::off() would dispatch through a PinDetail
+            // vtable, which lives in flash and defeats that.
+            gpio_write(_gpio_phase[0], false);
+            gpio_write(_gpio_phase[1], false);
+            gpio_write(_gpio_phase[2], false);
+            gpio_write(_gpio_phase[3], false);
         }
         _enabled = !disable;
     }

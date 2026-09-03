@@ -58,9 +58,10 @@ namespace MotorDrivers {
 
             // @config half_step
             // @default true
-            // Uses the 8-phase half-step sequence, which gives twice the resolution and
-            // smoother motion than the 4-phase full-step sequence at some cost in torque.
-            // Halving this also halves the effective steps_per_mm.
+            // True uses the 8-phase half-step sequence, which gives twice the resolution
+            // and smoother motion than the 4-phase full-step sequence at some cost in
+            // torque.  Setting it false selects full-step, which halves the number of
+            // steps per revolution, so steps_per_mm must be halved to match.
             handler.item("half_step", _half_step);
         }
 
