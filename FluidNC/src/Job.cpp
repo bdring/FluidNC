@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Job.h"
-#include "NutsBolts.h"  // delay_ms()
+#include "Serial.h"  // allChannels
 #include <map>
 #include <vector>
 #include <freertos/FreeRTOS.h>
@@ -10,31 +10,40 @@
 
 std::vector<JobSource*> job;
 
-// A job's channel is the one Channel in the system that is deleted directly
-// rather than handed to AllChannels::kill() and its reaper, so nothing was
-// checking whether the output task still had a queued message referencing it.
-// Channel::sendLine() takes a log reference and queues the message with a bare
-// pointer; if the channel is freed before output_loop() drains it, the task
-// calls a virtual method on freed memory.  That lands on __cxa_pure_virtual
-// and aborts:
+// A job's channel used to be the one Channel in the system deleted directly
+// rather than handed to AllChannels::kill() and its reaper, so nothing checked
+// whether anyone still held a reference to it.
+//
+// Two kinds of reference matter.  Channel::sendLine() takes a *log* reference
+// and queues the message with a bare pointer, so freeing the channel before
+// output_loop() drains the queue calls a virtual method on freed memory:
 //
 //   output_loop -> Channel::print_msg -> Print::write -> __cxa_pure_virtual
 //
-// Short jobs make it easy to hit, because the window between queuing a message
-// and tearing the job down is small.
+// protocol_main_loop() holds a *processing* reference across execute_line(),
+// which is where a job's channel gets closed, and afterwards calls
+// channel->ack() on it.  Freeing the channel in between leaves that call
+// reading a zeroed vtable:
 //
-// begin_closing() makes try_acquire_log_ref() fail, so no further messages can
-// be queued against this channel, and the references already outstanding drain
-// as output_loop() processes them.  In practice that is immediate; the bound is
-// there so a wedged output task cannot hang job teardown.
+//   LoadProhibited, EXCVADDR 0x3c, in protocol_main_loop at channel->ack()
+//
+// Waiting on the log references alone missed the second case, so hand the
+// channel to AllChannels::kill() instead.  Its reaper deletes the channel only
+// once *both* counts reach zero, which is the check this teardown needs and
+// already exists there.
 JobSource::~JobSource() {
-    if (_channel) {
-        _channel->begin_closing();
-        for (uint32_t waited = 0; waited < 200 && _channel->pending_log_refs(); ++waited) {
-            delay_ms(1);
-        }
-        delete _channel;
+    if (!_channel) {
+        return;
     }
+    // begin_closing() makes try_acquire_log_ref() fail, so no further messages
+    // can be queued against this channel while it waits to be reaped.
+    _channel->begin_closing();
+    if (!allChannels.kill(_channel)) {
+        // The kill queue is full.  Leaking one channel is bounded and
+        // recoverable; deleting it with references outstanding is not.
+        log_error("Could not queue job channel for reaping; leaking it");
+    }
+    _channel = nullptr;
 }
 
 
