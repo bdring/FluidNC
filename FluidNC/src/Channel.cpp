@@ -458,11 +458,25 @@ void Channel::print_msg(MsgLevel level, const char* msg) {
 // memory does not need to be reclaimed later.
 // This is the most efficient form, but it only works
 // with fixed messages.
+
+// The output queue filling up means some channel is not draining - which is
+// exactly when something has gone wrong and the message matters most.
+// Dropping it silently is how an ALARM can reach the machine with nothing on
+// the console to say so.  Fall back to the console, which writes directly and
+// does not depend on the output task.  Debug and verbose messages are left to
+// drop, since they are the likely source of the flood in the first place.
+static void report_dropped_message(MsgLevel level, const char* text) {
+    if (level <= MsgLevelInfo) {
+        Console.print_msg(level, text);
+    }
+}
+
 void Channel::sendLine(MsgLevel level, const char* line) {
     if (outputTask && try_acquire_log_ref()) {
         LogMessage msg { this, (void*)line, level, false };
         if (!enqueue_log_message(msg)) {
             release_log_ref();
+            report_dropped_message(level, line);
         }
     } else {
         if (!_closing.load(std::memory_order_acquire)) {
@@ -484,6 +498,7 @@ void Channel::sendLine(MsgLevel level, const std::string* line) {
         LogMessage msg { this, (void*)line, level, true };
         if (!enqueue_log_message(msg)) {
             release_log_ref();
+            report_dropped_message(level, line->c_str());
             delete line;
         }
     } else {
