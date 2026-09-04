@@ -37,7 +37,7 @@ public:
 
     Channel* channel() { return _channel; }
 
-    ~JobSource() { delete _channel; }
+    ~JobSource();
 };
 
 // The job stack is mutated from two tasks: nest() runs on the protocol task

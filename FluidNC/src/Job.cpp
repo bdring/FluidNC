@@ -2,12 +2,41 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Job.h"
+#include "NutsBolts.h"  // delay_ms()
 #include <map>
 #include <vector>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
 std::vector<JobSource*> job;
+
+// A job's channel is the one Channel in the system that is deleted directly
+// rather than handed to AllChannels::kill() and its reaper, so nothing was
+// checking whether the output task still had a queued message referencing it.
+// Channel::sendLine() takes a log reference and queues the message with a bare
+// pointer; if the channel is freed before output_loop() drains it, the task
+// calls a virtual method on freed memory.  That lands on __cxa_pure_virtual
+// and aborts:
+//
+//   output_loop -> Channel::print_msg -> Print::write -> __cxa_pure_virtual
+//
+// Short jobs make it easy to hit, because the window between queuing a message
+// and tearing the job down is small.
+//
+// begin_closing() makes try_acquire_log_ref() fail, so no further messages can
+// be queued against this channel, and the references already outstanding drain
+// as output_loop() processes them.  In practice that is immediate; the bound is
+// there so a wedged output task cannot hang job teardown.
+JobSource::~JobSource() {
+    if (_channel) {
+        _channel->begin_closing();
+        for (uint32_t waited = 0; waited < 200 && _channel->pending_log_refs(); ++waited) {
+            delay_ms(1);
+        }
+        delete _channel;
+    }
+}
+
 
 Channel* Job::leader = nullptr;
 
