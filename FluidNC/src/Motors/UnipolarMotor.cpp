@@ -26,12 +26,16 @@ namespace MotorDrivers {
         _pin_phase1.setAttr(Pin::Attr::Output);
         _pin_phase2.setAttr(Pin::Attr::Output);
         _pin_phase3.setAttr(Pin::Attr::Output);
-        // Resolve the native GPIO numbers once, here, where touching flash is
-        // fine.  step() runs in the ISR and uses these directly.
-        _gpio_phase[0] = _pin_phase0.getNative(Pin::Capabilities::Output);
-        _gpio_phase[1] = _pin_phase1.getNative(Pin::Capabilities::Output);
-        _gpio_phase[2] = _pin_phase2.getNative(Pin::Capabilities::Output);
-        _gpio_phase[3] = _pin_phase3.getNative(Pin::Capabilities::Output);
+        // Resolve the native pin numbers and their ActiveLow settings once,
+        // here, where touching flash is fine.  This is what the stepping engine
+        // does with step_invert/dir_invert, for the same reason: step_isr()
+        // runs from an IRAM ISR and cannot go through Pin.
+        int i = 0;
+        for (auto pin : { &_pin_phase0, &_pin_phase1, &_pin_phase2, &_pin_phase3 }) {
+            _gpio_phase[i]   = pin->index();
+            _invert_phase[i] = pin->inverted();
+            ++i;
+        }
         _current_phase = 0;
         config_message();
 
@@ -62,10 +66,11 @@ namespace MotorDrivers {
             // IRAM_ATTR so that it stays safe when the flash cache is
             // disabled, and Pin::off() would dispatch through a PinDetail
             // vtable, which lives in flash and defeats that.
-            gpio_write(_gpio_phase[0], false);
-            gpio_write(_gpio_phase[1], false);
-            gpio_write(_gpio_phase[2], false);
-            gpio_write(_gpio_phase[3], false);
+            // Logical off, which is a high level on an ActiveLow pin.
+            gpio_write(_gpio_phase[0], _invert_phase[0]);
+            gpio_write(_gpio_phase[1], _invert_phase[1]);
+            gpio_write(_gpio_phase[2], _invert_phase[2]);
+            gpio_write(_gpio_phase[3], _invert_phase[3]);
         }
         _enabled = !disable;
     }
@@ -117,10 +122,10 @@ namespace MotorDrivers {
 
         const uint32_t pattern = sequence >> (_current_phase * 4);
 
-        gpio_write(_gpio_phase[0], (pattern & 1) != 0);
-        gpio_write(_gpio_phase[1], (pattern & 2) != 0);
-        gpio_write(_gpio_phase[2], (pattern & 4) != 0);
-        gpio_write(_gpio_phase[3], (pattern & 8) != 0);
+        gpio_write(_gpio_phase[0], ((pattern & 1) != 0) ^ _invert_phase[0]);
+        gpio_write(_gpio_phase[1], ((pattern & 2) != 0) ^ _invert_phase[1]);
+        gpio_write(_gpio_phase[2], ((pattern & 4) != 0) ^ _invert_phase[2]);
+        gpio_write(_gpio_phase[3], ((pattern & 8) != 0) ^ _invert_phase[3]);
     }
 
     // These thunks stand in for virtual calls from the step ISR, so they have to

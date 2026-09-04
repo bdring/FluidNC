@@ -78,7 +78,8 @@ namespace MotorDrivers {
         // write() dispatches through a PinDetail vtable that lives in flash -
         // not safe to touch from the step ISR.  validate() has already required
         // these to be gpio pins.
-        pinnum_t _gpio_phase[4] = { INVALID_PINNUM, INVALID_PINNUM, INVALID_PINNUM, INVALID_PINNUM };
+        pinnum_t _gpio_phase[4]   = { INVALID_PINNUM, INVALID_PINNUM, INVALID_PINNUM, INVALID_PINNUM };
+        bool     _invert_phase[4] = { false, false, false, false };
         bool     _enabled       = false;
         bool     _dir           = true;
 
