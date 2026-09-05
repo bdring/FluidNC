@@ -75,7 +75,9 @@ namespace WebUI {
             return true;
         }
 
-        wifiImpl().startApListScan();
+        // Record the paused request; the scan is started (and, if it fails to
+        // start, retried) from pollAsyncWifiScan() so no WiFi work runs on the
+        // async webserver task here.
         s_pending.reset(new PendingScan { request->pause(), jsonWrapper, millis() });
         return true;
     }
@@ -97,7 +99,11 @@ namespace WebUI {
 
             WifiImpl::ApScanState state    = wifiImpl().apListScanState();
             bool                  timedOut = (millis() - s_pending->startMs) >= WIFI_SCAN_TIMEOUT_MS;
-            if (state == WifiImpl::ApScanState::Running && !timedOut) {
+            if (state != WifiImpl::ApScanState::Done && !timedOut) {
+                // Running: wait.  Failed (never started, or start failed):
+                // (re)kick it - startApListScan() is idempotent - and wait.
+                // Only the timeout below ends a scan that never completes.
+                wifiImpl().startApListScan();
                 return;
             }
 
