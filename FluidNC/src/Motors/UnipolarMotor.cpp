@@ -7,8 +7,8 @@
     These have no step/direction inputs; the four coil phases are driven
     directly, so this driver energizes the phase pins itself rather than
     handing a step pin to the stepping engine.  It registers with
-    Stepping::assignMotorDriver(), which then calls set_direction() and step()
-    from the step ISR in place of the engine's pin operations.
+    Stepping::assignMotorDriver(), which then calls the driver's ISR entry
+    points from the step ISR in place of the engine's pin operations.
 */
 
 #include "UnipolarMotor.h"
@@ -61,7 +61,11 @@ namespace MotorDrivers {
     }
 
     void IRAM_ATTR UnipolarMotor::set_disable(bool disable) {
-        if (disable) {
+        // init() resolves the phase pins before it registers the motor with
+        // Stepping, so the step ISR never sees them unresolved.  set_disable()
+        // has no such ordering guarantee, and gpio_write() with INVALID_PINNUM
+        // (-1) would shift by a negative amount.
+        if (disable && _gpio_phase[0] != INVALID_PINNUM) {
             // gpio_write() for the same reason step_isr() uses it: this is
             // IRAM_ATTR so that it stays safe when the flash cache is
             // disabled, and Pin::off() would dispatch through a PinDetail
@@ -75,16 +79,8 @@ namespace MotorDrivers {
         _enabled = !disable;
     }
 
-    void IRAM_ATTR UnipolarMotor::set_direction(bool dir) {
-        set_direction_isr(dir);
-    }
-
     void IRAM_ATTR UnipolarMotor::set_direction_isr(bool dir) {
         _dir = dir;
-    }
-
-    void IRAM_ATTR UnipolarMotor::step() {
-        step_isr();
     }
 
     void IRAM_ATTR UnipolarMotor::step_isr() {
@@ -111,14 +107,19 @@ namespace MotorDrivers {
             a compile-time constant.  A lookup table would live in flash, which
             is not safe to touch from an ISR.
         */
-        const uint32_t sequence  = _half_step ? 0x98c46231 : 0x00009c63;
-        const uint8_t  phase_max = _half_step ? 7 : 3;
+        const uint32_t sequence   = _half_step ? 0x98c46231 : 0x00009c63;
+        const uint8_t  phase_mask = _half_step ? 7 : 3;
 
-        if (_dir) {  // count up
-            _current_phase = _current_phase == phase_max ? 0 : _current_phase + 1;
-        } else {  // count down
-            _current_phase = _current_phase == 0 ? phase_max : _current_phase - 1;
-        }
+        // Wrap by masking rather than by comparing against the maximum.  Both
+        // sequences are a power-of-two number of steps long, so the mask is
+        // exact, and it keeps _current_phase in range even when half_step
+        // changes while the machine is running: setting it at runtime applies
+        // the new value without re-running init(), which can leave the counter
+        // holding a half-step value under the full-step sequence.  A comparison
+        // would then never match, and _current_phase would climb until the
+        // shift below exceeded the width of sequence, which is undefined - in
+        // the step ISR.
+        _current_phase = (_dir ? _current_phase + 1 : _current_phase - 1) & phase_mask;
 
         const uint32_t pattern = sequence >> (_current_phase * 4);
 

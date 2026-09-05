@@ -15,8 +15,6 @@ namespace MotorDrivers {
         bool set_homing_mode(bool isHoming) override { return true; }
         bool can_self_home() override { return false; }
         void set_disable(bool disable) override;
-        void set_direction(bool dir) override;
-        void step() override;
 
         // The ISR path calls these directly, not through the vtable.  They are
         // non-virtual on purpose: whether a virtual call gets devirtualised is
@@ -79,9 +77,11 @@ namespace MotorDrivers {
         // not safe to touch from the step ISR.  validate() has already required
         // these to be gpio pins.
         pinnum_t _gpio_phase[4]   = { INVALID_PINNUM, INVALID_PINNUM, INVALID_PINNUM, INVALID_PINNUM };
+        // Each phase pin's ActiveLow setting, captured beside its number so the
+        // ISR can apply the inversion that Pin::write() would have applied.
         bool     _invert_phase[4] = { false, false, false, false };
-        bool     _enabled       = false;
-        bool     _dir           = true;
+        bool     _enabled         = false;
+        bool     _dir             = true;
 
     protected:
         void config_message() override;
