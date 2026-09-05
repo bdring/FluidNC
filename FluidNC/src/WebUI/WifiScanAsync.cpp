@@ -33,9 +33,12 @@ namespace WebUI {
 
         // beginAsyncWifiScan() runs on the async webserver task;
         // pollAsyncWifiScan() runs on the polling task.  The mutex guards the
-        // handoff of this pointer between them.  A FreeRTOS semaphore is used
-        // rather than std::mutex to match the rest of FluidNC and stay
-        // portable across the toolchains that build the WebUI.
+        // handoff of s_pending between them and nothing else - in particular
+        // the scan itself is driven only from the polling task, so the
+        // (possibly blocking) startApListScan() call is made with the lock
+        // released.  A FreeRTOS semaphore is used rather than std::mutex to
+        // match the rest of FluidNC and stay portable across the toolchains
+        // that build the WebUI.
         SemaphoreHandle_t            s_mutex = xSemaphoreCreateMutex();
         std::unique_ptr<PendingScan> s_pending;
 
@@ -85,6 +88,7 @@ namespace WebUI {
     void pollAsyncWifiScan() {
         AsyncWebServerRequestPtr requestPtr;
         std::string              body;
+        bool                     kickScan = false;
 
         {
             Lock lock;
@@ -103,15 +107,21 @@ namespace WebUI {
                 // Running: wait.  Failed (never started, or start failed):
                 // (re)kick it - startApListScan() is idempotent - and wait.
                 // Only the timeout below ends a scan that never completes.
-                wifiImpl().startApListScan();
-                return;
+                // Deferred until the lock is released: on rp2040/rp2350
+                // startApListScan() blocks for the whole scan.
+                kickScan = true;
+            } else {
+                int32_t count = (state == WifiImpl::ApScanState::Done) ? wifiImpl().apListCount() : 0;
+                body          = buildBody(count, s_pending->jsonWrapper);
+                wifiImpl().finishApListScan();
+                requestPtr = std::move(s_pending->request);
+                s_pending.reset();
             }
+        }
 
-            int32_t count = (state == WifiImpl::ApScanState::Done) ? wifiImpl().apListCount() : 0;
-            body          = buildBody(count, s_pending->jsonWrapper);
-            wifiImpl().finishApListScan();
-            requestPtr = std::move(s_pending->request);
-            s_pending.reset();
+        if (kickScan) {
+            wifiImpl().startApListScan();
+            return;
         }
 
         if (auto request = requestPtr.lock()) {
