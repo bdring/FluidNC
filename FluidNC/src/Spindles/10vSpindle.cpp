@@ -98,4 +98,14 @@ namespace Spindles {
     namespace {
         SpindleFactory::InstanceBuilder<_10v> registration("10V");
     }
+
+    // Called from the step ISR in place of a virtual dispatch, which would have
+    // to read this class's vtable out of flash.  IRAM_ATTR, and the qualified
+    // call keeps it non-virtual.
+    static void IRAM_ATTR _10v_speed_thunk(Spindle* s, uint32_t dev_speed) {
+        static_cast<_10v*>(s)->_10v::setSpeedfromISR(dev_speed);
+    }
+    Spindle::IsrSpeedFn _10v::isr_speed_fn() {
+        return _10v_speed_thunk;
+    }
 }

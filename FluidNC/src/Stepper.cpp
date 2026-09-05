@@ -229,14 +229,18 @@ bool IRAM_ATTR Stepper::pulse_func() {
                 st.steps[axis] = st.exec_block->steps[axis] >> st.exec_segment->amass_level;
             }
             // Set real-time spindle output as segment is loaded, just prior to the first step.
-            spindle->setSpeedfromISR(st.exec_segment->spindle_dev_speed);
+            if (spindle_isr_speed_fn) {
+                spindle_isr_speed_fn(spindle, st.exec_segment->spindle_dev_speed);
+            }
         } else {
             // Segment buffer empty. Shutdown.
             stop_stepping();
             if (!state_is(State::Jog)) {  // added to prevent ... jog after probing crash
                 // Ensure pwm is set properly upon completion of rate-controlled motion.
                 if (st.exec_block != NULL && st.exec_block->is_pwm_rate_adjusted) {
-                    spindle->setSpeedfromISR(0);
+                    if (spindle_isr_speed_fn) {
+                        spindle_isr_speed_fn(spindle, 0);
+                    }
                 }
             }
 
