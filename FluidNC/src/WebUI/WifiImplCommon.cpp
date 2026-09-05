@@ -1,6 +1,21 @@
 #include "WifiImpl.h"
 
+#include <Arduino.h>  // delay()
+
 namespace WebUI {
+    int32_t WifiImpl::beginApListScan() {
+        // Block until a scan completes, driving the non-blocking primitives.
+        // On platforms whose startApListScan() is itself synchronous this
+        // returns after one pass.
+        for (;;) {
+            startApListScan();
+            if (apListScanState() == ApScanState::Done) {
+                return apListCount();
+            }
+            delay(1000);
+        }
+    }
+
     enum WiFiCountry {
         WiFiCountry01 = 0,
         WiFiCountryAT,

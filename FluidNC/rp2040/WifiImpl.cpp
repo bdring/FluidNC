@@ -33,6 +33,8 @@ namespace WebUI {
 
     class Rp2xxxWifiImpl : public WifiImpl {
     private:
+        int32_t _apScanCount = -1;  // cached result for the non-blocking scan API
+
         static uint32_t cyw43CountryCode(const char* country) {
             if (country == nullptr || country[0] == '\0' || strcmp(country, "01") == 0) {
                 return CYW43_COUNTRY_WORLDWIDE;
@@ -165,14 +167,26 @@ namespace WebUI {
             return result;
         }
 
-        int32_t beginApListScan() override {
-            int32_t n = WiFi.scanNetworks(false);
-            return n < 0 ? 0 : n;
+        // arduino-pico's WiFi.scanNetworks() has no async mode like
+        // arduino-esp32's, so this runs one synchronous scan (a few seconds)
+        // and then reports Done.  A failed scan is reported as "0 APs", not
+        // retried, matching the previous behavior.
+        void startApListScan() override {
+            if (_apScanCount < 0) {
+                _apScanCount = std::max<int32_t>(0, WiFi.scanNetworks(false));
+            }
         }
+
+        ApScanState apListScanState() override { return _apScanCount < 0 ? ApScanState::Failed : ApScanState::Done; }
+
+        int32_t apListCount() override { return _apScanCount < 0 ? 0 : _apScanCount; }
 
         bool isApProtected(int index) const override { return WiFi.encryptionType(index) != ENC_TYPE_NONE; }
 
-        void finishApListScan() override { WiFi.scanDelete(); }
+        void finishApListScan() override {
+            WiFi.scanDelete();
+            _apScanCount = -1;
+        }
 
         void initNTP() override {
             NTP.begin("pool.ntp.org", "time.nist.gov");

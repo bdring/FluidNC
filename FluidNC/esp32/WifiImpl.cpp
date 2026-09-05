@@ -373,17 +373,27 @@ namespace WebUI {
             return result;
         }
 
-        int32_t beginApListScan() override {
-            while (true) {
-                int32_t n = WiFi.scanComplete();
-                if (n >= 0) {
-                    return n;
-                }
-                if (n == WIFI_SCAN_FAILED) {
-                    WiFi.scanNetworks(true, false, false, 1000);
-                }
-                delay(1000);
+        void startApListScan() override {
+            if (WiFi.scanComplete() == WIFI_SCAN_FAILED) {
+                // async, hidden=false, passive=false, max milliseconds per channel
+                WiFi.scanNetworks(true, false, false, 1000);
             }
+        }
+
+        ApScanState apListScanState() override {
+            switch (WiFi.scanComplete()) {
+                case WIFI_SCAN_RUNNING:
+                    return ApScanState::Running;
+                case WIFI_SCAN_FAILED:
+                    return ApScanState::Failed;
+                default:
+                    return ApScanState::Done;
+            }
+        }
+
+        int32_t apListCount() override {
+            int16_t n = WiFi.scanComplete();
+            return n > 0 ? n : 0;
         }
 
         bool isApProtected(int index) const override { return WiFi.encryptionType(index) != WIFI_AUTH_OPEN; }

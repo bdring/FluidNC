@@ -1,12 +1,17 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+#include "Platform.h"  // HOSTED
 #include "Machine/MachineConfig.h"
 #include "Serial.h"    // is_realtime_command()
 #include "Settings.h"  // settings_execute_line()
 #include "Error.h"     // ErrorException
 
 #include "WebUIServer.h"
+
+#if !HOSTED
+#    include "WifiScanAsync.h"  // beginAsyncWifiScan(), pollAsyncWifiScan()
+#endif
 
 #include "Driver/fluidnc_mdns.h"
 #include "NetSettings.h"
@@ -732,6 +737,14 @@ namespace WebUI {
             request->send(503, "text/plain", "Try again when not moving\n");
             return;
         }
+#if !HOSTED
+        // A WiFi AP scan is slow; run it asynchronously so it does not stall
+        // the command task or trip the connection watchdog.  The response is
+        // sent later from poll() -> pollAsyncWifiScan().
+        if (request->method() == HTTP_GET && beginAsyncWifiScan(request, cmd)) {
+            return;
+        }
+#endif
         char line[256];
         strncpy(line, cmd, 255);
         AsyncWebServerResponse* response;
@@ -1460,6 +1473,9 @@ namespace WebUI {
 
     void WebUI_Server::poll() {
         static uint32_t start_time = millis();
+#if !HOSTED
+        pollAsyncWifiScan();
+#endif
 #ifdef HAVE_DNS
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();

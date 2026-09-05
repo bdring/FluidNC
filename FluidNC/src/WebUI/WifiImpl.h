@@ -49,9 +49,25 @@ namespace WebUI {
         virtual std::string webAddressIp() const = 0;
         virtual std::string apInfoString() const = 0;
 
-        virtual int32_t beginApListScan()              = 0;
-        virtual bool    isApProtected(int index) const = 0;
-        virtual void    finishApListScan()             = 0;
+        // AP-list scan.  The primitives are non-blocking:
+        //   startApListScan()  - launch a scan unless one is already running
+        //                        or its results are still available
+        //   apListScanState()  - Running: in progress; Done: results ready
+        //                        (apListCount() valid, may be 0); Failed: no
+        //                        scan running or complete, (re)start one
+        //   apListCount() / isApProtected(i) - read completed results
+        //   finishApListScan() - release the results
+        // beginApListScan() is the blocking convenience used by the
+        // non-async ESP410 path; it is defined once in WifiImplCommon.cpp in
+        // terms of the primitives above.
+        enum class ApScanState { Running, Done, Failed };
+        virtual void        startApListScan()          = 0;
+        virtual ApScanState apListScanState()          = 0;
+        virtual int32_t     apListCount()              = 0;
+        virtual bool        isApProtected(int index) const = 0;
+        virtual void        finishApListScan()         = 0;
+
+        int32_t beginApListScan();
 
         virtual void initNTP() = 0;
 
@@ -59,4 +75,12 @@ namespace WebUI {
     };
 
     WifiImpl& wifiImpl();
+
+    // Encodes the ESP410 / [WiFi/ListAPs] response body (the AP list) from a
+    // completed scan into `j`.  Shared by the synchronous command handler
+    // (WifiConfig.cpp) and the async one (WifiScanAsync.cpp) so both return
+    // the same shape.  `apCount` comes from beginApListScan()/apListCount();
+    // `jsonWrapper` selects the {"cmd":"410",...,"data":[...]} envelope over
+    // the bare {"AP_LIST":[...]}.
+    void encodeApList(JSONencoder& j, int32_t apCount, bool jsonWrapper);
 }

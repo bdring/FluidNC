@@ -96,6 +96,43 @@ namespace WebUI {
     static EnumSetting*     _wifi_ps_mode;
     static EnumSetting*     _ntp_enable;
 
+    // RSSI (dBm) -> 0..100 % bar, as WebUI expects.
+    static int32_t apSignalPercent(int32_t rssi) {
+        if (rssi <= -100) {
+            return 0;
+        }
+        if (rssi >= -50) {
+            return 100;
+        }
+        return 2 * (rssi + 100);
+    }
+
+    // Encodes the ESP410 AP list from a completed scan.  Declared in
+    // WifiImpl.h; shared with the async handler in WifiScanAsync.cpp.
+    void encodeApList(JSONencoder& j, int32_t apCount, bool jsonWrapper) {
+        j.begin();
+        if (jsonWrapper) {
+            j.member("cmd", "410");
+            j.member("status", "ok");
+            j.begin_array("data");
+        } else {
+            j.begin_array("AP_LIST");
+        }
+        for (int32_t i = 0; i < apCount; ++i) {
+            j.begin_object();
+#ifdef ARDUINO_ARCH_RP2040
+            j.member("SSID", WiFi.SSID(i));
+#else
+            j.member("SSID", WiFi.SSID(i).c_str());
+#endif
+            j.member("SIGNAL", apSignalPercent(WiFi.RSSI(i)));
+            j.member("IS_PROTECTED", wifiImpl().isApProtected(i));
+            j.end_object();
+        }
+        j.end_array();
+        j.end();
+    }
+
     class WiFiConfig : public Module {
     private:
         static void print_mac(Channel& out, const char* prefix, const char* mac) { log_stream(out, prefix << " (" << mac << ")"); }
@@ -145,7 +182,7 @@ namespace WebUI {
                     if (WiFi.isConnected()) {  //in theory no need but ...
                         j.id_value_object("Connected to", WiFi.SSID().c_str());
                         if (wifiImpl().allowRssiRead()) {
-                            j.id_value_object("Signal", std::string("") + std::to_string(getSignal(WiFi.RSSI())) + "%");
+                            j.id_value_object("Signal", std::string("") + std::to_string(apSignalPercent(WiFi.RSSI())) + "%");
                         }
                         wifiImpl().addStaPhyModeJson(j);
                         j.id_value_object("Channel", WiFi.channel());
@@ -199,7 +236,7 @@ namespace WebUI {
                     if (WiFi.isConnected()) {  //in theory no need but ...
                         log_stream(out, "Connected to: " << WiFi.SSID().c_str());
                         if (wifiImpl().allowRssiRead()) {
-                            log_stream(out, "Signal: " << getSignal(WiFi.RSSI()) << "%");
+                            log_stream(out, "Signal: " << apSignalPercent(WiFi.RSSI()) << "%");
                         }
                         wifiImpl().addStaPhyModeStatus(out);
                         log_stream(out, "Channel: " << WiFi.channel());
@@ -374,16 +411,6 @@ namespace WebUI {
             //to save time in decoding `?`
             s << " # axis:" << Axes::_numberAxis;
             return Error::Ok;
-        }
-
-        static int32_t getSignal(int32_t RSSI) {
-            if (RSSI <= -100) {
-                return 0;
-            }
-            if (RSSI >= -50) {
-                return 100;
-            }
-            return 2 * (RSSI + 100);
         }
 
         static bool ConnectSTA2AP() {
@@ -635,33 +662,12 @@ namespace WebUI {
 
         static Error listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
             (void)auth_level;
+            bool jsonWrapper = parameter != NULL && strstr(parameter, "json=yes") != NULL;
+
+            int32_t   n = wifiImpl().beginApListScan();
             JSONencoder j(&out);
-            j.begin();
-
-            if (parameter != NULL && (strstr(parameter, "json=yes")) != NULL) {
-                j.member("cmd", "410");
-                j.member("status", "ok");
-                j.begin_array("data");
-            } else {
-                j.begin_array("AP_LIST");
-            }
-
-            int32_t n = wifiImpl().beginApListScan();
-
-            for (int i = 0; i < n; ++i) {
-                j.begin_object();
-#ifdef ARDUINO_ARCH_RP2040
-                j.member("SSID", WiFi.SSID(i));
-#else
-                j.member("SSID", WiFi.SSID(i).c_str());
-#endif
-                j.member("SIGNAL", getSignal(WiFi.RSSI(i)));
-                j.member("IS_PROTECTED", wifiImpl().isApProtected(i));
-                j.end_object();
-            }
+            encodeApList(j, n, jsonWrapper);
             wifiImpl().finishApListScan();
-            j.end_array();
-            j.end();
             return Error::Ok;
         }
 
