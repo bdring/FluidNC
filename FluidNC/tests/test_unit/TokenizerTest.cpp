@@ -18,6 +18,8 @@
 #include "gtest/gtest.h"
 #include "Configuration/Tokenizer.h"
 
+#include <string>
+
 using Configuration::Tokenizer;
 
 TEST(Tokenizer, PlainKeyValue) {
