@@ -37,7 +37,7 @@ public:
 
     Channel* channel() { return _channel; }
 
-    ~JobSource() { delete _channel; }
+    ~JobSource();
 };
 
 // The job stack is mutated from two tasks: nest() runs on the protocol task
@@ -48,7 +48,11 @@ public:
 // than active() followed by a second call.
 class Job {
 private:
-    static void pop();  // caller holds the job mutex
+    static void pop();
+
+    // Caller holds s_job_mutex.  Drops the processing reference taken in
+    // nest() and clears the pointer.
+    static void release_leader();  // caller holds the job mutex
 
 public:
     // Prefer leader_channel() for a locked read; the bare pointer is retained
