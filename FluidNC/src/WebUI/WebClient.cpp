@@ -40,7 +40,7 @@ namespace WebUI {
                         settings_execute_line(cmd.c_str(), *webClient, AuthenticationLevel::LEVEL_ADMIN);
                     } catch (...) {
                         try {
-                            log_error_to(Console, "Web command failed: " << cmd);
+                            log_error_to(Console, "Web command failed");
                         } catch (...) {}
                     }
                     // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.

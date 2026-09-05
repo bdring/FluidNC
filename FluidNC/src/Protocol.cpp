@@ -285,8 +285,12 @@ void polling_loop(void* unused) {
             poll_once();
         } catch (const std::exception& ex) {
             report_poll_exception(ex.what());
+            feed_watchdog();
+            vTaskDelay(1);
         } catch (...) {
             report_poll_exception("unknown exception");
+            feed_watchdog();
+            vTaskDelay(1);
         }
     }
 }
