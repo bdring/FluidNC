@@ -14,6 +14,7 @@
 
 #include <IPAddress.h>
 #include <string>
+#include "Driver/step_engine.h"
 
 namespace Configuration {
     class Configurable;
@@ -57,6 +58,8 @@ namespace Configuration {
         virtual void item(const char* name, InputPin& value)  = 0;
         virtual void item(const char* name, Pin& value)       = 0;
         virtual void item(const char* name, IPAddress& value) = 0;
+
+        virtual void item(const char* name, step_engine*& value) = 0;
 
         virtual void item(const char* name, uint32_t& value, const EnumItem* e) = 0;
         virtual void item(const char* name, axis_t& value)                      = 0;

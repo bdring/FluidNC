@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Channel.h"
+#include "Driver/Console.h"
 #include "Report.h"                 // report_gcode_modes
 #include "Machine/MachineConfig.h"  // config
 #include "RealtimeCmd.h"            // execute_realtime_command
@@ -11,12 +12,83 @@
 #include <string_view>
 #include <algorithm>
 
+namespace {
+    constexpr TickType_t message_queue_retry_ticks = 10;
+    constexpr uint32_t   message_queue_max_retries = 25;
+
+    bool enqueue_log_message(LogMessage& msg) {
+        if (!message_queue) {
+            return false;
+        }
+
+        for (uint32_t attempt = 0; attempt < message_queue_max_retries; ++attempt) {
+            if (xQueueSend(message_queue, &msg, message_queue_retry_ticks)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 Channel::Channel(const std::string& name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
 Channel::Channel(const char* name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
 Channel::Channel(const char* name, objnum_t num, bool addCR) : _name(name) {
     _name += std::to_string(num);
     _linelen = 0;
     _addCR   = addCR;
+}
+
+bool Channel::try_acquire_log_ref() {
+    if (_closing.load(std::memory_order_acquire)) {
+        return false;
+    }
+
+    _queued_log_refs.fetch_add(1, std::memory_order_acq_rel);
+    if (_closing.load(std::memory_order_acquire)) {
+        _queued_log_refs.fetch_sub(1, std::memory_order_acq_rel);
+        return false;
+    }
+
+    return true;
+}
+
+void Channel::release_log_ref() {
+    _queued_log_refs.fetch_sub(1, std::memory_order_acq_rel);
+}
+
+bool Channel::try_acquire_processing_ref() {
+    if (_closing.load(std::memory_order_acquire)) {
+        return false;
+    }
+
+    _processing_refs.fetch_add(1, std::memory_order_acq_rel);
+    if (_closing.load(std::memory_order_acquire)) {
+        _processing_refs.fetch_sub(1, std::memory_order_acq_rel);
+        return false;
+    }
+
+    return true;
+}
+
+void Channel::release_processing_ref() {
+    _processing_refs.fetch_sub(1, std::memory_order_acq_rel);
+}
+
+void Channel::begin_closing() {
+    _closing.store(true, std::memory_order_release);
+}
+
+bool Channel::is_closing() const {
+    return _closing.load(std::memory_order_acquire);
+}
+
+uint32_t Channel::pending_log_refs() const {
+    return _queued_log_refs.load(std::memory_order_acquire);
+}
+
+uint32_t Channel::pending_processing_refs() const {
+    return _processing_refs.load(std::memory_order_acquire);
 }
 
 void Channel::pause() {
@@ -30,9 +102,74 @@ void Channel::resume() {
 void Channel::flushRx() {
     _linelen   = 0;
     _lastWasCR = false;
+    xSemaphoreTake(_queue_mutex, portMAX_DELAY);
     while (_queue.size()) {
         _queue.pop();
     }
+    _queue_at_line_start   = true;
+    _queue_discarding      = false;
+    _queue_overflow_logged = false;
+    xSemaphoreGive(_queue_mutex);
+}
+
+// Enqueue one non-realtime byte.  Drop policy is whole-line: if a new line
+// starts while _queue is already at _queue_limit, the whole line is discarded
+// through its newline.  A line already in progress finishes, so _queue never
+// holds a partial line.  Worst-case size is _queue_limit + one maxLine line.
+void Channel::queue_push(uint8_t byte) {
+    bool is_newline = byte == '\n' || byte == '\r';
+    bool log_now    = false;
+
+    xSemaphoreTake(_queue_mutex, portMAX_DELAY);
+    if (_queue_discarding) {
+        if (is_newline) {
+            _queue_discarding    = false;  // over-limit line consumed; re-check at the next one
+            _queue_at_line_start = true;
+        }
+    } else if (_queue_at_line_start && _queue.size() >= _queue_limit) {
+        // No room for another line.  A newline here is an empty line - drop it
+        // and stay at a line boundary so the next line gets a fresh check;
+        // otherwise discard the whole incoming line through its newline.
+        if (!is_newline) {
+            _queue_discarding    = true;
+            _queue_at_line_start = false;
+        }
+        log_now                = !_queue_overflow_logged;
+        _queue_overflow_logged = true;
+    } else {
+        _queue.push(byte);
+        _queue_at_line_start = is_newline;
+    }
+    xSemaphoreGive(_queue_mutex);
+
+    if (log_now) {
+        log_debug("Input queue full on " << _name << "; dropping lines");
+    }
+}
+
+size_t Channel::queued_bytes() const {
+    xSemaphoreTake(_queue_mutex, portMAX_DELAY);
+    auto size = _queue.size();
+    xSemaphoreGive(_queue_mutex);
+    return size;
+}
+
+bool Channel::try_pop_queued_byte(uint8_t& byte) {
+    xSemaphoreTake(_queue_mutex, portMAX_DELAY);
+    if (_queue.empty()) {
+        xSemaphoreGive(_queue_mutex);
+        return false;
+    }
+    byte = _queue.front();
+    _queue.pop();
+    if (_queue.empty()) {
+        // Fully drained: reset framing state and re-arm the overflow warning.
+        _queue_at_line_start   = true;
+        _queue_discarding      = false;
+        _queue_overflow_logged = false;
+    }
+    xSemaphoreGive(_queue_mutex);
+    return true;
 }
 
 bool Channel::lineComplete(char* line, char ch) {
@@ -122,8 +259,9 @@ void Channel::autoReportGCodeState() {
 void Channel::autoReport() {
     if (_reportInterval) {
         const char* stateName = state_name();
-        if (_reportOvr || _reportWco || stateName != _lastStateName || _lastPinString != report_pin_string ||
+        if (_reportOvr || _reportWco || _reportState || _lastPinString != report_pin_string ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0) || (_lastJobActive != Job::active())) {
+            _reportState = false;
             if (_reportOvr) {
                 report_ovr_counter = 0;
                 _reportOvr         = false;
@@ -132,7 +270,6 @@ void Channel::autoReport() {
                 report_wco_counter = 0;
                 _reportWco         = false;
             }
-            _lastStateName = stateName;
             _lastPinString = report_pin_string;
             _lastJobActive = Job::active();
 
@@ -204,20 +341,23 @@ void Channel::push(uint8_t byte) {
     if (is_realtime_command(byte)) {
         handleRealtimeCharacter(byte);
     } else {
-        _queue.push(byte);
+        queue_push(byte);
     }
 }
-
-Error Channel::pollLine(char* line) {
+static int  _cnt = 10;
+Error       Channel::pollLine(char* line) {
     if (_paused) {
         return Error::Ok;
     }
     handle();
     while (1) {
+        if (_cnt) {
+            --_cnt;
+        }
         int32_t ch = -1;
-        if (line && _queue.size()) {
-            ch = _queue.front();
-            _queue.pop();
+        uint8_t queued = 0;
+        if (line && try_pop_queued_byte(queued)) {
+            ch = queued;
         } else {
             ch = read();
             if (ch < 0) {
@@ -230,10 +370,14 @@ Error Channel::pollLine(char* line) {
             continue;
         }
         if (!line) {
-            _queue.push(ch);
+            queue_push((uint8_t)ch);
             continue;
         }
         // Fall through if line is non-null and it is not a realtime character
+
+        if (_cnt) {
+            --_cnt;
+        }
 
         if (lineComplete(line, ch)) {
             return Error::Ok;
@@ -293,11 +437,15 @@ void Channel::print_msg(MsgLevel level, const char* msg) {
 // This is the most efficient form, but it only works
 // with fixed messages.
 void Channel::sendLine(MsgLevel level, const char* line) {
-    if (outputTask) {
+    if (outputTask && try_acquire_log_ref()) {
         LogMessage msg { this, (void*)line, level, false };
-        while (!xQueueSend(message_queue, &msg, 10)) {}
+        if (!enqueue_log_message(msg)) {
+            release_log_ref();
+        }
     } else {
-        print_msg(level, line);
+        if (!_closing.load(std::memory_order_acquire)) {
+            print_msg(level, line);
+        }
     }
 }
 
@@ -310,11 +458,16 @@ void Channel::sendLine(MsgLevel level, const char* line) {
 // This form has intermediate efficiency, as the string
 // is allocated once and freed once.
 void Channel::sendLine(MsgLevel level, const std::string* line) {
-    if (outputTask) {
+    if (outputTask && try_acquire_log_ref()) {
         LogMessage msg { this, (void*)line, level, true };
-        while (!xQueueSend(message_queue, &msg, 10)) {}
+        if (!enqueue_log_message(msg)) {
+            release_log_ref();
+            delete line;
+        }
     } else {
-        print_msg(level, line->c_str());
+        if (!_closing.load(std::memory_order_acquire)) {
+            print_msg(level, line->c_str());
+        }
         delete line;
     }
 }

@@ -12,10 +12,6 @@ namespace MotorDrivers {
 }
 
 namespace Machine {
-    class Endstops;
-}
-
-namespace Machine {
     class Motor : public Configuration::Configurable {
         axis_t  _axis;
         motor_t _motorNum;
@@ -36,6 +32,7 @@ namespace Machine {
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;
         bool hasSwitches();
+        void rearmSwitches();
         bool isReal();
         void makeDualSwitches();
         void limitOtherAxis(axis_t axis);

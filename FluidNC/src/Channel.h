@@ -27,6 +27,8 @@
 
 #include <Stream.h>
 #include <freertos/FreeRTOS.h>  // TickType_T
+#include <freertos/semphr.h>
+#include <atomic>
 #include <queue>
 
 class Channel : public Stream {
@@ -56,7 +58,23 @@ protected:
     bool        _addCR         = false;
     char        _lastWasCR     = false;
 
-    std::queue<uint8_t> _queue;
+    mutable SemaphoreHandle_t _queue_mutex = xSemaphoreCreateMutex();
+    std::queue<uint8_t>       _queue;
+
+    // _queue holds non-realtime input bytes seen by pollLine(nullptr) until a
+    // pollLine(line) call consumes them.  A channel that is polled for realtime
+    // characters but never for lines - e.g. any non-job channel while a job is
+    // running - would otherwise grow _queue without bound.  Bound it at a few
+    // lines of slack (~4).  When a new line arrives with the queue already at
+    // the bound, that whole line is discarded through its newline; a line
+    // already in progress is allowed to finish, so the queue never holds a
+    // partial line.  State below is touched only under _queue_mutex.
+    static constexpr size_t _queue_limit        = 4 * maxLine;
+    bool                    _queue_at_line_start = true;   // last queued byte ended a line (or queue empty)
+    bool                    _queue_discarding    = false;  // dropping the rest of an over-limit line
+    bool                    _queue_overflow_logged = false;  // one debug line per overflow episode
+    // Enqueue one non-realtime input byte, applying the whole-line drop policy.
+    void queue_push(uint8_t byte);
 
     uint32_t _reportInterval = 0;
     int32_t  _nextReportTime = 0;
@@ -65,14 +83,14 @@ protected:
     uint8_t     _lastTool         = 0;
     float       _lastSpindleSpeed = 0;
     float       _lastFeedRate     = 0;
-    const char* _lastStateName    = "";
     MotorMask   _lastLimits       = 0;
     bool        _lastJobActive    = false;
     std::string _lastPinString    = "";
 
-    bool       _reportOvr = true;
-    bool       _reportWco = true;
-    CoordIndex _reportNgc = CoordIndex::End;
+    bool       _reportState = true;
+    bool       _reportOvr   = true;
+    bool       _reportWco   = true;
+    CoordIndex _reportNgc   = CoordIndex::End;
 
     Cmd _last_rt_cmd = Cmd::None;
 
@@ -84,14 +102,28 @@ protected:
     bool _percent = false;
 
 protected:
-    bool _active = true;
-    bool _paused = false;
+    bool                  _active = true;
+    bool                  _paused = false;
+    std::atomic<uint32_t> _queued_log_refs { 0 };
+    std::atomic<uint32_t> _processing_refs { 0 };
+    std::atomic<bool>     _closing { false };
 
 public:
     explicit Channel(const std::string& name, bool addCR = false);
     explicit Channel(const char* name, bool addCR = false);
     Channel(const char* name, objnum_t num, bool addCR = false);
-    virtual ~Channel() = default;
+
+    Channel(const Channel&)            = delete;
+    Channel& operator=(const Channel&) = delete;
+    Channel(Channel&&)                 = delete;
+    Channel& operator=(Channel&&)      = delete;
+
+    virtual ~Channel() {
+        if (_queue_mutex) {
+            vSemaphoreDelete(_queue_mutex);
+            _queue_mutex = nullptr;
+        }
+    }
 
     int8_t _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
@@ -115,7 +147,7 @@ public:
     // the remaining space that mechanism has available.
     // The queue can handle more than 256 characters but we don't want it to get too
     // large, so we report a limited size.
-    virtual int rx_buffer_available() { return std::max(0, 256 - int(_queue.size())); }
+    virtual int rx_buffer_available() { return std::max(0, 256 - int(queued_bytes())); }
 
     // flushRx() discards any characters that have already been received.  It is used
     // after a reset, so that anything already sent will not be processed.
@@ -153,13 +185,14 @@ public:
         return retval;
     }
 
+    void notifyState() { _reportState = true; }
     void notifyOvr() { _reportOvr = true; }
     void notifyWco() { _reportWco = true; }
     void notifyNgc(CoordIndex coord) { _reportNgc = coord; }
 
     int peek() override { return -1; }
     int read() override { return -1; }
-    int available() override { return _queue.size(); }
+    int available() override { return queued_bytes(); }
 
     virtual void print_msg(MsgLevel level, const char* msg);
 
@@ -182,6 +215,9 @@ public:
         }
     }
     void push(const std::string& s) { push(reinterpret_cast<const uint8_t*>(s.c_str()), s.length()); }
+
+    size_t queued_bytes() const;
+    bool   try_pop_queued_byte(uint8_t& byte);
 
     void end() { _ended = true; }
     void percent() { _percent = true; }
@@ -207,4 +243,13 @@ public:
 
     void pause();
     void resume();
+
+    bool     try_acquire_log_ref();
+    void     release_log_ref();
+    bool     try_acquire_processing_ref();
+    void     release_processing_ref();
+    void     begin_closing();
+    bool     is_closing() const;
+    uint32_t pending_log_refs() const;
+    uint32_t pending_processing_refs() const;
 };

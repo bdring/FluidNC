@@ -93,6 +93,12 @@ namespace Configuration {
             }
         }
 
+        void item(const char* name, step_engine*& value) override {
+            if (_parser.is(name)) {
+                value = _parser.stepEngineValue();
+            }
+        }
+
         void item(const char* name, uint32_t& value, const EnumItem* e) override {
             if (_parser.is(name)) {
                 value = _parser.enumValue(e);

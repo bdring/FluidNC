@@ -425,6 +425,8 @@ g63
 error:20
 g64
 error:20
+g1 f100 x1 s1:2:3
+ok
 g65
 error:20
 g66

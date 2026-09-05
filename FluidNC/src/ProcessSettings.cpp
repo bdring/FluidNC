@@ -19,6 +19,7 @@
 #include "Limit.h"                // homingAxes
 #include "SettingsDefinitions.h"  // build_info
 #include "Protocol.h"             // LINE_BUFFER_SIZE
+#include "Driver/heap.h"          // platform_max_free_block()
 #include "UartChannel.h"          // UartChannel
 #include "FileStream.h"           // FileStream()
 #include "StartupLog.h"           // startupLog
@@ -29,11 +30,16 @@
 
 #include "FluidPath.h"
 #include "HashFS.h"
+#ifdef HEAPDIFF
+#    include "HeapDiff.h"
+#endif
 
 #include <cstring>
 #include <string_view>
 #include <map>
 #include <filesystem>
+
+#include <Arduino.h>  // PIN_LED
 
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
@@ -168,6 +174,9 @@ extern void make_settings();
 extern void make_user_commands();
 
 void settings_init() {
+    // Initialize NVS - detects and recovers from corruption
+    nvs.init();
+
     make_settings();
     make_file_commands();
 }
@@ -270,17 +279,21 @@ static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_leve
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
-    if (state_is(State::Alarm)) {
-        if (config->_control->safety_door_ajar()) {
-            send_alarm(ExecAlarm::StartupPin);
-            return Error::CheckDoor;
-        }
-        Homing::set_all_axes_homed();
-        config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
-        report_feedback_message(Message::AlarmUnlock);
-        set_state(State::Idle);
+    if (!state_is(State::Alarm)) {
+        // Nothing is locked, so $X is a no-op.  In particular it must not run
+        // the after_unlock macro while a job is running - that would nest a
+        // macro job into the middle of the program.
+        return Error::Ok;
     }
-    // Run the after_unlock macro even if no unlock was necessary
+    if (config->_control->safety_door_ajar()) {
+        send_alarm(ExecAlarm::StartupPin);
+        return Error::CheckDoor;
+    }
+    Homing::set_all_axes_homed();
+    config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
+    report_feedback_message(Message::AlarmUnlock);
+    set_state(State::Idle);
+
     config->_macros->_after_unlock.run(&out);
     return Error::Ok;
 }
@@ -289,7 +302,7 @@ static Error report_ngc(const char* value, AuthenticationLevel auth_level, Chann
     return Error::Ok;
 }
 static Error msg_to_uart0(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         Channel* dest = allChannels.find("uart_channel0");
         if (dest) {
             log_msg_to(*dest, value);
@@ -306,7 +319,7 @@ static Error msg_to_uart1(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 static Error msg_to_channel(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         std::string_view rest(value);
         std::string_view first;
         if (string_util::split_prefix(rest, first, ',')) {
@@ -325,7 +338,7 @@ static Error msg_to_channel(const char* value, AuthenticationLevel auth_level, C
     return Error::InvalidValue;
 }
 static Error cmd_log_msg(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_msg(value + 1);
         } else {
@@ -335,7 +348,7 @@ static Error cmd_log_msg(const char* value, AuthenticationLevel auth_level, Chan
     return Error::Ok;
 }
 static Error cmd_log_error(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_error(value + 1);
         } else {
@@ -345,7 +358,7 @@ static Error cmd_log_error(const char* value, AuthenticationLevel auth_level, Ch
     return Error::Ok;
 }
 static Error cmd_log_warn(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_warn(value + 1);
         } else {
@@ -355,7 +368,7 @@ static Error cmd_log_warn(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 static Error cmd_log_info(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_info(value + 1);
         } else {
@@ -365,7 +378,7 @@ static Error cmd_log_info(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 static Error cmd_log_debug(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_debug(value + 1);
         } else {
@@ -375,7 +388,7 @@ static Error cmd_log_debug(const char* value, AuthenticationLevel auth_level, Ch
     return Error::Ok;
 }
 static Error cmd_log_verbose(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         if (*value == '*') {
             log_verbose(value + 1);
         } else {
@@ -428,7 +441,7 @@ static Error home_all(const char* value, AuthenticationLevel auth_level, Channel
 
     // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
     // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
-    if (value) {
+    if (value && *value) {
         uint8_t    ndigits  = 0;
         const auto lenValue = strlen(value);
         for (int i = 0; i < lenValue; i++) {
@@ -530,11 +543,11 @@ static Error go_to_sleep(const char* value, AuthenticationLevel auth_level, Chan
     return Error::Ok;
 }
 static Error get_report_build_info(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        report_build_info(build_info->get(), out);
-        return Error::Ok;
+    if (value && *value) {
+        return Error::InvalidStatement;
     }
-    return Error::InvalidStatement;
+    report_build_info(build_info->get(), out);
+    return Error::Ok;
 }
 
 const std::map<const char*, uint8_t, cmp_str> restoreCommands = {
@@ -544,15 +557,15 @@ const std::map<const char*, uint8_t, cmp_str> restoreCommands = {
     { "@", SettingsRestore::Wifi },       { "wifi", SettingsRestore::Wifi },
 };
 static Error restore_settings(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        return Error::InvalidStatement;
+    if (value && *value) {
+        auto it = restoreCommands.find(value);
+        if (it == restoreCommands.end()) {
+            return Error::InvalidStatement;
+        }
+        settings_restore(it->second);
+        return Error::Ok;
     }
-    auto it = restoreCommands.find(value);
-    if (it == restoreCommands.end()) {
-        return Error::InvalidStatement;
-    }
-    settings_restore(it->second);
-    return Error::Ok;
+    return Error::InvalidStatement;
 }
 
 static Error showState(const char* value, AuthenticationLevel auth_level, Channel& out) {
@@ -574,13 +587,14 @@ static Error doJog(const char* value, AuthenticationLevel auth_level, Channel& o
     // begins with $J=.  There are several ways we can get here,
     // including  $J, $J=xxx, [J]xxx.  For any form other than
     // $J without =, we reconstruct a $J= line for gc_execute_line().
-    if (!value) {
+    if (value && *value) {
+        char jogLine[LINE_BUFFER_SIZE];
+        strcpy(jogLine, "$J=");
+        strcat(jogLine, value);
+        return gc_execute_line(jogLine);
+    } else {
         return Error::InvalidStatement;
     }
-    char jogLine[LINE_BUFFER_SIZE];
-    strcpy(jogLine, "$J=");
-    strcat(jogLine, value);
-    return gc_execute_line(jogLine);
 }
 
 static Error listAlarms(const char* value, AuthenticationLevel auth_level, Channel& out) {
@@ -589,7 +603,7 @@ static Error listAlarms(const char* value, AuthenticationLevel auth_level, Chann
     } else if (state_is(State::Alarm)) {
         log_stream(out, "Active alarm: " << int(lastAlarm) << " (" << alarmString(lastAlarm) << ")");
     }
-    if (value) {
+    if (value && *value) {
         uint32_t alarmNumber;
         if (!string_util::from_decimal(value, alarmNumber)) {
             log_stream(out, "Malformed alarm number: " << value);
@@ -617,7 +631,7 @@ const char* errorString(Error errorNumber) {
 }
 
 static Error listErrors(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         uint32_t errorNumber;
         if (!string_util::from_decimal(value, errorNumber)) {
             log_stream(out, "Malformed error number: " << value);
@@ -686,7 +700,7 @@ static Error motors_init(const char* value, AuthenticationLevel auth_level, Chan
 }
 
 static Error macros_run(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
+    if (value && *value) {
         size_t macro_num = (*value) - '0';
 
         auto ok = config->_macros->_macro[macro_num].run(&out);
@@ -698,7 +712,7 @@ static Error macros_run(const char* value, AuthenticationLevel auth_level, Chann
 
 static Error dump_config(const char* value, AuthenticationLevel auth_level, Channel& out) {
     Channel* ss;
-    if (value) {
+    if (value && *value) {
         // Use a file on the local file system unless there is an explicit prefix like /sd/
         std::error_code ec;
 
@@ -713,7 +727,7 @@ static Error dump_config(const char* value, AuthenticationLevel auth_level, Chan
         Configuration::Generator generator(*ss);
         config->group(generator);
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
-    if (value) {
+    if (value && *value) {
         drain_messages();
         delete ss;
     }
@@ -727,10 +741,10 @@ static Error report_init_message_cmd(const char* value, AuthenticationLevel auth
 }
 
 static Error switchInchMM(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        log_stream(out, "$13=" << (config->_reportInches ? "1" : "0"));
-    } else {
+    if (value && *value) {
         config->_reportInches = ((value[0] == '1') ? true : false);
+    } else {
+        log_stream(out, "$13=" << (config->_reportInches ? "1" : "0"));
     }
 
     return Error::Ok;
@@ -770,7 +784,7 @@ static Error showBacktrace(const char* value, AuthenticationLevel auth_level, Ch
 #ifdef CRASH_TEST
 static Error forceCrash(const char* value, AuthenticationLevel auth_level, Channel& out) {
     log_stream(out, "Forcing crash by writing to address 0");
-    delay(100);  // Let the message flush
+    delay_ms(100);  // Let the message flush
     *(volatile int*)0 = 0;
     return Error::Ok;  // Never reached
 }
@@ -788,7 +802,7 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
     std::string uart_name("auto");
     objnum_t    uart_num;
 
-    if (value) {
+    if (value && *value) {
         std::string_view rest(value);
         std::string_view first;
         while (string_util::split_prefix(rest, first, ',')) {
@@ -955,32 +969,33 @@ static Error writeGPIOOff(const char* value, AuthenticationLevel auth_level, Cha
 }
 
 static Error setReportInterval(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        uint32_t actual = out.getReportInterval();
-        if (actual) {
-            log_info_to(out, out.name() << " auto report interval is " << actual << " ms");
-        } else {
-            log_info_to(out, out.name() << " auto reporting is off");
+    if (value && *value) {
+        uint32_t intValue;
+
+        if (!string_util::from_decimal(value, intValue)) {
+            return Error::BadNumberFormat;
         }
+
+        uint32_t actual = out.setReportInterval(intValue);
+        if (actual) {
+            log_info(out.name() << " auto report interval set to " << actual << " ms");
+        } else {
+            log_info(out.name() << " auto reporting turned off");
+        }
+
+        // Send a full status report immediately so the client has all the data
+        out.notifyWco();
+        out.notifyOvr();
+
         return Error::Ok;
     }
-    uint32_t intValue;
 
-    if (!string_util::from_decimal(value, intValue)) {
-        return Error::BadNumberFormat;
-    }
-
-    uint32_t actual = out.setReportInterval(intValue);
+    uint32_t actual = out.getReportInterval();
     if (actual) {
-        log_info(out.name() << " auto report interval set to " << actual << " ms");
+        log_info_to(out, out.name() << " auto report interval is " << actual << " ms");
     } else {
-        log_info(out.name() << " auto reporting turned off");
+        log_info_to(out, out.name() << " auto reporting is off");
     }
-
-    // Send a full status report immediately so the client has all the data
-    out.notifyWco();
-    out.notifyOvr();
-
     return Error::Ok;
 }
 
@@ -993,7 +1008,12 @@ static Error sendAlarm(const char* value, AuthenticationLevel auth_level, Channe
 }
 
 static Error showHeap(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
+    if (size_t maxBlock = platform_max_free_block()) {
+        log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater << " max block: " << (unsigned)maxBlock
+                               << " min max block: " << maxBlockLowWater);
+    } else {
+        log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
+    }
     return Error::Ok;
 }
 
@@ -1009,37 +1029,37 @@ static Error list_parameters(const char* value, AuthenticationLevel auth_level, 
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
-    new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
+    new ReportCommand("GD", "GPIO/Dump", showGPIOs, anyState);
     new UserCommand("GI", "GPIO/Input", setGPIOInput, anyState);
     new UserCommand("GO", "GPIO/Output", setGPIOOutput, anyState);
     new UserCommand("G+", "GPIO/On", writeGPIOOn, anyState);
     new UserCommand("G-", "GPIO/Off", writeGPIOOff, anyState);
-    new UserCommand("GR", "GPIO/Read", readGPIO, anyState);
+    new ReportCommand("GR", "GPIO/Read", readGPIO, anyState);
 
-    new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
-    new UserCommand("CD", "Config/Dump", dump_config, anyState);
-    new UserCommand("", "Help", show_help, anyState);
-    new UserCommand("T", "State", showState, anyState);
+    new ReportCommand("CI", "Channel/Info", showChannelInfo, anyState);
+    new ReportCommand("CD", "Config/Dump", dump_config, anyState);
+    new ReportCommand("", "Help", show_help, anyState);
+    new ReportCommand("T", "State", showState, anyState);
 
-    new UserCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
-    new UserCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
-    new UserCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
-    new UserCommand("S", "Settings/List", list_settings, cycleOrHold);
-    new UserCommand("SC", "Settings/ListChanged", list_changed_settings, cycleOrHold);
-    new UserCommand("CMD", "Commands/List", list_commands, cycleOrHold);
-    new UserCommand("A", "Alarms/List", listAlarms, anyState);
-    new UserCommand("E", "Errors/List", listErrors, anyState);
+    new ReportCommand("$", "GrblSettings/List", report_normal_settings, anyState);
+    new ReportCommand("L", "GrblNames/List", list_grbl_names, anyState);
+    new ReportCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
+    new ReportCommand("S", "Settings/List", list_settings, anyState);
+    new ReportCommand("SC", "Settings/ListChanged", list_changed_settings, anyState);
+    new ReportCommand("CMD", "Commands/List", list_commands, anyState);
+    new ReportCommand("A", "Alarms/List", listAlarms, anyState);
+    new ReportCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
-    new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
-    new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
+    new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
+    new ReportCommand("#", "GCode/Offsets", report_ngc, anyState);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
     new UserCommand("RM", "Macros/Run", macros_run, nullptr);
-    new UserCommand("PL", "Parameters/List", list_parameters, nullptr);
+    new ReportCommand("PL", "Parameters/List", list_parameters, nullptr);
 
     new UserCommand("H", "Home", home_all, allowConfigStates);
     new UserCommand("HX", "Home/X", home_x, allowConfigStates);
@@ -1052,37 +1072,42 @@ void make_user_commands() {
     new UserCommand("HV", "Home/V", home_v, allowConfigStates);
     new UserCommand("HW", "Home/W", home_w, allowConfigStates);
 
-    new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
-    new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
-    new UserCommand("MC", "Msg/Channel", msg_to_channel, anyState);
-    new UserCommand("LM", "Log/Msg", cmd_log_msg, anyState);
-    new UserCommand("LE", "Log/Error", cmd_log_error, anyState);
-    new UserCommand("LW", "Log/Warn", cmd_log_warn, anyState);
-    new UserCommand("LI", "Log/Info", cmd_log_info, anyState);
-    new UserCommand("LD", "Log/Debug", cmd_log_debug, anyState);
-    new UserCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
+    new ReportCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
+    new ReportCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
+    new ReportCommand("MC", "Msg/Channel", msg_to_channel, anyState);
+    new ReportCommand("LM", "Log/Msg", cmd_log_msg, anyState);
+    new ReportCommand("LE", "Log/Error", cmd_log_error, anyState);
+    new ReportCommand("LW", "Log/Warn", cmd_log_warn, anyState);
+    new ReportCommand("LI", "Log/Info", cmd_log_info, anyState);
+    new ReportCommand("LD", "Log/Debug", cmd_log_debug, anyState);
+    new ReportCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
-    new UserCommand("I", "Build/Info", get_report_build_info, allowConfigStates);
+    new ReportCommand("I", "Build/Info", get_report_build_info, anyState);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
-    new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
-    new UserCommand("Heap", "Heap/Show", showHeap, anyState);
-    new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
-    new UserCommand("BS", "Backtrace/Show", showBacktrace, anyState);
+    new ReportCommand("SA", "Alarm/Send", sendAlarm, anyState);
+    new ReportCommand("Heap", "Heap/Show", showHeap, anyState);
+#ifdef HEAPDIFF
+    new ReportCommand("HS", "Heap/Snapshot", heap_snapshot, anyState);
+    new ReportCommand("HD", "Heap/Diff", heap_diff, anyState);
+    new ReportCommand("HRef", "Heap/Refs", heap_refs, anyState);
+#endif
+    new ReportCommand("SS", "Startup/Show", showStartupLog, anyState);
+    new ReportCommand("BS", "Backtrace/Show", showBacktrace, anyState);
 #ifdef CRASH_TEST
     new UserCommand("CRASH", "Crash/Test", forceCrash, anyState);
 #endif
     new UserCommand("UP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarm);
 
-    new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
+    new ReportCommand("RI", "Report/Interval", setReportInterval, anyState);
 
-    new UserCommand("13", "Report/Inches", switchInchMM, notIdleOrAlarm);
+    new ReportCommand("13", "Report/Inches", switchInchMM, notIdleOrAlarm);
 
-    new UserCommand("GS", "GRBL/Show", report_init_message_cmd, notIdleOrAlarm);
+    new ReportCommand("GS", "GRBL/Show", report_init_message_cmd, anyState);
 
     new AsyncUserCommand("J", "Jog", doJog, notIdleOrJog);
-    new AsyncUserCommand("G", "GCode/Modes", report_gcode, anyState);
+    new ReportCommand("G", "GCode/Modes", report_gcode, anyState);
 };
 
 // This is the handler for all forms of settings commands,
@@ -1102,11 +1127,15 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
             if (auth_failed(cp, value, auth_level)) {
                 return Error::AuthenticationFailed;
             }
-            if (cp->synchronous()) {
+            // Run the state guard before draining the planner, so a command
+            // that is going to be rejected does not needlessly wait for
+            // motion to finish.  cp->action() re-checks the guard and returns
+            // the rejection code.
+            if (!cp->disallowed() && cp->drains_buffer()) {
                 protocol_buffer_synchronize();
             }
             if (value.empty()) {
-                return cp->action(nullptr, auth_level, out);
+                return cp->action("", auth_level, out);
             }
             std::string s(value);
             return cp->action(s.c_str(), auth_level, out);
@@ -1221,7 +1250,55 @@ Error settings_execute_line(const char* line, Channel& out, AuthenticationLevel 
     return do_command_or_setting(key, value, auth_level, out);
 }
 
-Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level) {
+// Does this line have to run on the protocol task?  gcode always does; a '$'
+// or '[' command is looked up in Command::List and answers with
+// needs_protocol_context() (WebCommand defaults true, WebReportCommand
+// false); an unregistered "$name" is a yaml/NVS setting - a write must be
+// ordered, a read may run anywhere; an unknown "[name]" is treated
+// conservatively.  Called with leading whitespace already skipped, line[0] != 0.
+static bool line_needs_protocol_context(const char* line) {
+    std::string_view name;
+    bool             has_value;
+    if (line[0] == '[') {
+        // [ESPxxx] or [Full/Name] - the name runs to the ']'.
+        const char* rb = strchr(line, ']');
+        if (!rb) {
+            return true;  // malformed
+        }
+        name      = std::string_view(line + 1, rb - (line + 1));
+        has_value = rb[1] != '\0';
+    } else if (line[0] == '$') {
+        size_t end = 1;
+        while (line[end] && line[end] != '=' && line[end] != ' ' && line[end] != '\t') {
+            ++end;
+        }
+        name      = std::string_view(line + 1, end - 1);
+        has_value = line[end] == '=';
+    } else {
+        return true;  // gcode
+    }
+
+    for (Command* cp : Command::List) {
+        if ((cp->getGrblName() && string_util::equal_ignore_case(cp->getGrblName(), name)) ||
+            string_util::equal_ignore_case(cp->getName(), name)) {
+            return cp->needs_protocol_context();
+        }
+    }
+    // Unregistered: a '$' name is a yaml/NVS setting - a write must be
+    // ordered; an unknown [ESPxxx] is treated conservatively.
+    return line[0] == '[' ? true : has_value;
+}
+
+// Run a '$' / '[' command right here (the polling task or the protocol task).
+// Never reaches gcode or the planner.
+static Error run_command_inline(const char* line, Channel& channel, AuthenticationLevel auth_level) {
+    if (gc_state.skip_blocks) {
+        return Error::Ok;
+    }
+    return settings_execute_line(line, channel, auth_level);
+}
+
+Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level, bool on_protocol_task) {
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {
         return Error::Ok;
@@ -1230,13 +1307,33 @@ Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_
     while (isspace(*line)) {
         ++line;
     }
-    // User '$' or WebUI '[ESPxxx]' command
-    if (line[0] == '$' || line[0] == '[') {
-        if (gc_state.skip_blocks) {
-            return Error::Ok;
-        }
+    if (line[0] == 0) {
+        return Error::Ok;
+    }
 
-        return settings_execute_line(line, channel, auth_level);
+    bool needs_context = line_needs_protocol_context(line);
+
+    if (!on_protocol_task) {
+        // Called from the polling task.  One locked read: jc is nullptr when
+        // no job is running, so this classification cannot race a nest/unnest.
+        Channel* jc = Job::channel();
+        if (jc && &channel != jc) {
+            // Interloper while a job runs: reject anything that needs the
+            // protocol task; run the side-effect-free rest here so it is not
+            // stuck behind a consumer that is blocked in the planner.
+            if (needs_context) {
+                return Error::AnotherInterfaceBusy;
+            }
+            return run_command_inline(line, channel, auth_level);
+        }
+        // The job's own line, or any line when no job is running: hand it to
+        // protocol_main_loop so ordering and reply routing are unchanged.
+        return cmd_queue_defer(line, channel) ? Error::Deferred : Error::AnotherInterfaceBusy;
+    }
+
+    // on_protocol_task: run it for real.
+    if (line[0] == '$' || line[0] == '[') {
+        return run_command_inline(line, channel, auth_level);
     }
     // Everything else is gcode. Block if in alarm or jog mode.
     if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Jog)) {

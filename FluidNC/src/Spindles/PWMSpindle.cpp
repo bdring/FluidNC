@@ -111,4 +111,14 @@ namespace Spindles {
     namespace {
         SpindleFactory::InstanceBuilder<PWM> registration("PWM");
     }
+
+    // Called from the step ISR in place of a virtual dispatch, which would have
+    // to read this class's vtable out of flash.  IRAM_ATTR, and the qualified
+    // call keeps it non-virtual.
+    static void IRAM_ATTR pwm_speed_thunk(Spindle* s, uint32_t dev_speed) {
+        static_cast<PWM*>(s)->PWM::setSpeedfromISR(dev_speed);
+    }
+    Spindle::IsrSpeedFn PWM::isr_speed_fn() {
+        return pwm_speed_thunk;
+    }
 }

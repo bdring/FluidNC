@@ -73,9 +73,7 @@ namespace Kinematics {
         float _kinematic_segment_len_mm = 1.0;  // the maximum segment length the move is broken into
         bool  _use_servos               = false;  // servo use a special homing
 
-        float _homing_degrees = 0.0;
-        float _up_degrees     = -30.0;
-        float _down_degrees   = 90.0;
+        float _up_degrees = -30.0;
 
         float _last_motor_pos[MAX_N_AXIS] = { 0 };
         float _mpos_offset[3]             = { 0 };

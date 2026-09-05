@@ -21,16 +21,36 @@ def buildEmbeddedPage():
     print('Building embedded web page')
     return subprocess.run(["python", "build.py"], cwd="embedded").returncode
 
-def buildEnv(pioEnv, verbose=True, extraArgs=None):
+# esp32 (classic) and esp32s3 platforms disagree about which version of
+# framework-arduinoespressif32 they want, but PlatformIO installs that
+# package into a single shared, unversioned directory under the core dir.
+# Building one family after the other in the same core dir leaves the
+# package mismatched for whichever family didn't build last, which
+# PlatformIO doesn't always recover from cleanly (e.g. crashing with
+# "FRAMEWORK_DIR" resolving to None deep inside SCons). Giving the s3
+# family its own core dir keeps its packages from colliding with the
+# classic esp32 family's.
+s3CoreDir = os.path.join(os.path.expanduser('~'), '.platformio-esp32s3')
+
+def environFor(mcu):
+    if mcu == 'esp32s3':
+        e = dict(environ)
+        e['PLATFORMIO_CORE_DIR'] = s3CoreDir
+        return e
+    return environ
+
+def buildEnv(pioEnv, verbose=True, extraArgs=None, env=None):
     cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv]
     if extraArgs:
         cmd.append(extraArgs)
     displayName = pioEnv
     print('Building firmware for ' + displayName)
+    if env is None:
+        env = environ
     if verbose:
-        app = subprocess.Popen(cmd, env=environ)
+        app = subprocess.Popen(cmd, env=env)
     else:
-        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        app = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
@@ -39,15 +59,17 @@ def buildEnv(pioEnv, verbose=True, extraArgs=None):
     print()
     return app.returncode
 
-def buildFs(pioEnv, verbose=verbose, extraArgs=None):
+def buildFs(pioEnv, verbose=verbose, extraArgs=None, env=None):
     cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv, '-t', 'buildfs']
     if extraArgs:
         cmd.append(extraArgs)
     print('Building file system for ' + pioEnv)
+    if env is None:
+        env = environ
     if verbose:
-        app = subprocess.Popen(cmd, env=environ)
+        app = subprocess.Popen(cmd, env=env)
     else:
-        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        app = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
@@ -88,6 +110,7 @@ dataRelPath = os.path.join(manifestRelPath, 'data')
 os.makedirs(dataRelPath)
 shutil.copy(os.path.join("FluidNC", "data", "index.html.gz"), os.path.join(dataRelPath, "index-webui-2.html.gz"))
 urllib.request.urlretrieve("https://github.com/michmela44/ESP3D-WEBUI/releases/latest/download/index.html.gz", os.path.join("release", "current", "data", "index-webui-3.html.gz"))
+urllib.request.urlretrieve("https://github.com/figamore/FigUI/releases/latest/download/index.html.gz", os.path.join("release", "current", "data", "index-figui.html.gz"))
 
 manifest = {
         "name": "FluidNC",
@@ -98,6 +121,7 @@ manifest = {
         "images": {},
         "files": {},
         "addrinfo": {},
+        "docs": {},
         "upload": {
             "name": "upload",
             "description": "Things you can upload to the file system",
@@ -204,6 +228,54 @@ def addAddrinfo(name, filepath):
         sys.exit(1)
     manifest['addrinfo'][name] = entry
 
+def addDoc(name, filepath):
+    """Register a reference/metadata file (not installed on the controller,
+    unlike 'files') in the manifest -- e.g. config_items.yaml. Same shape as
+    addAddrinfo, but unlike addrinfo generation (best-effort per board), a doc
+    is expected to always exist by the time this is called -- a missing file
+    here means the generation step itself should have already failed loudly."""
+    if not os.path.exists(filepath):
+        print("Missing doc file", filepath)
+        sys.exit(1)
+
+    print("doc", name)
+
+    with open(filepath, "rb") as f:
+        data = f.read()
+
+    # path relative to manifestRelPath
+    relpath = os.path.relpath(filepath, manifestRelPath).replace(os.sep, '/')
+
+    entry = {
+        "size": len(data),
+        "path": relpath,
+        "signature": {
+            "algorithm": "SHA2-256",
+            "value": hashlib.sha256(data).hexdigest()
+        }
+    }
+    if manifest['docs'].get(name) != None:
+        print("Duplicate doc name", name)
+        sys.exit(1)
+    manifest['docs'][name] = entry
+
+# Generate the config-item reference doc (see FluidNC/src/Configuration/ItemDocs.md
+# and tools/build_config_docs.py) and register it in the manifest. Not board-specific,
+# so this runs once, before the per-MCU/variant build loop. A generation failure --
+# e.g. a @config annotation drifted from its handler.item() call -- fails the whole
+# release build, the same as a firmware compile failure would.
+configItemsDir = os.path.join(manifestRelPath, 'docs')
+os.makedirs(configItemsDir, exist_ok=True)
+configItemsPath = os.path.join(configItemsDir, 'config_items.yaml')
+print('Generating config_items.yaml')
+configItemsResult = subprocess.run(
+    ["python", os.path.join("tools", "build_config_docs.py"), "--output", configItemsPath]
+)
+if configItemsResult.returncode != 0:
+    print("Error: failed to generate config_items.yaml", file=sys.stderr)
+    sys.exit(1)
+addDoc('config-items', configItemsPath)
+
 flashsize = "4m"
 
 versions = [
@@ -216,9 +288,10 @@ bootloader = 'bootloader.bin'
 for version in versions:
     mcu = version["mcu"]
     suffix = version["env_suffix"]
+    buildEnviron = environFor(mcu)
     for buildName in version["builds"]:
         envName = buildName + suffix
-        if buildEnv(envName, verbose=verbose) != 0:
+        if buildEnv(envName, verbose=verbose, env=buildEnviron) != 0:
             sys.exit(1)
         buildDir = os.path.join('.pio', 'build', envName)
         elfRelPath = os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.elf')
@@ -246,13 +319,14 @@ for version in versions:
         addImage(mcu + '-' + buildName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + buildName)
 
         if buildName == 'wifi':
-            if buildFs(envName, verbose=verbose) != 0:
+            if buildFs(envName, verbose=verbose, env=buildEnviron) != 0:
                sys.exit(1)
 
             # bootapp is a data partition that the bootloader and OTA use to determine which
             # image to run.  Its initial value is in a file "boot_app0.bin" in the platformio
             # framework package.  We copy it to the build directory so addImage can find it
-            bootappsrc = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools','partitions', bootapp)
+            coreDir = buildEnviron.get('PLATFORMIO_CORE_DIR', os.path.join(os.path.expanduser('~'), '.platformio'))
+            bootappsrc = os.path.join(coreDir,'packages','framework-arduinoespressif32','tools','partitions', bootapp)
             shutil.copy(bootappsrc, buildDir)
 
             addImage(mcu + '-' + buildName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + buildName + '/' + flashsize)
@@ -346,9 +420,11 @@ def makeManifest():
 
     addFile("WebUI-2", "/localfs/index.html.gz", "index-webui-2.html.gz", os.path.join("release", "current", "data"), "data")
     addFile("WebUI-3", "/localfs/index.html.gz", "index-webui-3.html.gz", os.path.join("release", "current", "data"), "data")
+    addFile("FigUI", "/localfs/index.html.gz", "index-figui.html.gz", os.path.join("release", "current", "data"), "data")
 
     addUpload("WebUI generation 2", "Add WebUI to local filesystem", ["WebUI-2"])
     addUpload("WebUI generation 3", "Add WebUI to local filesystem", ["WebUI-3"])
+    addUpload("FigUI", "Add FigUI to local filesystem", ["FigUI"])
 
 makeManifest()
 

@@ -21,6 +21,44 @@ namespace Configuration {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
     }
 
+    // Finds where a real comment starts in line, matching standard YAML's own
+    // rule: a '#' starts a comment when it is preceded by whitespace, or
+    // preceded by nothing at all (the very start of line), and is NOT inside
+    // a quoted span ("..."/'...', the same simple, non-escaping delimiter
+    // convention parseKey()/parseValue() already use elsewhere). A '#' glued
+    // directly to other non-whitespace text (no preceding space) is never a
+    // comment, quoted or not -- e.g. a macro's G-code parameter reference
+    // like '#100' stays literal automatically when it's written mid-value
+    // with no space before it; a leading '#100 ...' would still need
+    // quoting, same as any other value that starts with '#'.
+    //
+    // Scans the WHOLE line (not just what will become the value) so a
+    // comment can be recognized before parseKey()/parseValue() have even
+    // decided where the key ends and the value begins -- exactly like real
+    // YAML, which strips comments as a line-level pass before any
+    // structural key/value parsing. Returns npos if the line has no real
+    // comment in it at all.
+    std::string_view::size_type Tokenizer::findCommentStart(std::string_view line) {
+        char quote = '\0';
+        for (std::string_view::size_type i = 0; i < line.size(); ++i) {
+            char c = line[i];
+            if (quote) {
+                if (c == quote) {
+                    quote = '\0';
+                }
+                continue;
+            }
+            if (c == '"' || c == '\'') {
+                quote = c;
+                continue;
+            }
+            if (c == '#' && (i == 0 || isWhiteSpace(line[i - 1]))) {
+                return i;
+            }
+        }
+        return std::string_view::npos;
+    }
+
     void Tokenizer::parseError(const std::string_view description) const {
         set_state(State::ConfigAlarm);
 
@@ -34,7 +72,42 @@ namespace Configuration {
     void Tokenizer::parseKey() {
         // entry: first character is not space
         // The first character in the line is neither # nor whitespace
-        if (!isIdentifierChar(_line.front())) {
+        // (findCommentStart() has already removed any trailing comment,
+        // wherever on the line it started -- see nextLine())
+
+        auto delimiter = _line.front();
+        if (delimiter == '"' || delimiter == '\'') {
+            // Quoted key -- same simple, non-escaping delimiter convention
+            // as a quoted value (see parseValue()): the key is exactly the
+            // text between the matching quote characters, letting it
+            // contain a character (':', '#', whitespace, ...) that would
+            // otherwise be significant. No real FluidNC field name needs
+            // this today, but it's supported for the same reason a value
+            // can be quoted -- consistency with standard YAML, which
+            // allows quoting either side of a mapping entry equally.
+            _line.remove_prefix(1);
+            auto pos = _line.find_first_of(delimiter);
+            if (pos == std::string_view::npos) {
+                parseError("Did not find matching delimiter");
+            }
+            _token._key = _line.substr(0, pos);
+            _line.remove_prefix(pos + 1);
+
+            // Remove whitespace between the closing quote and the ':'
+            while (!_line.empty() && isWhiteSpace(_line.front())) {
+                _line.remove_prefix(1);
+            }
+            if (_line.empty() || _line.front() != ':') {
+                std::string err = "Key \"";
+                err += _token._key;
+                err += "\" must be followed by ':'";
+                parseError(err);
+            }
+            _line.remove_prefix(1);
+            return;
+        }
+
+        if (!isIdentifierChar(delimiter)) {
             parseError("Invalid character");
         }
         auto pos    = _line.find_first_of(':');
@@ -99,9 +172,22 @@ namespace Configuration {
                 parseError("Use spaces, not tabs, for indentation");
             }
 
-            // Discard comment lines
-            if (_line.front() == '#') {  // Comment till end of line
-                _line.remove_prefix(_line.size());
+            // Strip a real comment, wherever on the line it starts (see
+            // findCommentStart()) -- this covers the old whole-line-comment
+            // case (comment starts at position 0, since indentation is
+            // already removed above) as well as a same-line trailing
+            // comment after a key and/or value, matching standard YAML.
+            // Doing this here, before parseKey()/parseValue() ever run,
+            // means neither of them needs any comment-awareness of their
+            // own -- by the time they see _line, any real comment is
+            // already gone, exactly like real YAML strips comments before
+            // its own structural key/value parsing begins.
+            auto commentStart = findCommentStart(_line);
+            if (commentStart != std::string_view::npos) {
+                _line.remove_suffix(_line.size() - commentStart);
+                while (!_line.empty() && isWhiteSpace(_line.back())) {
+                    _line.remove_suffix(1);
+                }
             }
         } while (_line.empty());
 
@@ -123,6 +209,9 @@ namespace Configuration {
             return;
         }
 
+        // findCommentStart() (see nextLine()) has already removed any real
+        // trailing comment from _line, wherever it started -- neither
+        // branch below needs any comment-awareness of its own.
         auto delimiter = _line.front();
         if (delimiter == '"' || delimiter == '\'') {
             // Value is quoted

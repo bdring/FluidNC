@@ -9,6 +9,7 @@
 #include <JsonListener.h>
 #include <JsonStreamingParser.h>
 #include <string>
+#include <string_view>
 #include <map>
 
 namespace WebUI {
@@ -105,10 +106,10 @@ namespace WebUI {
     class HttpCommand {
     public:
         // Maximum request timeout in milliseconds
-        static const uint32_t MAX_TIMEOUT_MS = 10000;
+        inline static constexpr uint32_t MAX_TIMEOUT_MS = 10000;
 
         // Default request timeout in milliseconds
-        static const uint32_t DEFAULT_TIMEOUT_MS = 5000;
+        inline static constexpr uint32_t DEFAULT_TIMEOUT_MS = 5000;
 
         // Settings file path on LocalFS (stores tokens, etc.)
         static constexpr const char* SETTINGS_FILE_PATH = "/http_settings.json";
@@ -125,7 +126,7 @@ namespace WebUI {
 
     private:
         // Parse the command string into URL and JSON options
-        static bool parse_command(const char* value, std::string& url, std::string& json_options);
+        static bool parse_command(std::string_view value, std::string& url, std::string& json_options);
 
         // Parse JSON options into HttpRequest struct using streaming parser
         static bool parse_json_options(const std::string& json, HttpRequest& request);

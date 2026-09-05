@@ -1,7 +1,7 @@
 #include <sdkconfig.h>
 #include <esp_idf_version.h>
 
-#if defined(CONFIG_TINYUSB_CDC_ENABLED) && ESP_IDF_VERSION_MAJOR >= 5
+#if defined(CONFIG_TINYUSB_CDC_ENABLED) && defined(IDFBUILD)
 #    include "USBCDCChannel_IDF.h"
 #else
 #    include "USBCDCChannel.h"
@@ -12,6 +12,7 @@ USBCDCChannel CDCChannel(true);
 #include "UartChannel.h"
 
 #include "Settings.h"
+#include "NutsBolts.h"  // delay_ms
 
 // This derived class overrides init() to setup the primary UART
 class UartConsole : public UartChannel {
@@ -29,6 +30,11 @@ public:
         static auto* cdc_enable = new EnumSetting("USB CDC Enable", WEBSET, WG, NULL, "USBCDC/Enable", true, &onoffOptions);
         if (cdc_enable->get()) {
             CDCChannel.init();
+            // Give a USB CDC terminal emulator time to enumerate and connect
+            // before any startup/boot messages are sent, so boards with only
+            // a USB CDC serial port (no separate USB-serial chip) don't lose
+            // their early log output to a terminal that hasn't opened yet.
+            delay_ms(1000);
         }
     }
 };

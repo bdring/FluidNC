@@ -11,18 +11,25 @@
 #include "Configuration/Configurable.h"
 #include "CoolantControl.h"
 #include "Kinematics/Kinematics.h"
-#include "Extenders/Extenders.h"
+#if SUPPORT_PIN_EXTENDERS
+#    include "Extenders/Extenders.h"
+#endif
 #include "Control.h"
 #include "Probe.h"
 #include "Parking.h"
 #include "SDCard.h"
+#if MAX_N_ETH
+#    include "Machine/EthPhy.h"
+#endif
 #include "Spindles/Spindle.h"
 #include "Stepping.h"
 #include "Stepper.h"
 #include "UartChannel.h"
 #include "Driver/Console.h"
 #include "Module.h"
-#include "Listeners/SysListener.h"
+#if SUPPORT_LISTENERS
+#    include "Listeners/SysListener.h"
+#endif
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2CBus.h"
@@ -51,8 +58,27 @@ namespace Machine {
         Start() {}
 
         void group(Configuration::HandlerBase& handler) {
+            // @config must_home
+            // @default true
+            // @tuning typical
+            // Refuses to accept motion commands until $H (home) has been run at least once
+            // since boot. Jogging and settings commands still work while unhomed.
             handler.item("must_home", _mustHome);
+
+            // @config deactivate_parking
+            // @default false
+            // @tuning typical
+            // Sets what the M56 parking-motion override defaults to at boot and after a
+            // program ends (only takes effect when enable_parking_override_control is also
+            // true): false leaves parking motion active by default; true starts with it
+            // disabled until M56 is used to turn it back on.
             handler.item("deactivate_parking", _deactivateParking);
+
+            // @config check_limits
+            // @default true
+            // @tuning typical
+            // Checks limit switches at power-up/reset; if hard limits are enabled and a
+            // switch is already active, the machine enters Alarm state instead of Idle.
             handler.item("check_limits", _checkLimits);
         }
 
@@ -79,13 +105,20 @@ namespace Machine {
         UserOutputs*    _userOutputs = nullptr;
         UserInputs*     _userInputs  = nullptr;
         SDCard*         _sdCard      = nullptr;
+#if MAX_N_ETH
+        EthPhy* _ethernet = nullptr;
+#endif
         Macros*         _macros      = nullptr;
         Start*          _start       = nullptr;
         Parking*        _parking     = nullptr;
 
-        //        Listeners::SysListenerList _sysListeners;
+#if SUPPORT_LISTENERS
+        Listeners::SysListenerList _sysListeners;
+#endif
         //        Spindles::SpindleList      _spindles;
+#if SUPPORT_PIN_EXTENDERS
         Extenders::Extenders* _extenders = nullptr;
+#endif
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };

@@ -3,10 +3,7 @@
 // Interface to the ESP32 alarm timer for step timing
 // Uses the timer_ll API from ESP-IDF v4.4.1
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+#include "Platform.h"
 #include "hal/timer_ll.h"
 #include "esp_intr_alloc.h"
 
@@ -55,12 +52,12 @@ void IRAM_ATTR stepTimerStop() {
     timer_ll_set_alarm_enable(&TIMERG0, TIMER_0, false);
 }
 
-void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
+uint32_t stepTimerInit(bool (*callback)(void)) {
     timer_ll_intr_disable(&TIMERG0, TIMER_0);
     timer_ll_set_counter_enable(&TIMERG0, TIMER_0, TIMER_PAUSE);
     timer_ll_set_counter_value(&TIMERG0, TIMER_0, 0ULL);
 
-    timer_ll_set_divider(&TIMERG0, TIMER_0, fTimers / frequency);
+    timer_ll_set_divider(&TIMERG0, TIMER_0, fTimers / STEPPING_FREQUENCY);
     timer_ll_set_counter_increase(&TIMERG0, TIMER_0, true);
     timer_ll_intr_disable(&TIMERG0, TIMER_0);
     timer_ll_clear_intr_status(&TIMERG0, TIMER_0);
@@ -80,16 +77,13 @@ void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
                               NULL);
 
     timer_ll_intr_enable(&TIMERG0, TIMER_0);
+    return STEPPING_FREQUENCY;
 }
-
-#    ifdef __cplusplus
-}
-#    endif
 
 #else
 #    include <esp_attr.h>
 #    include <esp_compiler.h>
-#    include "esp_intr_types.h"
+// #    include "esp_intr_types.h"
 #    include "soc/timer_periph.h"
 
 #    define IRAM IRAM_ATTR
@@ -138,13 +132,13 @@ void IRAM stepTimerStop() {
     timer_ll_enable_alarm(&TIMERG0, TIMER_0, false);
 }
 
-void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
+uint32_t stepTimerInit(bool (*callback)(void)) {
     timer_ll_enable_intr(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0), false);
     timer_ll_enable_counter(&TIMERG0, TIMER_0, false);
     timer_ll_set_reload_value(&TIMERG0, TIMER_0, 0ULL);
     timer_ll_trigger_soft_reload(&TIMERG0, TIMER_0);
 
-    timer_ll_set_clock_prescale(&TIMERG0, TIMER_0, fTimers / frequency);
+    timer_ll_set_clock_prescale(&TIMERG0, TIMER_0, fTimers / STEPPING_FREQUENCY);
     timer_ll_set_count_direction(&TIMERG0, TIMER_0, gptimer_count_direction_t::GPTIMER_COUNT_UP);
     timer_ll_enable_intr(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0), false);
     timer_ll_clear_intr_status(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0));
@@ -165,10 +159,7 @@ void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
                               NULL);
 
     timer_ll_enable_intr(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0), true);
+    return STEPPING_FREQUENCY;
 }
-
-#    ifdef __cplusplus
-}
-#    endif
 
 #endif

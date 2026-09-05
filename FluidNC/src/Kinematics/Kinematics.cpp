@@ -87,6 +87,11 @@ namespace Kinematics {
         return _system->set_homed_mpos(mpos);
     }
 
+    void Kinematics::rearmLimits(AxisMask axisMask, MotorMask motorMask) {
+        Assert(_system != nullptr, no_system);
+        return _system->rearmLimits(axisMask, motorMask);
+    }
+
     void Kinematics::group(Configuration::HandlerBase& handler) {
         ::Kinematics::KinematicsFactory::factory(handler, _system);
     }

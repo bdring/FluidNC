@@ -9,6 +9,16 @@
 #include <string>
 #include <string_view>
 
+// The real (non-UNIT_TEST) Logging.h also includes State.h -- kept here too
+// so anything that transitively reaches this stub (e.g.
+// Configuration/Tokenizer.cpp's parseError(), which calls set_state()
+// directly, not through a log_* macro) still sees State/set_state/
+// state_is declared, same as it would in the real build. State.h itself
+// has no ESP32/FreeRTOS dependencies -- see tests/State.cpp for the
+// matching link-time stub definitions (the real ones live in System.cpp,
+// far too ESP32-specific to link into a host test).
+#include "State.h"
+
 class Channel;
 
 enum MsgLevel {

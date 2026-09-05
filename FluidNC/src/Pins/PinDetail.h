@@ -45,6 +45,8 @@ namespace Pins {
         virtual bool canStep() { return false; }
 
         virtual void registerEvent(InputPin* obj);
+        virtual void disarm();
+        virtual void rearm();
 
         const char* name() { return _name.c_str(); }
 

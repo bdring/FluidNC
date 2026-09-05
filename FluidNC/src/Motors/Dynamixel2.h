@@ -55,8 +55,6 @@ namespace MotorDrivers {
 
         static std::vector<Dynamixel2*> _instances;
 
-        axis_t _axis;
-
         static Uart* _uart;
 
         int32_t _uart_num = -1;
@@ -102,7 +100,6 @@ namespace MotorDrivers {
         steps_t _min_steps;
         steps_t _max_steps;
 
-        bool        _disabled = true;
         static bool _has_errors;
 
         void add_position_to_message();
@@ -125,10 +122,40 @@ namespace MotorDrivers {
         }
 
         void group(Configuration::HandlerBase& handler) override {
+            // Robotis Dynamixel Protocol 2 servo used as a virtual axis. Swap count_min/
+            // count_max to reverse direction. Only one UART can be used for all Dynamixels
+            // on a given machine, as currently written.
+
+            // @config uart_num
+            // @default -1
+            // Which top-level uartN: section this servo's Protocol 2 bus runs over.
+            // Required -- validate() asserts this is actually set. The servo's own
+            // programmed baud should match (1000000 recommended), mode "8N1".
             handler.item("uart_num", _uart_num);
+
+            // @config id
+            // @default 255
+            // This servo's Protocol 2 device ID on the bus. Required to be set to the
+            // servo's real, unique ID -- the default, 255, is Dynamixel's broadcast address
+            // and not a usable per-device value; validate() asserts it was changed.
             handler.item("id", _id);
+
+            // @config count_min
+            // @default 1024
+            // Servo raw position count corresponding to the low end of the axis's mpos
+            // range.
             handler.item("count_min", _countMin);
+
+            // @config count_max
+            // @default 3072
+            // Servo raw position count corresponding to the high end of the axis's mpos
+            // range.
             handler.item("count_max", _countMax);
+
+            // @config timer_ms
+            // @default 50
+            // Update interval, in milliseconds, for refreshing the servo's commanded
+            // position.
             handler.item("timer_ms", _timer_ms);
 
             Servo::group(handler);

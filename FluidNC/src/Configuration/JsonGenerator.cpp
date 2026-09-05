@@ -10,8 +10,6 @@
 #include <cstring>
 #include <cstdio>
 #include <atomic>
-#include <sstream>
-#include <iomanip>
 
 namespace Configuration {
     JsonGenerator::JsonGenerator(JSONencoder& encoder) : _encoder(encoder) {
@@ -84,9 +82,7 @@ namespace Configuration {
         } else if (value < -999999.999f) {
             value = -999999.999f;
         }
-        std::ostringstream fstr;
-        fstr << std::fixed << std::setprecision(3) << value;
-        _encoder.begin_webui(_currentPath, "R", fstr.str());
+        _encoder.begin_webui(_currentPath, "R", formatFloat(value, 3));
         _encoder.end_object();
         leave();
     }
@@ -153,6 +149,33 @@ namespace Configuration {
     void JsonGenerator::item(const char* name, IPAddress& value) {
         enter(name);
         _encoder.begin_webui(_currentPath, "A", IP_string(value));
+        _encoder.end_object();
+        leave();
+    }
+    void JsonGenerator::item(const char* name, step_engine*& value) {
+        enter(name);
+
+        // WebUI renders a "B" (enumerated) item as a dropdown and matches the
+        // current value "V" against the integer ids in the "O" option list, so
+        // "V" must be the option index, not the engine name.
+        int32_t selected_index = 0;
+        for (size_t index = 0; index < step_engines.size(); ++index) {
+            if (step_engines[index] == value) {
+                selected_index = static_cast<int32_t>(index);
+                break;
+            }
+        }
+
+        _encoder.begin_webui(_currentPath, "B", selected_index);
+        _encoder.begin_array("O");
+
+        for (size_t index = 0; index < step_engines.size(); ++index) {
+            _encoder.begin_object();
+            _encoder.member(step_engines[index]->name, static_cast<int32_t>(index));
+            _encoder.end_object();
+        }
+
+        _encoder.end_array();
         _encoder.end_object();
         leave();
     }

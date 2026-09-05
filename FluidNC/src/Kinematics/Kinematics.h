@@ -62,6 +62,7 @@ namespace Kinematics {
 
         void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t& settling_ms);
         void set_homed_mpos(float* mpos);
+        void rearmLimits(AxisMask axisMask, MotorMask motorMask);
 
     private:
         ::Kinematics::KinematicSystem* _system = nullptr;
@@ -110,6 +111,7 @@ namespace Kinematics {
 
         virtual void homing_move(AxisMask axes, MotorMask motors, Machine::Homing::Phase phase, uint32_t& settling_ms) {}
         virtual void set_homed_mpos(float* mpos) {}
+        virtual void rearmLimits(AxisMask axisMask, MotorMask motorMask) {}
 
         // Configuration interface.
         void afterParse() override {}

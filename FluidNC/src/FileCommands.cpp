@@ -50,10 +50,13 @@ static Error openFile(const Volume& fs, const char* parameter, Channel& out, Inp
 
     try {
         theFile = new InputFile(fs, path.c_str());
+    } catch (const ErrorException& ex) {
+        log_error_to(out, ex.what());
+        return ex.error();
     } catch (std::filesystem::filesystem_error const& ex) {
         log_error_to(out, ex.what());
         return Error::FsFailedOpenFile;
-    } catch (Error err) { return err; }
+    }
     return Error::Ok;
 }
 
@@ -486,9 +489,9 @@ static Error copyFile(const Volume& ifs, const char* ipath, const Volume& ofs, c
             outFile.write(buf, len);
         }
         filepath = outFile.fpath();
-    } catch (const Error err) {
+    } catch (const ErrorException& err) {
         log_error_to(out, "Cannot create file " << opath);
-        return Error::FsFailedCreateFile;
+        return err.error();
     }
     // Rehash after outFile goes out of scope
     HashFS::rehash_file(filepath);
@@ -615,12 +618,23 @@ static Error xmodem_receive(const char* value, AuthenticationLevel auth_level, C
     pollingPaused = false;
     if (len >= 0) {
         log_info("Received " << len << " bytes to file " << outfile->path());
+    } else if (len == -6) {
+        log_info("Reception failed: not enough free space on the target filesystem");
     } else {
         log_info("Reception failed or was canceled");
     }
     std::filesystem::path fname = outfile->fpath();
     delete outfile;
-    HashFS::rehash_file(fname);
+    if (len < 0) {
+        // Don't leave a truncated, incomplete file behind - especially
+        // important for the not-enough-space case, where leaving the
+        // partial file around would eat into the free space a retry needs.
+        std::error_code ec;
+        stdfs::remove(fname, ec);
+        HashFS::delete_file(fname);
+    } else {
+        HashFS::rehash_file(fname);
+    }
 
     return len < 0 ? Error::UploadFailed : Error::Ok;
 }
