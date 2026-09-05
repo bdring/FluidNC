@@ -26,6 +26,13 @@
 #include <cstdint>
 
 namespace MotorDrivers {
+    class MotorDriver;
+
+    // Plain function pointers used in place of virtual calls from the step ISR;
+    // see isr_step_fn() below.  Repeated in Stepping.h.
+    using IsrStepFn = void (*)(MotorDriver*);
+    using IsrDirFn  = void (*)(MotorDriver*, bool);
+
     class MotorDriver : public Configuration::Configurable {
         const char* _name;
 
@@ -61,6 +68,23 @@ namespace MotorDrivers {
         // set_disable() disables or enables a motor.  It is used to
         // make a motor transition between idle and non-idle states.
         virtual void set_disable(bool disable);
+
+        // A motor type that generates its own step waveform instead of pulsing
+        // a step pin - currently just unipolar - registers itself with
+        // Stepping::assignMotorDriver() and supplies the two function pointers
+        // below.  Stepping::step() calls them in place of driving step/dir pins
+        // through the stepping engine.
+        //
+        // They are plain function pointers rather than virtual methods because
+        // a virtual call from the step ISR would read the vtable, which the
+        // linker places in flash, and the ISR can run while the flash cache is
+        // disabled.  Stepping caches these in RAM at registration time.  The
+        // functions they point at run in ISR context: they must be IRAM_ATTR,
+        // must not touch flash, and must not block.
+        // Null unless the driver does its own stepping; Stepping checks before
+        // calling, so a driver that uses step/dir pins need not supply them.
+        virtual IsrStepFn isr_step_fn() { return nullptr; }
+        virtual IsrDirFn  isr_dir_fn() { return nullptr; }
 
         // this is used to configure and test motors. This would be used for Trinamic
         virtual void config_motor() {}
@@ -99,7 +123,7 @@ namespace MotorDrivers {
         //   tables can be indexed by these variables.
         // TODO Architecture: It might be useful to cache a
         // reference to the axis settings entry.
-        axis_t axis_index() const;       // X_AXIS, etc
+        axis_t  axis_index() const;       // X_AXIS, etc
         motor_t dual_axis_index() const;  // motor number 0 or 1
     };
 

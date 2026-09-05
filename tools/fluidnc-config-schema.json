@@ -1070,6 +1070,45 @@
         }
       }
     },
+    "motor_unipolar": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.12. Unipolar stepper (e.g. 28BYJ-48 via ULN2003). Has no step/dir pins; the four coil phases are driven directly in sequence. Reverse the axis by swapping phase0_pin with phase3_pin and phase1_pin with phase2_pin; there is no direction inversion.",
+      "additionalProperties": false,
+      "properties": {
+        "phase0_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN",
+          "description": "Coil A drive output, e.g. IN1 on a ULN2003 board."
+        },
+        "phase1_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN",
+          "description": "Coil B drive output, e.g. IN2 on a ULN2003 board."
+        },
+        "phase2_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN",
+          "description": "Coil C drive output, e.g. IN3 on a ULN2003 board."
+        },
+        "phase3_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN",
+          "description": "Coil D drive output, e.g. IN4 on a ULN2003 board."
+        },
+        "half_step": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true,
+          "description": "True uses the 8-phase half-step sequence, giving twice the resolution of the 4-phase full-step sequence at some cost in torque. Setting it false halves the steps per revolution, so steps_per_mm must be halved to match."
+        }
+      }
+    },
     "motor_dynamixel2": {
       "type": [
         "object",
@@ -1186,6 +1225,9 @@
         },
         "null_motor": {
           "$ref": "#/$defs/motor_null_motor"
+        },
+        "unipolar": {
+          "$ref": "#/$defs/motor_unipolar"
         }
       },
       "additionalProperties": false,
@@ -1253,6 +1295,11 @@
         {
           "required": [
             "null_motor"
+          ]
+        },
+        {
+          "required": [
+            "unipolar"
           ]
         }
       ]

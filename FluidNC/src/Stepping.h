@@ -8,6 +8,10 @@
 #include "Driver/step_engine.h"
 #include "System.h"
 
+namespace MotorDrivers {
+    class MotorDriver;
+}
+
 namespace Machine {
     class Stepping : public Configuration::Configurable {
     public:
@@ -25,6 +29,22 @@ namespace Machine {
             bool     dir_invert;
             bool     blocked;
             bool     limited;
+
+            // Non-null for motor types that generate their own step waveform
+            // instead of using step/dir pins; see assignMotorDriver().  When
+            // set, the step_pin/dir_pin fields are unused.
+            MotorDrivers::MotorDriver* driver;
+
+            // Captured from the driver at assignMotorDriver() time and called
+            // from the step ISR.  A virtual call would have to read the driver's
+            // vtable, which the linker places in flash; the ISR can run while
+            // the flash cache is disabled, and touching flash there panics the
+            // board.  These pointers live in RAM alongside the rest of the
+            // struct.  Spelled out rather than using the aliases in
+            // MotorDriver.h so that Stepping.h need not include it - if those
+            // aliases ever change, assignMotorDriver() stops compiling.
+            void (*step_fn)(MotorDrivers::MotorDriver*);
+            void (*dir_fn)(MotorDrivers::MotorDriver*, bool);
         };
         static motor_pins_t* axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS];
         static axis_t        _n_active_axes;
@@ -74,6 +94,11 @@ namespace Machine {
         static void    setSteps(axis_t axis, steps_t steps) { axis_steps[axis] = steps; }
 
         static void assignMotor(axis_t axis, motor_t motor, pinnum_t step_pin, bool step_invert, pinnum_t dir_pin, bool dir_invert);
+
+        // Registers a motor that drives its own outputs rather than a step pin -
+        // step() then calls back into the driver instead of into the stepping
+        // engine.  Blocking and limiting work the same as for step/dir motors.
+        static void assignMotorDriver(axis_t axis, motor_t motor, MotorDrivers::MotorDriver* driver);
 
         static void reset();  // Clean up old state and start fresh
         static void beginLowLatency();
