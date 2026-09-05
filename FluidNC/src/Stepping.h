@@ -10,10 +10,6 @@
 
 namespace MotorDrivers {
     class MotorDriver;
-
-    // Repeated in MotorDriver.h, which Stepping.h deliberately does not include.
-    using IsrStepFn = void (*)(MotorDriver*);
-    using IsrDirFn  = void (*)(MotorDriver*, bool);
 }
 
 namespace Machine {
@@ -40,13 +36,15 @@ namespace Machine {
             MotorDrivers::MotorDriver* driver;
 
             // Captured from the driver at assignMotorDriver() time and called
-            // from the step ISR in place of driver->step()/set_direction().
-            // A virtual call would have to read the driver's vtable, which the
-            // linker places in flash; the ISR can run while the flash cache is
-            // disabled, and touching flash there panics the board.  These
-            // pointers live in RAM alongside the rest of the struct.
-            MotorDrivers::IsrStepFn step_fn;
-            MotorDrivers::IsrDirFn  dir_fn;
+            // from the step ISR.  A virtual call would have to read the driver's
+            // vtable, which the linker places in flash; the ISR can run while
+            // the flash cache is disabled, and touching flash there panics the
+            // board.  These pointers live in RAM alongside the rest of the
+            // struct.  Spelled out rather than using the aliases in
+            // MotorDriver.h so that Stepping.h need not include it - if those
+            // aliases ever change, assignMotorDriver() stops compiling.
+            void (*step_fn)(MotorDrivers::MotorDriver*);
+            void (*dir_fn)(MotorDrivers::MotorDriver*, bool);
         };
         static motor_pins_t* axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS];
         static axis_t        _n_active_axes;

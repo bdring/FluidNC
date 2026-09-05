@@ -65,7 +65,10 @@ Stepping::motor_pins_t* Stepping::axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS] =
 void Stepping::assignMotor(axis_t axis, motor_t motor, pinnum_t step_pin, bool step_invert, pinnum_t dir_pin, bool dir_invert) {
     step_pin = _engine->init_step_pin(step_pin, step_invert);
 
-    auto m                   = new motor_pins_t;
+    // Value-initialized so that step_fn/dir_fn are null rather than
+    // indeterminate.  step() only reads them when driver is non-null, which it
+    // is not here, but leaving them unset is a trap for the next reader.
+    auto m                   = new motor_pins_t {};
     axis_motors[axis][motor] = m;
     m->step_pin              = step_pin;
     m->step_invert           = step_invert;

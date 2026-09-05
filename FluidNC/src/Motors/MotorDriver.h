@@ -69,26 +69,18 @@ namespace MotorDrivers {
         // make a motor transition between idle and non-idle states.
         virtual void set_disable(bool disable);
 
-        // set_direction() and step() are for motor types that generate their own
-        // step waveform instead of pulsing a step pin - currently just unipolar.
-        // Such a driver registers itself with Stepping::assignMotorDriver(), and
-        // Stepping::step() then calls these instead of driving step/dir pins via
-        // the stepping engine.  Both run in ISR context, so overrides must be
-        // IRAM_ATTR and must not block.
-
-        // set_direction() records the direction of travel for subsequent steps.
-        // It is called only when the direction changes, not on every step.
-        virtual void set_direction(bool dir);
-
-        // step() advances the motor by one step in the current direction.
-        virtual void step();
-
-        // Calling the two methods above through the vtable is not safe from the
-        // step ISR: the vtable is in flash, and the ISR can run while the flash
-        // cache is disabled.  A driver that does its own stepping therefore also
-        // supplies plain function pointers, which Stepping caches in RAM at
-        // registration time and calls instead.  The functions they point at must
-        // be IRAM_ATTR and must not touch flash themselves.
+        // A motor type that generates its own step waveform instead of pulsing
+        // a step pin - currently just unipolar - registers itself with
+        // Stepping::assignMotorDriver() and supplies the two function pointers
+        // below.  Stepping::step() calls them in place of driving step/dir pins
+        // through the stepping engine.
+        //
+        // They are plain function pointers rather than virtual methods because
+        // a virtual call from the step ISR would read the vtable, which the
+        // linker places in flash, and the ISR can run while the flash cache is
+        // disabled.  Stepping caches these in RAM at registration time.  The
+        // functions they point at run in ISR context: they must be IRAM_ATTR,
+        // must not touch flash, and must not block.
         // Null unless the driver does its own stepping; Stepping checks before
         // calling, so a driver that uses step/dir pins need not supply them.
         virtual IsrStepFn isr_step_fn() { return nullptr; }
