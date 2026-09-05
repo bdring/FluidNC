@@ -6,6 +6,8 @@
 
 void vTaskDelay(const TickType_t xTicksToDelay);
 
+void cleanup_threads();
+
 #define CONFIG_ARDUINO_RUNNING_CORE 0
 
 BaseType_t xTaskCreatePinnedToCore(TaskFunction_t      pvTaskCode,
@@ -53,3 +55,14 @@ TickType_t xTaskGetTickCount(void);
 #    define portMUX_INITIALIZER_UNLOCKED                                                                                                   \
         { .owner = portMUX_FREE_VAL, .count = 0, .lastLockedFn = "(never locked)", .lastLockedLine = -1 }
 #endif
+
+inline BaseType_t xTaskCreateAffinitySet(TaskFunction_t      pvTaskCode,
+                                                                                 const char* const   pcName,
+                                                                                 const uint32_t      usStackDepth,
+                                                                                 void* const         pvParameters,
+                                                                                 UBaseType_t         uxPriority,
+                                                                                 const BaseType_t    xCoreAffinityMask,
+                                                                                 TaskHandle_t* const pvCreatedTask) {
+        (void)xCoreAffinityMask;
+        return xTaskCreatePinnedToCore(pvTaskCode, pcName, usStackDepth, pvParameters, uxPriority, pvCreatedTask, tskNO_AFFINITY);
+}

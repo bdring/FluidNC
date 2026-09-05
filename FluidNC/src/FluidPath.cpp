@@ -11,21 +11,66 @@
 #include "string_util.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
-#include <mutex>
+#include "Arduino.h"
 
 Volume SD { "sd" };
 Volume LocalFS { "localfs" };
 
-uint32_t FluidPath::_refcnt = 0;
-static std::mutex sd_refcnt_mutex;
-static SemaphoreHandle_t sd_mount_lock = nullptr;
+namespace {
+    SemaphoreHandle_t sd_lifecycle_lock = xSemaphoreCreateMutex();
+    uint32_t          sd_mount_users    = 0;
 
-static void ensure_sd_mount_lock() {
-    if (!sd_mount_lock) {
-        sd_mount_lock = xSemaphoreCreateBinary();
-        if (sd_mount_lock) {
-            xSemaphoreGive(sd_mount_lock);
+    class SDLock {
+    public:
+        explicit SDLock(SemaphoreHandle_t lock) : _lock(lock) {
+            _locked = _lock && xSemaphoreTake(_lock, portMAX_DELAY) == pdTRUE;
         }
+
+        SDLock(const SDLock&)            = delete;
+        SDLock& operator=(const SDLock&) = delete;
+        SDLock(SDLock&&)                 = delete;
+        SDLock& operator=(SDLock&&)      = delete;
+
+        ~SDLock() {
+            if (_locked) {
+                xSemaphoreGive(_lock);
+            }
+        }
+
+        bool locked() const { return _locked; }
+
+    private:
+        SemaphoreHandle_t _lock   = nullptr;
+        bool              _locked = false;
+    };
+
+    std::error_code sd_lock_error() {
+        return std::make_error_code(std::errc::not_enough_memory);
+    }
+}
+
+// SDMountState manages the SD card mount/unmount lifecycle. FluidPath copies
+// share a state, while independently created paths may have separate states.
+// The protected user count keeps the card mounted until the last state exits.
+SDMountState::SDMountState() {
+    SDLock lock(sd_lifecycle_lock);
+    if (!lock.locked()) {
+        throw stdfs::filesystem_error { "Failed to lock SD card mount state", sd_lock_error() };
+    }
+
+    if (sd_mount_users == 0) {
+        auto ec = sd_mount();
+        if (ec) {
+            throw stdfs::filesystem_error { "Failed to mount SD card", ec };
+        }
+    }
+    ++sd_mount_users;
+}
+
+SDMountState::~SDMountState() {
+    SDLock lock(sd_lifecycle_lock);
+    if (lock.locked() && sd_mount_users && --sd_mount_users == 0) {
+        sd_unmount();
     }
 }
 
@@ -80,12 +125,11 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
     return ret;
 }
 
-FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_code* ecptr) : std::filesystem::path(canonPath(name, fs)) {
+FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_code* ecptr) : stdfs::path(canonPath(name, fs)) {
     auto mount = *(++begin());  // Use the path iterator to get the first component
-    _isSD      = mount == "sd";
+    _isSD = mount == "sd";
 
     if (_isSD) {
-        std::lock_guard<std::mutex> ref_guard(sd_refcnt_mutex);
         if (!config->_sdCard->config_ok) {
             std::error_code ec = FluidError::SDNotConfigured;
             if (ecptr) {
@@ -94,63 +138,14 @@ FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_c
             }
             throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
         }
-        if (_refcnt == 0) {
-            ensure_sd_mount_lock();
-            if (sd_mount_lock) {
-                xSemaphoreTake(sd_mount_lock, portMAX_DELAY);
+        try {
+            _sd_mount_state = std::make_shared<SDMountState>();
+        } catch (const stdfs::filesystem_error& ex) {
+            if (ecptr) {
+                *ecptr = ex.code();
+                return;
             }
-            auto ec = sd_mount();
-            if (ec) {
-                if (sd_mount_lock) {
-                    xSemaphoreGive(sd_mount_lock);
-                }
-                if (ecptr) {
-                    *ecptr = ec;
-                    return;
-                }
-                throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
-            }
-        }
-        ++_refcnt;
-    }
-}
-
-FluidPath::FluidPath(const FluidPath& o) : path(o), _isSD(o._isSD) {
-    if (this != &o && _isSD) {
-        ++_refcnt;
-    }
-}
-
-FluidPath::FluidPath(FluidPath&& o) : path(std::move(o)), _isSD(o._isSD) {
-    if (this != &o) {
-        // After a move, the other object is dead so we do not want
-        // to decrement the refcount on destruction
-        o._isSD = false;
-    }
-}
-
-FluidPath& FluidPath::operator=(const FluidPath& o) {
-    stdfs::path::operator=(o);
-
-    _isSD = o._isSD;
-    if (&o != this && _isSD) {
-        ++_refcnt;
-    }
-    return *this;
-}
-
-FluidPath& FluidPath::operator=(FluidPath&& o) {
-    std::swap(_isSD, o._isSD);
-    stdfs::path::operator=(std::move(o));
-    return *this;
-}
-
-FluidPath::~FluidPath() {
-    std::lock_guard<std::mutex> ref_guard(sd_refcnt_mutex);
-    if (_isSD && (_refcnt && --_refcnt == 0)) {
-        sd_unmount();
-        if (sd_mount_lock) {
-            xSemaphoreGive(sd_mount_lock);
+            throw stdfs::filesystem_error { "SD card is inaccessible", name, ex.code() };
         }
     }
 }

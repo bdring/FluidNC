@@ -28,6 +28,7 @@ namespace Spindles {
 
         void init() override;
         void setSpeedfromISR(uint32_t dev_speed) override;
+        IsrSpeedFn isr_speed_fn() override;
         void setState(SpindleState state, SpindleSpeed speed) override;
         void config_message() override;
         // Configuration handlers:
@@ -46,8 +47,22 @@ namespace Spindles {
             // Those might not be practical for many CNC applications,
             // but the hardware can handle them, so we let the
             // user choose.
+            // @config pwm_hz
+            // @default 5000
+            // @tuning typical
+            // PWM signal frequency. Resolution trades off against frequency -- 76Hz or
+            // less gets the full 20-bit duty-cycle resolution, roughly halving for every
+            // doubling of frequency above that, down to 4 levels (2 bits) at the 20MHz
+            // ceiling. Not every value in that range is a practical CNC PWM frequency, but
+            // the hardware supports the whole span, so it's left open.
             handler.item("pwm_hz", _pwm_freq, 1, 20000000);
 
+            // @default_for speed_map
+            // @default 0=0% 10000=100%
+            // @default_note applied by PWM::init() only when speed_map is left unset
+
+            // @pin_attributes_for output_pin
+            // @pin_attributes pwm
             OnOff::group(handler);
         }
 

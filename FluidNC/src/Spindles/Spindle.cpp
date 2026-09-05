@@ -10,6 +10,8 @@
 
 Spindles::Spindle* spindle = nullptr;
 
+Spindles::Spindle::IsrSpeedFn spindle_isr_speed_fn = nullptr;
+
 namespace Spindles {
     // ========================= Spindle ==================================
 
@@ -46,6 +48,7 @@ namespace Spindles {
             if (candidate != spindle) {  // we are changing spindles
                 gc_state.selected_tool = new_tool;
                 spindle                = candidate;
+                spindle_isr_speed_fn   = candidate->isr_speed_fn();
                 new_spindle            = true;
                 log_info("Changed to spindle:" << spindle->name());
             }
@@ -55,7 +58,8 @@ namespace Spindles {
                     log_error("No spindles are defined");
                     return;
                 }
-                spindle = spindles[0];
+                spindle              = spindles[0];
+                spindle_isr_speed_fn = spindle->isr_speed_fn();
             }
         }
     }

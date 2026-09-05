@@ -88,6 +88,14 @@ namespace Machine {
             return;
         }
 
+        // Rearm limit switches before checking them in pulloff phases
+        // This allows inactive events to clear the limit bits
+        if (_phase == Pulloff0 || _phase == Pulloff1 || _phase == Pulloff2) {
+            config->_kinematics->rearmLimits(_phaseAxes, _phaseMotors);
+        }
+
+        mc_dwell(10);  // Run the protocol loop to handle switch events after rearm
+
         // Cycle stop in pulloff is success unless
         // the limit switches are still active.
         if (limited() & _phaseMotors) {

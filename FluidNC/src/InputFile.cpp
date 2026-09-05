@@ -32,6 +32,11 @@ Error InputFile::readLine(char* line, size_t maxlen) {
         line[len++] = c;
     }
     line[len] = '\0';
+    if (read_failed()) {
+        // An I/O error is not end of file.  Do not hand back the partial line
+        // either: a truncated GCode line is a wrong move, not a short one.
+        return Error::FsFailedRead;
+    }
     return len || c >= 0 ? Error::Ok : Error::Eof;
 }
 
@@ -46,9 +51,6 @@ void InputFile::ack(Error status) {
         }
     }
 }
-
-#include <sstream>
-#include <iomanip>
 
 void InputFile::end_message() {
     _progress = "SD: ";
@@ -84,9 +86,7 @@ Error InputFile::pollLine(char* line) {
         case Error::Ok: {
             float percent_complete = ((float)position()) * 100.0f / size();
 
-            std::ostringstream s;
-            s << "SD:" << std::fixed << std::setprecision(2) << percent_complete << "," << path().c_str();
-            _progress = s.str();
+            _progress = "SD:" + formatFloat(percent_complete, 2) + "," + path();
         }
             return Error::Ok;
         case Error::Eof:

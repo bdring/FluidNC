@@ -22,4 +22,8 @@ enum class State : uint8_t {
 };
 
 void set_state(State s);
+
+// Defined IRAM_ATTR in System.cpp, because the step ISR calls this and the ISR
+// can run while the flash cache is disabled, when a call into flash panics the
+// board.  The attribute is on the definition; this header cannot see IRAM_ATTR.
 bool state_is(State s);

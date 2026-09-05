@@ -150,7 +150,6 @@ namespace Spindles {
                     }
 
                     // Flush the UART and write the data:
-                    uart.flush();
                     uart.flushRx();
                     uart.write(cmd.msg, cmd.tx_length);
                     uart.flushTxTimed(response_ticks);

@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include <Print.h>
-#include <IPAddress.h>
+#include <Arduino.h>
 #include <string>
 #include <string_view>
 #include <type_traits>

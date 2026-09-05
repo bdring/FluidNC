@@ -83,3 +83,11 @@ you know which COM port is for the ESP32, the baud rate (115200),
 and some other settings - no hardware or software flow control,
 accept linefeed as end-of-line on input, etc.  FluidTerm tried
 to make it easy for you by using all the correct defaults.
+
+### Updating
+
+Either just follow the install steps above, or use the OTA update feature with one of the following files:
+
+    bt\firmware.bin
+    wifi\firmware.bin
+    wifi_s3\firmware.bin

@@ -70,6 +70,7 @@ const std::map<Error, const char*> ErrorNames = {
     { Error::Eof, "End of file" },
     { Error::Reset, "System Reset" },
     { Error::NoData, "No Data" },
+    { Error::Deferred, "Deferred" },
     { Error::AnotherInterfaceBusy, "Another interface is busy" },
     { Error::BadPinSpecification, "Bad Pin Specification" },
     { Error::BadRuntimeConfigSetting, "Bad Runtime Config Setting" },

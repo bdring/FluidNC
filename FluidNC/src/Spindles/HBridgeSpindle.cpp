@@ -130,4 +130,14 @@ namespace Spindles {
     namespace {
         SpindleFactory::InstanceBuilder<HBridge> registration("HBridge");
     }
+
+    // Called from the step ISR in place of a virtual dispatch, which would have
+    // to read this class's vtable out of flash.  IRAM_ATTR, and the qualified
+    // call keeps it non-virtual.
+    static void IRAM_ATTR hbridge_speed_thunk(Spindle* s, uint32_t dev_speed) {
+        static_cast<HBridge*>(s)->HBridge::setSpeedfromISR(dev_speed);
+    }
+    Spindle::IsrSpeedFn HBridge::isr_speed_fn() {
+        return hbridge_speed_thunk;
+    }
 }

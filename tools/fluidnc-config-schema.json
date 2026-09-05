@@ -1070,6 +1070,45 @@
         }
       }
     },
+    "motor_unipolar": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "spec \u00a75.4.12. Unipolar stepper (e.g. 28BYJ-48 via ULN2003). Has no step/dir pins; the four coil phases are driven directly in sequence. Reverse the axis by swapping phase0_pin with phase3_pin and phase1_pin with phase2_pin; there is no direction inversion.",
+      "additionalProperties": false,
+      "properties": {
+        "phase0_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN",
+          "description": "Coil A drive output, e.g. IN1 on a ULN2003 board."
+        },
+        "phase1_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN",
+          "description": "Coil B drive output, e.g. IN2 on a ULN2003 board."
+        },
+        "phase2_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN",
+          "description": "Coil C drive output, e.g. IN3 on a ULN2003 board."
+        },
+        "phase3_pin": {
+          "$ref": "#/$defs/pinAny",
+          "default": "NO_PIN",
+          "description": "Coil D drive output, e.g. IN4 on a ULN2003 board."
+        },
+        "half_step": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": true,
+          "description": "True uses the 8-phase half-step sequence, giving twice the resolution of the 4-phase full-step sequence at some cost in torque. Setting it false halves the steps per revolution, so steps_per_mm must be halved to match."
+        }
+      }
+    },
     "motor_dynamixel2": {
       "type": [
         "object",
@@ -1186,6 +1225,9 @@
         },
         "null_motor": {
           "$ref": "#/$defs/motor_null_motor"
+        },
+        "unipolar": {
+          "$ref": "#/$defs/motor_unipolar"
         }
       },
       "additionalProperties": false,
@@ -1253,6 +1295,11 @@
         {
           "required": [
             "null_motor"
+          ]
+        },
+        {
+          "required": [
+            "unipolar"
           ]
         }
       ]
@@ -1823,9 +1870,17 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a713.2. No config fields. Cannot combine two axes into one homing.cycle group (see homingBlock description).",
+      "description": "spec \u00a713.2. Cannot combine two axes into one homing.cycle group (see homingBlock description).",
       "additionalProperties": false,
-      "properties": {}
+      "properties": {
+        "x_scaler": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 10.0,
+          "default": 1.0,
+          "description": "Compensation factor for midTbot-style machines where the motors themselves move in X. Leave at 1 on CoreXY machines where the motors don't move in X."
+        }
+      }
     },
     "kinematics_midtbot": {
       "type": [
@@ -2300,7 +2355,7 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a710.7. Chain: Spindle -> OnOff -> Laser via groupCommon only -- explicitly NO direction_pin. pwm_hz range is narrower than plain PWM (1000-100000).",
+      "description": "spec \u00a710.7. Chain: Spindle -> OnOff -> Laser via groupCommon only -- explicitly NO direction_pin, and NO spinup_ms/spindown_ms (Laser::group() calls OnOff::groupCommon() specifically to skip Spindle::groupDelaySettings(), unlike every other OnOff-derived type). pwm_hz range is narrower than plain PWM (1000-100000).",
       "additionalProperties": false,
       "properties": {
         "tool_num": {
@@ -2344,19 +2399,6 @@
             }
           ],
           "default": false
-        },
-        "spinup_ms": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 60000,
-          "default": 0,
-          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
-        },
-        "spindown_ms": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 60000,
-          "default": 0
         },
         "pwm_hz": {
           "type": "integer",
@@ -2746,6 +2788,19 @@
           ],
           "default": false
         },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
         "uart_num": {
           "type": "integer",
           "description": "References a top-level uartN: section (spec \u00a79). Preferred/current form."
@@ -2823,6 +2878,19 @@
             }
           ],
           "default": false
+        },
+        "spinup_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0,
+          "description": "Only present if the type's use_delay_settings() is true (all types below except PlasmaSpindle)."
+        },
+        "spindown_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
         },
         "uart_num": {
           "type": "integer",

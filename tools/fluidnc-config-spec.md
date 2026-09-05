@@ -13,7 +13,7 @@ FluidNC evolves; if a generated config is rejected on a real controller, trust t
 These are the rules that cause silently-wrong or rejected configs when violated. An LLM generating FluidNC YAML **must** satisfy every one of these:
 
 1. **This is not full YAML.** It is a restricted subset. Do not use YAML features not explicitly shown in this doc: no flow-style `{}`/`[]` collections, no anchors/aliases (`&`/`*` — note `&` *is* reused as a macro command separator, a completely different meaning, see §11), no multi-document `---` separators, no block scalars (`|`, `>`), no quoted-string escaping tricks beyond plain double quotes.
-2. **No comments after a key: value pair on the same line.** `motor0:  # comment` is a parse error. A comment must be alone on its own line, starting with `#` at the start of the line (indentation before the `#` is fine).
+2. **A `#` starts a comment when it's preceded by whitespace or is the very first character of the line — never inside a quoted value — matching standard YAML, not the FluidNC-specific restriction this section used to describe.** Ground truth: `Tokenizer::findCommentStart()`/`nextLine()` (`Configuration/Tokenizer.cpp`) scan the whole line, quote-aware, *before* any key/value structure is parsed at all — so `motor0: value  # comment` and even a bare `motor0:  # comment` (a section header with a trailing note) both correctly drop everything from the `#` onward. A `#` glued directly to other text with no preceding space (e.g. a macro's G-code parameter reference like `#100`) is never treated as a comment and stays literal — there's no mechanical way to tell "meant as a comment" apart from "genuinely part of the value" from the text alone, so a value that needs a literal, whitespace-preceded `#` must be quoted (`"..."`) instead. One consequence worth knowing: a whitespace-preceded `#` appearing *before* the `:` strips the colon along with the rest of the comment; since FluidNC has no bare-scalar-document concept (unlike standard YAML), what's left is a hard parse error rather than something silently accepted. Keys can be quoted too, same as values (`"my key": value`), using the same plain, non-escaping `"..."`/`'...'` delimiter convention — not needed by any real FluidNC field name today, but supported for consistency.
 3. **Indentation must be spaces only, never tabs, and consistent within a section — but the pitch is not fixed at 2.** Ground truth: the tokenizer (`Configuration/Tokenizer.cpp`) records each line's indentation as a raw leading-space count and compares it against the indent level recorded when the enclosing section was entered; it has no hardcoded "2 spaces per level" rule. Any consistent pitch (2, 3, 4 spaces, etc.) works, and different sections in the same file are even allowed to use different pitches from each other. What actually breaks parsing is *inconsistency*: all sibling keys within one section must share the exact same indent count as each other, and a nested block must be indented strictly more than its parent. Tabs are rejected outright with a parse error ("Use spaces, not tabs, for indentation"). Despite this flexibility, a generator should still pick one consistent pitch (2 spaces is the wiki/community convention) and use it everywhere, purely for human readability — not because the parser requires it.
 4. **Whitespace between the colon and the value is irrelevant — any amount, including zero, is accepted.** Ground truth: `Tokenizer::parseValue()` (`Configuration/Tokenizer.cpp`) explicitly strips all leading whitespace after the colon before reading the value, so `board: 6 Pack`, `board:    6 Pack`, and `board:6 Pack` all parse identically. (Trailing whitespace on the *key* side of the colon is likewise trimmed — see `parseKey()`.) A generator should still write exactly one space after the colon purely as a readability convention, not because the parser requires it.
 5. **Trailing whitespace after a value is usually harmless, but there's one exception, so don't rely on it.** Ground truth: `Configuration/Parser.cpp` calls `string_util::trim()` on the raw token value inside almost every typed parser — `boolValue()`, `intValue()`/`uintValue()`, `floatValue()`, enum lookups, the Speed Map parser, `Pin::create()`, and `IPAddress` parsing all trim first, so trailing (and leading) spaces are silently discarded for those types. The one deliberate exception is `Parser::stringValue()` (plain `String` fields like `name:`, `board:`, `meta:`), which is **not** trimmed — the source comment notes *"String values might have meaningful leading and trailing spaces so we avoid trimming."* So trailing whitespace is generally fine, except it will leak into the literal value of a `String`-typed field. A generator should still avoid emitting trailing whitespace anywhere, both for readability and to sidestep that one exception entirely.
@@ -272,7 +272,7 @@ motor0:
   hard_limits: false        # Boolean, default false
   pulloff_mm: 1.000         # Float, 0.1-100000.0, default 1.000
 
-  <driver_type>:             # exactly one driver-type block, dispatched via MotorFactory::factory() — see 5.4.1 - 5.4.11
+  <driver_type>:             # exactly one driver-type block, dispatched via MotorFactory::factory() — see 5.4.1 - 5.4.12
     ...
 ```
 
@@ -476,6 +476,23 @@ motor1:
   null_motor:
 ```
 Explicitly declares "this motor slot is unused." Takes no sub-keys. Used for `motor1:` on single-motor axes, and required as a placeholder in some daisy-chain scenarios. Also confirmed as the automatic fallback: `Motor::afterParse()` constructs a `null_motor` itself whenever no driver-type key was given at all, so an entirely empty `motor1: {}` (or omitting `motor1:` altogether — though the section is always registered per §5.1) behaves the same as writing `null_motor:` explicitly.
+
+#### 5.4.12 `unipolar:` — unipolar stepper driven a coil at a time (28BYJ-48 via ULN2003)
+
+Ground truth: `UnipolarMotor::group()`. Unlike every other driver type above, this one has **no `step_pin` or `direction_pin`** — the motor has no step/dir inputs at all. The four coil phases are energised in sequence by the driver itself, so the four phase pins are the entire pin set. A config generator should therefore not try to assign step/dir roles to this motor type.
+```yaml
+unipolar:
+  phase0_pin: NO_PIN      # Pin (output), must be gpio — coil A, e.g. IN1 on a ULN2003 board
+  phase1_pin: NO_PIN      # Pin (output), must be gpio — coil B, e.g. IN2
+  phase2_pin: NO_PIN      # Pin (output), must be gpio — coil C, e.g. IN3
+  phase3_pin: NO_PIN      # Pin (output), must be gpio — coil D, e.g. IN4
+  half_step: true          # Boolean, default true — 8-phase half-step sequence
+```
+The phase pins must be `gpio.` pins; `UnipolarMotor::validate()` rejects anything else, because they are written directly from the step ISR rather than through the stepping engine.
+
+`half_step: true` (the default) uses the 8-phase half-step sequence, giving twice the resolution and smoother motion than the 4-phase full-step sequence at some cost in torque. Setting it `false` halves the number of steps per revolution, so `steps_per_mm` on the owning axis must be halved to match.
+
+There is no direction inversion for this driver type. A step/dir motor is reversed with `direction_pin: gpio.N:low`; a unipolar motor has no direction pin, and `set_direction()` stores the direction unchanged. To reverse a unipolar axis, swap the phase pin assignments -- `phase0_pin` with `phase3_pin`, and `phase1_pin` with `phase2_pin` -- which runs the coil sequence the other way round.
 
 ---
 ## 6. `spi:` and `sdcard:` sections (only needed if using an SD card)
@@ -970,8 +987,9 @@ No config fields (`Cartesian` has no `group()` override).
 ```yaml
 kinematics:
   CoreXY:
+    x_scaler: 1.0                              # Float 0.1-10.0, default 1.0
 ```
-No config fields (`group(){}` is an empty override) — CoreXY behavior is entirely driven by which axes/motors are wired, not by config values here. As noted in §5.3, CoreXY cannot combine two axes into one `homing.cycle` group.
+`x_scaler` compensates for midTbot-style machines where the motors themselves move in X; leave at 1 on CoreXY machines where the motors don't move in X. As noted in §5.3, CoreXY cannot combine two axes into one `homing.cycle` group.
 
 ### 13.3 `midtbot:` (note: lowercase registration name, unlike the others)
 ```yaml

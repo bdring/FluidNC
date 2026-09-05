@@ -61,19 +61,82 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             TrinamicBase::group(handler);
 
+            // @config cs_pin
+            // @default NO_PIN
+            // @pin_attributes output
+            // SPI chip-select for this driver. In independent (non-daisy-chained) SPI mode
+            // each driver needs its own; in a daisy chain, define this only on the motor
+            // with spi_index: 1 -- the rest share that same physical CS line.
             handler.item("cs_pin", _cs_pin);
+
+            // @config spi_index
+            // @default -1
+            // -1 means independent SPI mode (used on all drivers when not daisy-chaining).
+            // In a daisy chain, each driver gets a distinct position number (1, 2, 3, ...)
+            // in chain order -- every physical position in the chain must be represented by
+            // a motor entry, even unused ones, or the chain's data alignment breaks.
             handler.item("spi_index", _spi_index, -1, 127);
 
+            // @config run_mode
+            // @default StealthChop
+            // Chopper algorithm while running: StealthChop (very quiet), CoolStep (runs
+            // cooler, allows higher current), or StallGuard (CoolStep plus stall/load
+            // detection).
             handler.item("run_mode", _run_mode, trinamicModes);
+
+            // @config homing_mode
+            // @default StealthChop
+            // Chopper algorithm while homing (same choices as run_mode) -- StallGuard is
+            // typically used here for sensorless homing.
             handler.item("homing_mode", _homing_mode, trinamicModes);
+
+            // @config homing_amps
+            // @default 0.0
+            // @default_note substituted with run_amps if left at 0
+            // Motor current while homing. Leaving this at its default 0 isn't literally
+            // "zero current" -- afterParse() detects the default and substitutes run_amps
+            // instead, so omitting this field entirely is equivalent to setting it equal to
+            // run_amps. This fallback is specific to TMC2209; no other Trinamic driver type
+            // has a homing_amps field at all.
             handler.item("homing_amps", _homing_current, 0.0, 10.0);
-            handler.item("stallguard", _stallguard, -64, 63);
-            handler.item("stallguard_seek", _stallguard_seek, -64, 63);
+          
+            // @config stallguard_debug
+            // @default false
+            // Logs live StallGuard sensor values -- useful for tuning the stallguard
+            // threshold for sensorless homing. Not usable together with
+            // shared_address_write_only.
             handler.item("stallguard_debug", _stallguardDebugMode);
+ 
+            // @config stallguard_seek
+            // @default 0.0
+            // @default_note substituted with stallguard if left at 0
+            // StallGuard threshold for the fast (seek) approach phase, while the existing
+            // stallguard value is used for the slow (feed) approach. The two phases run at
+            // very different speeds, and StallGuard sensitivity is strongly speed-dependent,
+            // so a single threshold is often a compromise.
+            handler.item("stallguard_seek", _stallguard_seek, -64, 63);
+
+            // @config toff_coolstep
+            // @default 3
+            // TOFF (off-time) register value used in CoolStep/StallGuard mode.
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
 
+            // @config diag0_error
+            // @default false
+            // Enables the DIAG0 pin to signal driver error conditions. SPI-driver-specific
+            // -- not available on the UART-controlled Trinamic drivers.
             handler.item("diag0_error", _diag0_error);
+
+            // @config diag0_otpw
+            // @default false
+            // Enables the DIAG0 pin to signal an over-temperature pre-warning.
+            // SPI-driver-specific -- not available on the UART-controlled Trinamic drivers.
             handler.item("diag0_otpw", _diag0_otpw);
+
+            // @config diag0_int_pushpull
+            // @default false
+            // Configures the DIAG0 pin's output stage as push-pull instead of open-drain.
+            // SPI-driver-specific -- not available on the UART-controlled Trinamic drivers.
             handler.item("diag0_int_pushpull", _diag0_int_pushpull);
         }
 

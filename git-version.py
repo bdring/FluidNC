@@ -23,11 +23,18 @@ else:
     except:
         tag = "v4.x.x"
 
+    modified = (
+        subprocess.check_output(["git", "status", "-uno", "-s"])
+        .strip()
+        .decode("utf-8")
+    )
+    dirty = "-dirty" if modified else ""
+
     # Check to see if the head commit exactly matches a tag.
     # If so, the revision is "release", otherwise it is BRANCH-COMMIT
     try:
         subprocess.check_call(["git", "describe", "--tags", "--exact"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        rev = ''
+        rev = dirty
     except:
         branchname = (
             subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
@@ -39,15 +46,6 @@ else:
             .strip()
             .decode("utf-8")
         )
-        modified = (
-            subprocess.check_output(["git", "status", "-uno", "-s"])
-            .strip()
-            .decode("utf-8")
-        )
-        if modified:
-            dirty = "-dirty"
-        else:
-            dirty = ""
         rev = " (%s-%s%s)" % (branchname, revision, dirty)
 
     try:

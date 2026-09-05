@@ -10,6 +10,7 @@
 #include "Probe.h"
 
 #include <cstdint>
+#include <vector>
 
 extern volatile bool probing;  // Probing state value.  Used to coordinate the probing cycle with stepper ISR.
 
@@ -17,6 +18,9 @@ extern bool probe_succeeded;  // Tracks if last probing cycle was successful.
 
 // Execute a linear motion in cartesian space.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position);
+
+// Execute a clustered linear motion by splitting one cartesian move into equal subsegments.
+void mc_clustered_linear_move(float* target, plan_line_data_t* pl_data, float* position, const std::vector<float>& clustered_values);
 
 // Execute a linear motion in motor space.
 bool mc_move_motors(float* target, plan_line_data_t* pl_data);  // returns true if line was submitted to planner

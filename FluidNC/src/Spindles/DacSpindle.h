@@ -32,9 +32,19 @@ namespace Spindles {
         void init() override;
         void config_message() override;
         void setSpeedfromISR(uint32_t dev_speed) override;
+        IsrSpeedFn isr_speed_fn() override;
 
-        // Configuration handlers:
-        // Inherited from PWM
+        // Configuration handlers: no fields of its own -- exists so this class
+        // has its own real group() for the doc generator to find (see
+        // tools/build_config_docs.py's SECTIONS table), matching PWM/Laser/
+        // BESC/etc.'s own-file-per-type convention, rather than Dac silently
+        // sharing OnOff's config_items.yaml section (or having none at all).
+        void group(Configuration::HandlerBase& handler) override {
+            // @default_for speed_map
+            // @default 0=0% 10000=100%
+            // @default_note applied by Dac::init() only when speed_map is left unset
+            OnOff::group(handler);
+        }
 
         ~Dac() {}
 

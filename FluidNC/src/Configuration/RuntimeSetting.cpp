@@ -165,6 +165,20 @@ namespace Configuration {
         }
     }
 
+    void RuntimeSetting::item(const char* name, step_engine*& value) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (newValue_.empty()) {
+                log_stream(out_, setting_prefix() << value->name);
+            } else {
+                // The stepping engine is bound to the board's wiring and is
+                // latched by Stepping::init() at boot; it cannot be changed
+                // on the fly.
+                log_string(out_, "Runtime setting of step_engine objects is not supported");
+            }
+        }
+    }
+
     void RuntimeSetting::item(const char* name, uint32_t& value, const EnumItem* e) {
         if (is(name)) {
             isHandled_ = true;

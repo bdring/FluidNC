@@ -19,7 +19,18 @@ namespace Spindles {
         // do not support direction_pin can invoke OnOff::groupCommon() instead
         // of OnOff::group()
         void groupCommon(Configuration::HandlerBase& handler) {
+            // @config output_pin
+            // @default NO_PIN
+            // @pin_attributes output
+            // On/off (or PWM duty, depending on the concrete spindle type -- see that
+            // type's own @pin_attributes_for output_pin override, e.g. PWMSpindle.h)
+            // output signal. Turns off with M5.
             handler.item("output_pin", _output_pin);
+
+            // @config enable_pin
+            // @default NO_PIN
+            // @pin_attributes output
+            // Optional enable signal, separate from output_pin.
             handler.item("enable_pin", _enable_pin);
 
             Spindle::group(handler);
@@ -36,6 +47,7 @@ namespace Spindles {
         void init() override;
 
         void setSpeedfromISR(uint32_t dev_speed) override;
+        IsrSpeedFn isr_speed_fn() override;
         void setState(SpindleState state, SpindleSpeed speed) override;
         void config_message() override;
 
@@ -47,8 +59,18 @@ namespace Spindles {
         void validate() override { Spindle::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
+            // @config direction_pin
+            // @default NO_PIN
+            // @pin_attributes output
+            // Optional direction signal. M4 (spindle-reverse) is only accepted when a real
+            // pin is assigned here -- without one, only M3/M5 are meaningful.
             handler.item("direction_pin", _direction_pin);
+
+            // @default_for speed_map
+            // @default 0=0% 1=100%
+            // @default_note applied by OnOff::init() only when unset -- step function: 0 is off, any nonzero S is full on
             groupCommon(handler);
+            Spindle::groupDelaySettings(handler);
         }
 
         virtual ~OnOff() {}
@@ -57,8 +79,6 @@ namespace Spindles {
         Pin _enable_pin;
         Pin _output_pin;
         Pin _direction_pin;
-        // _zero_speed_with_disable forces speed to 0 when disabled
-        bool _zero_speed_with_disable = true;
 
         virtual void set_output(uint32_t speed);
         virtual void deinit();

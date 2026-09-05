@@ -30,8 +30,28 @@ namespace MotorDrivers {
         void validate() override;
 
         void group(Configuration::HandlerBase& handler) override {
+            // These 3 fields are the base field set every other motor driver type that
+            // derives from StandardStepper (stepstick, tmc_*, etc.) inherits by calling
+            // StandardStepper::group() first -- annotated once here, not repeated in
+            // each derived driver's own group().
+
+            // @config step_pin
+            // @default NO_PIN
+            // @pin_attributes output
+            // Step pulse output to the driver.
             handler.item("step_pin", _step_pin);
+
+            // @config direction_pin
+            // @default NO_PIN
+            // @pin_attributes output
+            // Direction output to the driver.
             handler.item("direction_pin", _dir_pin);
+
+            // @config disable_pin
+            // @default NO_PIN
+            // @pin_attributes output
+            // Enable/disable output to the driver (active state depends on the driver
+            // hardware -- invert with the pin's :low attribute if needed).
             handler.item("disable_pin", _disable_pin);
         }
     };

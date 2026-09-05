@@ -10,10 +10,12 @@
 #pragma once
 
 #include <Print.h>
+#include <string>
+#include <vector>
 
 class Lineedit {
 private:
-    static const int MAXHISTORY = 400;
+    static const int MAX_HISTORY_ENTRIES = 20;
     Print*           out;
 
     /* Use negative numbers here to co-exist with normal unicode chars */
@@ -36,9 +38,7 @@ private:
     char*       endaddr;
     const char* maxaddr;
 
-    size_t saved_length = 0;
-
-    char lastline[MAXHISTORY] = { 0 };
+    std::vector<std::string> history;
 
     char killbuf[100] = { 0 };
 
@@ -57,10 +57,8 @@ private:
     void addchar(char c, bool echo = true);
     void erase_char();
     void erase_line();
-    void validate_history();
-    bool already_in_history(const char* adr, uint32_t len);
     void add_to_history(const char* adr, uint32_t len);
-    bool get_history(uint32_t history_num);
+    bool get_history(int32_t history_num);
     void backward_char();
     void forward_char();
     bool is_word_delim(char c);

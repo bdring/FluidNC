@@ -12,8 +12,6 @@
 #include <charconv>
 #include <Driver/NVS.h>
 
-NVS nvs("FluidNC");
-
 std::vector<Setting*> Setting::List __attribute__((init_priority(101))) = {};
 std::vector<Command*> Command::List __attribute__((init_priority(102))) = {};
 
@@ -68,9 +66,10 @@ Command::Command(const char*   description,
                  const char*   grblName,
                  const char*   fullName,
                  bool (*cmdChecker)(),
-                 bool synchronous) :
+                 bool needs_protocol_context,
+                 bool drains_buffer) :
     Word(type, permissions, description, grblName, fullName),
-    _cmdChecker(cmdChecker), _synchronous(synchronous) {
+    _cmdChecker(cmdChecker), _needs_protocol_context(needs_protocol_context), _drains_buffer(drains_buffer) {
     List.insert(List.begin(), this);
 }
 
