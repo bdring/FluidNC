@@ -15,6 +15,7 @@ namespace Configuration {
 
         bool isWhiteSpace(char c);
         bool isIdentifierChar(char c);
+        std::string_view::size_type findCommentStart(std::string_view line);
         bool nextLine();
         void parseKey();
         void parseValue();
