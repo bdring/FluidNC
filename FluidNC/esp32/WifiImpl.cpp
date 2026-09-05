@@ -79,6 +79,9 @@ namespace WebUI {
                 disconnect_seen = false;
                 log_info_to(Console, "WiFi STA Connected");
                 break;
+            case ARDUINO_EVENT_WIFI_SCAN_DONE:
+                // Fired by every WiFi.scanNetworks() (e.g. ESP410 AP scan); nothing to do.
+                break;
             default:
                 log_debug_to(Console, "WiFi event: " << (int)event);
                 break;
