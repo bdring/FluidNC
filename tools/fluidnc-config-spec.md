@@ -492,6 +492,8 @@ The phase pins must be `gpio.` pins; `UnipolarMotor::validate()` rejects anythin
 
 `half_step: true` (the default) uses the 8-phase half-step sequence, giving twice the resolution and smoother motion than the 4-phase full-step sequence at some cost in torque. Setting it `false` halves the number of steps per revolution, so `steps_per_mm` on the owning axis must be halved to match.
 
+There is no direction inversion for this driver type. A step/dir motor is reversed with `direction_pin: gpio.N:low`; a unipolar motor has no direction pin, and `set_direction()` stores the direction unchanged. To reverse a unipolar axis, swap the phase pin assignments -- `phase0_pin` with `phase3_pin`, and `phase1_pin` with `phase2_pin` -- which runs the coil sequence the other way round.
+
 ---
 ## 6. `spi:` and `sdcard:` sections (only needed if using an SD card)
 

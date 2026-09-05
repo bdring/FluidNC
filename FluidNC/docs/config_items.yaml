@@ -2151,6 +2151,7 @@ axes.<letter>.motorN.dynamixel2:
     description: |
       Update interval, in milliseconds, for refreshing the servo's commanded position.
 
+# Reversing a unipolar axis means swapping the phase pin assignments -- phase0 with phase3 and phase1 with phase2. There is no direction pin to mark :low, and the driver applies no direction inversion of its own.
 axes.<letter>.motorN.unipolar:
   phase0_pin:
     type: pin

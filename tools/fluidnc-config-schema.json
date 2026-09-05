@@ -1075,7 +1075,7 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a75.4.12. Unipolar stepper (e.g. 28BYJ-48 via ULN2003). Has no step/dir pins; the four coil phases are driven directly in sequence.",
+      "description": "spec \u00a75.4.12. Unipolar stepper (e.g. 28BYJ-48 via ULN2003). Has no step/dir pins; the four coil phases are driven directly in sequence. Reverse the axis by swapping phase0_pin with phase3_pin and phase1_pin with phase2_pin; there is no direction inversion.",
       "additionalProperties": false,
       "properties": {
         "phase0_pin": {
