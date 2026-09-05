@@ -111,18 +111,25 @@ void output_loop(void* unused) {
         // Block until a message is received
         LogMessage message;
         if (xQueueReceive(message_queue, &message, 100)) {  // Use timeout to check exit flag
-            if (!message.channel->is_closing()) {
-                if (message.isString) {
-                    std::string* s = static_cast<std::string*>(message.line);
-                    message.channel->print_msg(message.level, s->c_str());
-                    delete s;
-                } else {
-                    const char* cp = static_cast<const char*>(message.line);
-                    message.channel->print_msg(message.level, cp);
+            // Sending can throw - std::bad_alloc when the heap is exhausted,
+            // for instance.  An exception escaping a raw FreeRTOS task reaches
+            // std::terminate() and panics the controller, so drop the message
+            // instead, but always release the reference so the channel can
+            // still be reaped.
+            try {
+                if (!message.channel->is_closing()) {
+                    if (message.isString) {
+                        std::string* s = static_cast<std::string*>(message.line);
+                        message.channel->print_msg(message.level, s->c_str());
+                        delete s;
+                    } else {
+                        const char* cp = static_cast<const char*>(message.line);
+                        message.channel->print_msg(message.level, cp);
+                    }
+                } else if (message.isString) {
+                    delete static_cast<std::string*>(message.line);
                 }
-            } else if (message.isString) {
-                delete static_cast<std::string*>(message.line);
-            }
+            } catch (...) {}
             message.channel->release_log_ref();
         }
     }
@@ -168,12 +175,9 @@ static void poll_input_channel() {
 }
 
 bool pollingPaused = false;
-void polling_loop(void* unused) {
-    add_watchdog_to_task();
-    for (;;) {
-        if (should_exit()) {
-            break;
-        }
+// One pass of the polling loop.  Factored out of polling_loop() so that the
+// whole pass can be wrapped in a try block; "continue" becomes "return".
+static void poll_once() {
 
         // Poll the input sources waiting for a complete line to arrive
         /*feedLoopWDT(), */ vTaskDelay(1);
@@ -181,7 +185,7 @@ void polling_loop(void* unused) {
         if (pollingPaused) {
             feed_watchdog();
             vTaskDelay(100);
-            continue;
+            return;
         }
 
         // Polling without an argument checks for realtime characters
@@ -206,12 +210,12 @@ void polling_loop(void* unused) {
                 log_debug("Unwinding from Alarm");
                 Job::abort();
                 unwind_cause = nullptr;
-                continue;
+                return;
             }
             if (unwind_cause) {
                 Job::abort();
                 unwind_cause = nullptr;
-                continue;
+                return;
             }
 
             // Job channel has priority: feed it while cmd_queue has room.
@@ -254,6 +258,39 @@ void polling_loop(void* unused) {
             // and rejections happen promptly.  execute_line() runs or rejects
             // them on this task; they never enter cmd_queue, so no queue gate.
             poll_input_channel();
+        }
+    }
+
+// Reporting allocates, so if the heap is what failed this can throw again.
+// Swallow that too - an exception escaping the polling task is fatal.
+static void report_poll_exception(const char* what) {
+    try {
+        log_error("Polling error: " << what << ", free heap " << xPortGetFreeHeapSize());
+    } catch (...) {}
+}
+
+// A job must survive a transient failure in the IO machinery.  Losing WiFi can
+// squeeze the heap hard enough that an ordinary std::string allocation throws
+// std::bad_alloc, and an exception escaping a raw FreeRTOS task calls
+// std::terminate(), which panics the controller and kills the job with it.
+// Catch here instead and take another pass; motion planning and stepping do
+// not allocate, so the job keeps running.
+void polling_loop(void* unused) {
+    add_watchdog_to_task();
+    for (;;) {
+        if (should_exit()) {
+            break;
+        }
+        try {
+            poll_once();
+        } catch (const std::exception& ex) {
+            report_poll_exception(ex.what());
+            feed_watchdog();
+            vTaskDelay(1);
+        } catch (...) {
+            report_poll_exception("unknown exception");
+            feed_watchdog();
+            vTaskDelay(1);
         }
     }
 }

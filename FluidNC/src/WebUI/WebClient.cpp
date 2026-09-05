@@ -34,7 +34,15 @@ namespace WebUI {
                     webClient->cmds.pop_front();
                     xSemaphoreGive(webClient->xBufferLock);
                     // TODO: check error result and see if we can do anything...
-                    settings_execute_line(cmd.c_str(), *webClient, AuthenticationLevel::LEVEL_ADMIN);
+                    // An exception escaping this raw task would terminate the
+                    // controller, taking any running job with it.
+                    try {
+                        settings_execute_line(cmd.c_str(), *webClient, AuthenticationLevel::LEVEL_ADMIN);
+                    } catch (...) {
+                        try {
+                            log_error_to(Console, "Web command failed");
+                        } catch (...) {}
+                    }
                     // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.
                     xSemaphoreTake(webClient->xBufferLock, portMAX_DELAY);
                     webClient->done = true;
