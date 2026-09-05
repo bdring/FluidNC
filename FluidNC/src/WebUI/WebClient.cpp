@@ -50,6 +50,10 @@ namespace WebUI {
                 } else {
                     xSemaphoreGive(webClient->xBufferLock);
                 }
+                // Balances the reference taken in executeCommandBackground().
+                // After this the channel may be reaped at any time, so nothing
+                // below may touch webClient.
+                webClient->release_processing_ref();
             } else
                 delay(1);  // This should never happen if portMAX_DELAY is trully infinite
         }
@@ -192,10 +196,25 @@ namespace WebUI {
             done = true;
             return;
         }
+        // The queue carries a bare pointer, and the request's onDisconnect
+        // handler can kill() this channel at any moment.  Without a reference
+        // the reaper sees both counts at zero and frees it while the entry is
+        // still queued, leaving background_task() to run a command against a
+        // deleted Channel.  Hold a processing reference until the background
+        // task is finished with it.
+        if (!try_acquire_processing_ref()) {
+            return;  // already closing; nothing would read the result
+        }
         xSemaphoreTake(xBufferLock, portMAX_DELAY);
         cmds.push_back(std::string(cmd));
         WebClient* _this = this;
-        xQueueSend(WebClients::_background_task_queue, &_this, portTICK_PERIOD_MS * 100);
+        if (xQueueSend(WebClients::_background_task_queue, &_this, portTICK_PERIOD_MS * 100) != pdTRUE) {
+            cmds.pop_back();
+            xSemaphoreGive(xBufferLock);
+            release_processing_ref();
+            log_error("WebClient: could not queue command for background execution");
+            return;
+        }
         xSemaphoreGive(xBufferLock);
     }
 
