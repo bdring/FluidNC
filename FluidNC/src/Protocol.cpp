@@ -218,10 +218,19 @@ static void poll_once() {
                 return;
             }
 
-            // Job channel has priority: feed it while cmd_queue has room.
+            // Job channel has priority: feed it while cmd_queue has room, but
+            // not while a line we already handed off is still in flight.
+            // protocol_main_loop frees the cmd_queue slot on xQueueReceive,
+            // before execute_line() runs, so a $sd/run that is about to nest a
+            // child file has not nested it yet; reading the next line here - or
+            // hitting EOF and unnesting - would pull the parent out from under
+            // that pending nest.  The processing ref, held from just before the
+            // handoff below until the consumer's ack, is the "line in flight"
+            // signal; gating on it restores the barrier that the old
+            // single-slot activeChannel handoff provided for free.
             char buf[Channel::maxLine];
             if (uxQueueSpacesAvailable(cmd_queue)) {
-                if (Channel* channel = Job::channel()) {
+                if (Channel* channel = Job::channel(); channel && channel->pending_processing_refs() == 0) {
                     auto status = channel->pollLine(buf);
                     switch (status) {
                         case Error::Ok:
