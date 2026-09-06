@@ -121,7 +121,7 @@ namespace MotorDrivers {
         float feedrate = Stepper::get_realtime_rate();  //* settings.microsteps[axis_index] / 60.0 ; // convert mm/min to Hz
 
         log_info(axisName() << " Stallguard " << tmc5160->stallguard() << "   SG_Val:" << tmc5160->sg_result() << " Rate:" << feedrate
-                            << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
+                            << " mm/min SG_Setting:" << constrain(active_stallguard(), -64, 63));
     }
 
     void TMC5160Driver::set_disable(bool disable) {

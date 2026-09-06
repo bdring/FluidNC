@@ -90,30 +90,39 @@ namespace MotorDrivers {
             // typically used here for sensorless homing.
             handler.item("homing_mode", _homing_mode, trinamicModes);
 
+            // @config stallguard
+            // @default 0
+            // StallGuard sensitivity threshold for this SPI-driven chip family, -64
+            // (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or
+            // homing_mode is StallGuard. Used as-is for the slow (feed) approach phase of
+            // homing; see stallguard_seek for the fast (seek) approach phase.
+            handler.item("stallguard", _stallguard, -64, 63);
+
             // @config homing_amps
             // @default 0.0
             // @default_note substituted with run_amps if left at 0
-            // Motor current while homing. Leaving this at its default 0 isn't literally
-            // "zero current" -- afterParse() detects the default and substitutes run_amps
-            // instead, so omitting this field entirely is equivalent to setting it equal to
-            // run_amps. This fallback is specific to TMC2209; no other Trinamic driver type
-            // has a homing_amps field at all.
+            // Motor current while homing, in amps RMS. Leaving this at its default 0 isn't
+            // literally "zero current" -- afterParse() detects the default and substitutes
+            // run_amps instead, so omitting this field entirely is equivalent to setting it
+            // equal to run_amps. Lowering it makes the motor stall sooner and more gently
+            // against a hard stop during sensorless homing.
             handler.item("homing_amps", _homing_current, 0.0, 10.0);
-          
+
             // @config stallguard_debug
             // @default false
             // Logs live StallGuard sensor values -- useful for tuning the stallguard
-            // threshold for sensorless homing. Not usable together with
-            // shared_address_write_only.
+            // threshold for sensorless homing.
             handler.item("stallguard_debug", _stallguardDebugMode);
- 
+
             // @config stallguard_seek
-            // @default 0.0
-            // @default_note substituted with stallguard if left at 0
-            // StallGuard threshold for the fast (seek) approach phase, while the existing
-            // stallguard value is used for the slow (feed) approach. The two phases run at
-            // very different speeds, and StallGuard sensitivity is strongly speed-dependent,
-            // so a single threshold is often a compromise.
+            // @default (none)
+            // @default_note substituted with the stallguard value in afterParse() if not set
+            // Separate StallGuard threshold (-64 to 63) for the fast (seek) approach phase
+            // of homing, while the stallguard value is used for the slow (feed) approach.
+            // The two phases run at very different speeds, and StallGuard sensitivity is
+            // strongly speed-dependent, so a single threshold is often a compromise. If this
+            // field is omitted, afterParse() substitutes the stallguard value; an explicit
+            // 0 is a real threshold value, not "unset".
             handler.item("stallguard_seek", _stallguard_seek, -64, 63);
 
             // @config toff_coolstep
