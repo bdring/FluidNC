@@ -341,7 +341,7 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a75.4.3. Class chain: StandardStepper -> TrinamicBase -> TrinamicSpiDriver -> TMC2130Driver. homing_amps does NOT exist on this type.",
+      "description": "spec \u00a75.4.3. Class chain: StandardStepper -> TrinamicBase -> TrinamicSpiDriver -> TMC2130Driver.",
       "additionalProperties": false,
       "properties": {
         "step_pin": {
@@ -401,7 +401,14 @@
           "minimum": -64,
           "maximum": 63,
           "default": 0,
-          "description": "SPI-driver range. NOTE: tmc_2209's stallguard range is 0-255, different -- see motor_tmc_2209."
+          "description": "StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard. Used as-is for the slow (feed) approach phase of homing; see stallguard_seek for the fast (seek) approach phase. (tmc_2209's stallguard range is 0-255 instead -- see motor_tmc_2209.)"
+        },
+        "homing_amps": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 10.0,
+          "default": 0.0,
+          "description": "substituted with run_amps if left at 0. Motor current while homing, in amps RMS. Leaving this at its default 0 isn't literally \"zero current\" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. Lowering it makes the motor stall sooner and more gently against a hard stop during sensorless homing."
         },
         "stallguard_debug": {
           "allOf": [
@@ -409,7 +416,14 @@
               "$ref": "#/$defs/boolean"
             }
           ],
-          "default": false
+          "default": false,
+          "description": "Logs live StallGuard sensor values -- useful for tuning the stallguard threshold for sensorless homing."
+        },
+        "stallguard_seek": {
+          "type": "integer",
+          "minimum": -64,
+          "maximum": 63,
+          "description": "substituted with the stallguard value in afterParse() if not set. Separate StallGuard threshold (-64 to 63) for the fast (seek) approach phase of homing, while the stallguard value is used for the slow (feed) approach. The two phases run at very different speeds, and StallGuard sensitivity is strongly speed-dependent, so a single threshold is often a compromise. If this field is omitted, afterParse() substitutes the stallguard value; an explicit 0 is a real threshold value, not \"unset\"."
         },
         "toff_disable": {
           "type": "integer",
@@ -487,7 +501,7 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a75.4.5. Identical to tmc_2130 plus tpfd.",
+      "description": "spec \u00a75.4.5. Identical to tmc_2130 plus tpfd. Also the driver behind tmc_2160 (no 'Pro' suffix) -- a registration alias of this type, NOT of the raw-register tmc_5160Pro/tmc_2160Pro.",
       "additionalProperties": false,
       "properties": {
         "step_pin": {
@@ -547,7 +561,14 @@
           "minimum": -64,
           "maximum": 63,
           "default": 0,
-          "description": "SPI-driver range. NOTE: tmc_2209's stallguard range is 0-255, different -- see motor_tmc_2209."
+          "description": "StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard. Used as-is for the slow (feed) approach phase of homing; see stallguard_seek for the fast (seek) approach phase. (tmc_2209's stallguard range is 0-255 instead -- see motor_tmc_2209.)"
+        },
+        "homing_amps": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 10.0,
+          "default": 0.0,
+          "description": "substituted with run_amps if left at 0. Motor current while homing, in amps RMS. Leaving this at its default 0 isn't literally \"zero current\" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. Lowering it makes the motor stall sooner and more gently against a hard stop during sensorless homing."
         },
         "stallguard_debug": {
           "allOf": [
@@ -555,7 +576,14 @@
               "$ref": "#/$defs/boolean"
             }
           ],
-          "default": false
+          "default": false,
+          "description": "Logs live StallGuard sensor values -- useful for tuning the stallguard threshold for sensorless homing."
+        },
+        "stallguard_seek": {
+          "type": "integer",
+          "minimum": -64,
+          "maximum": 63,
+          "description": "substituted with the stallguard value in afterParse() if not set. Separate StallGuard threshold (-64 to 63) for the fast (seek) approach phase of homing, while the stallguard value is used for the slow (feed) approach. The two phases run at very different speeds, and StallGuard sensitivity is strongly speed-dependent, so a single threshold is often a compromise. If this field is omitted, afterParse() substitutes the stallguard value; an explicit 0 is a real threshold value, not \"unset\"."
         },
         "toff_disable": {
           "type": "integer",
@@ -762,7 +790,7 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a75.4.6. Only use when the chip's UART is actually wired -- otherwise use stepstick. Individually addressable via addr: 0-3 (hardware MS1/MS2 pins), up to 4 independently readable chips per UART bus. Selectorless drivers may share an address only when every member explicitly enables shared_address_write_only and has identical UART-controlled settings. homing_amps is TMC2209-SPECIFIC (does not exist on 2130/2208/5160); if left at its default of 0 it is silently set equal to run_amps at parse time. stallguard range here is 0-255, NOT -64 to 63 like every SPI driver type.",
+      "description": "spec \u00a75.4.6. Only use when the chip's UART is actually wired -- otherwise use stepstick. Individually addressable via addr: 0-3 (hardware MS1/MS2 pins), up to 4 independently readable chips per UART bus. Selectorless drivers may share an address only when every member explicitly enables shared_address_write_only and has identical UART-controlled settings. homing_amps here works like the SPI drivers' now-shared homing_amps (still absent on tmc_2208): if left at its default of 0 it is silently set equal to run_amps at parse time. stallguard range here is 0-255, NOT -64 to 63 like every SPI driver type. There is no stallguard_seek here -- the seek/feed split is SPI-driver-only.",
       "additionalProperties": false,
       "properties": {
         "step_pin": {
@@ -889,7 +917,7 @@
           "minimum": 0.0,
           "maximum": 10.0,
           "default": 0.0,
-          "description": "If left at 0, silently set equal to run_amps at parse time (TMC2209Driver::afterParse())."
+          "description": "substituted with run_amps if left at 0. Motor current while homing, in amps RMS. Leaving this at its default 0 isn't literally \"zero current\" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. Lowering it makes the motor stall sooner and more gently against a hard stop during sensorless homing."
         },
         "stallguard": {
           "type": "integer",
@@ -905,7 +933,7 @@
         "object",
         "null"
       ],
-      "description": "spec \u00a75.4.7. Used identically by tmc_5160Pro, tmc_2160Pro, and tmc_2160 (no 'Pro' suffix) -- all three names register the EXACT SAME driver class in source; pick whichever name best documents the physical chip. Raw register values, not semantic fields -- do not invent values beyond the shown defaults. tpfd exists in source but is commented out (inactive).",
+      "description": "spec \u00a75.4.7. Used by tmc_5160Pro and its registration alias tmc_2160Pro -- both register the EXACT SAME raw-register driver class in source. NOTE: tmc_2160 (no 'Pro' suffix) is NOT one of these -- it is an alias of the ordinary tmc_5160 (see motor_tmc_5160). Raw register values, not semantic fields -- do not invent values beyond the shown defaults. tpfd exists in source but is commented out (inactive).",
       "additionalProperties": false,
       "properties": {
         "step_pin": {
@@ -1212,7 +1240,7 @@
           "$ref": "#/$defs/motor_tmc_raw_register"
         },
         "tmc_2160": {
-          "$ref": "#/$defs/motor_tmc_raw_register"
+          "$ref": "#/$defs/motor_tmc_5160"
         },
         "rc_servo": {
           "$ref": "#/$defs/motor_rc_servo"
@@ -2816,7 +2844,8 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 5,
-          "default": 2
+          "default": 1,
+          "description": "Debug message verbosity: 0-1 no debug info, 2 shows missing responses and speed info, 3+ also shows raw Rx/Tx Modbus messages."
         },
         "poll_ms": {
           "type": "integer",
@@ -2907,7 +2936,8 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 5,
-          "default": 2
+          "default": 1,
+          "description": "Debug message verbosity: 0-1 no debug info, 2 shows missing responses and speed info, 3+ also shows raw Rx/Tx Modbus messages."
         },
         "poll_ms": {
           "type": "integer",
@@ -2918,6 +2948,15 @@
         "retries": {
           "type": "integer",
           "default": 5
+        },
+        "safety_polling": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/boolean"
+            }
+          ],
+          "default": false,
+          "description": "When true, the VFD is polled for speed continuously. ModbusVFD only -- the named-protocol types hardcode this per model."
         },
         "model": {
           "type": "string",

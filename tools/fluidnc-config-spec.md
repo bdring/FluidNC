@@ -308,7 +308,7 @@ stepstick:
 
 #### 5.4.3 `tmc_2130:` — SPI-controlled Trinamic driver
 
-Class chain: `StandardStepper → TrinamicBase → TrinamicSpiDriver → TMC2130Driver`. Ground truth: `TrinamicBase::group()` + `TrinamicSpiDriver::group()` (TMC2130Driver.h adds nothing further). **Two real corrections from the previous pass: `r_sense_ohms` minimum is 0.0, not 0.01; and `homing_amps` does NOT exist on this driver type at all (it was previously, incorrectly, listed here).**
+Class chain: `StandardStepper → TrinamicBase → TrinamicSpiDriver → TMC2130Driver`. Ground truth: `TrinamicBase::group()` + `TrinamicSpiDriver::group()` (TMC2130Driver.h adds nothing further). **`r_sense_ohms` minimum is 0.0, not 0.01. `homing_amps` and `stallguard_seek` DO exist on this driver type — `TrinamicSpiDriver::group()` adds both, so they are shared by every SPI Trinamic type (`tmc_2130`, `tmc_5160`, `tmc_2160`), though not by the UART types.**
 ```yaml
 tmc_2130:
   step_pin: NO_PIN
@@ -320,8 +320,10 @@ tmc_2130:
   run_amps: 0.5                # Float 0.05-10.0, default 0.5
   hold_amps: 0.5               # Float 0.05-10.0, default 0.5
   microsteps: 16                # Integer 1-256, default 16
-  stallguard: 0                 # Integer -64 to 63, default 0
+  stallguard: 0                 # Integer -64 to 63, default 0 — threshold for the slow (feed) approach phase of homing
+  homing_amps: 0.0              # Float 0.0-10.0, default 0.0 — if left at 0, silently set equal to run_amps at parse time (see note)
   stallguard_debug: false       # Boolean, default false
+  stallguard_seek: <none>       # Integer -64 to 63 — threshold for the fast (seek) approach phase of homing; if unset, afterParse() copies stallguard (see note)
   toff_disable: 0                # Integer 0-15, default 0
   toff_stealthchop: 5            # Integer 2-15, default 5
   toff_coolstep: 3               # Integer 2-15, default 3
@@ -333,6 +335,8 @@ tmc_2130:
   diag0_int_pushpull: false        # Boolean, default false
 ```
 **`r_sense_ohms` has no real per-chip default baked into the config item itself (`TrinamicBase::_r_sense` defaults to `0`, a non-functional value)** — a real value appropriate to the physical module must always be supplied explicitly; `0.11` is the typical value for genuine TMC2130 modules but is a convention to follow, not a firmware default you can omit. The enum's third value is spelled `StallGuard` (capital G), not `Stallguard` as previously written — case-insensitive matching (§0.8) means either works, but `StallGuard` is the canonical spelling shown in source.
+
+**Homing phase fields (`homing_amps`, `stallguard_seek`).** Sensorless homing runs a fast "seek" approach and a slow "feed" approach, and StallGuard sensitivity is strongly speed-dependent, so a single threshold is often a compromise. `stallguard` is used for the feed phase; `stallguard_seek` is a separate threshold for the seek phase. `TrinamicSpiDriver::afterParse()` fills in the defaults: if `homing_amps` is left at `0` it is set equal to `run_amps` (so omitting it is equivalent to `homing_amps: run_amps`), and if `stallguard_seek` is omitted it is set equal to `stallguard`. An explicit `stallguard_seek: 0` is a real threshold value, not "unset". Lowering `homing_amps` makes the motor stall sooner and more gently against a hard stop.
 
 Daisy-chain rule: in a daisy chain, FluidNC must know about **every** driver in the physical chain, even unused positions — you must define a motor entry for each chain position, using placeholder/dummy values for positions with no real axis if necessary, or the chain's data alignment breaks.
 
@@ -366,17 +370,18 @@ tmc_2208:
 
 #### 5.4.5 `tmc_5160:` — SPI-controlled, higher-current Trinamic driver
 
-Class chain: `StandardStepper → TrinamicBase → TrinamicSpiDriver → TMC5160Driver`. Confirmed: identical key set to `tmc_2130` (same `TrinamicSpiDriver::group()` base) plus one addition:
+Class chain: `StandardStepper → TrinamicBase → TrinamicSpiDriver → TMC5160Driver`. Confirmed: identical key set to `tmc_2130` (same `TrinamicSpiDriver::group()` base — including `homing_amps` and `stallguard_seek`) plus one addition:
 ```yaml
 tmc_5160:
-  # ...all tmc_2130 keys (step_pin through diag0_int_pushpull)...
+  # ...all tmc_2130 keys (step_pin through diag0_int_pushpull, incl. homing_amps / stallguard_seek)...
   tpfd: 4                      # Integer 0-15, default 4
 ```
+**`tmc_2160` (no "Pro" suffix) is a registration alias of this type** — `TMC2160Driver` (in `TMC2160Driver.h`) extends `TMC5160Driver` and adds nothing. Its field set is exactly this one. Do not confuse it with `tmc_2160Pro`, which is a raw-register alias of `tmc_5160Pro` (§5.4.7).
 `r_sense_ohms` is typically `0.075` for genuine TMC5160 modules (vs `0.11` typical for TMC2130) — same "no real firmware default" caveat as §5.4.3 applies; always set it explicitly rather than omitting it.
 
 #### 5.4.6 `tmc_2209:` — UART-controlled, individually addressable Trinamic driver
 
-Class chain: `StandardStepper → TrinamicBase → TrinamicUartDriver → TMC2209Driver`. **Real corrections: `homing_amps` genuinely exists here (it's TMC2209-specific, not shared with 2130/2208/5160 as previously implied); `stallguard`'s range is different from every SPI-driver type — 0 to 255, not -64 to 63; and `toff_disable`/`toff_stealthchop` (missing from an earlier pass) ARE present here too, inherited via `TrinamicBase::group()`.**
+Class chain: `StandardStepper → TrinamicBase → TrinamicUartDriver → TMC2209Driver`. **Notes: `homing_amps` exists here (declared on `TMC2209Driver` itself); the SPI driver types now also have their own `homing_amps` with the same `0 → run_amps` fallback, but `tmc_2208` still does not. `stallguard`'s range is different from every SPI-driver type — 0 to 255, not -64 to 63. There is no `stallguard_seek` here — the homing seek/feed threshold split is SPI-driver-only. `toff_disable`/`toff_stealthchop` ARE present here too, inherited via `TrinamicBase::group()`.**
 ```yaml
 tmc_2209:
   uart_num: 1                  # Integer — refers to a top-level uartN: section, see §9
@@ -402,16 +407,20 @@ tmc_2209:
 ```
 Rules:
 - **Only use `tmc_2209:` when the chip's UART is actually wired up and being addressed.** A TMC2209 without real UART wiring — whether it's an onboard chip with no UART broken out, or a stepstick module factory-jumpered for standalone mode — must be configured as `stepstick:` (§5.4.2) instead; `tmc_2209:`'s current/microstepping/mode fields do nothing without a working UART link to actually write them to the chip.
-- **`homing_amps` has a real, useful fallback behavior worth knowing:** `TMC2209Driver::afterParse()` explicitly sets `_homing_current = _run_current` whenever `homing_amps` was left at its default of `0`. So omitting `homing_amps` entirely is equivalent to setting it equal to `run_amps` — a reasonable default, but only for this one driver type; don't assume the same fallback applies elsewhere (it doesn't — `homing_amps` doesn't exist as a field on any other TMC type in this document).
+- **`homing_amps` has a real, useful fallback behavior worth knowing:** `TMC2209Driver::afterParse()` explicitly sets `_homing_current = _run_current` whenever `homing_amps` was left at its default of `0`. So omitting `homing_amps` entirely is equivalent to setting it equal to `run_amps`. The SPI driver types (`tmc_2130`/`tmc_5160`/`tmc_2160`) now do the same thing in `TrinamicSpiDriver::afterParse()`; only `tmc_2208` has no `homing_amps` field at all.
 - Unlike TMC2208, TMC2209 chips **are** individually addressable when each chip's hardware address pins (`MS1_AD0`/`MS2_AD1`) are wired to give it a unique `addr:` (0–3) on the shared UART bus — up to 4 independently readable chips per UART. Multiple selectorless TMC2209s may intentionally use the same `uart_num:` and `addr:` only when every member sets `shared_address_write_only: true`, uses `cs_pin: NO_PIN`, and has identical UART-controlled settings. In that mode, addressed writes configure all responders while version/IFCNT/register readback and live StallGuard diagnostics are unavailable; `stallguard_debug: true` is rejected. Step, direction, disable, and limit pins remain independent per motor. The default `false` preserves strict communication testing.
 - `uart_num:` must reference a `uartN:` top-level section (§0.11 — no ordering requirement, but placing it earlier is still good practice).
 - There is no per-motor nested `uart:` sub-block for TMC2209 (or TMC2208, per the correction in §5.4.4) — always use the external `uart_num:` + top-level `uartN:` section form.
 
-#### 5.4.7 `tmc_5160Pro:` / `tmc_2160Pro:` / `tmc_2160:` — expert/raw-register mode
+#### 5.4.7 `tmc_5160Pro:` / `tmc_2160Pro:` — expert/raw-register mode
 
-Ground truth: `TMC5160ProDriver::group()`. **A genuinely surprising finding from source: all three of these names are effectively the same driver.** `tmc_5160Pro` registers `TMC5160ProDriver` directly; `tmc_2160Pro` registers a subclass `TMC2160Driver` that adds *nothing* on top of `TMC5160ProDriver` (empty class body, differs only in an unused reference constant); and **`tmc_2160` (no "Pro" suffix) also registers that exact same `TMC2160Driver` class** — there is no separate "friendly semantic-field" TMC2160 driver the way `tmc_5160`/`tmc_2130` are for their respective chips. All three names — `tmc_5160Pro`, `tmc_2160Pro`, `tmc_2160` — are functionally identical raw-register drivers; pick whichever name best documents the actual chip for a human reading the config, since it makes no difference to the firmware. Also note the SPI `tpfd` field is present in source but **commented out** (`//handler.item("tpfd"...)`) — it is not an active config key on this driver despite appearing in the code.
+Ground truth: `TMC5160ProDriver::group()`. **`tmc_5160Pro` and `tmc_2160Pro` are the same raw-register driver.** `tmc_5160Pro` registers `TMC5160ProDriver` directly; `tmc_2160Pro` registers a subclass `TMC2160Driver` (declared in `TMC2160ProDriver.h`) that adds *nothing* on top of `TMC5160ProDriver` (empty class body, differs only in an unused reference constant). Pick whichever name best documents the actual chip.
+
+**`tmc_2160` (no "Pro" suffix) is NOT one of these** — despite the name it is an alias of the ordinary, semantic-field `tmc_5160` (§5.4.5). It registers a *different* class, also named `MotorDrivers::TMC2160Driver` but declared in `TMC2160Driver.h`, which extends `TMC5160Driver` and inherits the full `TrinamicBase` + `TrinamicSpiDriver` field set (`run_amps`, `microsteps`, `run_mode`, `stallguard`, `homing_amps`, `stallguard_seek`, `tpfd`, …). Use `tmc_2160` for a real TMC2160 configured with normal semantic fields; use `tmc_2160Pro`/`tmc_5160Pro` only for raw-register expert mode.
+
+For the raw-register drivers below, note the SPI `tpfd` field is present in source but **commented out** (`//handler.item("tpfd"...)`) — it is not an active config key on this driver despite appearing in the code.
 ```yaml
-tmc_5160Pro:      # tmc_2160Pro: and tmc_2160: are functionally identical — see note above
+tmc_5160Pro:      # tmc_2160Pro: is identical — see note above (tmc_2160: is NOT — it is a tmc_5160 alias)
   step_pin: NO_PIN
   direction_pin: NO_PIN
   disable_pin: NO_PIN
@@ -1036,7 +1045,7 @@ These are structurally distinct from §10's spindles: ground truth is `Spindles:
   uart_num: 1                 # Integer — references a top-level uartN: section, see §9. Preferred/current form.
   # -- OR, older/generator-only form (do not mix): a nested uart: sub-block directly under the spindle --
   modbus_id: 1                 # Integer 0-247, default 1 — the RS485/Modbus slave address of the VFD
-  debug: 2                       # Integer 0-5, default 2
+  debug: 1                       # Integer 0-5, default 1 — 0-1 no debug info, 2 shows missing responses + speed info, 3+ also raw Rx/Tx Modbus messages
   poll_ms: 250                     # Integer 250-20000, default 250
   retries: 5                         # Integer, default 5
   # plus all of Spindle::group()'s common fields from §10.2 (tool_num, speed_map, off_on_alarm, atc, m6_macro, s0_with_disable, disable_with_s0, spinup_ms, spindown_ms)
@@ -1072,6 +1081,7 @@ Adds a distinct set of fields on top of §14.1 for VFDs with no built-in protoco
 ModbusVFD:
   uart_num: 1
   modbus_id: 1
+  safety_polling: false     # Boolean, default false — when true, poll the VFD for speed continuously. ModbusVFD only (named-protocol types hardcode this per model)
   model: "My VFD"           # String — descriptive only
   min_RPM: 0                  # Integer
   max_RPM: 24000                # Integer
