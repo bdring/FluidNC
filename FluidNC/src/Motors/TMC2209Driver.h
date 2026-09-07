@@ -49,11 +49,11 @@ namespace MotorDrivers {
             // @config homing_amps
             // @default 0.0
             // @default_note substituted with run_amps if left at 0
-            // Motor current while homing. Leaving this at its default 0 isn't literally
-            // "zero current" -- afterParse() detects the default and substitutes run_amps
-            // instead, so omitting this field entirely is equivalent to setting it equal to
-            // run_amps. This fallback is specific to TMC2209; no other Trinamic driver type
-            // has a homing_amps field at all.
+            // Motor current while homing, in amps RMS. Leaving this at its default 0 isn't
+            // literally "zero current" -- afterParse() detects the default and substitutes
+            // run_amps instead, so omitting this field entirely is equivalent to setting it
+            // equal to run_amps. Lowering it makes the motor stall sooner and more gently
+            // against a hard stop during sensorless homing.
             handler.item("homing_amps", _homing_current, 0.0, 10.0);
 
             // @config stallguard
