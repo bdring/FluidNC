@@ -27,7 +27,7 @@ spindle_sections: [PWM, Laser, 10V, BESC, HBridge, OnOff, Relay, DAC, PlasmaSpin
 # meaningful for a custom/unsupported VFD (the plain ModbusVFD: key); a
 # named model's own compiled-in class supplies working values for all of
 # them instead, independent of config.yaml.
-vfd_protocol_fields: [model, min_RPM, max_RPM, cw_cmd, ccw_cmd, off_cmd, set_rpm_cmd, get_min_rpm_cmd, get_max_rpm_cmd, get_rpm_cmd]
+vfd_protocol_fields: [safety_polling, model, min_RPM, max_RPM, cw_cmd, ccw_cmd, off_cmd, set_rpm_cmd, get_min_rpm_cmd, get_max_rpm_cmd, get_rpm_cmd]
 
 (top-level machine items):
   board:
@@ -1195,13 +1195,31 @@ axes.<letter>.motorN.tmc_2130:
     max: 63
     default: '0'
     description: |
-      StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard.
+      StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard. Used as-is for the slow (feed) approach phase of homing; see stallguard_seek for the fast (seek) approach phase.
+
+  homing_amps:
+    type: float
+    min: 0.0
+    max: 10.0
+    default: '0.0'
+    default_note: 'substituted with run_amps if left at 0'
+    description: |
+      Motor current while homing, in amps RMS. Leaving this at its default 0 isn't literally "zero current" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. Lowering it makes the motor stall sooner and more gently against a hard stop during sensorless homing.
 
   stallguard_debug:
     type: boolean
     default: 'false'
     description: |
       Logs live StallGuard sensor values -- useful for tuning the stallguard threshold for sensorless homing.
+
+  stallguard_seek:
+    type: integer
+    min: -64
+    max: 63
+    default: '(none)'
+    default_note: 'substituted with the stallguard value in afterParse() if not set'
+    description: |
+      Separate StallGuard threshold (-64 to 63) for the fast (seek) approach phase of homing, while the stallguard value is used for the slow (feed) approach. The two phases run at very different speeds, and StallGuard sensitivity is strongly speed-dependent, so a single threshold is often a compromise. If this field is omitted, afterParse() substitutes the stallguard value; an explicit 0 is a real threshold value, not "unset".
 
   toff_coolstep:
     type: integer
@@ -1489,7 +1507,7 @@ axes.<letter>.motorN.tmc_2209:
     default: '0.0'
     default_note: 'substituted with run_amps if left at 0'
     description: |
-      Motor current while homing. Leaving this at its default 0 isn't literally "zero current" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. This fallback is specific to TMC2209; no other Trinamic driver type has a homing_amps field at all.
+      Motor current while homing, in amps RMS. Leaving this at its default 0 isn't literally "zero current" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. Lowering it makes the motor stall sooner and more gently against a hard stop during sensorless homing.
 
   stallguard:
     type: integer
@@ -1635,13 +1653,31 @@ axes.<letter>.motorN.tmc_5160:
     max: 63
     default: '0'
     description: |
-      StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard.
+      StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard. Used as-is for the slow (feed) approach phase of homing; see stallguard_seek for the fast (seek) approach phase.
+
+  homing_amps:
+    type: float
+    min: 0.0
+    max: 10.0
+    default: '0.0'
+    default_note: 'substituted with run_amps if left at 0'
+    description: |
+      Motor current while homing, in amps RMS. Leaving this at its default 0 isn't literally "zero current" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. Lowering it makes the motor stall sooner and more gently against a hard stop during sensorless homing.
 
   stallguard_debug:
     type: boolean
     default: 'false'
     description: |
       Logs live StallGuard sensor values -- useful for tuning the stallguard threshold for sensorless homing.
+
+  stallguard_seek:
+    type: integer
+    min: -64
+    max: 63
+    default: '(none)'
+    default_note: 'substituted with the stallguard value in afterParse() if not set'
+    description: |
+      Separate StallGuard threshold (-64 to 63) for the fast (seek) approach phase of homing, while the stallguard value is used for the slow (feed) approach. The two phases run at very different speeds, and StallGuard sensitivity is strongly speed-dependent, so a single threshold is often a compromise. If this field is omitted, afterParse() substitutes the stallguard value; an explicit 0 is a real threshold value, not "unset".
 
   toff_coolstep:
     type: integer
@@ -1793,13 +1829,31 @@ axes.<letter>.motorN.tmc_2160:
     max: 63
     default: '0'
     description: |
-      StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard.
+      StallGuard sensitivity threshold for this SPI-driven chip family, -64 (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or homing_mode is StallGuard. Used as-is for the slow (feed) approach phase of homing; see stallguard_seek for the fast (seek) approach phase.
+
+  homing_amps:
+    type: float
+    min: 0.0
+    max: 10.0
+    default: '0.0'
+    default_note: 'substituted with run_amps if left at 0'
+    description: |
+      Motor current while homing, in amps RMS. Leaving this at its default 0 isn't literally "zero current" -- afterParse() detects the default and substitutes run_amps instead, so omitting this field entirely is equivalent to setting it equal to run_amps. Lowering it makes the motor stall sooner and more gently against a hard stop during sensorless homing.
 
   stallguard_debug:
     type: boolean
     default: 'false'
     description: |
       Logs live StallGuard sensor values -- useful for tuning the stallguard threshold for sensorless homing.
+
+  stallguard_seek:
+    type: integer
+    min: -64
+    max: 63
+    default: '(none)'
+    default_note: 'substituted with the stallguard value in afterParse() if not set'
+    description: |
+      Separate StallGuard threshold (-64 to 63) for the fast (seek) approach phase of homing, while the stallguard value is used for the slow (feed) approach. The two phases run at very different speeds, and StallGuard sensitivity is strongly speed-dependent, so a single threshold is often a compromise. If this field is omitted, afterParse() substitutes the stallguard value; an explicit 0 is a real threshold value, not "unset".
 
   toff_coolstep:
     type: integer
@@ -3172,7 +3226,7 @@ ModbusVFD:
     type: integer
     min: 0
     max: 5
-    default: '2'
+    default: '1'
     description: |
       Debug message verbosity: 0-1 no debug info, 2 shows missing responses and speed info, 3+ also shows raw Rx/Tx Modbus messages.
 
@@ -3189,6 +3243,13 @@ ModbusVFD:
     default: '5'
     description: |
       Number of failed Modbus exchanges tolerated before raising an alarm.
+
+  safety_polling:
+    type: boolean
+    default: 'false'
+    default_note: '""'
+    description: |
+      VFD is is polled for speed continously
 
   model:
     type: string

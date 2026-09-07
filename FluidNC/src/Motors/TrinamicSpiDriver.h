@@ -48,6 +48,12 @@ namespace MotorDrivers {
                 }
             }
             _spi_setup_done = true;
+            if (_homing_current == 0) {
+                _homing_current = _run_current;
+            }
+            if (_stallguard_seek == UNSET_STALLGUARD_SEEK) {
+                _stallguard_seek = _stallguard;
+            }
         }
 
         void validate() override { StandardStepper::validate(); }
@@ -88,14 +94,36 @@ namespace MotorDrivers {
             // @default 0
             // StallGuard sensitivity threshold for this SPI-driven chip family, -64
             // (most sensitive) to 63 (least sensitive). Only meaningful when run_mode or
-            // homing_mode is StallGuard.
+            // homing_mode is StallGuard. Used as-is for the slow (feed) approach phase of
+            // homing; see stallguard_seek for the fast (seek) approach phase.
             handler.item("stallguard", _stallguard, -64, 63);
+
+            // @config homing_amps
+            // @default 0.0
+            // @default_note substituted with run_amps if left at 0
+            // Motor current while homing, in amps RMS. Leaving this at its default 0 isn't
+            // literally "zero current" -- afterParse() detects the default and substitutes
+            // run_amps instead, so omitting this field entirely is equivalent to setting it
+            // equal to run_amps. Lowering it makes the motor stall sooner and more gently
+            // against a hard stop during sensorless homing.
+            handler.item("homing_amps", _homing_current, 0.0, 10.0);
 
             // @config stallguard_debug
             // @default false
             // Logs live StallGuard sensor values -- useful for tuning the stallguard
             // threshold for sensorless homing.
             handler.item("stallguard_debug", _stallguardDebugMode);
+
+            // @config stallguard_seek
+            // @default (none)
+            // @default_note substituted with the stallguard value in afterParse() if not set
+            // Separate StallGuard threshold (-64 to 63) for the fast (seek) approach phase
+            // of homing, while the stallguard value is used for the slow (feed) approach.
+            // The two phases run at very different speeds, and StallGuard sensitivity is
+            // strongly speed-dependent, so a single threshold is often a compromise. If this
+            // field is omitted, afterParse() substitutes the stallguard value; an explicit
+            // 0 is a real threshold value, not "unset".
+            handler.item("stallguard_seek", _stallguard_seek, -64, 63);
 
             // @config toff_coolstep
             // @default 3

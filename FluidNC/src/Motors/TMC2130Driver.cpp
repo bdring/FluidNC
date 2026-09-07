@@ -45,7 +45,8 @@ namespace MotorDrivers {
         // Run and hold current configuration items are in (float) Amps,
         // but the TMCStepper library expresses run current as (uint16_t) mA
         // and hold current as (float) fraction of run current.
-        uint16_t run_i = (uint16_t)(_run_current * 1000.0);
+        float    mode_current = isHoming ? _homing_current : _run_current;
+        uint16_t run_i        = (uint16_t)(mode_current * 1000.0);
         tmc2130->I_scale_analog(false);  // do not scale via pot
         tmc2130->rms_current(run_i, TrinamicSpiDriver::holdPercent());
 
@@ -80,10 +81,21 @@ namespace MotorDrivers {
                     tmc2130->THIGH(calc_tstep(60));
                     tmc2130->sfilt(1);
                     tmc2130->diag1_stall(true);  // stallguard i/o is on diag1
-                    tmc2130->sgt(constrain(_stallguard, -64, 63));
+                    tmc2130->sgt(constrain(active_stallguard(), -64, 63));
                 }
                 break;
         }
+    }
+
+    // Retune stallguard registers when the homing cycle transitions
+    // between the seek (fast approach) and feed (slow approach) phases.
+    void TMC2130Driver::apply_homing_phase() {
+        if (_has_errors) {
+            return;
+        }
+        tmc2130->TCOOLTHRS(calc_tstep(150));
+        tmc2130->THIGH(calc_tstep(60));
+        tmc2130->sgt(constrain(active_stallguard(), -64, 63));
     }
 
     // Report diagnostic and tuning info
@@ -100,7 +112,7 @@ namespace MotorDrivers {
         float feedrate = Stepper::get_realtime_rate();  //* settings.microsteps[axis_index] / 60.0 ; // convert mm/min to Hz
 
         log_info(axisName() << " Stallguard " << tmc2130->stallguard() << "   SG_Val:" << tmc2130->sg_result() << " Rate:" << feedrate
-                            << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
+                            << " mm/min SG_Setting:" << constrain(active_stallguard(), -64, 63));
     }
 
     void TMC2130Driver::set_disable(bool disable) {

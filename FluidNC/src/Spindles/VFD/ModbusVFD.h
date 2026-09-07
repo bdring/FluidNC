@@ -72,7 +72,7 @@ namespace Spindles {
                 // @config safety_polling
                 // @default false
                 // @default_note ""
-                // VFD is is polled for speed continously
+                // VFD is polled for speed continuously
                 handler.item("safety_polling", _safetyPolling);
 
                 // Generic/raw ModbusVFD spindle -- use this directly only for an
