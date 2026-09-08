@@ -1,5 +1,7 @@
 #include "WifiImpl.h"
 
+#include "Driver/watchdog.h"  // feed_watchdog()
+
 #include <Arduino.h>  // delay()
 
 namespace WebUI {
@@ -7,12 +9,29 @@ namespace WebUI {
         // Block until a scan completes, driving the non-blocking primitives.
         // On platforms whose startApListScan() is itself synchronous this
         // returns after one pass.
+        //
+        // This runs synchronously on the caller's task -- for the $WiFi/ListAPs
+        // ($ command / ESP410) path that is loopTask, which protocol_main_loop()
+        // has subscribed to the task watchdog. A WiFi scan takes several
+        // seconds, so feed the watchdog on every pass or it trips before the
+        // scan finishes. feed_watchdog() is a no-op when the current task
+        // isn't subscribed, so it is safe on every platform/caller.
+        //
+        // Feeding the watchdog removes the reboot that would otherwise end a
+        // wedged scan, so bound the wait explicitly -- same 25 s safety net as
+        // the async HTTP path (WifiScanAsync.cpp). On expiry, return an empty
+        // list rather than hanging the caller forever.
+        const uint32_t deadline = millis() + 25000;
         for (;;) {
             startApListScan();
             if (apListScanState() == ApScanState::Done) {
                 return apListCount();
             }
-            delay(1000);
+            if ((int32_t)(millis() - deadline) >= 0) {
+                return 0;
+            }
+            feed_watchdog();
+            delay(200);
         }
     }
 
