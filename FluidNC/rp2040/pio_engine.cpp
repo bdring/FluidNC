@@ -126,8 +126,8 @@ static void finish_step() {
 static bool start_unstep() {
     // Only spin out the pulse width if a step pulse is actually in flight.
     // unstep() is also called from stop_stepping() on soft reset, where
-    // _stepPulseEndTime is stale; the CCOUNT-based spinUntil() can then
-    // spin for up to ~half the 32-bit wraparound and trip the task watchdog.
+    // _stepPulseEndTime is stale; spinUntil() compares against the RP2040's
+    // free-running 1 MHz timer, so a stale deadline can spin for up to ~35 minutes and trip the watchdog.
     if (_stepPulsePending) {
         _stepPulsePending = false;
         spinUntil(_stepPulseEndTime);
