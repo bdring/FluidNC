@@ -16,10 +16,19 @@ namespace WebUI {
         // seconds, so feed the watchdog on every pass or it trips before the
         // scan finishes. feed_watchdog() is a no-op when the current task
         // isn't subscribed, so it is safe on every platform/caller.
+        //
+        // Feeding the watchdog removes the reboot that would otherwise end a
+        // wedged scan, so bound the wait explicitly -- same 25 s safety net as
+        // the async HTTP path (WifiScanAsync.cpp). On expiry, return an empty
+        // list rather than hanging the caller forever.
+        const uint32_t deadline = millis() + 25000;
         for (;;) {
             startApListScan();
             if (apListScanState() == ApScanState::Done) {
                 return apListCount();
+            }
+            if ((int32_t)(millis() - deadline) >= 0) {
+                return 0;
             }
             feed_watchdog();
             delay(200);
