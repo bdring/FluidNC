@@ -132,6 +132,10 @@ void UsbHostUart::registerInputPin(pinnum_t pinnum, InputPin* pin) {
 }
 
 void UsbHostUart::group(Configuration::HandlerBase& handler) {
+    // @config baud
+    // @default 115200
+    // Bit rate for the USB virtual COM port. Only the txd/rxd data lines and
+    // baud apply to a USB-host UART; there are no gpio pin assignments.
     handler.item("baud", _baud, 2400, 3000000);
 }
 

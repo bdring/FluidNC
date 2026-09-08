@@ -299,7 +299,7 @@ parking:
   pullout_distance_mm:
     type: float
     min: 0
-    max: 3e38
+    max: 3.0e+38
     default: '5.0'
     tuning: per-machine
     description: |
@@ -592,6 +592,16 @@ uartN:
     description: |
       Data format (same 3-character code as mode) used while this UART is in passthrough mode.
 
+# Optional nested subsection of a uartN: block, selecting a USB-host virtual COM port backend (ESP32-S3 only) instead of a hardware UART -- registered via UartFactory, like a motor/spindle type. When present, the uartN:'s own txd/rxd/baud/mode fields do not apply.
+uartN.usb_host:
+  baud:
+    type: integer
+    min: 2400
+    max: 3000000
+    default: '115200'
+    description: |
+      Bit rate for the USB virtual COM port. Only the txd/rxd data lines and baud apply to a USB-host UART; there are no gpio pin assignments.
+
 uart_channelN:
   report_interval_ms:
     type: integer
@@ -821,25 +831,25 @@ extenders.pinextenderN.<i2c_chip>:
       Which top-level i2cN: bus this extender chip is attached to. No range is enforced by this item() call itself, but init() asserts it must be 0 or 1.
 
   interrupt0:
-    type: unknown
+    type: pin
     default: 'NO_PIN'
     description: |
       Optional interrupt pin for device 0 in this extender's chain (address baseAddress + 0). When defined, avoids polling that device for input changes.
 
   interrupt1:
-    type: unknown
+    type: pin
     default: 'NO_PIN'
     description: |
       Optional interrupt pin for device 1 in this extender's chain (address baseAddress + 1).
 
   interrupt2:
-    type: unknown
+    type: pin
     default: 'NO_PIN'
     description: |
       Optional interrupt pin for device 2 in this extender's chain (address baseAddress + 2).
 
   interrupt3:
-    type: unknown
+    type: pin
     default: 'NO_PIN'
     description: |
       Optional interrupt pin for device 3 in this extender's chain (address baseAddress + 3).
@@ -922,8 +932,8 @@ axes.<letter>:
 axes.<letter>.homing:
   cycle:
     type: integer
-    min: set_mpos_only
-    max: MAX_N_AXIS
+    min: -1
+    max: 9
     default: '0'
     tuning: per-machine
     description: |
@@ -1130,7 +1140,7 @@ axes.<letter>.motorN.tmc_2130:
   r_sense_ohms:
     type: float
     min: 0.0
-    max: 1.00
+    max: 1.0
     default: '0.0'
     tuning: per-machine
     description: |
@@ -1298,7 +1308,7 @@ axes.<letter>.motorN.tmc_2208:
   r_sense_ohms:
     type: float
     min: 0.0
-    max: 1.00
+    max: 1.0
     default: '0.0'
     tuning: per-machine
     description: |
@@ -1355,6 +1365,8 @@ axes.<letter>.motorN.tmc_2208:
 
   addr:
     type: integer
+    min: 0
+    max: 3
     default: '0'
     tuning: per-machine
     description: |
@@ -1435,7 +1447,7 @@ axes.<letter>.motorN.tmc_2209:
   r_sense_ohms:
     type: float
     min: 0.0
-    max: 1.00
+    max: 1.0
     default: '0.0'
     tuning: per-machine
     description: |
@@ -1492,6 +1504,8 @@ axes.<letter>.motorN.tmc_2209:
 
   addr:
     type: integer
+    min: 0
+    max: 3
     default: '0'
     tuning: per-machine
     description: |
@@ -1588,7 +1602,7 @@ axes.<letter>.motorN.tmc_5160:
   r_sense_ohms:
     type: float
     min: 0.0
-    max: 1.00
+    max: 1.0
     default: '0.0'
     tuning: per-machine
     description: |
@@ -1764,7 +1778,7 @@ axes.<letter>.motorN.tmc_2160:
   r_sense_ohms:
     type: float
     min: 0.0
-    max: 1.00
+    max: 1.0
     default: '0.0'
     tuning: per-machine
     description: |
@@ -2149,8 +2163,8 @@ axes.<letter>.motorN.solenoid:
 
   off_percent:
     type: float
-    min: 0.0f
-    max: 100.0f
+    min: 0.0
+    max: 100.0
     default: '0.0'
     tuning: typical
     description: |
@@ -2158,8 +2172,8 @@ axes.<letter>.motorN.solenoid:
 
   pull_percent:
     type: float
-    min: 0.0f
-    max: 100.0f
+    min: 0.0
+    max: 100.0
     default: '100.0'
     tuning: typical
     description: |
@@ -2167,8 +2181,8 @@ axes.<letter>.motorN.solenoid:
 
   hold_percent:
     type: float
-    min: 0.0f
-    max: 100.0f
+    min: 0.0
+    max: 100.0
     default: '75.0'
     tuning: typical
     description: |
@@ -2272,7 +2286,7 @@ PWM:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -2376,7 +2390,7 @@ Laser:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -2454,7 +2468,7 @@ Laser:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -2571,7 +2585,7 @@ BESC:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -2692,7 +2706,7 @@ HBridge:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -2796,7 +2810,7 @@ OnOff:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -2891,7 +2905,7 @@ Relay:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -2986,7 +3000,7 @@ DAC:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -3081,7 +3095,7 @@ PlasmaSpindle:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -3162,7 +3176,7 @@ ModbusVFD:
   tool_num:
     type: integer
     min: 0
-    max: MaxToolNumber
+    max: 99999999
     default: '0'
     tuning: typical
     description: |
@@ -3477,9 +3491,10 @@ kinematics.CoreXY:
     description: |
       Compensation factor for midTbot-style machines where the motors themselves move in X, so a cartesian X move corresponds to a larger motor-space move. Leave at 1 on CoreXY machines where the motors don't move in X.
 
-# No config items at all -- Midtbot::group()/Cartesian::group() are empty. Midtbot hardcodes its x_scaler to 2.0 in init() rather than exposing it as a config item, since that ratio is a fixed property of the midTbot hardware design, not something a user should tune.
-# kinematics.midtbot / kinematics.Cartesian: (no config items)
-
+# No config items -- Midtbot::group() is empty. Midtbot hardcodes its x_scaler to 2.0 in init() rather than exposing it as a config item, since that ratio is a fixed property of the midTbot hardware design, not something a user should tune.
+kinematics.midtbot:
+# No config items -- Cartesian::group() is empty.
+kinematics.Cartesian:
 # Registered via a runtime loop over a list of (event, name, letter) tuples, not literal handler.item() calls -- see ItemDocs.md's "data-driven item lists" section. Extracted here from the @config annotations directly.
 control:
   safety_door_pin:

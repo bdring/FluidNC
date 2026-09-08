@@ -38,6 +38,13 @@ SECTIONS = [
     ("sdcard", [("SDCard.h", "SDCard")], None),
     ("user_outputs", [("Machine/UserOutputs.cpp", "UserOutputs")], None),
     ("uartN", [("Uart.cpp", "Uart")], None),
+    (
+        "uartN.usb_host",
+        [("../esp32/esp32s3/UsbHostUart.cpp", "UsbHostUart")],
+        "Optional nested subsection of a uartN: block, selecting a USB-host virtual COM port "
+        "backend (ESP32-S3 only) instead of a hardware UART -- registered via UartFactory, like "
+        "a motor/spindle type. When present, the uartN:'s own txd/rxd/baud/mode fields do not apply.",
+    ),
     ("uart_channelN", [("UartChannel.h", "UartChannel")], None),
     ("status_outputs", [("Status_outputs.h", "Status_Outputs")], None),
     ("ethernet", [("Machine/EthPhy.h", "EthPhy")], None),
@@ -227,12 +234,13 @@ SECTIONS = [
     ("kinematics.WallPlotter", [("Kinematics/WallPlotter.cpp", "WallPlotter")], None),
     ("kinematics.CoreXY", [("Kinematics/CoreXY.cpp", "CoreXY")], None),
     (
-        "kinematics.midtbot / kinematics.Cartesian",
+        "kinematics.midtbot",
         [],
-        "No config items at all -- Midtbot::group()/Cartesian::group() are empty. Midtbot hardcodes "
-        "its x_scaler to 2.0 in init() rather than exposing it as a config item, since that ratio is "
-        "a fixed property of the midTbot hardware design, not something a user should tune.",
+        "No config items -- Midtbot::group() is empty. Midtbot hardcodes its x_scaler to 2.0 in "
+        "init() rather than exposing it as a config item, since that ratio is a fixed property of "
+        "the midTbot hardware design, not something a user should tune.",
     ),
+    ("kinematics.Cartesian", [], "No config items -- Cartesian::group() is empty."),
 ]
 
 # Every SECTIONS entry that's a concrete SpindleFactory-registered type --

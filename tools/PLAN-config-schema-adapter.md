@@ -1,6 +1,19 @@
 # Plan: retire `fluidnc-config-schema.json`, validate against `config_items.yaml` via an adapter
 
-Status: WI1 + WI2 implemented. WI3 follows approach **B** (below).
+Status: **IMPLEMENTED** (WI1-WI6). `tools/fluidnc-config-schema.json` is
+deleted; the validator schema is built from `config_items.yaml` at load time
+by `tools/config_schema_adapter.py`. WI3 used approach **B** (below).
+
+Verification: golden diff vs the retired hand schema shows only source-truth
+corrections (tool_num max 255->99999999, homing cycle max 6->9, axis letters
+6->9, stepping engine +Simulator/PIO, usb_host baud range, +ethernet, +rgbled,
++i2so.oe_pin -- the hand schema had these wrong or missing). Corpus of 47 real
+configs: identical strict verdict on 45; the 2 that change go invalid->valid
+because the hand schema was missing the real `ethernet:` section.
+
+Follow-ups not done here: `tools/fluidnc-config-spec.md` stays hand-authored
+(could become a second generator output); a build with `MAX_N_USB_HOST`
+undefined still lists `uartN.usb_host` (validator isn't board-aware, by design).
 
 **WI3 approach decision (post-design):** the plan originally had the adapter
 re-emit all 62 `$defs` of the retired hand-schema byte-for-byte so

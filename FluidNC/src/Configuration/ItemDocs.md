@@ -299,11 +299,15 @@ A generator script (see `tools/gen_config_docs.py` at the repo root) walks a
 block (if any) and the field's real default, and emits a machine-readable
 per-section summary (name, type, range, default, description) intended to:
 
-1. Replace the hand/LLM-maintained `fluidnc-config-schema.json` and
-   `fluidnc-config-spec.md` as generated output instead of manually kept
-   files.
+1. **Done:** replaced the hand-maintained `tools/fluidnc-config-schema.json`.
+   The config-file validator (`tools/validate_fluidnc_config.py`,
+   `tools/fluidnc_config_mcp_server.py`) now builds its JSON Schema at load
+   time from `config_items.yaml` via `tools/config_schema_adapter.py`; the
+   JSON file is gone. `tools/fluidnc-config-spec.md` (prose) is still
+   hand-maintained.
 2. Feed the FluidNC config wizard's hoverable tooltips.
 3. Eventually let CI flag wiki pages that have drifted from source.
 
-This is being rolled out module by module, starting with `Stepping` as a
-pilot, not applied across the whole tree yet.
+The whole-tree aggregator (`tools/build_config_docs.py`) is applied across
+every section now; `gen_config_docs.py` is the single-class parser it builds
+on.

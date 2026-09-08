@@ -465,7 +465,8 @@ def _number_lists_match(cpp_literal: str, doc_default: str) -> bool:
     return True
 
 
-def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings, class_hierarchy=None):
+def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings, class_hierarchy=None,
+                int_constants=None):
     """Build one entry. The @default annotation is the authoritative default --
     see ItemDocs.md for why (some real defaults, e.g. board-dependent or
     substituted in afterParse(), aren't discoverable from the initializer at
@@ -497,6 +498,13 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
         # overloads on, so it won't be in the table above. Name-suffix heuristic
         # instead of hardcoding every such subclass here as they're added.
         kind = "pin"
+    elif cpp_type is None and member and re.search(r'(?:_pin|Pin)$', member):
+        # The item's member is an expression find_member_decl() can't resolve
+        # to a declared field -- notably a struct-member access like
+        # `_isrData[0]._pin` (I2CPinExtenderBase). A `handler.item(name, ..._pin)`
+        # call is a pin by naming convention; same heuristic as the Pin-suffix
+        # branch above, applied to the member expression instead of the type.
+        kind = "pin"
     else:
         kind = cpp_type or "unknown"
 
@@ -508,8 +516,8 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
         # len(extra) == 2 looks identical to the ordinary ranged-numeric shape below.
         entry["kind"] = "uart_mode"
     elif len(extra) == 2:
-        entry["min"] = extra[0]
-        entry["max"] = extra[1]
+        entry["min"] = resolve_int_arg(extra[0], int_constants or {})
+        entry["max"] = resolve_int_arg(extra[1], int_constants or {})
     elif len(extra) == 1:
         # item(name, value, SomeEnumArray) -- HandlerBase's item(name, uint32_t&, const
         # EnumItem*) overload. There's exactly one such overload, so any single-extra-arg
@@ -529,6 +537,15 @@ def build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum
             # param). Purely a rendering concern -- doesn't affect what a
             # parsed config_items.yaml looks like in memory.
             entry["values_name"] = extra[0]
+
+    if kind == "unknown" and "min" in entry and "max" in entry \
+            and all(isinstance(entry[b], (int, float)) for b in ("min", "max")):
+        # The member's declared type couldn't be resolved (e.g. it's inherited
+        # from a base class in a header outside this file's src tree, as with
+        # UsbHostUart's _baud from Uart.h), but it was passed with a numeric
+        # (min, max) pair -- which only the ranged-numeric item() overloads
+        # accept -- so it's an integer/float, not an opaque unknown.
+        kind = entry["kind"] = "float" if any(isinstance(entry[b], float) for b in ("min", "max")) else "integer"
 
     if kind == "enum" and member in enum_lookup:
         # step_engine_t*-typed fields (e.g. Stepping::engine) don't pass their EnumItem
@@ -644,6 +661,63 @@ def scan_enum_arrays_tree(src_root: Path) -> dict:
     return results
 
 
+_INT_CONST_RE = re.compile(
+    r'(?:#define[ \t]+(\w+)[ \t]+(-?\d+)\b'
+    r'|(?:static[ \t]+)?const(?:expr)?[ \t]+(?:\w+[ \t]+)+?(\w+)[ \t]*=[ \t]*(-?\d+)[ \t]*;)'
+)
+
+
+@functools.lru_cache(maxsize=None)
+def scan_int_constants_tree(src_root: Path) -> dict:
+    """{NAME: int} for every `#define NAME <int>` and `[static] const[expr]
+    <type> NAME = <int>;` under src_root. Used to resolve a handler.item()
+    min/max argument that's a symbolic C++ constant (MAX_N_AXIS,
+    MaxToolNumber, set_mpos_only, ...) to a real number in config_items.yaml,
+    so no consumer has to keep its own copy of those values. Whole-tree +
+    cached, same rationale as scan_enum_arrays_tree()."""
+    results = dict(_SEED_INT_CONSTANTS)
+    for p in sorted(src_root.rglob("*")):
+        if p.suffix in (".cpp", ".h"):
+            for m in _INT_CONST_RE.finditer(p.read_text()):
+                name = m.group(1) or m.group(3)
+                val = m.group(2) or m.group(4)
+                results.setdefault(name, int(val))
+    return results
+
+
+# MAX_N_AXIS is an unvalued member of the axis_t enum in Types.h (== W_AXIS + 1),
+# not a literal the constant regex can read. It is permanently 9 -- the G-code
+# axis-letter alphabet XYZABCUVW is full -- so seeding it is not drift-prone
+# (same rationale as build_config_docs.py's <letter> key pattern).
+_SEED_INT_CONSTANTS = {"MAX_N_AXIS": 9}
+
+
+def _yaml_num(v):
+    """Render a number so PyYAML (YAML 1.1) reads it back as a number, not a
+    string -- notably a bare-exponent float like 3e38 needs a decimal point."""
+    if isinstance(v, float):
+        return repr(v) if ("." in repr(v) or "e" not in repr(v)) else repr(v).replace("e", ".0e")
+    return v
+
+
+def resolve_int_arg(tok, int_constants):
+    """A handler.item() min/max arg token -> a number where possible: a plain
+    int/float literal (with optional f suffix or scientific notation), or a
+    known symbolic constant. Returns the token unchanged if unresolvable."""
+    if not isinstance(tok, str):
+        return tok
+    s = tok.strip().rstrip("fF")
+    try:
+        return int(s, 0)
+    except ValueError:
+        pass
+    try:
+        return float(s)
+    except ValueError:
+        pass
+    return int_constants.get(tok.strip(), tok)
+
+
 CLASS_DECL_RE = re.compile(r'^\s*class\s+(\w+)\s*:\s*public\s+(?:\w+::)?(\w+)', re.MULTILINE)
 
 
@@ -681,9 +755,9 @@ def to_yaml(section: str, entries: dict, enum_registry: dict = None) -> str:
         lines.append(f"  {name}:")
         lines.append(f"    type: {e['kind']}")
         if "min" in e:
-            lines.append(f"    min: {e['min']}")
+            lines.append(f"    min: {_yaml_num(e['min'])}")
         if "max" in e:
-            lines.append(f"    max: {e['max']}")
+            lines.append(f"    max: {_yaml_num(e['max'])}")
         if "values" in e:
             values_name = e.get("values_name")
             anchor = enum_registry.get(values_name) if enum_registry else None
@@ -742,6 +816,7 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     src_root = find_src_root(cpp_file)
     enum_arrays = scan_enum_arrays_tree(src_root)
     class_hierarchy = scan_class_hierarchy(src_root)
+    int_constants = scan_int_constants_tree(src_root)
 
     body = find_group_body(cpp_text, class_name, method_name)
     (
@@ -765,7 +840,8 @@ def process_class(cpp_file: Path, class_name: str, method_name: str = "group"):
     warnings = []
     entries = {}
     for call in calls:
-        name, entry = build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings, class_hierarchy)
+        name, entry = build_entry(call, cpp_text, header_text, class_name, docs, enum_lookup, enum_arrays, warnings,
+                                  class_hierarchy, int_constants)
         entries[name] = entry
 
     # Same-class @default_for/@pin_attributes_for application -- see this

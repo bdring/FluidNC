@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
 fluidnc_config_mcp_server.py — MCP server exposing FluidNC config.yaml
-validation (against fluidnc-config-schema.json) as tools any MCP-capable
-LLM client can call directly.
+validation as tools any MCP-capable LLM client can call directly. The schema
+is built at load time from config_items.yaml (config_schema_adapter.py).
 
 Setup:
     python3 -m venv venv
     ./venv/bin/pip install "mcp[cli]" pyyaml jsonschema
 
-    Place fluidnc-config-schema.json AND fluidnc_validate_core.py in the
-    SAME DIRECTORY as this script (or set FLUIDNC_SCHEMA_PATH to point the
-    schema elsewhere).
+    Place config_items.yaml, config_schema_adapter.py AND
+    fluidnc_validate_core.py in the SAME DIRECTORY as this script (or set
+    FLUIDNC_SCHEMA_PATH to point at a config_items.yaml elsewhere).
 
 Run standalone (stdio transport):
     ./venv/bin/python3 fluidnc_config_mcp_server.py
@@ -47,13 +47,10 @@ case-insensitive identifiers before validating -- normalizations are then
 reported as non-blocking "warnings" instead. See fluidnc_validate_core.py
 for exactly which identifiers this covers.
 
-Separately, deprecated-feature usage (e.g. the extenders: section,
-pinext-syntax pin values) is always reported as a "warnings" entry
-regardless of permissive -- "warnings" is not empty only in permissive
-mode; a strictly-valid-but-deprecated config will have warnings too.
+"warnings" is non-empty only in permissive mode (casing notes). There is no
+deprecation concept: a section/field is valid iff config_items.yaml lists it.
 
-Scope, mirrored from fluidnc-config-schema.json's own description: this checks
-structural/type/range/enum correctness only. It does NOT check YAML-syntax-level
+Scope: this checks structural/type/range/enum correctness only. It does NOT check YAML-syntax-level
 rules (indentation consistency, tabs, etc. — see the companion markdown spec §0)
 beyond what's needed to parse the YAML at all, and does NOT check board-specific
 pin legality (which GPIO numbers exist on a given board) — both intentionally
@@ -92,9 +89,11 @@ except ImportError:
           file=sys.stderr)
     sys.exit(1)
 
+_here = Path(__file__).resolve().parent
 SCHEMA_PATH = Path(os.environ.get(
     "FLUIDNC_SCHEMA_PATH",
-    Path(__file__).resolve().parent / "fluidnc-config-schema.json",
+    _here / "config_items.yaml" if (_here / "config_items.yaml").exists()
+    else _here.parent / "FluidNC" / "docs" / "config_items.yaml",
 ))
 
 _schema: dict | None = None
@@ -105,10 +104,10 @@ def _get_schema() -> dict:
     if _schema is None:
         if not SCHEMA_PATH.exists():
             raise FileNotFoundError(
-                f"fluidnc-config-schema.json not found at {SCHEMA_PATH}. "
+                f"config_items.yaml not found at {SCHEMA_PATH}. "
                 "Place it next to this script, or set FLUIDNC_SCHEMA_PATH."
             )
-        _schema = load_schema(SCHEMA_PATH)
+        _schema = load_schema(SCHEMA_PATH)  # builds the schema via config_schema_adapter
     return _schema
 
 

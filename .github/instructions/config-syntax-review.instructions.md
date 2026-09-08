@@ -6,13 +6,19 @@ applyTo: "FluidNC/src/Configuration/**,FluidNC/src/Machine/**,FluidNC/src/Motors
 
 ## Why this file exists
 
-`tools/fluidnc-config-spec.md` (a formal, LLM-readable reference for `config.yaml`) and
-`tools/fluidnc-config-schema.json` (a JSON Schema derived from it, used by
-`tools/validate_fluidnc_config.py` and `tools/fluidnc_config_mcp_server.py`) were built by
-reading this exact source code — every documented section, field, type, range, default, and
-enum value was verified against a `handler.item()`/`handler.section()` call, an `InstanceBuilder`
-registration, or similar. They have no other source of truth and are not auto-generated, so
-**they silently go stale the moment this code changes without a matching doc/schema update.**
+`FluidNC/docs/config_items.yaml` is generated from this source code by
+`tools/build_config_docs.py`, reading the `// @config` annotations next to each
+`handler.item()`/`handler.section()` call (see `FluidNC/src/Configuration/ItemDocs.md`). It is
+the single source of truth for `config.yaml`: the validator schema is built from it at runtime
+by `tools/config_schema_adapter.py` (used by `tools/validate_fluidnc_config.py` and
+`tools/fluidnc_config_mcp_server.py`), and structural metadata it needs beyond per-item ranges
+(`section_meta`, `pin_namespaces`, `vfd_named_types`) is emitted by the same generator.
+
+So a `handler.item()`/`handler.section()`/`InstanceBuilder` change that lacks a matching
+`// @config` annotation update **fails or skews the generated `config_items.yaml`** — the
+generator errors on an un-annotated `handler.item()` call, and a stale `@default`/`@config`
+block drifts the docs. `tools/fluidnc-config-spec.md` (the prose reference) is still
+hand-maintained and can silently go stale.
 
 Your job when reviewing a PR that touches these files: determine whether the change actually
 affects `config.yaml` syntax as an external user or LLM would experience it, and if so, say so
@@ -59,10 +65,15 @@ format, not an implementation detail:
 1. Say explicitly which change you believe affects config.yaml syntax, and why (cite the
    specific `handler.item`/`handler.section`/`InstanceBuilder`/etc. line).
 2. Ask the author to check and, if needed, update:
-   - `tools/fluidnc-config-spec.md` — the prose description of this field/section.
-   - `tools/fluidnc-config-schema.json` — the corresponding JSON Schema type/range/default/enum.
-   - `tools/fluidnc_validate_core.py` — specifically its `ENUM_FIELDS` table, only if an enum
-     field's set of valid values changed (case-insensitive matching normalization list).
+   - the `// @config` annotation block next to the changed `handler.item()` call (name,
+     `@default`, description) — see `FluidNC/src/Configuration/ItemDocs.md`. Then regenerate:
+     `python3 tools/build_config_docs.py`, and eyeball the `FluidNC/docs/config_items.yaml` diff.
+   - a new `handler.section()`/`InstanceBuilder` type needs a `SECTIONS` entry in
+     `tools/build_config_docs.py`; a new pin namespace needs a `// @pin_namespace` annotation
+     in the relevant `src/Pins/*PinDetail.cpp`.
+   - `tools/fluidnc-config-spec.md` — the prose description of this field/section (hand-maintained).
+   - `tools/fluidnc_validate_core.py` — its `ENUM_FIELDS` table, only if an enum field's set of
+     valid values changed (permissive-mode casing normalization list).
 3. Suggest running `tools/validate_fluidnc_config.py` against real example configs (this repo's
    `example_configs/`, or the sibling `bdring/fluidnc-config-files` repo) if the change could
    plausibly break existing configs — e.g. a narrowed range, a renamed key, or a removed type.
@@ -73,9 +84,9 @@ Suggested comment template:
 
 > ⚠️ **Config syntax impact**: this change to `<file>:<line>` <adds/removes/changes> `<key or
 > section or type name>` <in a way that changes its type/range/default/valid values>. Please
-> confirm `tools/fluidnc-config-spec.md` and `tools/fluidnc-config-schema.json` are updated to
-> match (and `tools/fluidnc_validate_core.py`'s `ENUM_FIELDS`, if an enum value changed), or
-> confirm no config-visible behavior actually changed.
+> confirm the `// @config` annotation is updated and `config_items.yaml` regenerated (and
+> `tools/fluidnc-config-spec.md` / `tools/fluidnc_validate_core.py`'s `ENUM_FIELDS` if
+> relevant), or confirm no config-visible behavior actually changed.
 
 ## What NOT to flag (avoid noise)
 

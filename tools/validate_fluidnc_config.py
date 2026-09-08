@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-validate_fluidnc_config.py — validate a FluidNC config.yaml against
-fluidnc-config-schema.json.
+validate_fluidnc_config.py — validate a FluidNC config.yaml against a schema
+built at runtime from config_items.yaml (see config_schema_adapter.py).
 
 Usage:
     python3 validate_fluidnc_config.py config.yaml
-    python3 validate_fluidnc_config.py config.yaml --schema /path/to/fluidnc-config-schema.json
+    python3 validate_fluidnc_config.py config.yaml --schema /path/to/config_items.yaml
     python3 validate_fluidnc_config.py config.yaml --json             # machine-readable output
     python3 validate_fluidnc_config.py config.yaml --permissive       # see below
     python3 validate_fluidnc_config.py config.yaml --no-auto-install  # fail instead of installing deps
@@ -20,27 +20,20 @@ Strict vs permissive mode:
     where casing style shouldn't block a merge. See fluidnc_validate_core.py
     for exactly which identifiers this covers.
 
-    Separately, deprecated-feature usage (e.g. the extenders: section,
-    pinext-syntax pin values) is always reported as a WARNING regardless of
-    --permissive -- deprecation is a different concern from casing
-    strictness and surfaces either way.
-
 Exit codes:
-    0  valid (no errors; deprecation warnings can appear in either mode and don't affect this)
+    0  valid
     1  schema violations found
-    2  file not found / YAML parse error / schema load error / dependency install failed
+    2  file not found / YAML parse error / schema build error / dependency install failed
 
 Dependencies (auto-installed on first run unless --no-auto-install is given):
     pyyaml, jsonschema
 
-This script only checks structural/type/range/enum correctness against the
-schema. It does NOT check the YAML-syntax-level rules from the companion
-markdown spec (§0: indentation consistency, no-tabs, etc.) — a file with
-inconsistent indentation may fail to parse as YAML at all before this script
-even runs, which is itself a signal worth surfacing (see the YAMLError
-handling below). It also does not check board-specific pin legality
-(which GPIO numbers exist on a given board) — that is intentionally out of
-scope, per the schema's own top-level "description".
+This script only checks structural/type/range/enum correctness. It does NOT
+check YAML-syntax rules (indentation, no-tabs, etc.) — a file with bad
+indentation may fail to parse as YAML before this script runs, itself a
+signal worth surfacing (see the YAMLError handling below). It also does not
+check board-specific pin legality (which GPIO numbers exist on a given
+board) — intentionally out of scope.
 """
 import argparse
 import json
@@ -108,31 +101,34 @@ _ensure_import("jsonschema", "jsonschema")
 # fluidnc_validate_core.py must ship alongside this script (same directory).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
-    from fluidnc_validate_core import validate_document
+    from fluidnc_validate_core import load_schema, validate_document
 except ImportError:
     print("error: fluidnc_validate_core.py not found next to this script. "
           "It must be shipped alongside validate_fluidnc_config.py.", file=sys.stderr)
     sys.exit(2)
 
-DEFAULT_SCHEMA_NAME = "fluidnc-config-schema.json"
+DEFAULT_CONFIG_ITEMS = "config_items.yaml"
 
 
-def find_default_schema(config_path: Path) -> Path:
-    """Look for the schema next to the script, then next to the config file."""
-    script_dir_schema = Path(__file__).resolve().parent / DEFAULT_SCHEMA_NAME
-    if script_dir_schema.exists():
-        return script_dir_schema
-    config_dir_schema = config_path.resolve().parent / DEFAULT_SCHEMA_NAME
-    if config_dir_schema.exists():
-        return config_dir_schema
-    return script_dir_schema  # will fail with a clear error below
+def find_default_config_items(config_path: Path) -> Path:
+    """config_items.yaml next to the script, then next to the config file,
+    then the in-repo FluidNC/docs/ copy."""
+    here = Path(__file__).resolve().parent
+    for cand in (here / DEFAULT_CONFIG_ITEMS,
+                 config_path.resolve().parent / DEFAULT_CONFIG_ITEMS,
+                 here.parent / "FluidNC" / "docs" / DEFAULT_CONFIG_ITEMS):
+        if cand.exists():
+            return cand
+    return here / DEFAULT_CONFIG_ITEMS  # will fail with a clear error below
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Validate a FluidNC config.yaml against fluidnc-config-schema.json")
+    ap = argparse.ArgumentParser(
+        description="Validate a FluidNC config.yaml against a schema built from config_items.yaml")
     ap.add_argument("config", type=Path, help="Path to the config.yaml file to validate")
-    ap.add_argument("--schema", type=Path, default=None,
-                     help=f"Path to {DEFAULT_SCHEMA_NAME} (default: look next to this script, then next to the config file)")
+    ap.add_argument("--schema", type=Path, default=None, dest="config_items",
+                     help=f"Path to an alternate {DEFAULT_CONFIG_ITEMS} "
+                          f"(default: next to this script, then next to the config, then FluidNC/docs/)")
     ap.add_argument("--json", action="store_true", help="Emit machine-readable JSON output instead of text")
     ap.add_argument("--permissive", action="store_true",
                      help="Normalize known case-insensitive identifiers before validating; report them as warnings instead of errors")
@@ -144,17 +140,16 @@ def main() -> int:
         print(f"error: config file not found: {args.config}", file=sys.stderr)
         return 2
 
-    schema_path = args.schema or find_default_schema(args.config)
+    schema_path = args.config_items or find_default_config_items(args.config)
     if not schema_path.exists():
-        print(f"error: schema file not found: {schema_path}\n"
-              f"  Pass --schema /path/to/{DEFAULT_SCHEMA_NAME} explicitly.", file=sys.stderr)
+        print(f"error: {DEFAULT_CONFIG_ITEMS} not found: {schema_path}\n"
+              f"  Pass --schema /path/to/{DEFAULT_CONFIG_ITEMS} explicitly.", file=sys.stderr)
         return 2
 
     try:
-        with open(schema_path) as f:
-            schema = json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"error: schema file is not valid JSON: {schema_path}\n  {e}", file=sys.stderr)
+        schema = load_schema(schema_path)
+    except Exception as e:
+        print(f"error: could not build schema from {schema_path}\n  {e}", file=sys.stderr)
         return 2
 
     try:
