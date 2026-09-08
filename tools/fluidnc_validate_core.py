@@ -148,11 +148,30 @@ def normalize_permissive(doc, schema):
                 return sub
         return None
 
+    def normalize_pattern_keys(node, path, obj_schema):
+        """Rename a key that matches one of obj_schema's patternProperties
+        regexes only case-insensitively (e.g. `X` -> `x`, `Motor0` -> `motor0`,
+        `UART1` -> `uart1`). JSON Schema regex matching is case-sensitive, so
+        without this those keys stay invalid even after permissive mode.
+        Every such pattern in the generated schema is lowercase, so the
+        canonical form of the key is simply its lowercase."""
+        patterns = list(obj_schema.get("patternProperties", {}))
+        if not patterns or not isinstance(node, dict):
+            return
+        for k in list(node.keys()):
+            if not isinstance(k, str) or any(re.match(rx, k) for rx in patterns):
+                continue
+            if k != k.lower() and any(re.match(rx, k.lower()) for rx in patterns):
+                warn(path + [k], f"key '{k}' normalized to canonical casing '{k.lower()}' "
+                                 f"(case-insensitive match; real firmware accepts either)")
+                node[k.lower()] = node.pop(k)
+
     def recurse(node, path, obj_schema):
         if not isinstance(node, dict) or not isinstance(obj_schema, dict):
             return
         rename_keys(node, path, _obj_props(obj_schema),
                     "key" if len(path) else "top-level key")
+        normalize_pattern_keys(node, path, obj_schema)
         for k, v in list(node.items()):
             sub = child_schema(obj_schema, k)
             if isinstance(sub, dict) and ("properties" in sub or "patternProperties" in sub):

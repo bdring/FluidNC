@@ -143,8 +143,13 @@ def build_schema(ci: dict) -> dict:
         k for k in sections if k.startswith("axes.<letter>.motorN.")
     )
     motor_block = _obj(sections.get("axes.<letter>.motorN"))
-    for dpath in driver_sections:
-        motor_block["properties"][dpath.split(".")[-1]] = _obj(sections[dpath])
+    driver_keys = [dpath.split(".")[-1] for dpath in driver_sections]
+    for dpath, dkey in zip(driver_sections, driver_keys):
+        motor_block["properties"][dkey] = _obj(sections[dpath])
+    # A motorN block selects exactly one driver-type via a GenericFactory
+    # (Configuration/GenericFactory.h) -- forbid a block that names two, or
+    # none (null_motor is one of the choices, so "none" is a real error).
+    motor_block["oneOf"] = [{"required": [k]} for k in driver_keys]
 
     axis_letter = _obj(sections.get("axes.<letter>"))
     axis_letter["properties"]["homing"] = _obj(sections.get("axes.<letter>.homing"))
@@ -155,10 +160,12 @@ def build_schema(ci: dict) -> dict:
     axes_obj = _obj(sections.get("axes"))
     axes_obj["patternProperties"] = {key_re("axes.<letter>"): axis_letter}
 
-    # --- kinematics dispatch -------------------------------------------------
+    # --- kinematics dispatch ----------------------------------------------
+    # Also a GenericFactory single-instance selector: at most one type block.
     kin_obj = {
         "type": ["object", "null"],
         "additionalProperties": False,
+        "maxProperties": 1,
         "properties": {
             k.split(".", 1)[1]: _obj(sections[k])
             for k in sorted(sections)
@@ -174,6 +181,7 @@ def build_schema(ci: dict) -> dict:
     ext_instance = {
         "type": ["object", "null"],
         "additionalProperties": False,
+        "maxProperties": 1,  # GenericFactory single-instance: one chip type per pinextenderN
         "properties": {chip: _obj(chip_fields) for chip in child_types},
     }
     extenders_obj = {
@@ -186,8 +194,12 @@ def build_schema(ci: dict) -> dict:
     props = {}
 
     for name, field in (sections.get(_TOP_LEVEL_ITEMS) or {}).items():
-        if field.get("type") == "string" and name == "meta":
-            props[name] = {}  # deliberately unconstrained, matches retired schema
+        if name == "meta":
+            # Kept loose on purpose: real configs put a bare build date here
+            # (`meta: 2022-03-15`), which a YAML parser yields as a date object,
+            # not a string -- {type: string} would reject it. Only forbid the
+            # shapes the firmware genuinely can't take (a map or a list).
+            props[name] = {"not": {"type": ["object", "array"]}}
         else:
             props[name] = _field_schema(field)
 
