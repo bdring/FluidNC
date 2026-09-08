@@ -55,9 +55,9 @@ namespace {
     bool start_unstep() {
         // Only spin out the pulse width if a step pulse is actually in
         // flight.  unstep() is also called from stop_stepping() on soft
-        // reset, where step_pulse_end_time is stale; the CCOUNT-based
-        // spinUntil() can then spin for up to ~half the 32-bit wraparound
-        // and trip the task watchdog.
+        // reset, where step_pulse_end_time is stale; spinUntil() compares
+        // against the RP2040's free-running 1 MHz timer, so a stale deadline
+        // can spin for up to ~35 minutes and trip the watchdog.
         if (step_pulse_pending) {
             step_pulse_pending = false;
             spinUntil(step_pulse_end_time);
