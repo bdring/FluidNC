@@ -125,9 +125,11 @@ def build_schema(ci: dict) -> dict:
     sections = {k: v for k, v in ci.items() if k not in _META_KEYS}
 
     section_meta = ci.get("section_meta", {})
-    spindle_sections = ci.get("spindle_sections", [])
     vfd_named = ci.get("vfd_named_types", [])
     vfd_protocol_fields = set(ci.get("vfd_protocol_fields", []))
+    # spindle_sections is not needed here: every spindle type (PWM, Laser, ...,
+    # NoSpindle) is a plain top-level key in `sections`, so the generic
+    # singleton pass below picks it up as a root property like any other.
 
     defs = dict(_PRIMITIVE_DEFS)
     defs["pinAny"] = _pin_any(ci.get("pin_namespaces", {}))

@@ -22,6 +22,25 @@ jobs:
           python-version: "3.11"
       - name: Regenerate config_items.yaml, fail on drift warnings
         run: python3 tools/build_config_docs.py --fail-on-drift
+      - name: config_items.yaml is committed up to date
+        run: git diff --exit-code -- FluidNC/docs/config_items.yaml
+      - name: Build & smoke-test the validator schema
+        run: |
+          python -m pip install --quiet pyyaml jsonschema
+          python - <<'PY'
+          import glob, sys
+          sys.path.insert(0, "tools")
+          import yaml
+          from jsonschema import Draft202012Validator
+          from config_schema_adapter import build_schema
+          schema = build_schema(yaml.safe_load(open("FluidNC/docs/config_items.yaml")))
+          Draft202012Validator.check_schema(schema)
+          v = Draft202012Validator(schema)
+          for f in sorted(glob.glob("example_configs/*.yaml")):
+              doc = yaml.safe_load(open(f))
+              list(v.iter_errors(doc))  # must not raise
+          print("schema OK; validated", len(glob.glob("example_configs/*.yaml")), "example configs")
+          PY
 
   build:
     strategy:
