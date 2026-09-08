@@ -14,6 +14,7 @@ hoverable tooltips, and a human can read as a from-source spec.
 
 Repo root is assumed to be the current working directory.
 """
+import re
 import sys
 from pathlib import Path
 
@@ -347,6 +348,147 @@ def vfd_protocol_fields():
     return list(entries.keys())
 
 
+# ---------------------------------------------------------------------------
+# Structural metadata that a schema consumer (tools/config_schema_adapter.py)
+# needs but that isn't per-item @config data: how repeated sections are keyed,
+# the pin-string namespace grammar, and the named-VFD list.  See
+# tools/PLAN-config-schema-adapter.md.
+# ---------------------------------------------------------------------------
+
+# Decision 5: fixed, generator-owned placeholder -> key-pattern table.
+# Nothing here tracks a build parameter --
+#   <letter>  : the G-code axis-letter alphabet is permanently full at XYZABCUVW
+#   motorN    : MAX_MOTORS_PER_AXIS == 2 is architecturally entrenched
+#   *N buses  : one digit is far more than any board has, and it also rejects
+#               the long-deprecated bare `uart:` subsection
+_PLACEHOLDER_KEY_PATTERNS = {
+    "<letter>":      "[xyzabcuvw]",
+    "motorN":        "motor[01]",
+    "uartN":         "uart[0-9]",
+    "uart_channelN": "uart_channel[0-9]",
+    "i2cN":          "i2c[0-9]",
+    "pinextenderN":  "pinextender[0-9]",
+}
+
+
+def _grep_registrations(rel_dir, pattern):
+    names = []
+    for path in sorted((SRC / rel_dir).glob("*.cpp")):
+        names += re.findall(pattern, path.read_text())
+    return names
+
+
+def extender_child_types():
+    """The <i2c_chip> dispatch set -- every name a PinExtenderDriver registers
+    under, grepped from Extenders/*.cpp (model: PCA9539.cpp's
+    PinExtenderFactory::InstanceBuilder<PCA9539> registration("pca9539"))."""
+    return sorted(set(_grep_registrations(
+        "Extenders", r'PinExtenderFactory::InstanceBuilder<[^>]+>\s+\w+\("([^"]+)"\)')))
+
+
+def build_section_meta():
+    """Decision 6: per-section structural metadata, keyed by the path prefix
+    up to and including a placeholder segment.  `repeatable` + `key_pattern`
+    for <letter>/*N repeats; `child_types` for the <i2c_chip> dispatch."""
+    meta = {}
+    child_types = extender_child_types()
+    for section, _contributors, _note in SECTIONS:
+        if " / " in section or section.startswith("("):
+            continue
+        segs = section.split(".")
+        for i, seg in enumerate(segs):
+            prefix = ".".join(segs[: i + 1])
+            if seg in _PLACEHOLDER_KEY_PATTERNS:
+                meta.setdefault(prefix, {})
+                meta[prefix]["repeatable"] = True
+                meta[prefix]["key_pattern"] = _PLACEHOLDER_KEY_PATTERNS[seg]
+            elif seg == "<i2c_chip>":
+                meta.setdefault(prefix, {})
+                meta[prefix]["child_types"] = child_types
+    return meta
+
+
+def build_pin_namespaces():
+    """Decision 3: the non-builtin pin-string namespaces, from the
+    `// @pin_namespace <token>` annotations on the *PinDetail subclasses in
+    src/Pins/.  A bare token is a flat namespace (`<tok>.<n>`); a `<tok><n>`
+    token is instance-numbered (`<tok><digit>.<n>`).  gpio / no_pin / void are
+    builtin in the adapter and carry no annotation."""
+    ns = {}
+    for path in sorted((SRC / "Pins").glob("*.cpp")):
+        for tok in re.findall(r'//\s*@pin_namespace\s+(\S+)', path.read_text()):
+            if tok.endswith("<n>"):
+                stem = tok[:-3]
+                ns[stem] = {"pattern": stem + r"[0-9]\.[0-9]+"}
+            else:
+                ns[tok] = {"pattern": tok + r"\.[0-9]+"}
+    return ns
+
+
+def pin_cpp_prefixes():
+    """Every pin_type prefix dispatched in Pin.cpp's Pin::parse()."""
+    text = (SRC / "Pin.cpp").read_text()
+    return set(re.findall(r'(?:equal|starts_with)_ignore_case\(pin_type,\s*"([^"]+)"\)', text))
+
+
+# sim/ws pin types exist in Pin.cpp but behind build flags (simulator engine,
+# ENABLE_WS_CHANNEL_PINS) and are not part of a real hardware config.yaml, so
+# they are intentionally left out of pin_namespaces rather than flagged.
+_PIN_NS_BUILTIN = {"gpio", "no_pin", "void"}
+_PIN_NS_UNEXPOSED = {"sim", "ws"}
+
+
+def check_pin_namespaces(ns):
+    cpp = pin_cpp_prefixes()
+    warnings = []
+    for p in sorted(cpp - _PIN_NS_BUILTIN - _PIN_NS_UNEXPOSED - set(ns)):
+        warnings.append(f"pin type {p!r} is dispatched in Pin.cpp but has no @pin_namespace annotation")
+    for p in sorted(set(ns) - cpp):
+        warnings.append(f"@pin_namespace {p!r} has no matching dispatch in Pin.cpp")
+    return warnings
+
+
+def vfd_named_types():
+    """Decision 7: the named-VFD spindle keys -- every DependentInstanceBuilder
+    <VFDSpindle, X> registration("Name") in Spindles/VFD/*.cpp, minus the
+    generic ModbusVFD.  Cross-checked against the prose list in the ModbusVFD
+    SECTIONS note."""
+    grepped = sorted(
+        n for n in set(_grep_registrations(
+            "Spindles/VFD", r'DependentInstanceBuilder<VFDSpindle,\s*\w+>\s+\w+\("([^"]+)"\)'))
+        if n != "ModbusVFD"
+    )
+    note = next(note for section, _c, note in SECTIONS if section == "ModbusVFD") or ""
+    m = re.search(r'Also backs ([A-Za-z0-9/]+)', note)
+    prose = set(m.group(1).split("/")) if m else set()
+    warnings = []
+    if prose and set(grepped) != prose:
+        warnings.append(
+            f"vfd_named_types grep {sorted(grepped)} disagrees with the ModbusVFD SECTIONS note {sorted(prose)}")
+    return grepped, warnings
+
+
+def _yaml_flow(v):
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, list):
+        return "[" + ", ".join(str(x) for x in v) + "]"
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+def yaml_map_block(top_key, obj):
+    """Render {k: {ik: iv, ...} | scalar | list} as a small YAML block,
+    keys sorted for a stable diff."""
+    lines = [f"{top_key}:"]
+    for k, v in sorted(obj.items()):
+        if isinstance(v, dict):
+            inner = ", ".join(f"{ik}: {_yaml_flow(iv)}" for ik, iv in v.items())
+            lines.append(f"  {k}: {{ {inner} }}")
+        else:
+            lines.append(f"  {k}: {_yaml_flow(v)}")
+    return lines
+
+
 def list_mode_section(rel_file, kind_for=None):
     text = (SRC / rel_file).read_text()
     # default_for_overrides/missing_default_for are unused here -- @default_for
@@ -544,6 +686,42 @@ def main():
     )
     out_lines.append("# them instead, independent of config.yaml.")
     out_lines.append(f"vfd_protocol_fields: [{', '.join(vfd_protocol_fields())}]")
+    out_lines.append("")
+
+    # --- Structural metadata for tools/config_schema_adapter.py ---------------
+    _named_vfds, _vfd_warnings = vfd_named_types()
+    _pin_ns = build_pin_namespaces()
+    for w in _vfd_warnings + check_pin_namespaces(_pin_ns):
+        print(f"warning [schema-metadata]: {w}", file=sys.stderr)
+
+    out_lines.append(
+        "# Named-VFD spindle type keys -- each registers its own top-level key with"
+    )
+    out_lines.append(
+        "# a fixed compiled-in Modbus protocol and the same field set as ModbusVFD"
+    )
+    out_lines.append("# minus vfd_protocol_fields (grepped from Spindles/VFD/*.cpp).")
+    out_lines.append(f"vfd_named_types: [{', '.join(_named_vfds)}]")
+    out_lines.append("")
+
+    out_lines.append(
+        "# Pin-string namespaces beyond the builtin gpio./no_pin/void, from the"
+    )
+    out_lines.append(
+        "# // @pin_namespace annotations in src/Pins/*.cpp.  `pattern` is the"
+    )
+    out_lines.append("# regex body for a bare pin token (before any :attr suffix).")
+    out_lines.extend(yaml_map_block("pin_namespaces", _pin_ns))
+    out_lines.append("")
+
+    out_lines.append(
+        "# Per-section structural metadata: which sections repeat and how their"
+    )
+    out_lines.append(
+        "# instance keys are matched (key_pattern), plus the <i2c_chip> dispatch"
+    )
+    out_lines.append("# set.  Sections with no entry here are plain singletons.")
+    out_lines.extend(yaml_map_block("section_meta", build_section_meta()))
     out_lines.append("")
 
     for section, entries, note in section_results:

@@ -14,6 +14,7 @@ namespace Pins {
         Assert(index < nI2SOPins, "Pin number is greater than max %d", nI2SOPins - 1);
         Assert(!_claimed[index], "Pin is already used");
 
+        // @pin_namespace i2so
         _name = "I2SO.";
         _name += std::to_string(_index);
 

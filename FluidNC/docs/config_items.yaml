@@ -29,6 +29,31 @@ spindle_sections: [PWM, Laser, 10V, BESC, HBridge, OnOff, Relay, DAC, PlasmaSpin
 # them instead, independent of config.yaml.
 vfd_protocol_fields: [safety_polling, model, min_RPM, max_RPM, cw_cmd, ccw_cmd, off_cmd, set_rpm_cmd, get_min_rpm_cmd, get_max_rpm_cmd, get_rpm_cmd]
 
+# Named-VFD spindle type keys -- each registers its own top-level key with
+# a fixed compiled-in Modbus protocol and the same field set as ModbusVFD
+# minus vfd_protocol_fields (grepped from Spindles/VFD/*.cpp).
+vfd_named_types: [DanfossVLT2800, DeltaMS300, FolinnBD600, H100, H2A, Huanyang, MollomG70, NowForever, SiemensV20, YL620]
+
+# Pin-string namespaces beyond the builtin gpio./no_pin/void, from the
+# // @pin_namespace annotations in src/Pins/*.cpp.  `pattern` is the
+# regex body for a bare pin token (before any :attr suffix).
+pin_namespaces:
+  i2so: { pattern: 'i2so\.[0-9]+' }
+  pinext: { pattern: 'pinext[0-9]\.[0-9]+' }
+  uart_channel: { pattern: 'uart_channel[0-9]\.[0-9]+' }
+
+# Per-section structural metadata: which sections repeat and how their
+# instance keys are matched (key_pattern), plus the <i2c_chip> dispatch
+# set.  Sections with no entry here are plain singletons.
+section_meta:
+  axes.<letter>: { repeatable: true, key_pattern: '[xyzabcuvw]' }
+  axes.<letter>.motorN: { repeatable: true, key_pattern: 'motor[01]' }
+  extenders.pinextenderN: { repeatable: true, key_pattern: 'pinextender[0-9]' }
+  extenders.pinextenderN.<i2c_chip>: { child_types: [pca9535_9555, pca9539] }
+  i2cN: { repeatable: true, key_pattern: 'i2c[0-9]' }
+  uartN: { repeatable: true, key_pattern: 'uart[0-9]' }
+  uart_channelN: { repeatable: true, key_pattern: 'uart_channel[0-9]' }
+
 (top-level machine items):
   board:
     type: string
@@ -3249,7 +3274,7 @@ ModbusVFD:
     default: 'false'
     default_note: '""'
     description: |
-      VFD is is polled for speed continously
+      VFD is polled for speed continuously
 
   model:
     type: string
