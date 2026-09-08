@@ -7,6 +7,7 @@ namespace Pins {
     ExtPinDetail::ExtPinDetail(uint32_t device, pinnum_t index, const PinOptionsParser& options) :
         PinDetail(index), _device(device), _capabilities(PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::ISR),
         _attributes(Pins::PinAttributes::Undefined) {
+        // @pin_namespace pinext<n>
         _name = "pinext";
         _name += std::to_string(_device);
         _name += ".";

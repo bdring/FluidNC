@@ -2,16 +2,21 @@
 fluidnc_validate_core.py — shared validation core for FluidNC config.yaml,
 used by both validate_fluidnc_config.py (CLI) and fluidnc_config_mcp_server.py.
 
+The validation schema is built at load time from FluidNC/docs/config_items.yaml
+(generated from the // @config source annotations) by config_schema_adapter.py.
+config_items.yaml is the single source of truth: a section or field is valid
+iff it appears there. There is no deprecation/lifecycle concept -- to stop
+accepting something, remove its annotations from the firmware source.
+
 Background: FluidNC's real parser matches essentially every key name (not
 just "type selector" names like spindle/motor/kinematics type keys, but
 ORDINARY field names too, e.g. 'm6_macro'/'M6_macro') and several enum
 values case-insensitively (ground truth: Parser::is(), strncasecmp-based).
-The JSON Schema (fluidnc-config-schema.json) deliberately does NOT replicate
-that leniency -- it enforces one canonical casing, on the theory that
-guiding generation toward a single consistent form is more useful than
-accepting every casing variant. But validating existing/human-written
-configs against that canonical-only stance is too strict in practice (mixed
-casing is common and harmless there) -- hence two modes:
+The schema enforces one canonical casing, on the theory that guiding
+generation toward a single consistent form is more useful than accepting
+every casing variant. Validating existing/human-written configs against
+that canonical-only stance is too strict in practice (mixed casing is
+common and harmless there) -- hence two modes:
 
   STRICT mode (default):     validate the document as-is against the schema.
                               Casing mismatches are reported as errors.
@@ -24,30 +29,11 @@ casing is common and harmless there) -- hence two modes:
                               cleanly in this mode, with warnings explaining
                               what was normalized.
 
-Design note: canonical names are read directly from the loaded JSON Schema
-at runtime (via schema["properties"]/schema["$defs"][...]["properties"] and
-"$ref" targets) rather than duplicated into hand-maintained Python lists.
-This was a deliberate fix -- an earlier version of this module kept its own
-parallel lists of spindle/motor/kinematics type names, which would have
-silently drifted out of sync with the schema over time. Reading them from
-the schema means this module extends automatically as the schema grows.
-
-Separately from strict/permissive: this module also scans for usage of
-anything the schema marks "deprecated": true (currently: the extenders:
-section and pinext-syntax pin values) and reports it as a warning,
-REGARDLESS of mode -- see scan_deprecated(). Deprecation is orthogonal to
-the casing-strictness question above; a deprecated-but-otherwise-valid
-config is worth flagging either way.
-
-Note: rgbled: was removed from the schema entirely (not just marked
-deprecated) since the Listeners/SysListener framework it belonged to was
-never actually going to ship -- a config with rgbled: now fails schema
-validation as an unrecognized top-level key rather than validating with a
-deprecation warning. status_outputs: was added in its place (a real,
-previously-undocumented section -- see Status_outputs.h/.cpp).
+Design note: canonical names are read from the schema at runtime, not
+duplicated into hand-maintained Python lists -- so this module tracks
+config_items.yaml automatically as sections/fields are added.
 """
 import copy
-import json
 import re
 from pathlib import Path
 
@@ -58,44 +44,16 @@ except ImportError:
 
 
 # field-name -> allowed canonical enum values, matched wherever that field
-# name appears as a leaf string value anywhere in the document. This one
-# piece is still a hand-maintained list (rather than schema-derived) because
-# extracting "which string properties are semantically closed enums" back
-# out of the compiled schema's "enum" keyword would be only a marginal
-# simplification over just listing the handful of fields that need it.
+# name appears as a leaf string value anywhere in the document. A small
+# hand list rather than schema-derived: pulling "which string properties are
+# closed enums" back out of the schema would barely simplify this.
 ENUM_FIELDS = {
-    "engine": ["Timed", "RMT", "I2S_STATIC", "I2S_STREAM"],
+    "engine": ["Timed", "RMT", "I2S_STATIC", "I2S_STREAM", "Simulator", "PIO"],
     "run_mode": ["StealthChop", "CoolStep", "StallGuard"],
     "homing_mode": ["StealthChop", "CoolStep", "StallGuard"],
     "message_level": ["None", "Error", "Warn", "Info", "Debug", "Verbose"],
-    "axis": ["x", "y", "z", "a", "b", "c"],  # parking.axis
+    "axis": ["x", "y", "z", "a", "b", "c", "u", "v", "w"],  # parking.axis
 }
-
-# Top-level keys handled by patternProperties (numbered sections) rather
-# than fixed "properties" entries -- excluded from generic root key
-# normalization since they're matched by regex/prefix, not by an
-# enumerable canonical name.
-_NUMBERED_SECTION_PATTERNS = {
-    "uart": re.compile(r"^uart([0-9]+)$", re.IGNORECASE),
-    "uart_channel": re.compile(r"^uart_channel([0-9]+)$", re.IGNORECASE),
-    "i2c": re.compile(r"^i2c([0-9]+)$", re.IGNORECASE),
-}
-
-
-def _def(schema, defname):
-    return schema["$defs"][defname]
-
-
-def _props_of(node_schema):
-    """Canonical property names of a resolved (non-$ref) schema node."""
-    return list(node_schema.get("properties", {}).keys())
-
-
-def _resolve_ref(schema, ref_schema):
-    """Given a {'$ref': '#/$defs/X'} dict, return the resolved schema node."""
-    ref = ref_schema["$ref"]
-    assert ref.startswith("#/$defs/"), f"unexpected $ref form: {ref}"
-    return _def(schema, ref[len("#/$defs/"):])
 
 
 def _canonical_key_match(key, canonical_names):
@@ -129,14 +87,34 @@ def _canonical_value_match(value, canonical_values):
     return None
 
 
+def _obj_props(node):
+    """Canonical property names of an adapter-emitted object schema node.
+    The adapter inlines every section/type block's fields directly under
+    "properties" (only value primitives are $ref), so no ref resolution is
+    needed here."""
+    return list(node.get("properties", {}).keys()) if isinstance(node, dict) else []
+
+
 def normalize_permissive(doc, schema):
     """
-    Walk a parsed FluidNC config document, normalizing every key name and
-    known enum value to canonical casing per `schema`. Returns
-    (normalized_doc, warnings) -- the input is not mutated.
+    Walk a parsed FluidNC config document, renaming every key that
+    case-insensitively matches a canonical name in `schema` (the adapter
+    output built from config_items.yaml) to that canonical casing, and
+    likewise for known enum leaf values. Returns (normalized_doc, warnings);
+    the input is not mutated.
 
-    warnings is a list of {"path": [...], "message": "..."} dicts, same
-    shape as jsonschema errors, so callers can present them uniformly.
+    FluidNC's real parser is case-insensitive on essentially every key,
+    type-selector name and several enum values (Parser::is(), strncasecmp);
+    the schema is canonical-only. This pass lets a human-written config with
+    only casing differences validate cleanly, each rename recorded as a
+    warning.
+
+    The adapter emits a regular tree -- section objects carry their fields
+    inline under "properties", repeated sections (axis letters, motorN,
+    pinextenderN) under "patternProperties", spindle/kinematics/motor-driver
+    type blocks are just nested objects -- so one generic recursive walk
+    covers every case (no per-section special handling, unlike the version
+    that read the old hand schema's $defs).
     """
     doc = copy.deepcopy(doc)
     warnings = []
@@ -144,11 +122,7 @@ def normalize_permissive(doc, schema):
     def warn(path, message):
         warnings.append({"path": list(path), "message": message})
 
-    def normalize_keys(node, path, canonical_keys, label, skip_keys=()):
-        """Rename any key in `node` that case-insensitively matches a name
-        in canonical_keys (and isn't an exact match already) to canonical
-        casing. Keys in skip_keys are left alone (e.g. numbered-section
-        prefixes handled separately)."""
+    def rename_keys(node, path, canonical_keys, label, skip_keys=()):
         if not isinstance(node, dict):
             return
         for k in list(node.keys()):
@@ -157,32 +131,51 @@ def normalize_permissive(doc, schema):
             canon = _canonical_key_match(k, canonical_keys)
             if canon:
                 warn(path + [k], f"{label} '{k}' normalized to canonical casing '{canon}' "
-                                  f"(case-insensitive match; real firmware accepts either)")
+                                 f"(case-insensitive match; real firmware accepts either)")
                 node[canon] = node.pop(k)
 
-    def normalize_type_selector(node, path, options_props, label):
-        """`options_props` maps canonical_name -> resolved schema node for
-        that type. Renames the one present key to canonical casing (if it's
-        a case-insensitive-only mismatch), then normalizes fields *inside*
-        the resolved type's own block, and returns the canonical name found
-        (or None)."""
-        if not isinstance(node, dict):
-            return None
-        canon_found = None
+    def child_schema(obj_schema, key):
+        """Schema node for `key` within an object schema: an exact/ci
+        'properties' entry, else the first matching 'patternProperties'."""
+        props = obj_schema.get("properties", {})
+        if key in props:
+            return props[key]
+        for name, sub in props.items():
+            if isinstance(key, str) and key.lower() == name.lower():
+                return sub
+        for rx, sub in obj_schema.get("patternProperties", {}).items():
+            if isinstance(key, str) and re.match(rx, key, re.IGNORECASE):
+                return sub
+        return None
+
+    def normalize_pattern_keys(node, path, obj_schema):
+        """Rename a key that matches one of obj_schema's patternProperties
+        regexes only case-insensitively (e.g. `X` -> `x`, `Motor0` -> `motor0`,
+        `UART1` -> `uart1`). JSON Schema regex matching is case-sensitive, so
+        without this those keys stay invalid even after permissive mode.
+        Every such pattern in the generated schema is lowercase, so the
+        canonical form of the key is simply its lowercase."""
+        patterns = list(obj_schema.get("patternProperties", {}))
+        if not patterns or not isinstance(node, dict):
+            return
         for k in list(node.keys()):
-            canon = _canonical_key_match(k, list(options_props.keys()))
-            if canon:
-                warn(path + [k], f"{label} '{k}' normalized to canonical casing '{canon}' "
-                                  f"(case-insensitive match; real firmware accepts either)")
-                node[canon] = node.pop(k)
-                k = canon
-            if k in options_props:
-                canon_found = k
-        if canon_found:
-            inner = node.get(canon_found)
-            if isinstance(inner, dict):
-                normalize_keys(inner, path + [canon_found], _props_of(options_props[canon_found]), f"{label} field")
-        return canon_found
+            if not isinstance(k, str) or any(re.match(rx, k) for rx in patterns):
+                continue
+            if k != k.lower() and any(re.match(rx, k.lower()) for rx in patterns):
+                warn(path + [k], f"key '{k}' normalized to canonical casing '{k.lower()}' "
+                                 f"(case-insensitive match; real firmware accepts either)")
+                node[k.lower()] = node.pop(k)
+
+    def recurse(node, path, obj_schema):
+        if not isinstance(node, dict) or not isinstance(obj_schema, dict):
+            return
+        rename_keys(node, path, _obj_props(obj_schema),
+                    "key" if len(path) else "top-level key")
+        normalize_pattern_keys(node, path, obj_schema)
+        for k, v in list(node.items()):
+            sub = child_schema(obj_schema, k)
+            if isinstance(sub, dict) and ("properties" in sub or "patternProperties" in sub):
+                recurse(v, path + [k], sub)
 
     def normalize_enum_leaves(node, path):
         if isinstance(node, dict):
@@ -191,242 +184,28 @@ def normalize_permissive(doc, schema):
                     canon = _canonical_value_match(v, ENUM_FIELDS[k])
                     if canon:
                         warn(path + [k], f"'{v}' normalized to canonical casing '{canon}' "
-                                          f"(case-insensitive match; real firmware accepts either)")
+                                         f"(case-insensitive match; real firmware accepts either)")
                         node[k] = canon
                 normalize_enum_leaves(v, path + [k])
         elif isinstance(node, list):
             for i, item in enumerate(node):
                 normalize_enum_leaves(item, path + [i])
 
-    root_schema = schema
-    root_props = root_schema.get("properties", {})
-
-    # 1. Root-level fixed keys (covers board/name/meta/stepping/axes/control/
-    #    coolant/probe/macros/extenders/start/parking/user_outputs/
-    #    user_inputs/oled/status_outputs/atc_manual/every spindle+VFD type
-    #    name/the top-level scalars -- ALL of these are literal entries in
-    #    schema["properties"], so one generic pass handles every one of them,
-    #    including what earlier passes of this module treated as a special
-    #    "spindle type" case).
-    numbered_prefixes_present = set()
-    for k in list(doc.keys()) if isinstance(doc, dict) else []:
-        if not isinstance(k, str):
-            continue
-        for prefix, pattern in _NUMBERED_SECTION_PATTERNS.items():
-            if pattern.match(k):
-                numbered_prefixes_present.add(k)
-    normalize_keys(doc, [], list(root_props.keys()), "top-level key", skip_keys=numbered_prefixes_present)
-
-    # 1b. Normalize numbered-section prefix casing itself (e.g. "UART1" -> "uart1"),
-    #     rare in practice but cheap to handle.
     if isinstance(doc, dict):
-        for k in list(doc.keys()):
-            if not isinstance(k, str):
-                continue
-            for prefix, pattern in _NUMBERED_SECTION_PATTERNS.items():
-                m = pattern.match(k)
-                if m and not k.startswith(prefix):
-                    canon_key = prefix + m.group(1)
-                    warn([k], f"numbered section '{k}' normalized to canonical casing '{canon_key}'")
-                    doc[canon_key] = doc.pop(k)
-
-    # 2. Recurse into each resolved root section that has its own nested
-    #    structure, normalizing ordinary fields within.
-
-    def normalize_flat_def(section_key, defname):
-        node = doc.get(section_key)
-        if isinstance(node, dict):
-            normalize_keys(node, [section_key], _props_of(_def(schema, defname)), "field")
-
-    for section_key, defname in [
-        ("control", "controlSection"),
-        ("coolant", "coolantSection"),
-        ("probe", "probeSection"),
-        ("macros", "macrosSection"),
-        ("start", "startSection"),
-        ("parking", "parkingSection"),
-        ("user_outputs", "userOutputsSection"),
-        ("user_inputs", "userInputsSection"),
-        ("oled", "oledSection"),
-        ("status_outputs", "statusOutputsSection"),
-        ("atc_manual", "atc_manual"),
-        ("spi", "spiSection"),
-        ("sdcard", "sdcardSection"),
-        ("stepping", "steppingSection"),
-    ]:
-        normalize_flat_def(section_key, defname)
-
-    # i2so: is defined inline under root properties, not as its own $def
-    if isinstance(doc.get("i2so"), dict) and isinstance(root_props.get("i2so"), dict):
-        normalize_keys(doc["i2so"], ["i2so"], _props_of(root_props["i2so"]), "field")
-
-    # 3. Spindle/VFD type blocks: resolve each root property's $ref (if any)
-    #    to get its own canonical field names.
-    for key, node in list(doc.items()) if isinstance(doc, dict) else []:
-        prop_schema = root_props.get(key)
-        if isinstance(prop_schema, dict) and "$ref" in prop_schema and isinstance(node, dict):
-            resolved = _resolve_ref(schema, prop_schema)
-            normalize_keys(node, [key], _props_of(resolved), "field")
-
-    # 4. kinematics: <type>
-    kinematics_node = doc.get("kinematics")
-    if isinstance(kinematics_node, dict):
-        kin_options = {
-            name: _resolve_ref(schema, ref) if "$ref" in ref else ref
-            for name, ref in _def(schema, "kinematicsSection")["properties"].items()
-        }
-        normalize_type_selector(kinematics_node, ["kinematics"], kin_options, "kinematics type")
-
-    # 5. axes: shared keys, each axis letter, homing, motorN, and each
-    #    motor's resolved driver type
-    axes_node = doc.get("axes")
-    if isinstance(axes_node, dict):
-        normalize_keys(axes_node, ["axes"], _props_of(_def(schema, "axesSection")), "field",
-                        skip_keys={"x", "y", "z", "a", "b", "c"})
-        axis_letter_props = _props_of(_def(schema, "axisLetter"))
-        motor_options = {
-            name: _resolve_ref(schema, ref)
-            for name, ref in _def(schema, "motorBlock")["properties"].items()
-            if "$ref" in ref
-        }
-        motor_block_own_props = [
-            k for k in _props_of(_def(schema, "motorBlock")) if k not in motor_options
-        ]
-        for axis_letter in ("x", "y", "z", "a", "b", "c"):
-            axis_block = axes_node.get(axis_letter)
-            if not isinstance(axis_block, dict):
-                continue
-            normalize_keys(axis_block, ["axes", axis_letter], axis_letter_props, "field",
-                            skip_keys={"homing", "motor0", "motor1"})
-            homing_block = axis_block.get("homing")
-            if isinstance(homing_block, dict):
-                normalize_keys(homing_block, ["axes", axis_letter, "homing"],
-                                _props_of(_def(schema, "homingBlock")), "field")
-            for motor_key in ("motor0", "motor1"):
-                motor_block = axis_block.get(motor_key)
-                if isinstance(motor_block, dict):
-                    normalize_keys(motor_block, ["axes", axis_letter, motor_key],
-                                    motor_block_own_props, "field",
-                                    skip_keys=set(motor_options.keys()) | {k.lower() for k in motor_options})
-                    normalize_type_selector(
-                        motor_block, ["axes", axis_letter, motor_key],
-                        motor_options, "motor driver type",
-                    )
-
-    # 6. extenders.pinextenderN.<type> (deprecated feature, still normalized for completeness)
-    extenders_node = doc.get("extenders")
-    if isinstance(extenders_node, dict):
-        extender_options_schema = _def(schema, "extendersSection")["additionalProperties"]["properties"]
-        extender_options = {
-            name: _resolve_ref(schema, ref) for name, ref in extender_options_schema.items()
-        }
-        for pe_key, pe_block in extenders_node.items():
-            if isinstance(pe_block, dict):
-                normalize_type_selector(pe_block, ["extenders", pe_key], extender_options, "extender type")
-
-    # 7. uartN / uart_channelN / i2cN numbered sections (patternProperties)
-    uart_section_def = _def(schema, "uartSection")
-    uart_channel_def = _def(schema, "uartChannelSection")
-    i2c_def = _def(schema, "i2cSection")
-    usb_host_ref = uart_section_def["properties"].get("usb_host")
-    usb_host_def = _resolve_ref(schema, usb_host_ref) if usb_host_ref else None
-
-    for k, node in list(doc.items()) if isinstance(doc, dict) else []:
-        if not isinstance(k, str) or not isinstance(node, dict):
-            continue
-        if _NUMBERED_SECTION_PATTERNS["uart_channel"].match(k):
-            normalize_keys(node, [k], _props_of(uart_channel_def), "field")
-        elif _NUMBERED_SECTION_PATTERNS["uart"].match(k):
-            normalize_keys(node, [k], _props_of(uart_section_def), "field", skip_keys={"usb_host"})
-            usb_host_node = node.get("usb_host")
-            if usb_host_node is None:
-                # check for a case-insensitive-only "usb_host" key
-                normalize_keys(node, [k], ["usb_host"], "field")
-                usb_host_node = node.get("usb_host")
-            if isinstance(usb_host_node, dict) and usb_host_def:
-                normalize_keys(usb_host_node, [k, "usb_host"], _props_of(usb_host_def), "field")
-        elif _NUMBERED_SECTION_PATTERNS["i2c"].match(k):
-            normalize_keys(node, [k], _props_of(i2c_def), "field")
-
-    # 8. Enum-valued leaf fields, anywhere in the document
+        recurse(doc, [], schema)
     normalize_enum_leaves(doc, [])
-
     return doc, warnings
 
 
-def scan_deprecated(doc, schema):
-    """
-    Scan a document for usage of anything marked "deprecated": true in the
-    schema, and return warnings describing it. Runs regardless of
-    strict/permissive mode -- deprecation is a different concern from
-    casing leniency (permissive mode's focus) and should surface either way,
-    since a deprecated-but-syntactically-valid config is worth flagging even
-    when the casing question doesn't apply.
+def load_schema(config_items_path: Path) -> dict:
+    """Build the validation schema from config_items.yaml via the adapter.
+    (Was: load the hand-maintained fluidnc-config-schema.json.)"""
+    import yaml
 
-    This closes a real gap: earlier versions of this module (and the
-    schema's own pinAny description) claimed deprecated pinext pin values
-    would be "flagged deprecated", but nothing actually implemented that --
-    a deprecated value validated completely silently. This function is what
-    makes that claim true.
+    import config_schema_adapter
 
-    Covers two things, deliberately by explicit/targeted checks rather than
-    a fully generic "walk every possible schema branch" implementation
-    (which would require re-implementing oneOf/$ref resolution at every
-    depth for marginal benefit given how few deprecated items currently
-    exist in the schema):
-
-      - Root-level sections whose resolved schema is deprecated (currently:
-        extenders: only -- rgbled: was removed from the schema entirely
-        rather than kept as recognized-but-deprecated, since the framework
-        it belonged to never shipped) -- detected generically by resolving
-        each present root key's $ref and checking its "deprecated" flag, so
-        this part DOES automatically extend to any future deprecated root
-        section without code changes here.
-      - Pin values using the deprecated pinext syntax (spec §3.5) --
-        detected by pattern-matching every string leaf value in the
-        document against pinDeprecated's own regex, since pin fields exist
-        in far too many locations to enumerate one by one structurally.
-    """
-    warnings = []
-    root_props = schema.get("properties", {})
-
-    if isinstance(doc, dict):
-        for key, node in doc.items():
-            prop_schema = root_props.get(key)
-            if not isinstance(prop_schema, dict):
-                continue
-            resolved = _resolve_ref(schema, prop_schema) if "$ref" in prop_schema else prop_schema
-            if resolved.get("deprecated") is True or prop_schema.get("deprecated") is True:
-                desc = (resolved.get("description") or prop_schema.get("description") or "").splitlines()
-                first_line = desc[0] if desc else "this section is deprecated."
-                warnings.append({
-                    "path": [key],
-                    "message": f"'{key}' is deprecated: {first_line}",
-                })
-
-    pin_deprecated_pattern = re.compile(_def(schema, "pinDeprecated")["pattern"])
-
-    def scan_pin_values(node, path):
-        if isinstance(node, dict):
-            for k, v in node.items():
-                if isinstance(v, str) and pin_deprecated_pattern.match(v):
-                    warnings.append({
-                        "path": path + [k],
-                        "message": f"'{v}' uses the deprecated pinext pin syntax (spec §3.5) -- "
-                                   f"do not use this in new configs, it may be removed.",
-                    })
-                scan_pin_values(v, path + [k])
-        elif isinstance(node, list):
-            for i, item in enumerate(node):
-                scan_pin_values(item, path + [i])
-
-    scan_pin_values(doc, [])
-    return warnings
-
-
-def load_schema(schema_path: Path) -> dict:
-    with open(schema_path) as f:
-        return json.load(f)
+    with open(config_items_path) as f:
+        return config_schema_adapter.build_schema(yaml.safe_load(f))
 
 
 def _stringify_keys(node):
@@ -535,9 +314,9 @@ def validate_document(doc, schema: dict, permissive: bool = False) -> dict:
     Validate a parsed FluidNC config document against schema.
 
     Returns {"valid": bool, "errors": [...], "warnings": [...]}.
-    warnings can be non-empty in EITHER mode now: deprecation warnings
-    (scan_deprecated) always run, regardless of permissive. In permissive
-    mode, casing-normalization warnings are added on top of those.
+    warnings is non-empty only in permissive mode (casing-normalization
+    notes). There is no deprecation concept: a section/field is either
+    present in config_items.yaml -- and therefore accepted -- or it is not.
     """
     if Draft202012Validator is None:
         raise RuntimeError("jsonschema package is not installed")
@@ -551,8 +330,6 @@ def validate_document(doc, schema: dict, permissive: bool = False) -> dict:
     warnings = []
     if permissive:
         doc, warnings = normalize_permissive(doc, schema)
-
-    warnings = warnings + scan_deprecated(doc, schema)
 
     validator = Draft202012Validator(schema)
     errors = sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path))

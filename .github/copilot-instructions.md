@@ -112,7 +112,7 @@ Located in `FluidNC/tests/`:
 - **Includes**: Correct quotes (`"local"`) and angle brackets (`<system>`); cpp includes header first
 - **Hardware abstraction**: New features use `Machine::` or `MotorDrivers::` namespaces, not hardcoded pins
 - **Config system**: Configurable features implement `group()` handler
-- **Config syntax sync**: Any change to a `handler.item()`/`handler.section()` call, a factory `InstanceBuilder` registration, `Pin::parse()`, or the config-file tokenizer/parser (`src/Configuration/`) changes what a valid `config.yaml` looks like. See `.github/instructions/config-syntax-review.instructions.md` for the full checklist — `tools/fluidnc-config-spec.md` and `tools/fluidnc-config-schema.json` need to stay in sync with this source, since they're hand-verified against it, not auto-generated.
+- **Config syntax sync**: Any change to a `handler.item()`/`handler.section()` call, a factory `InstanceBuilder` registration, `Pin::parse()`, or the config-file tokenizer/parser (`src/Configuration/`) changes what a valid `config.yaml` looks like. See `.github/instructions/config-syntax-review.instructions.md` for the full checklist — such a change needs a matching `// @config` annotation update so `python3 tools/build_config_docs.py` regenerates `FluidNC/docs/config_items.yaml` correctly (that file is the source of truth the validator schema is built from); `tools/fluidnc-config-spec.md` is still hand-maintained.
 - **No blocking**: ISR-context code (Stepping, Stepper) avoids allocations, logging
 - **Clang-format**: Run before commit (IDE auto-format or CLI: `clang-format -i file.cpp`)
 

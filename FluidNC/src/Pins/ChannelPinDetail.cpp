@@ -6,6 +6,7 @@
 namespace Pins {
     ChannelPinDetail::ChannelPinDetail(UartChannel* channel, pinnum_t index, const PinOptionsParser& options) :
         PinDetail(index), _channel(channel) {
+        // @pin_namespace uart_channel<n>
         _name = _channel->name();
         _name += ".";
         _name += std::to_string(index);

@@ -38,7 +38,7 @@ namespace MotorDrivers {
             // (this field has no effect on them); TMC2209/TMC2226 set their real address
             // via their MS1/MS2 pins, making them individually addressable (up to 4 chips
             // per UART bus).
-            handler.item("addr", _addr);
+            handler.item("addr", _addr, 0, 3);
 
             // @config cs_pin
             // @default NO_PIN
