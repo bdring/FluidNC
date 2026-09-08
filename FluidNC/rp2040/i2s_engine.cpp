@@ -9,7 +9,13 @@
 namespace {
     uint32_t pulse_delay_us = 2;
     uint32_t dir_delay_us   = 0;
-    int32_t  step_pulse_end_time;
+
+    // step_pulse_end_time and step_pulse_pending are read/written from both
+    // the stepper timer ISR (via Stepping::step()/finish_step()) and the
+    // foreground reset path (Stepper::reset() -> stop_stepping() -> unstep()),
+    // so they're volatile to keep the compiler from caching stale values.
+    volatile int32_t step_pulse_end_time;
+    volatile bool    step_pulse_pending = false;
 
     uint32_t init_engine(uint32_t dir_delay, uint32_t pulse_delay, uint32_t& frequency, bool (*callback)(void)) {
         (void)frequency;
@@ -43,10 +49,19 @@ namespace {
     void finish_step() {
         i2s_out_delay();
         step_pulse_end_time = usToEndTicks(pulse_delay_us);
+        step_pulse_pending  = true;
     }
 
     bool start_unstep() {
-        spinUntil(step_pulse_end_time);
+        // Only spin out the pulse width if a step pulse is actually in
+        // flight.  unstep() is also called from stop_stepping() on soft
+        // reset, where step_pulse_end_time is stale; the CCOUNT-based
+        // spinUntil() can then spin for up to ~half the 32-bit wraparound
+        // and trip the task watchdog.
+        if (step_pulse_pending) {
+            step_pulse_pending = false;
+            spinUntil(step_pulse_end_time);
+        }
         return false;
     }
 

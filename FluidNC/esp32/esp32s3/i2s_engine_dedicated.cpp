@@ -33,7 +33,12 @@ static bool i2s_out_initialized = 0;
 static uint32_t _pulse_delay_us;
 static uint32_t _dir_delay_us;
 
-static int32_t _stepPulseEndTime;
+// _stepPulseEndTime and _stepPulsePending are read/written from both the
+// stepper timer ISR (via Stepping::step()/finish_step()) and the foreground
+// reset path (Stepper::reset() -> stop_stepping() -> unstep()), so they're
+// volatile to keep the compiler from caching stale values across contexts.
+static volatile int32_t _stepPulseEndTime;
+static volatile bool    _stepPulsePending = false;
 
 static uint32_t i2s_output_ = 0;
 static uint32_t i2s_pulse_  = 0;
@@ -228,12 +233,20 @@ static void IRAM_ATTR start_step() {
 // will happen in start_unstep()
 static void IRAM_ATTR finish_step() {
     _stepPulseEndTime = usToEndTicks(_pulse_delay_us);
+    _stepPulsePending = true;
 
     i2s_out_gpio_shiftout(i2s_output_ ^ i2s_pulse_);
 }
 
 static bool IRAM_ATTR start_unstep() {
-    spinUntil(_stepPulseEndTime);
+    // Only spin out the pulse width if a step pulse is actually in flight.
+    // unstep() is also called from stop_stepping() on soft reset, where
+    // _stepPulseEndTime is stale; the CCOUNT-based spinUntil() can then
+    // spin for up to ~half the 32-bit wraparound and trip the task watchdog.
+    if (_stepPulsePending) {
+        _stepPulsePending = false;
+        spinUntil(_stepPulseEndTime);
+    }
     i2s_out_gpio_shiftout(i2s_output_);
     i2s_pulse_ = 0;
     return false;

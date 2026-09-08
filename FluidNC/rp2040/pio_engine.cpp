@@ -13,7 +13,13 @@
 
 static uint32_t _pulse_delay_us;
 static uint32_t _dir_delay_us;
-static int32_t  _stepPulseEndTime;
+
+// _stepPulseEndTime and _stepPulsePending are read/written from both the
+// stepper timer ISR (via Stepping::step()/finish_step()) and the foreground
+// reset path (Stepper::reset() -> stop_stepping() -> unstep()), so they're
+// volatile to keep the compiler from caching stale values across contexts.
+static volatile int32_t _stepPulseEndTime;
+static volatile bool    _stepPulsePending = false;
 
 static PIO      _pio         = pio0;
 static uint     _sm          = 0;
@@ -114,10 +120,18 @@ static void start_step() {}
 static void finish_step() {
     commit_step_shadow();
     _stepPulseEndTime = usToEndTicks(_pulse_delay_us);
+    _stepPulsePending = true;
 }
 
 static bool start_unstep() {
-    spinUntil(_stepPulseEndTime);
+    // Only spin out the pulse width if a step pulse is actually in flight.
+    // unstep() is also called from stop_stepping() on soft reset, where
+    // _stepPulseEndTime is stale; the CCOUNT-based spinUntil() can then
+    // spin for up to ~half the 32-bit wraparound and trip the task watchdog.
+    if (_stepPulsePending) {
+        _stepPulsePending = false;
+        spinUntil(_stepPulseEndTime);
+    }
     return false;
 }
 
