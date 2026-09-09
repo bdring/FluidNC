@@ -301,7 +301,7 @@ static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level,
     // including mid-job. Enabling while a job runs just makes it pause at the next
     // line; $GB=Off (or a cycle start per line) gets out of it.
     protocol_send_event(enable ? &pinActiveEvent : &pinInactiveEvent, &singleBlockPin);
-    log_info_to(out, enable ? "Single Block Mode Enabled" : "Single Block Mode Disabled");
+    log_info_to(out, (enable ? "Single Block Mode Enabled" : "Single Block Mode Disabled"));
     return Error::Ok;
 }
 
