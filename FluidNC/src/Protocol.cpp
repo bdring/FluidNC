@@ -174,6 +174,63 @@ static void poll_input_channel() {
     }
 }
 
+const uint32_t heapWarnThreshold = 15000;
+
+uint32_t heapLowWater           = UINT_MAX;
+uint32_t heapLowWaterReported   = UINT_MAX;
+int32_t  heapLowWaterReportTime = 0;
+
+// Low-water mark of the largest contiguous free block, i.e. the biggest single
+// allocation that would have succeeded.  Tracks fragmentation, which total-free
+// low-water misses.  Stays UINT_MAX on platforms where platform_max_free_block()
+// returns 0 (no API).
+uint32_t maxBlockLowWater = UINT_MAX;
+
+// Heap instrumentation.  Called from poll_once(), i.e. on SUPPORT_TASK_CORE,
+// so none of it lands on the motion core: xPortGetFreeHeapSize() is a cheap
+// counter read, but platform_max_free_block() walks the free list under the
+// global heap spinlock, and none of these numbers are time-critical.  The
+// low-water globals are written only here and read lock-free elsewhere ($heap,
+// WebUI, status reports); a 32-bit load/store is atomic on both cores and a
+// stale read only skews a diagnostic.
+static void heap_monitor_poll() {
+    // Total-free low-water: sampled every pass.  poll_once() runs at ~1 kHz
+    // (its leading vTaskDelay(1)), cheap enough for a counter read and quick
+    // enough to catch transient dips the throttled path below would miss.
+    uint32_t freeHeap = xPortGetFreeHeapSize();
+    if (freeHeap < heapLowWater) {
+        heapLowWater = freeHeap;
+    }
+
+    // Largest-free-block low-water and the low-memory warning: the block walk
+    // is the expensive part, so throttle to ~5 Hz.
+    static uint32_t lastSlowSample = 0;
+    if ((uint32_t)(getCpuTicks() - lastSlowSample) < (uint32_t)usToCpuTicks(200000)) {
+        return;
+    }
+    lastSlowSample = getCpuTicks();
+
+    if (size_t maxBlock = platform_max_free_block()) {
+        if (maxBlock < maxBlockLowWater) {
+            maxBlockLowWater = maxBlock;
+        }
+    }
+
+    // Consider reporting when the minimum has not yet been reported and it is low enough.
+    if (heapLowWater < heapLowWaterReported && heapLowWater < heapWarnThreshold) {
+        // Report only if it has been a while since the last report or if the memory has
+        // dropped significantly (2k bytes) since the last report.
+        // This prevents a cycle where the reporting itself consumes some heap and triggers another
+        // report, but the true minimum is reported eventually, and large drops are reported immediately.
+        uint32_t ticksSinceReported = (getCpuTicks() - heapLowWaterReportTime);
+        if ((heapLowWater < heapLowWaterReported - 2048) || (ticksSinceReported > (uint32_t)usToCpuTicks(200000))) {
+            //                log_warn("Low memory: " << heapLowWater << " bytes");
+            heapLowWaterReported   = heapLowWater;
+            heapLowWaterReportTime = getCpuTicks();
+        }
+    }
+}
+
 bool pollingPaused = false;
 // One pass of the polling loop.  Factored out of polling_loop() so that the
 // whole pass can be wrapped in a try block; "continue" becomes "return".
@@ -196,6 +253,8 @@ static void poll_once() {
             module->poll();
             feed_watchdog();
         }
+
+        heap_monitor_poll();
 
         if (!Job::active()) {
             unwind_cause = nullptr;
@@ -340,18 +399,6 @@ static void alarm_msg(ExecAlarm alarm_code) {
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
-const uint32_t heapWarnThreshold = 15000;
-
-uint32_t heapLowWater           = UINT_MAX;
-uint32_t heapLowWaterReported   = UINT_MAX;
-int32_t  heapLowWaterReportTime = 0;
-
-// Low-water mark of the largest contiguous free block, i.e. the biggest single
-// allocation that would have succeeded.  Tracks fragmentation, which total-free
-// low-water misses.  Stays UINT_MAX on platforms where platform_max_free_block()
-// returns 0 (no API).
-uint32_t maxBlockLowWater = UINT_MAX;
-
 void protocol_main_loop() {
     add_watchdog_to_task();
     start_polling();
@@ -412,42 +459,6 @@ void protocol_main_loop() {
         if (idleEndTime && (getCpuTicks() - idleEndTime) > 0) {
             idleEndTime = 0;  //
             Axes::set_disable(true, false);
-        }
-        uint32_t newHeapSize = xPortGetFreeHeapSize();
-        if (newHeapSize < heapLowWater) {
-            heapLowWater = newHeapSize;
-        }
-        // platform_max_free_block() walks the heap free list with interrupts
-        // masked on this core - which is also the stepping core.  Doing that
-        // every loop pass adds enough ISR latency to make RMT step pulses
-        // erratic.  It is only a fragmentation diagnostic, so sample it at most
-        // every 200 ms and only while idle, when a brief latency blip cannot
-        // disturb motion.
-        if (state_is(State::Idle)) {
-            static uint32_t maxBlockSampleTime = 0;
-            if ((uint32_t)(getCpuTicks() - maxBlockSampleTime) > (uint32_t)usToCpuTicks(200000)) {
-                maxBlockSampleTime = getCpuTicks();
-                if (size_t maxBlock = platform_max_free_block()) {
-                    if (maxBlock < maxBlockLowWater) {
-                        maxBlockLowWater = maxBlock;
-                    }
-                }
-            }
-        }
-        // Consider reporting when the minimum has not yet been reported and it is low enough.
-        if (heapLowWater < heapLowWaterReported && heapLowWater < heapWarnThreshold) {
-            // typecast to uint32_t handles roll-over for this case
-            uint32_t ticksSinceReported = (getCpuTicks() - heapLowWaterReportTime);
-            uint32_t tickLimit          = usToCpuTicks(200000);
-            // Report only if it has been a while since the last report or if the memory has
-            // dropped significantly (2k bytes) since the last report.
-            // This prevents a cycle where the reporting itself consumes some heap and triggers another
-            // report, but the true minimum is reported eventually, and large drops are reported immediately.
-            if ((heapLowWater < heapLowWaterReported - 2048) || (ticksSinceReported > tickLimit)) {
-                //                log_warn("Low memory: " << heapLowWater << " bytes");
-                heapLowWaterReported   = heapLowWater;
-                heapLowWaterReportTime = getCpuTicks();
-            }
         }
     }
     return; /* Never reached */
