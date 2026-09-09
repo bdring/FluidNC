@@ -293,20 +293,13 @@ static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level,
     if (enable == singleBlockPin.get()) {
         return Error::Ok;  // Already in the requested state
     }
-    if (enable && !state_is(State::Idle)) {
-        // Enabling mid-job would strand the machine: the pause takes effect on the
-        // next job line and only a pin or a pin-event button can release it, and
-        // this command is rejected as an interloper while a job runs (see below).
-        // So only allow enabling from Idle. Disabling is always allowed.
-        return Error::IdleError;
-    }
     // Drive the toggle through the same pin-event path that a real single_block_pin
     // and the WebUI/pendant button use. That runs InputPin::trigger() (and the Pn:
     // string recompute) on the protocol task regardless of which task this command
     // ran on, so gcode_block_mode() itself needs no protocol context: it is
-    // registered as a ReportCommand and works from any channel, including while a
-    // job is running -- which is the only way to leave block mode mid-job short of
-    // a reset or a hardware pin.
+    // registered as a ReportCommand and works from any channel in any state,
+    // including mid-job. Enabling while a job runs just makes it pause at the next
+    // line; $GB=Off (or a cycle start per line) gets out of it.
     protocol_send_event(enable ? &pinActiveEvent : &pinInactiveEvent, &singleBlockPin);
     log_info_to(out, enable ? "Single Block Mode Enabled" : "Single Block Mode Disabled");
     return Error::Ok;
