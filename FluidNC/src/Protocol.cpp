@@ -232,7 +232,6 @@ static void heap_monitor_poll() {
 }
 
 bool pollingPaused = false;
-bool stepModeEnabled = false;
 
 // One pass of the polling loop.  Factored out of polling_loop() so that the
 // whole pass can be wrapped in a try block; "continue" becomes "return".
@@ -431,7 +430,7 @@ void protocol_main_loop() {
                 // Single-step mode: pause before each job line exactly like an inferred
                 // M0 ahead of that line, reporting a preview of what will run next. The
                 // line is only executed once a cycle start releases the hold.
-                if (stepModeEnabled && Job::active() && !sys.abort()) {
+                if (config->_control->_singleBlockPin.get() && Job::active() && !sys.abort()) {
                     protocol_buffer_synchronize();  // Finish all remaining buffered motion before pausing.
                     if (!state_is(State::CheckMode)) {
                         std::string_view preview(item.line);
@@ -446,8 +445,18 @@ void protocol_main_loop() {
                         // the resulting suspend state is non-zero, blocks inside
                         // protocol_exec_rt_suspend() until a cycle start clears it. So this call is
                         // itself the wait for resume; nothing further is needed after it.
+                        //
+                        // protocol_exec_rt_suspend()'s wait loop also returns as soon as sys.abort()
+                        // is set, without clearing suspend -- that's the normal path for a reset
+                        // while paused here, not just a resume. Without the sys.abort() check below,
+                        // a reset issued while waiting would still fall through to execute_line() and
+                        // run the very line the reset was meant to discard.
                         protocol_send_event(&feedHoldEvent);
                         protocol_execute_realtime();
+                        if (sys.abort()) {
+                            channel->release_processing_ref();
+                            continue;
+                        }
                     }
                 }
 
@@ -1343,16 +1352,16 @@ void protocol_do_rt_reset() {
     protocol_send_event(&restartEvent);
 }
 
-void protocol_do_pin_active(void* vpEventPin) {
-    auto eventPin = static_cast<EventPin*>(vpEventPin);
-    if (eventPin) {  // Safety check; null eventPin should not happen
-        eventPin->trigger(true);
+void protocol_do_pin_active(void* vpInputPin) {
+    auto inputPin = static_cast<InputPin*>(vpInputPin);
+    if (inputPin) {  // Safety check; null inputPin should not happen
+        inputPin->trigger(true);
     }
 }
-void protocol_do_pin_inactive(void* vpEventPin) {
-    auto eventPin = static_cast<EventPin*>(vpEventPin);
-    if (eventPin) {  // Safety check; null eventPin should not happen
-        eventPin->trigger(false);
+void protocol_do_pin_inactive(void* vpInputPin) {
+    auto inputPin = static_cast<InputPin*>(vpInputPin);
+    if (inputPin) {  // Safety check; null inputPin should not happen
+        inputPin->trigger(false);
     }
 }
 

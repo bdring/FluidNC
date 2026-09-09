@@ -96,11 +96,6 @@ extern QueueHandle_t event_queue;
 
 extern bool pollingPaused;
 
-// When true, a job (file or macro) pauses like an inferred M0 before each
-// line instead of running straight through. Set via $SM before a job starts;
-// cleared by the CycleStartStepOff realtime command.
-extern bool stepModeEnabled;
-
 struct EventItem {
     const Event* event;
     void*        arg;

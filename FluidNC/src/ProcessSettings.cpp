@@ -279,9 +279,10 @@ static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level,
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
-    bool enable;
+    auto& singleBlockPin = config->_control->_singleBlockPin;
+    bool  enable;
     if (*value == '\0') {
-        enable = !stepModeEnabled;  // No value given: toggle
+        enable = !singleBlockPin.get();  // No value given: toggle
     } else if (string_util::equal_ignore_case(value, "On")) {
         enable = true;
     } else if (string_util::equal_ignore_case(value, "Off")) {
@@ -290,18 +291,20 @@ static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level,
         return Error::InvalidValue;
     }
     if (enable) {
-        // Block mode can only be turned on before a job starts. Once a job is
-        // running, the console is no longer polled for line commands, so the
-        // only way to affect it is the SingleBlockOn/SingleBlockOff realtime commands.
+        // Block mode can only be turned on from here while Idle. Once a job is
+        // running, the console is no longer polled for line commands, so the only
+        // way to affect it from then on is a real single_block_pin or the
+        // pin-event mechanism (Channel::registerVirtualPin), both of which work
+        // regardless of job state.
         if (!state_is(State::Idle)) {
             return Error::IdleError;
         }
-        if (!stepModeEnabled) {
-            stepModeEnabled = true;
+        if (!singleBlockPin.get()) {
+            singleBlockPin.trigger(true);
             log_info_to(out, "Single Block Mode Enabled");
         }
-    } else if (stepModeEnabled) {
-        stepModeEnabled = false;
+    } else if (singleBlockPin.get()) {
+        singleBlockPin.trigger(false);
         log_info_to(out, "Single Block Mode Disabled");
     }
     return Error::Ok;

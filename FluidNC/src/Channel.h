@@ -53,6 +53,9 @@ public:
     static constexpr int PinLowLast   = 0x140;
     static constexpr int PinHighFirst = 0x140;
     static constexpr int PinHighLast  = 0x180;
+    // Highest usable pin-event index, e.g. for a well-known software pin that every
+    // channel should recognize regardless of per-instance/per-config pin assignment.
+    static constexpr int MaxPinIndex = PinLowLast - PinLowFirst - 1;
 
     static constexpr int maxLine = 255;
 
@@ -102,6 +105,12 @@ protected:
     Cmd _last_rt_cmd = Cmd::None;
 
     std::map<int, InputPin*> _pins;
+
+    // Pin events not tied to any one Channel instance -- shared across all channels,
+    // so a pin registered here is recognized on every current and future channel
+    // (WebSocket, Telnet, UART, ...), unlike _pins above which is per-instance and
+    // only reachable on whichever channel a real/configured Pin happens to be bound to.
+    static std::map<int, InputPin*> _virtual_pins;
 
     UTF8 _utf8;
 
@@ -239,6 +248,11 @@ public:
 
     void ready();
     void registerEvent(pinnum_t pinnum, InputPin* obj);
+
+    // Registers obj at pinnum in the shared, channel-independent virtual-pin table
+    // (see _virtual_pins). Intended to be called once, during single-threaded init,
+    // before any channel starts polling.
+    static void registerVirtualPin(pinnum_t pinnum, InputPin* obj);
 
     size_t lineNumber() { return _line_number; }
     void   setLineNumber(size_t line_number) { _line_number = line_number; }
