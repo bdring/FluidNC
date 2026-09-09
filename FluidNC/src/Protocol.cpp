@@ -433,20 +433,22 @@ void protocol_main_loop() {
                 // line is only executed once a cycle start releases the hold.
                 if (config->_control->_singleBlockPin.get() && Job::active() && !sys.abort()) {
                     protocol_buffer_synchronize();  // Finish all remaining buffered motion before pausing.
-                    if (!state_is(State::CheckMode)) {
+
+                    // protocol_buffer_synchronize() pumps realtime commands, during which the
+                    // polling task can Job::abort() (Alarm/Critical/unwind_cause) and empty the
+                    // job stack. Fetch the job channel once, afterwards, and skip the pause if it
+                    // is gone rather than dereferencing a null Job::channel(). jc->lineNumber()
+                    // still matches item.line because CMD_QUEUE_DEPTH == 1 and poll_once() will
+                    // not read another job line while our processing_ref is held -- exactly one
+                    // job line is ever in flight; a deeper queue would let that skew.
+                    Channel* jc = Job::channel();
+                    if (jc && !state_is(State::CheckMode)) {
                         std::string_view preview(item.line);
                         bool             truncated = preview.size() > 20;
                         if (truncated) {
                             preview = preview.substr(0, 20);
                         }
-                        // Job::channel()->lineNumber() still matches item.line here only
-                        // because CMD_QUEUE_DEPTH == 1 and poll_once() will not read another
-                        // job line while our processing_ref is held -- exactly one job line
-                        // is ever in flight. If the queue depth is ever raised, the polling
-                        // task could run ahead and this line number (and name) would skew
-                        // from the line being previewed.
-                        log_info("Step " << Job::channel()->name() << ":" << Job::channel()->lineNumber() << " " << preview
-                                         << (truncated ? "..." : ""));
+                        log_info("Step " << jc->name() << ":" << jc->lineNumber() << " " << preview << (truncated ? "..." : ""));
 
                         // protocol_execute_realtime() processes the feedhold event and then, because
                         // the resulting suspend state is non-zero, blocks inside
