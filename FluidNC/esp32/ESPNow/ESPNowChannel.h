@@ -7,6 +7,7 @@
 #include "ESPNowConfig.h"
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <string>
 #include <atomic>
 #include <freertos/FreeRTOS.h>
@@ -106,7 +107,10 @@ private:
         std::atomic<bool>             echo_pending { false };
 
         ESPNowCrypto::ReplayState rx_replay;
-        FragBuf                   frag                   = {};
+        // Reassembly scratch (~1.9 kB) is allocated only while a fragmented
+        // message from this peer is in flight, and freed on completion /
+        // timeout / flush.  See freeFrag().
+        FragBuf*                  frag                   = nullptr;
         uint32_t                  motion_barrier_counter = 0;
         uint8_t                   tx_seq                 = 0;
 
@@ -115,6 +119,7 @@ private:
         PairedPeer& operator=(const PairedPeer&) = delete;
         PairedPeer(PairedPeer&&)                 = delete;
         PairedPeer& operator=(PairedPeer&&)      = delete;
+        ~PairedPeer() { free(frag); }
     };
 
     enum class PairingState : uint8_t {
@@ -155,12 +160,20 @@ private:
 
     // RX
     static constexpr size_t RX_BUF_SIZE = 4096;
-    static uint8_t          _rx_buf[RX_BUF_SIZE];
+    static uint8_t*         _rx_buf;  // lazily malloc'd on first inbound data byte
     static std::atomic<int> _rx_head;
     static std::atomic<int> _rx_tail;
-    QueueHandle_t           _packet_queue       = nullptr;
-    QueueHandle_t           _pairing_queue      = nullptr;
-    QueueHandle_t           _pair_confirm_queue = nullptr;
+    QueueHandle_t           _packet_queue       = nullptr;  // created by arm()
+    QueueHandle_t           _pairing_queue      = nullptr;  // created by ensurePairingQueues()
+    QueueHandle_t           _pair_confirm_queue = nullptr;  // created by ensurePairingQueues()
+
+    // Staged bring-up: nothing below arm() is allocated until the node has a
+    // saved pairing or the operator opens a pairing window.
+    bool arm();
+    void loadRoster(const ESPNowPairingRecord* records, size_t count);
+    bool ensureRxBuf();
+    void ensurePairingQueues();
+    void freeFrag(PairedPeer& peer);  // caller must hold _peer_mutex
 
     void   rxPush(uint8_t byte);
     size_t rxBuffered() const;
@@ -199,8 +212,10 @@ private:
     bool pairingWindowActive();
     bool removeRuntimePeer(const uint8_t* mac);
 
-    bool _initialized = false;
-    bool _registered  = false;
+    bool _initialized    = false;
+    bool _registered     = false;
+    bool _espnow_started = false;  // esp_now_init() + packet queue live
+    bool _want_arm       = false;  // saved pairing exists; arm() may be retried from poll()
 
     static constexpr uint32_t PAIRING_HANDSHAKE_TIMEOUT_MS = 10000;
     PairingTransaction        _pairing;
