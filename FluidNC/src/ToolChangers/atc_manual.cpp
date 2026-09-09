@@ -86,10 +86,6 @@ namespace ATCs {
             _macro.addf("G21");
         }
 
-        if (was_incremental_mode) {
-            _macro.addf("G90");
-        }
-
         try {
             if (_prev_tool == 0) {  // M6T<anything> from T0 is used for a manual change before zero'ing
                 move_to_change_location();
@@ -144,6 +140,7 @@ namespace ATCs {
             move_to_safe_z();
 
             // return to location before the tool change
+            _macro.addf("G90");
             _macro.addf("G0X#<start_x>Y#<start_y>");
             _macro.addf("G0Z#<start_z>");
 
