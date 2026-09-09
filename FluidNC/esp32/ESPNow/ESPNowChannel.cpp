@@ -325,8 +325,13 @@ bool ESPNowChannel::arm() {
         WiFi.disconnect(false, false);
     }
 
-    if (esp_now_init() != ESP_OK) {
-        log_debug("ESP-NOW: esp_now_init() deferred (Wi-Fi not ready)");
+    esp_err_t init_err = esp_now_init();
+    if (init_err != ESP_OK) {
+        // ESP_ERR_ESPNOW_INTERNAL here usually means Wi-Fi has not finished
+        // starting yet; poll() will retry.  Log at debug so a transient
+        // startup race does not spam, but name the actual error so a
+        // persistent failure is still diagnosable.
+        log_debug("ESP-NOW: esp_now_init() failed: " << esp_err_to_name(init_err) << " (will retry)");
         return false;
     }
 
@@ -524,6 +529,9 @@ bool ESPNowChannel::removeRuntimePeer(const uint8_t* mac) {
 
     _paired_count.store(last, std::memory_order_release);
     _paired.store(last > 0, std::memory_order_release);
+    if (last == 0) {
+        _want_arm = false;  // roster empty: cancel any pending arm() retry
+    }
     int active = _active_peer_index.load(std::memory_order_acquire);
     if (active == index || active >= (int)last) {
         _active_peer_index.store(last > 0 ? 0 : -1, std::memory_order_release);
@@ -561,6 +569,9 @@ void ESPNowChannel::clearPairings() {
     _paired.store(false, std::memory_order_release);
     _active_peer_index.store(-1, std::memory_order_release);
     _pairing_window_active.store(false, std::memory_order_release);
+    // Cancel any pending arm() retry so a node whose roster was cleared before
+    // Wi-Fi came up stays dark.  An already-armed node stays armed (harmless).
+    _want_arm = false;
     ESPNowConfig::clearPairing();
     refreshReportInterval();
 }
