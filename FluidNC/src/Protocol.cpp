@@ -417,9 +417,21 @@ void protocol_main_loop() {
         if (newHeapSize < heapLowWater) {
             heapLowWater = newHeapSize;
         }
-        if (size_t maxBlock = platform_max_free_block()) {
-            if (maxBlock < maxBlockLowWater) {
-                maxBlockLowWater = maxBlock;
+        // platform_max_free_block() walks the heap free list with interrupts
+        // masked on this core - which is also the stepping core.  Doing that
+        // every loop pass adds enough ISR latency to make RMT step pulses
+        // erratic.  It is only a fragmentation diagnostic, so sample it at most
+        // every 200 ms and only while idle, when a brief latency blip cannot
+        // disturb motion.
+        if (state_is(State::Idle)) {
+            static uint32_t maxBlockSampleTime = 0;
+            if ((uint32_t)(getCpuTicks() - maxBlockSampleTime) > (uint32_t)usToCpuTicks(200000)) {
+                maxBlockSampleTime = getCpuTicks();
+                if (size_t maxBlock = platform_max_free_block()) {
+                    if (maxBlock < maxBlockLowWater) {
+                        maxBlockLowWater = maxBlock;
+                    }
+                }
             }
         }
         // Consider reporting when the minimum has not yet been reported and it is low enough.
