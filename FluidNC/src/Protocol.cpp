@@ -176,9 +176,9 @@ static void poll_input_channel() {
 
 const uint32_t heapWarnThreshold = 15000;
 
-uint32_t heapLowWater           = UINT_MAX;
-uint32_t heapLowWaterReported   = UINT_MAX;
-int32_t  heapLowWaterReportTime = 0;
+uint32_t        heapLowWater           = UINT_MAX;
+static uint32_t heapLowWaterReported   = UINT_MAX;
+static uint32_t heapLowWaterReportTime = 0;
 
 // Low-water mark of the largest contiguous free block, i.e. the biggest single
 // allocation that would have succeeded.  Tracks fragmentation, which total-free
