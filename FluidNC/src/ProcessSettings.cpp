@@ -275,6 +275,38 @@ static Error toggle_check_mode(const char* value, AuthenticationLevel auth_level
     return Error::Ok;
 }
 
+static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (state_is(State::ConfigAlarm)) {
+        return Error::ConfigurationInvalid;
+    }
+    bool enable;
+    if (*value == '\0') {
+        enable = !stepModeEnabled;  // No value given: toggle
+    } else if (string_util::equal_ignore_case(value, "On")) {
+        enable = true;
+    } else if (string_util::equal_ignore_case(value, "Off")) {
+        enable = false;
+    } else {
+        return Error::InvalidValue;
+    }
+    if (enable) {
+        // Block mode can only be turned on before a job starts. Once a job is
+        // running, the console is no longer polled for line commands, so the
+        // only way to affect it is the SingleBlockOn/SingleBlockOff realtime commands.
+        if (!state_is(State::Idle)) {
+            return Error::IdleError;
+        }
+        if (!stepModeEnabled) {
+            stepModeEnabled = true;
+            log_info_to(out, "Single Block Mode Enabled");
+        }
+    } else if (stepModeEnabled) {
+        stepModeEnabled = false;
+        log_info_to(out, "Single Block Mode Disabled");
+    }
+    return Error::Ok;
+}
+
 static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
@@ -1050,6 +1082,7 @@ void make_user_commands() {
     new ReportCommand("A", "Alarms/List", listAlarms, anyState);
     new ReportCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
+    new UserCommand("GB", "GCode/BlockMode", gcode_block_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);

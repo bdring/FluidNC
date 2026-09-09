@@ -19,6 +19,12 @@ void execute_realtime_command(Cmd command, Channel& channel) {
         case Cmd::CycleStart:
             protocol_send_event(&cycleStartEvent);
             break;
+        case Cmd::SingleBlockOff:
+            stepModeEnabled = false;
+            break;
+        case Cmd::SingleBlockOn:
+            stepModeEnabled = true;
+            break;
         case Cmd::FeedHold:
             protocol_send_event(&feedHoldEvent);
             break;

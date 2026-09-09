@@ -232,6 +232,8 @@ static void heap_monitor_poll() {
 }
 
 bool pollingPaused = false;
+bool stepModeEnabled = false;
+
 // One pass of the polling loop.  Factored out of polling_loop() so that the
 // whole pass can be wrapped in a try block; "continue" becomes "return".
 static void poll_once() {
@@ -425,6 +427,29 @@ void protocol_main_loop() {
 
                 Channel* ldr         = Job::leader_channel();
                 Channel* out_channel = ldr ? ldr : channel;
+
+                // Single-step mode: pause before each job line exactly like an inferred
+                // M0 ahead of that line, reporting a preview of what will run next. The
+                // line is only executed once a cycle start releases the hold.
+                if (stepModeEnabled && Job::active() && !sys.abort()) {
+                    protocol_buffer_synchronize();  // Finish all remaining buffered motion before pausing.
+                    if (!state_is(State::CheckMode)) {
+                        std::string_view preview(item.line);
+                        bool             truncated = preview.size() > 20;
+                        if (truncated) {
+                            preview = preview.substr(0, 20);
+                        }
+                        log_info("Step " << Job::channel()->name() << ":" << Job::channel()->lineNumber() << " " << preview
+                                         << (truncated ? "..." : ""));
+
+                        // protocol_execute_realtime() processes the feedhold event and then, because
+                        // the resulting suspend state is non-zero, blocks inside
+                        // protocol_exec_rt_suspend() until a cycle start clears it. So this call is
+                        // itself the wait for resume; nothing further is needed after it.
+                        protocol_send_event(&feedHoldEvent);
+                        protocol_execute_realtime();
+                    }
+                }
 
                 Error status_code = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
 

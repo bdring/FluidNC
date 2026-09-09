@@ -42,10 +42,17 @@ private:
     static constexpr int timeout = 2000;
 
 public:
+    // PinLowFirst/PinHighFirst are inclusive lower bounds and PinLowLast/PinHighLast
+    // are exclusive upper bounds (see the "cmd < PinLowLast" style checks in
+    // handleRealtimeCharacter()), so each range should span a full 0x40 codepoints,
+    // for pin indices 0-63. Making *Last one codepoint short of the next range's
+    // *First, as previously written, wasted one codepoint per range (0x13f and 0x17f
+    // decoded to neither a Low nor a High pin event) and capped the usable pin index
+    // at 62 instead of 63.
     static constexpr int PinLowFirst  = 0x100;
-    static constexpr int PinLowLast   = 0x13f;
+    static constexpr int PinLowLast   = 0x140;
     static constexpr int PinHighFirst = 0x140;
-    static constexpr int PinHighLast  = 0x17f;
+    static constexpr int PinHighLast  = 0x180;
 
     static constexpr int maxLine = 255;
 

@@ -44,6 +44,8 @@ enum class Cmd : uint8_t {
     SpindleOvrStop        = 0x9E,
     CoolantFloodOvrToggle = 0xA0,
     CoolantMistOvrToggle  = 0xA1,
+    SingleBlockOff        = 0xAE,  // Turns off single-block (step) mode. Idempotent.
+    SingleBlockOn         = 0xAF,  // Turns on single-block (step) mode. Idempotent.
     // Channel Extender uses the Bx range; see Channel.h
 };
 
