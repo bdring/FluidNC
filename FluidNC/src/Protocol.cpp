@@ -10,7 +10,8 @@
 #include "Protocol.h"
 #include "Event.h"
 
-#include <climits>  // UINT_MAX
+#include <climits>      // UINT_MAX
+#include <string_view>  // std::string_view (single-block line preview)
 
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"
@@ -438,6 +439,12 @@ void protocol_main_loop() {
                         if (truncated) {
                             preview = preview.substr(0, 20);
                         }
+                        // Job::channel()->lineNumber() still matches item.line here only
+                        // because CMD_QUEUE_DEPTH == 1 and poll_once() will not read another
+                        // job line while our processing_ref is held -- exactly one job line
+                        // is ever in flight. If the queue depth is ever raised, the polling
+                        // task could run ahead and this line number (and name) would skew
+                        // from the line being previewed.
                         log_info("Step " << Job::channel()->name() << ":" << Job::channel()->lineNumber() << " " << preview
                                          << (truncated ? "..." : ""));
 
@@ -454,6 +461,13 @@ void protocol_main_loop() {
                         protocol_send_event(&feedHoldEvent);
                         protocol_execute_realtime();
                         if (sys.abort()) {
+                            // Must "continue", not fall through: reaching execute_line() below
+                            // would run item.line, the very line this reset should discard.
+                            // The trade-off is that the loop-bottom "sys.set_abort(false)" is
+                            // skipped this pass, so abort stays set one extra iteration (~1ms)
+                            // versus the normal post-execute_line abort path. Harmless here --
+                            // should_exit() is constant-false on ESP32 and the planner is
+                            // already flushed -- and it clears on the next pass.
                             channel->release_processing_ref();
                             continue;
                         }
