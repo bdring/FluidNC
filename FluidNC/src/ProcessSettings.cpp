@@ -290,23 +290,25 @@ static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level,
     } else {
         return Error::InvalidValue;
     }
-    if (enable) {
-        // Block mode can only be turned on from here while Idle. Once a job is
-        // running, the console is no longer polled for line commands, so the only
-        // way to affect it from then on is a real single_block_pin or the
-        // pin-event mechanism (Channel::registerVirtualPin), both of which work
-        // regardless of job state.
-        if (!state_is(State::Idle)) {
-            return Error::IdleError;
-        }
-        if (!singleBlockPin.get()) {
-            singleBlockPin.trigger(true);
-            log_info_to(out, "Single Block Mode Enabled");
-        }
-    } else if (singleBlockPin.get()) {
-        singleBlockPin.trigger(false);
-        log_info_to(out, "Single Block Mode Disabled");
+    if (enable == singleBlockPin.get()) {
+        return Error::Ok;  // Already in the requested state
     }
+    if (enable && !state_is(State::Idle)) {
+        // Enabling mid-job would strand the machine: the pause takes effect on the
+        // next job line and only a pin or a pin-event button can release it, and
+        // this command is rejected as an interloper while a job runs (see below).
+        // So only allow enabling from Idle. Disabling is always allowed.
+        return Error::IdleError;
+    }
+    // Drive the toggle through the same pin-event path that a real single_block_pin
+    // and the WebUI/pendant button use. That runs InputPin::trigger() (and the Pn:
+    // string recompute) on the protocol task regardless of which task this command
+    // ran on, so gcode_block_mode() itself needs no protocol context: it is
+    // registered as a ReportCommand and works from any channel, including while a
+    // job is running -- which is the only way to leave block mode mid-job short of
+    // a reset or a hardware pin.
+    protocol_send_event(enable ? &pinActiveEvent : &pinInactiveEvent, &singleBlockPin);
+    log_info_to(out, enable ? "Single Block Mode Enabled" : "Single Block Mode Disabled");
     return Error::Ok;
 }
 
@@ -1085,7 +1087,7 @@ void make_user_commands() {
     new ReportCommand("A", "Alarms/List", listAlarms, anyState);
     new ReportCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
-    new UserCommand("GB", "GCode/BlockMode", gcode_block_mode, anyState);
+    new ReportCommand("GB", "GCode/BlockMode", gcode_block_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
