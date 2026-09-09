@@ -87,24 +87,6 @@ void AllChannels::reap_channels() {
     }
 }
 
-void heapCheckTask(void* pvParameters) {
-    static uint32_t heapSize = 0;
-    while (true) {
-        std::atomic_thread_fence(std::memory_order_seq_cst);  // read fence for settings and whatnot
-        uint32_t newHeapSize = xPortGetFreeHeapSize();
-        if (newHeapSize != heapSize) {
-            heapSize = newHeapSize;
-            log_info("heap " << heapSize);
-        }
-        vTaskDelay(3000 / portTICK_PERIOD_MS);  // Yield to other tasks
-
-#ifdef DEBUG_TASK_STACK
-        static UBaseType_t uxHighWaterMark = 0;
-        reportTaskStackSize(uxHighWaterMark);
-#endif
-    }
-}
-
 void AllChannels::init() {
     registration(&startupLog);  // Early startup messages for $SS
 }
