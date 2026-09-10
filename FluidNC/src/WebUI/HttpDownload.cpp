@@ -51,6 +51,7 @@
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
+#include <esp_task_wdt.h>
 
 #include <string>
 #include <string_view>
@@ -189,7 +190,20 @@ namespace WebUI {
 
         int expected = http.getSize();  // -1 when the response is chunked
 
+        // writeToStream() blocks for the whole transfer with no chance to feed
+        // the task watchdog, and a single mbedtls record read can block up to
+        // the socket timeout.  Detach the running task from the TWDT for the
+        // duration; http.setTimeout() still bounds a stalled connection so this
+        // cannot hang indefinitely.
+        bool wdt_here = esp_task_wdt_status(nullptr) == ESP_OK;
+        if (wdt_here) {
+            esp_task_wdt_delete(nullptr);
+        }
         int written = http.writeToStream(file);
+        if (wdt_here) {
+            esp_task_wdt_add(nullptr);
+            esp_task_wdt_reset();
+        }
 
         http.end();
         file->flush();
