@@ -101,13 +101,17 @@ namespace {
         if (ec) {
             return kEpochFallback;
         }
-#    if __cpp_lib_format
+#    if defined(__cpp_lib_format)
         return std::format("{:%c}", ftime);
-#    else
+#    elif defined(__cpp_lib_chrono) && __cpp_lib_chrono >= 201907L
+        // std::chrono::file_clock and to_sys() are C++20.
         std::time_t cftime  = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(ftime));
         std::string timestr = std::asctime(std::localtime(&cftime));
         timestr.pop_back();  // rm the trailing '\n' put by `asctime`
         return timestr;
+#    else
+#        error "ACTUAL_FILE_TIME needs C++20 <chrono> (file_clock::to_sys) or std::format; \
+no C++17 file-time -> time_t conversion is implemented here."
 #    endif
 #else
         (void)fpath;

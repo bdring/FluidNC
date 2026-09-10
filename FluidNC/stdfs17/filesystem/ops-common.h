@@ -655,11 +655,13 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
 	  for (ssize_t off = 0; off < n; )
 	    {
 	      ssize_t w = ::write(out.fd, buf + off, n - off);
-	      if (w < 0)
+	      if (w <= 0)
 		{
-		  if (errno == EINTR)
+		  if (w < 0 && errno == EINTR)
 		    continue;
-		  ec.assign(errno, std::generic_category());
+		  // w == 0 is no progress (e.g. a VFS backend that is full);
+		  // treat it as an I/O error rather than spinning forever.
+		  ec.assign(w < 0 ? errno : EIO, std::generic_category());
 		  return false;
 		}
 	      off += w;
