@@ -62,6 +62,11 @@ namespace WebUI {
     }
 
     void TelnetClient::flushRx() {
+        // Drop any half-parsed IAC sequence and the peek pushback, so a reset
+        // in the middle of a negotiation prefix cannot make post-reset input be
+        // consumed as option bytes.
+        _telnetRx     = TelnetRx::data;
+        _peekPushback = -1;
         Channel::flushRx();
     }
 
@@ -240,7 +245,8 @@ namespace WebUI {
         xSemaphoreTake(_wifiMutex, portMAX_DELAY);
         int ret = _wifiClient->available();
         xSemaphoreGive(_wifiMutex);
-        return ret;
+        // A byte held by peek() is readable now even if the socket has none.
+        return ret + (_peekPushback >= 0 ? 1 : 0);
     }
 
     int TelnetClient::rx_buffer_available() {
