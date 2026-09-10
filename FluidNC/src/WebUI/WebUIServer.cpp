@@ -304,11 +304,6 @@ namespace WebUI {
 
         _port = http_port->get();
 
-        // Allocate the WebClient background-task stack now, while the heap is
-        // nearly empty, rather than lazily on the first [ESP...] command during
-        // the WebUI load burst.
-        WebClients::init();
-
         //create instance
         _webserver    = new AsyncWebServer(_port);
         _headerFilter = new AsyncHeaderFreeMiddleware();
@@ -751,7 +746,10 @@ namespace WebUI {
         if (request->method() == HTTP_GET) {
             WebClient* webClient = new WebClient();
             webClient->attachWS(silent);
-            webClient->executeCommandBackground(line);
+            webClient->deliverCommand(line);
+            // Registered like any other channel; the polling task picks up the
+            // queued command line and runs it through execute_line().
+            allChannels.registration(webClient);
             response = request->beginChunkedResponse("", [webClient, request](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
                 // The method can change before the end... not good
                 //if(request->method() != HTTP_GET)
