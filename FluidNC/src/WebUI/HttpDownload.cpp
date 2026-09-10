@@ -39,6 +39,7 @@
 #include "../System.h"
 #include "../Report.h"
 #include "../Module.h"
+#include "Driver/heap.h"  // platform_max_free_block()
 #include "../Job.h"
 #include "../HashFS.h"
 #include "../FileStream.h"
@@ -146,6 +147,11 @@ namespace WebUI {
         WiFiClient       plain_client;
         WiFiClientSecure secure_client;
         secure_client.setInsecure();  // no certificate store on the device
+        // Note: the mbedtls RX/TX content buffers (~16 KB each) are fixed by
+        // the build's sdkconfig on this core - NetworkClientSecure has no
+        // runtime setBufferSizes().  A fragmented heap without a ~40 KB
+        // contiguous block is what makes connect() fail here; the failure
+        // message below reports the largest free block so that is visible.
 
         HTTPClient http;
         http.setUserAgent("FluidNC");
@@ -171,7 +177,10 @@ namespace WebUI {
             remove_quietly(partpath);
             store_response_params(http_code < 0 ? 0 : http_code, 0);
             if (http_code < 0) {
-                log_error_to(out, "Download: connection failed: " << HTTPClient::errorToString(http_code).c_str());
+                log_error_to(out,
+                             "Download: connection failed: " << HTTPClient::errorToString(http_code).c_str() << " (free heap "
+                                                             << xPortGetFreeHeapSize() << ", largest block "
+                                                             << (unsigned)platform_max_free_block() << ")");
             } else {
                 log_error_to(out, "Download: server returned HTTP " << http_code);
             }
