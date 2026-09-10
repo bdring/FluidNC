@@ -63,6 +63,10 @@ namespace WebUI {
         // free heap block during the WebUI load burst.
         static constexpr size_t   WS_OUT_FLUSH_LEN = 1400;
         static constexpr uint32_t WS_OUT_IDLE_MS   = 8;
+        // A client that has stopped draining is dropped once its undelivered
+        // backlog passes this, so write() (on the polling task) never grows
+        // _output_line without bound.  ~8 frames.
+        static constexpr size_t WS_OUT_MAX_BACKLOG = 8 * WS_OUT_FLUSH_LEN;
         std::string               _output_line;
         uint32_t                  _output_pending_since = 0;
         unsigned long             _last_queue_full      = 0;

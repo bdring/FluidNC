@@ -146,7 +146,10 @@ namespace WebUI {
     }
 
     void WSChannel::flush() {
-        flush_output(true);
+        // Non-blocking: the tail ships from pollLine() on the next poll pass.
+        // (Was flush_output(true) - a blocking spin that is unacceptable now
+        // that WSChannel::write() runs on the shared polling task.)
+        flush_output(false);
     }
 
     size_t WSChannel::write(const uint8_t* buffer, size_t size) {
@@ -165,7 +168,20 @@ namespace WebUI {
         _output_line.append(reinterpret_cast<const char*>(buffer), size);
 
         if (_output_line.length() >= WS_OUT_FLUSH_LEN) {
-            flush_output(true);
+            flush_output(false);  // non-blocking - this runs on the polling task
+        }
+
+        // With a non-blocking flush there is no producer backpressure, so a
+        // client that has stopped draining would grow _output_line without
+        // bound on the polling task's heap.  Drop it once the backlog it
+        // cannot take exceeds WS_OUT_MAX_BACKLOG.
+        if (_output_line.length() > WS_OUT_MAX_BACKLOG) {
+            log_debug_to(Console, "WebSocket cid#" << _clientNum << " backlog " << _output_line.length() << ", closing");
+            std::string().swap(_output_line);
+            if (auto client = get_client(_server, _clientNum)) {
+                client->close();
+            }
+            _active = false;
         }
         return size;
     }

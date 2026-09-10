@@ -93,44 +93,65 @@ static void request_safety_door() {
     rtSafetyDoor = true;
 }
 
-TaskHandle_t outputTask = nullptr;
+TaskHandle_t outputTask  = nullptr;
+TaskHandle_t pollingTask = nullptr;
 
 QueueHandle_t message_queue;
 
-void drain_messages() {
-    while (uxQueueMessagesWaiting(message_queue)) {
-        vTaskDelay(1);  // Let the output task finish sending data
+// Was 15 when a dedicated priority-2 task drained the queue preemptively.
+// Now the polling task drains it once per pass, so a command that logs a
+// burst before yielding needs room here or it self-throttles on
+// enqueue_log_message()'s retry (up to ~250 ms).  128 * 16 B = 2 KB.
+static constexpr UBaseType_t MESSAGE_QUEUE_DEPTH = 128;
+
+// Ship one queued log message to its channel.  Runs on the polling task
+// (drain_output() below) and, synchronously, from drain_messages().
+static void process_one_message(LogMessage& message) {
+    // print_msg() can throw - std::bad_alloc under heap exhaustion.  An
+    // exception escaping the polling task's try block still unwinds the whole
+    // pass; drop the message instead, but always release the ref so the
+    // channel can be reaped.
+    try {
+        if (!message.channel->is_closing()) {
+            if (message.isString) {
+                std::string* s = static_cast<std::string*>(message.line);
+                message.channel->print_msg(message.level, s->c_str());
+                delete s;
+            } else {
+                message.channel->print_msg(message.level, static_cast<const char*>(message.line));
+            }
+        } else if (message.isString) {
+            delete static_cast<std::string*>(message.line);
+        }
+    } catch (...) {}
+    message.channel->release_log_ref();
+}
+
+// Drain up to `max` queued log messages.  Non-blocking: the polling task
+// calls this once per pass instead of a dedicated output task blocking on
+// the queue.  Channel writes here are non-blocking too (WSChannel defers a
+// full send queue to its pollLine()), so a wedged client cannot stall the
+// polling loop.
+static void drain_output(int max) {
+    LogMessage message;
+    for (int i = 0; i < max && xQueueReceive(message_queue, &message, 0) == pdTRUE; ++i) {
+        process_one_message(message);
+        feed_watchdog();
     }
 }
 
-void output_loop(void* unused) {
-    while (true) {
-        if (should_exit()) {
-            break;
-        }
-        // Block until a message is received
+// Flush all currently-queued messages.  From the polling task (the drainer)
+// this runs inline; from any other task it waits for the polling task to
+// drain, so channel writes stay on SUPPORT_TASK_CORE as before.
+void drain_messages() {
+    if (xTaskGetCurrentTaskHandle() == pollingTask) {
         LogMessage message;
-        if (xQueueReceive(message_queue, &message, 100)) {  // Use timeout to check exit flag
-            // Sending can throw - std::bad_alloc when the heap is exhausted,
-            // for instance.  An exception escaping a raw FreeRTOS task reaches
-            // std::terminate() and panics the controller, so drop the message
-            // instead, but always release the reference so the channel can
-            // still be reaped.
-            try {
-                if (!message.channel->is_closing()) {
-                    if (message.isString) {
-                        std::string* s = static_cast<std::string*>(message.line);
-                        message.channel->print_msg(message.level, s->c_str());
-                        delete s;
-                    } else {
-                        const char* cp = static_cast<const char*>(message.line);
-                        message.channel->print_msg(message.level, cp);
-                    }
-                } else if (message.isString) {
-                    delete static_cast<std::string*>(message.line);
-                }
-            } catch (...) {}
-            message.channel->release_log_ref();
+        while (xQueueReceive(message_queue, &message, 0) == pdTRUE) {
+            process_one_message(message);
+        }
+    } else {
+        while (uxQueueMessagesWaiting(message_queue)) {
+            vTaskDelay(1);
         }
     }
 }
@@ -154,8 +175,6 @@ bool cmd_queue_defer(const char* line, Channel& channel) {
     item.line[Channel::maxLine - 1] = '\0';
     return xQueueSend(cmd_queue, &item, 0) == pdTRUE;
 }
-
-TaskHandle_t pollingTask = nullptr;
 
 // Poll the registered serial-style channels for one line and route it through
 // execute_line() on the polling task.  When no job runs this feeds cmd_queue;
@@ -249,6 +268,10 @@ static void poll_once() {
         // Polling with an argument both checks for realtime characters and
         // returns a line-oriented command if one is ready.
         pollChannels();
+
+        // Ship queued log output (formerly the dedicated "output" task).
+        drain_output(MESSAGE_QUEUE_DEPTH);
+
         for (auto const& module : Modules()) {
             module->poll();
             feed_watchdog();
@@ -327,6 +350,10 @@ static void poll_once() {
             // them on this task; they never enter cmd_queue, so no queue gate.
             poll_input_channel();
         }
+
+        // Ship anything an inline command just produced, this pass rather than
+        // next.
+        drain_output(MESSAGE_QUEUE_DEPTH);
     }
 
 // Reporting allocates, so if the heap is what failed this can throw again.
@@ -381,15 +408,10 @@ void start_polling() {
                                 (1 << SUPPORT_TASK_CORE),  // affinity mask
                                 &pollingTask       // task handle
         );
-        xTaskCreateAffinitySet(output_loop,  // task
-                                "output",     // name for task
-                                16000,
-                                // 8192,              // size of task stack
-                                0,                 // parameters
-                                2,                 // priority
-                                (1 << SUPPORT_TASK_CORE),  // affinity mask
-                                &outputTask        // task handle
-        );
+        // The polling task also drains message_queue (see drain_output()).
+        // outputTask must stay non-null so Channel::sendLine() enqueues
+        // instead of printing inline in the producer's context.
+        outputTask = pollingTask;
     }
 }
 
@@ -1368,7 +1390,7 @@ QueueHandle_t event_queue;
 
 void protocol_init() {
     event_queue   = xQueueCreate(50, sizeof(EventItem));
-    message_queue = xQueueCreate(15, sizeof(LogMessage));
+    message_queue = xQueueCreate(MESSAGE_QUEUE_DEPTH, sizeof(LogMessage));
     cmd_queue     = xQueueCreate(CMD_QUEUE_DEPTH, sizeof(LineItem));
 }
 
