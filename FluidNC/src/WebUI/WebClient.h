@@ -65,9 +65,12 @@ namespace WebUI {
         size_t copyBufferSafe(uint8_t* dest_buffer, size_t maxLen, size_t total);
 
     private:
-        SemaphoreHandle_t _lock    = nullptr;
-        bool              _silent  = false;  // discard output
-        std::atomic<bool> _done { false };   // command finished (or channel closing)
+        SemaphoreHandle_t _lock = nullptr;
+        // Read on the polling task (write()) and the AsyncTCP callback
+        // (copyBufferSafe()), written from the disconnect path (detachWS()).
+        std::atomic<bool> _silent { false };   // discard output
+        std::atomic<bool> _done { false };     // command finished (or channel closing)
+        std::atomic<bool> _aborted { false };  // output dropped: a client stopped draining
 
         // Bounded output ring.  The point of the streaming design is to *not*
         // hold a whole [ESP400] response; when full, write() briefly waits for

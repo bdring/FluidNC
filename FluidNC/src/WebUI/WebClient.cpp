@@ -17,20 +17,23 @@ namespace WebUI {
     }
 
     void WebClient::attachWS(bool silent) {
-        _silent = silent;
+        _silent.store(silent);
         _done.store(false);
+        _aborted.store(false);
         xSemaphoreTake(_lock, portMAX_DELAY);
         _head = _tail = 0;
         xSemaphoreGive(_lock);
     }
 
     void WebClient::detachWS() {
-        _silent = true;
-        // Wait for the polling task to finish the command (ack() latches _done),
-        // so the chunked-response lambda is never called against a channel that
-        // is about to be reaped.  is_closing() covers the case where the kill
-        // was processed first.
-        while (!_done.load() && !is_closing()) {
+        _silent.store(true);
+        // Wait briefly for the polling task to finish the command (ack() latches
+        // _done) so the chunked-response callback is not mid-run against a
+        // channel about to be reaped - but never block forever.  An aborted
+        // command skips ack(), and kill() (which sets is_closing()) is only
+        // queued after this returns; the reaper still gates the actual delete
+        // on the processing reference, so proceeding after the timeout is safe.
+        for (int i = 0; i < 200 && !_done.load() && !is_closing(); ++i) {
             delay(1);
         }
     }
@@ -50,12 +53,12 @@ namespace WebUI {
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
-        if (_silent || !length) {
+        if (_silent.load() || _aborted.load() || !length) {
             return length;
         }
         size_t written = 0;
         // Bounded backpressure: give the HTTP side a short window to drain a
-        // full ring, then drop the rest rather than stall the polling task.
+        // full ring, then give up rather than stall the polling task.
         for (int spins = 0; written < length; ) {
             xSemaphoreTake(_lock, portMAX_DELAY);
             while (written < length && _count() < BUFLEN - 1) {
@@ -66,7 +69,15 @@ namespace WebUI {
             if (written == length) {
                 break;
             }
-            if (_silent || ++spins > 500) {  // ~500 ms; client not reading
+            if (_silent.load()) {
+                break;
+            }
+            if (++spins > 500) {  // ~500 ms and the client still is not reading
+                // Latch the response as truncated: copyBufferSafe() ends the
+                // stream after the ring drains so the client sees a short
+                // (broken) body rather than a hang, and further output is
+                // dropped fast.
+                _aborted.store(true);
                 break;
             }
             delay(1);
@@ -88,9 +99,11 @@ namespace WebUI {
         if (n) {
             return n;
         }
-        if (_done.load() || _silent || is_closing()) {
-            return 0;  // end of stream
+        if (_done.load() || is_closing() || _aborted.load()) {
+            return 0;  // end of stream: command finished, channel closing, or output truncated
         }
+        // _silent alone is not end-of-stream - a silent command still runs to
+        // completion and its ack() latches _done.
         return RESPONSE_TRY_AGAIN;  // command still running, nothing buffered yet
     }
 }
