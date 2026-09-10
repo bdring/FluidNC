@@ -9,6 +9,7 @@
 #include "Limit.h"
 #include "Logging.h"
 #include "Job.h"
+#include "Protocol.h"  // poll_task_drain_one_message()
 #include <string_view>
 #include <algorithm>
 
@@ -24,6 +25,14 @@ namespace {
         for (uint32_t attempt = 0; attempt < message_queue_max_retries; ++attempt) {
             if (xQueueSend(message_queue, &msg, message_queue_retry_ticks)) {
                 return true;
+            }
+            // If this is the polling task, it is also the drainer: blocking on
+            // the queue it is supposed to empty would deadlock.  Ship one
+            // queued message ourselves to make room, then retry immediately.
+            if (poll_task_drain_one_message()) {
+                if (xQueueSend(message_queue, &msg, 0)) {
+                    return true;
+                }
             }
         }
 

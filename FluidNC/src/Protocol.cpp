@@ -25,6 +25,7 @@
 #include "Driver/heap.h"  // platform_max_free_block()
 
 #include <cstring>  // strncpy
+#include <memory>   // std::unique_ptr
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
@@ -109,19 +110,14 @@ static constexpr UBaseType_t MESSAGE_QUEUE_DEPTH = 128;
 static void process_one_message(LogMessage& message) {
     // print_msg() can throw - std::bad_alloc under heap exhaustion.  An
     // exception escaping the polling task's try block still unwinds the whole
-    // pass; drop the message instead, but always release the ref so the
-    // channel can be reaped.
+    // pass; drop the message instead.  Own the queued string in a unique_ptr
+    // so it is freed on every path (throw included), and always release the
+    // ref so a closing channel can be reaped.
+    std::unique_ptr<std::string> owned(message.isString ? static_cast<std::string*>(message.line) : nullptr);
     try {
         if (!message.channel->is_closing()) {
-            if (message.isString) {
-                std::string* s = static_cast<std::string*>(message.line);
-                message.channel->print_msg(message.level, s->c_str());
-                delete s;
-            } else {
-                message.channel->print_msg(message.level, static_cast<const char*>(message.line));
-            }
-        } else if (message.isString) {
-            delete static_cast<std::string*>(message.line);
+            const char* text = message.isString ? owned->c_str() : static_cast<const char*>(message.line);
+            message.channel->print_msg(message.level, text);
         }
     } catch (...) {}
     message.channel->release_log_ref();
@@ -154,6 +150,23 @@ void drain_messages() {
             vTaskDelay(1);
         }
     }
+}
+
+// Make room in message_queue from the one task that would otherwise deadlock
+// waiting for it to drain: the polling task is the drainer, so if it fills the
+// queue itself (a burst of log_* before it reaches drain_output()), a blocking
+// xQueueSend would wait forever.  Ship one message inline and report success so
+// the caller can retry.  A no-op (returns false) on every other task.
+bool poll_task_drain_one_message() {
+    if (xTaskGetCurrentTaskHandle() != pollingTask) {
+        return false;
+    }
+    LogMessage message;
+    if (xQueueReceive(message_queue, &message, 0) != pdTRUE) {
+        return false;
+    }
+    process_one_message(message);
+    return true;
 }
 
 // One line of input handed from the polling task (core 0, producer) to
@@ -259,6 +272,10 @@ static void poll_once() {
         /*feedLoopWDT(), */ vTaskDelay(1);
         // Polling is paused when xmodem is using a channel for binary upload
         if (pollingPaused) {
+            // xmodem only pauses channel *input*; log output must keep moving
+            // or every logging task backs up on a full message_queue for the
+            // duration of the binary transfer.
+            drain_output(MESSAGE_QUEUE_DEPTH);
             feed_watchdog();
             vTaskDelay(100);
             return;
