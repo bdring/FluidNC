@@ -4,13 +4,22 @@
 #include <AsyncTCP.h>
 
 #include <algorithm>
-#include <chrono>
-#include <ctime>
 #include <functional>
 #include <memory>
 #include <vector>
-// #include <format>
 #include "string_util.h"
+
+// Real per-file modification times in PROPFIND responses.  Disabled: it needs
+// <chrono>/<ctime> (and ideally <format>), and <chrono> alone pulls libstdc++
+// <sstream>/<locale> in - std::ostringstream, std::put_time and the
+// time_put/__timepunct/numpunct facet caches, ~4 KB of DRAM.  Define
+// ACTUAL_FILE_TIME to build the real implementation in propfind_time_string().
+// #define ACTUAL_FILE_TIME
+#ifdef ACTUAL_FILE_TIME
+#    include <chrono>
+#    include <ctime>
+// #    include <format>
+#endif
 
 #include "WebDAV.h"
 #include "FileStream.h"
@@ -84,28 +93,25 @@ namespace {
     };
 
     std::string propfind_time_string(const stdfs::path& fpath) {
+        static const char* const kEpochFallback = "Fri, 05 Sep 2014 19:00:00 GMT";
+
+#ifdef ACTUAL_FILE_TIME
         std::error_code ec;
         auto            ftime = stdfs::last_write_time(fpath, ec);
-
-        // last modified
-#if __cpp_lib_format
         if (ec) {
-            return "Fri, 05 Sep 2014 19:00:00 GMT";
+            return kEpochFallback;
         }
+#    if __cpp_lib_format
         return std::format("{:%c}", ftime);
-#else
-#    if 0
-        if (ec) {
-            return "Fri, 05 Sep 2014 19:00:00 GMT";
-        }
+#    else
         std::time_t cftime  = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(ftime));
         std::string timestr = std::asctime(std::localtime(&cftime));
         timestr.pop_back();  // rm the trailing '\n' put by `asctime`
         return timestr;
-#    else
-        (void)fpath;
-        return "Fri, 05 Sep 2014 19:00:00 GMT";
 #    endif
+#else
+        (void)fpath;
+        return kEpochFallback;
 #endif
     }
 
