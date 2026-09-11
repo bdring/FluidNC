@@ -146,12 +146,34 @@ namespace WebUI {
     }
 
     void WSChannel::flush() {
-        flush_output(true);
+        // Non-blocking: the tail ships from pollLine() on the next poll pass.
+        // (Was flush_output(true) - a blocking spin that is unacceptable now
+        // that WSChannel::write() runs on the shared polling task.)
+        flush_output(false);
     }
 
     size_t WSChannel::write(const uint8_t* buffer, size_t size) {
         if (buffer == NULL || !_active || !size) {
             return 0;
+        }
+
+        // With a non-blocking flush there is no producer backpressure, so a
+        // client that has stopped draining would grow _output_line without
+        // bound on the polling task's heap.  Check the incoming size against
+        // the backlog limit *before* appending - otherwise one large write
+        // could grow _output_line past WS_OUT_MAX_BACKLOG before the drop
+        // fires, briefly defeating the bounded-heap guarantee this is for.
+        if (_output_line.length() + size > WS_OUT_MAX_BACKLOG) {
+            size_t dropped = _output_line.length();
+            std::string().swap(_output_line);
+            _active = false;  // clear/deactivate first: the diagnostic below can
+                               // throw (it queues through the shared log path),
+                               // and state must not be left half-torn-down if it does.
+            if (auto client = get_client(_server, _clientNum)) {
+                client->close();
+            }
+            log_debug_to(Console, "WebSocket cid#" << _clientNum << " backlog " << dropped << "+" << size << ", closing");
+            return size;
         }
 
         // Coalesce output: accumulate here and emit at most one frame per
@@ -165,7 +187,7 @@ namespace WebUI {
         _output_line.append(reinterpret_cast<const char*>(buffer), size);
 
         if (_output_line.length() >= WS_OUT_FLUSH_LEN) {
-            flush_output(true);
+            flush_output(false);  // non-blocking - this runs on the polling task
         }
         return size;
     }

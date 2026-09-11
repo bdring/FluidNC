@@ -115,6 +115,12 @@ void protocol_send_event_from_ISR(const Event* evt, void* arg = 0);
 
 void drain_messages();
 
+// If called on the polling task (the message_queue drainer), dequeue and ship
+// one queued log message immediately and return true; otherwise a no-op that
+// returns false.  enqueue_log_message() uses this so a log burst from the
+// polling task itself cannot block forever on a full queue.
+bool poll_task_drain_one_message();
+
 // Copy a line onto cmd_queue for protocol_main_loop to execute.  Returns false
 // if the queue is full.  Called by execute_line() on the polling task.
 class Channel;
