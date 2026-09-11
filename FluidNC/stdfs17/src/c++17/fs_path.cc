@@ -1999,7 +1999,13 @@ path::string_type
 path::_S_convert_loc(const char* __first, const char* __last,
 		     [[maybe_unused]] const std::locale& __loc)
 {
-#if _GLIBCXX_USE_WCHAR_T
+#if defined __FLUIDNC
+  // FluidNC: upstream runs the bytes through use_facet<codecvt<wchar_t,char>>
+  // (__loc), which pulls libstdc++ <locale> (codecvt.o + the facet caches)
+  // into every link.  Only reachable via path(source, const locale&), which
+  // FluidNC never uses; native paths here are already char/UTF-8.
+  return {__first, __last};
+#elif _GLIBCXX_USE_WCHAR_T
   auto& __cvt = std::use_facet<codecvt<wchar_t, char, mbstate_t>>(__loc);
   basic_string<wchar_t> __ws;
   if (!__str_codecvt_in_all(__first, __last, __ws, __cvt))

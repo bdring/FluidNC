@@ -48,7 +48,11 @@
 
 #ifdef NEED_DO_COPY_FILE
 # include <filesystem>
-# include <ext/stdio_filebuf.h>
+# ifdef __FLUIDNC   // do_copy_file() fallback uses a raw read()/write() loop
+#  include <unistd.h>
+# else
+#  include <ext/stdio_filebuf.h>
+# endif
 # ifdef _GLIBCXX_USE_COPY_FILE_RANGE
 #  include <unistd.h> // copy_file_range
 # endif
@@ -627,6 +631,52 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
 	return true;
       }
 
+#ifdef __FLUIDNC
+    // FluidNC: the upstream fallback below uses __gnu_cxx::stdio_filebuf +
+    // `std::ostream << streambuf`, which drags libstdc++ <ostream>/<locale>
+    // (basic_filebuf, imbue, the facet caches - KBs of DRAM, tens of KB of
+    // flash) into the link.  On this target it is also the *only* copy path
+    // (no copy_file_range, no sendfile), so it is always linked.  A raw
+    // read()/write() loop on the fds does the same job with none of that.
+    {
+      char buf[4096];
+      for (;;)
+	{
+	  ssize_t n = ::read(in.fd, buf, sizeof(buf));
+	  if (n == 0)
+	    break;
+	  if (n < 0)
+	    {
+	      if (errno == EINTR)
+		continue;
+	      ec.assign(errno, std::generic_category());
+	      return false;
+	    }
+	  for (ssize_t off = 0; off < n; )
+	    {
+	      ssize_t w = ::write(out.fd, buf + off, n - off);
+	      if (w <= 0)
+		{
+		  if (w < 0 && errno == EINTR)
+		    continue;
+		  // w == 0 is no progress (e.g. a VFS backend that is full);
+		  // treat it as an I/O error rather than spinning forever.
+		  ec.assign(w < 0 ? errno : EIO, std::generic_category());
+		  return false;
+		}
+	      off += w;
+	    }
+	}
+    }
+
+    if (!out.close() || !in.close())
+      {
+	ec.assign(errno, std::generic_category());
+	return false;
+      }
+    ec.clear();
+    return true;
+#else
     using std::ios;
     __gnu_cxx::stdio_filebuf<char> sbin(in.fd, ios::in|ios::binary);
     __gnu_cxx::stdio_filebuf<char> sbout(out.fd, ios::out|ios::binary);
@@ -654,6 +704,7 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
       }
     ec.clear();
     return true;
+#endif // __FLUIDNC
   }
 #endif // NEED_DO_COPY_FILE
 

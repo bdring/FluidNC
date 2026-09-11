@@ -50,7 +50,9 @@
 #include <bits/largefile-config.h>
 #include <filesystem>
 #include <functional>
+#ifndef __FLUIDNC   // do_copy_file() fallback no longer uses std::ostream
 #include <ostream>
+#endif
 #include <stack>
 #include <stdlib.h>
 #include <stdio.h>
