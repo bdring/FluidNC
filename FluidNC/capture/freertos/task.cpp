@@ -16,6 +16,14 @@ namespace {
     std::mutex                                threads_mutex;
     std::vector<std::unique_ptr<std::thread>> threads;
 
+    // Identity of the running task, for xTaskGetCurrentTaskHandle(). This can't
+    // just be the std::thread's own address: the std::thread ctor launches the
+    // task body immediately, before xTaskCreatePinnedToCore can hand that address
+    // back via *pvCreatedTask, so a task could race its own creator. Instead each
+    // task gets a token allocated before the thread starts, so the task's wrapper
+    // can publish it via thread_local before calling into pvTaskCode.
+    thread_local TaskHandle_t t_current_task_handle = nullptr;
+
     std::vector<std::unique_ptr<std::thread>> take_threads() {
         std::lock_guard<std::mutex> lock(threads_mutex);
         std::vector<std::unique_ptr<std::thread>> snapshot;
@@ -36,15 +44,25 @@ BaseType_t xTaskCreatePinnedToCore(TaskFunction_t      pvTaskCode,
     (void)uxPriority;
     (void)xCoreID;
 
-    std::unique_ptr<std::thread> thread = std::make_unique<std::thread>(pvTaskCode, pvParameters);
+    TaskHandle_t handle = new char;  // unique token, never freed: tasks live for the process lifetime
+
+    std::unique_ptr<std::thread> thread = std::make_unique<std::thread>(
+        [pvTaskCode, pvParameters, handle]() {
+            t_current_task_handle = handle;
+            pvTaskCode(pvParameters);
+        });
     if (pvCreatedTask != nullptr) {
-        *pvCreatedTask = thread.get();
+        *pvCreatedTask = handle;
     }
     {
         std::lock_guard<std::mutex> lock(threads_mutex);
         threads.emplace_back(std::move(thread));
     }
     return pdTRUE;
+}
+
+TaskHandle_t xTaskGetCurrentTaskHandle(void) {
+    return t_current_task_handle;
 }
 
 void vTaskDelay(const TickType_t xTicksToDelay) {

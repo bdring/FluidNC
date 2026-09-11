@@ -4,7 +4,6 @@
 #include "Settings.h"
 #include "Machine/MachineConfig.h"
 #include <sstream>
-#include <iomanip>
 #include <unistd.h>
 
 #include "Channel.h"         // Channel

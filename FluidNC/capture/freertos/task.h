@@ -8,6 +8,8 @@ void vTaskDelay(const TickType_t xTicksToDelay);
 
 void cleanup_threads();
 
+TaskHandle_t xTaskGetCurrentTaskHandle(void);
+
 #define CONFIG_ARDUINO_RUNNING_CORE 0
 
 BaseType_t xTaskCreatePinnedToCore(TaskFunction_t      pvTaskCode,
