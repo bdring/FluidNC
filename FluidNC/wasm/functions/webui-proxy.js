@@ -22,6 +22,29 @@ const zlib = require('zlib');
 
 const SAFE_IDENTIFIER = /^[A-Za-z0-9._-]+$/;
 
+// Reads a fetch() Response body incrementally, aborting as soon as `limit`
+// is exceeded, instead of buffering the whole thing via arrayBuffer() first
+// -- Content-Length is advisory (absent or wrong on a misbehaving/malicious
+// response), so the only real enforcement point is while reading.
+async function readWithLimit(body, limit) {
+  const reader = body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    total += value.length;
+    if (total > limit) {
+      await reader.cancel();
+      throw new Error('Upstream asset exceeds size limit');
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks.map((c) => Buffer.from(c)));
+}
+
 // A real WebUI build's index.html.gz is well under a megabyte. These caps
 // are generous headroom above that, not a tight fit -- their job is only
 // to stop a malicious or misconfigured owner/repo/tag from making this
@@ -63,10 +86,7 @@ exports.handler = async (event) => {
     if (Number.isFinite(declaredLength) && declaredLength > MAX_COMPRESSED_BYTES) {
       return { statusCode: 502, headers: cors, body: 'Upstream asset exceeds size limit' };
     }
-    const compressed = Buffer.from(await upstream.arrayBuffer());
-    if (compressed.length > MAX_COMPRESSED_BYTES) {
-      return { statusCode: 502, headers: cors, body: 'Upstream asset exceeds size limit' };
-    }
+    const compressed = await readWithLimit(upstream.body, MAX_COMPRESSED_BYTES);
     const html = zlib.gunzipSync(compressed, { maxOutputLength: MAX_DECOMPRESSED_BYTES }).toString('utf-8');
     return {
       statusCode: 200,

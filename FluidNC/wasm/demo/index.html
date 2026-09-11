@@ -394,6 +394,22 @@ const shimSendQueue = []; // { kind: 'raw', text } | { kind: 'command', id, cmd 
 let currentShimSend = null; // { kind, id, responseLines, jsonText }
 let sendShimTextRef = null;
 
+// Realtime command bytes (RealtimeCmd.h): picked off the input stream by
+// FluidNC itself rather than queued/parsed as a line, so -- unlike every
+// other raw send -- they never produce an ok/error terminator line.
+// Gating them through currentShimSend the same as ordinary sends would
+// wedge it permanently on the first feed hold/status/reset, blocking every
+// later command; real hardware doesn't queue these behind anything else
+// either, so they bypass shimSendQueue/currentShimSend entirely below.
+function isRealtimeByte(text) {
+  if (text.length !== 1) {
+    return false;
+  }
+  const code = text.charCodeAt(0);
+  return code === 0x18 /* Ctrl-X reset */ || code === 0x3f /* ? status */ || code === 0x7e /* ~ cycle start */ ||
+    code === 0x21 /* ! feed hold */ || code >= 0x80 /* extended-ASCII overrides */;
+}
+
 // Filesystem-bridge cwrap functions, assigned once FluidNCModule() resolves
 // (see below). Messages that arrive before then -- e.g. an iframe's
 // handshake landing while the WASM module is still compiling -- are queued
@@ -452,8 +468,14 @@ window.addEventListener('message', (event) => {
     return;
   }
   if (msg.type === 'fluidnc-shim-send' && typeof msg.text === 'string') {
-    shimSendQueue.push({ kind: 'raw', text: msg.text });
-    maybeStartNextShimSend();
+    if (isRealtimeByte(msg.text)) {
+      if (sendShimTextRef) {
+        sendShimTextRef(msg.text);
+      }
+    } else {
+      shimSendQueue.push({ kind: 'raw', text: msg.text });
+      maybeStartNextShimSend();
+    }
   } else if (msg.type === 'fluidnc-shim-command' && typeof msg.id === 'number' && typeof msg.cmd === 'string') {
     shimSendQueue.push({ kind: 'command', id: msg.id, cmd: msg.cmd });
     maybeStartNextShimSend();

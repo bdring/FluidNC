@@ -241,6 +241,16 @@ bool fluidnc_fs_deletedir(const char* root, const char* relpath) {
     if (!safe_path(root, relpath, p) || !stdfs::is_directory(p, ec)) {
         return false;
     }
+    // safe_path() treats "/" (or an empty relpath) as the root itself, not
+    // an escape attempt -- correctly, since staging/reading root is fine.
+    // But remove_all() on it would delete native_localfs/native_sd wholesale,
+    // breaking every later fs operation for the session, so reject deleting
+    // the mount root; only descendants may be removed this way.
+    stdfs::path canon_p    = stdfs::weakly_canonical(p, ec);
+    stdfs::path canon_root = stdfs::weakly_canonical(stdfs::path("/") / root, ec);
+    if (ec || canon_p == canon_root) {
+        return false;
+    }
     stdfs::remove_all(p, ec);
     return !ec;
 }
