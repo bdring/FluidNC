@@ -943,8 +943,18 @@ static void protocol_do_cycle_start() {
             protocol_initiate_homing_cycle();
             break;
         case State::Hold:
-            // Cycle start only when IDLE or when a hold is complete and ready to resume.
-            if (sys.suspend().bit.holdComplete) {
+            // Normally resume only when the hold is complete and ready to resume.
+            // Also resume when there is no motion pending AND no deceleration is
+            // in progress: a hold entered from a non-moving state (a spurious
+            // feed hold while Idle, or one arriving by a path that never called
+            // protocol_hold_complete()) has nothing to decelerate, so
+            // holdComplete would never be set and the state would otherwise be
+            // an inescapable dead end for ~.  The executeHold check keeps a real
+            // decelerating hold - where prep_buffer() may have already discarded
+            // the planner block while decel segments are still draining - from
+            // being released early.
+            if (sys.suspend().bit.holdComplete ||
+                (plan_get_current_block() == nullptr && !sys.step_control.executeHold)) {
                 if (spindle_stop_ovr.value) {
                     spindle_stop_ovr.bit.restoreCycle = true;  // Set to restore in suspend routine and cycle start after.
                 } else {

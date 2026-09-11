@@ -62,6 +62,11 @@ namespace WebUI {
     }
 
     void TelnetClient::flushRx() {
+        // Drop any half-parsed IAC sequence and the peek pushback, so a reset
+        // in the middle of a negotiation prefix cannot make post-reset input be
+        // consumed as option bytes.
+        _telnetRx     = TelnetRx::data;
+        _peekPushback = -1;
         Channel::flushRx();
     }
 
@@ -227,13 +232,10 @@ namespace WebUI {
     }
 
     int TelnetClient::peek(void) {
-        if (_disconnected.load()) {
-            return -1;
+        if (_peekPushback < 0) {
+            _peekPushback = filteredRead();
         }
-        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
-        int ret = _wifiClient->peek();
-        xSemaphoreGive(_wifiMutex);
-        return ret;
+        return _peekPushback;
     }
 
     int TelnetClient::available() {
@@ -243,20 +245,17 @@ namespace WebUI {
         xSemaphoreTake(_wifiMutex, portMAX_DELAY);
         int ret = _wifiClient->available();
         xSemaphoreGive(_wifiMutex);
-        return ret;
+        // A byte held by peek() is readable now even if the socket has none.
+        return ret + (_peekPushback >= 0 ? 1 : 0);
     }
 
     int TelnetClient::rx_buffer_available() {
         return WIFI_CLIENT_READ_BUFFER_SIZE - available();
     }
 
-    int TelnetClient::read(void) {
-        if (_disconnected.load()) {
-            return -1;
-        }
-
-        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
-        auto ret = _wifiClient->read();
+    // Raw socket read plus the disconnect bookkeeping.  Caller holds _wifiMutex.
+    int TelnetClient::rawReadLocked() {
+        int ret = _wifiClient->read();
         if (ret < 0) {
             // calling _wifiClient->connected() is expensive when the client is
             // connected because it calls recv() to double check, so we check
@@ -269,8 +268,69 @@ namespace WebUI {
             // Reset the counter if we have data
             _empty_reads = 0;
         }
-        xSemaphoreGive(_wifiMutex);
         return ret;
+    }
+
+    // rawReadLocked() with telnet IAC option negotiation (RFC 854) filtered out.
+    // Returns the next GCode-stream byte, or -1 when the socket has no more data.
+    int TelnetClient::filteredRead() {
+        static constexpr uint8_t IAC = 255, SB = 250, SE = 240, WILL = 251, DONT = 254;
+
+        if (_disconnected.load()) {
+            return -1;
+        }
+
+        xSemaphoreTake(_wifiMutex, portMAX_DELAY);
+        int result = -1;
+        int b;
+        while ((b = rawReadLocked()) >= 0) {
+            switch (_telnetRx) {
+                case TelnetRx::data:
+                    if (b == IAC) {
+                        _telnetRx = TelnetRx::iac;
+                        continue;
+                    }
+                    result = b;  // ordinary data byte
+                    break;
+                case TelnetRx::iac:
+                    if (b == IAC) {  // IAC IAC -> one literal 0xFF data byte
+                        _telnetRx = TelnetRx::data;
+                        result    = IAC;
+                        break;
+                    }
+                    if (b == SB) {
+                        _telnetRx = TelnetRx::sb;
+                    } else if (b >= WILL && b <= DONT) {
+                        _telnetRx = TelnetRx::opt;  // WILL/WONT/DO/DONT: one option byte follows
+                    } else {
+                        _telnetRx = TelnetRx::data;  // 2-byte command (NOP, DM, IP, ...): done
+                    }
+                    continue;
+                case TelnetRx::opt:  // option byte after WILL/WONT/DO/DONT
+                    _telnetRx = TelnetRx::data;
+                    continue;
+                case TelnetRx::sb:  // subnegotiation payload - discard until IAC SE
+                    if (b == IAC) {
+                        _telnetRx = TelnetRx::sbIac;
+                    }
+                    continue;
+                case TelnetRx::sbIac:
+                    _telnetRx = (b == IAC) ? TelnetRx::sb : TelnetRx::data;  // IAC IAC stays in SB; IAC SE ends it
+                    continue;
+            }
+            break;  // produced a data byte
+        }
+        xSemaphoreGive(_wifiMutex);
+        return result;
+    }
+
+    int TelnetClient::read(void) {
+        if (_peekPushback >= 0) {
+            int c         = _peekPushback;
+            _peekPushback = -1;
+            return c;
+        }
+        return filteredRead();
     }
 
     TelnetClient::~TelnetClient() {

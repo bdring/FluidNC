@@ -31,6 +31,19 @@ namespace WebUI {
         std::atomic<bool> _disconnected { false };
         int32_t           _empty_reads = 0;
 
+        // Telnet option negotiation (RFC 854) arrives interleaved with the
+        // GCode stream.  FluidNC does not speak telnet, and if the IAC
+        // sequences reach the line parser their bytes are misread as realtime
+        // commands (0x21 == '!' feed hold, 0x18 == Ctrl-X reset, etc.).  read()
+        // strips them with this small state machine; nothing is negotiated
+        // back, which a client tolerates as "no options supported".
+        enum class TelnetRx : uint8_t { data, iac, opt, sb, sbIac };
+        TelnetRx _telnetRx     = TelnetRx::data;
+        int      _peekPushback = -1;  // one filtered byte held for peek()
+
+        int rawReadLocked();  // raw socket read + disconnect bookkeeping; _wifiMutex held
+        int filteredRead();   // rawReadLocked() with telnet IAC sequences removed
+
         // Guards all access to _wifiClient. write()/flushQueue() run on the
         // output task while read()/peek()/available()/closeOnDisconnect() run
         // on the polling task; WiFiClient has no internal locking of its own,
