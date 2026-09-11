@@ -178,7 +178,7 @@ static ModuleFactory::InstanceBuilder<ESPNowModule> espnow_module __attribute__(
 
 
 ESPNowChannel* ESPNowChannel::_instance  = nullptr;
-uint8_t        ESPNowChannel::_rx_buf[ESPNowChannel::RX_BUF_SIZE];
+uint8_t*       ESPNowChannel::_rx_buf     = nullptr;
 std::atomic<int> ESPNowChannel::_rx_head {0};
 std::atomic<int> ESPNowChannel::_rx_tail {0};
 
@@ -264,11 +264,9 @@ void ESPNowModule::init() {
         new UserCommand("EU", "ESPNow/Unpair", espnowUnpairCommand, anyState, WA);
     }
 
-    if (WiFi.getMode() == WIFI_OFF) {
-        WiFi.mode(WIFI_STA);
-        WiFi.disconnect(false, false);
-    }
-
+    // The Wi-Fi stack is brought up (if needed) by ESPNowChannel::arm(), which
+    // runs only when there is a saved pairing or the operator opens a pairing
+    // window.  A node with ESP-NOW compiled in but never paired stays dark.
     espnowChannel.init();
 }
 
@@ -279,15 +277,9 @@ void ESPNowModule::poll() {
 
 ESPNowChannel::ESPNowChannel() : Channel("espnow") {
     _peer_mutex = xSemaphoreCreateRecursiveMutex();
-    _packet_queue = xQueueCreate(RX_PACKET_QUEUE_DEPTH, sizeof(RxPacket));
-    _pairing_queue = xQueueCreate(PAIRING_PACKET_QUEUE_DEPTH, sizeof(RxPacket));
-    _pair_confirm_queue = xQueueCreate(PAIR_CONFIRM_QUEUE_DEPTH, sizeof(RxPacket));
-    _instance = this;
+    _instance   = this;
     if (!_peer_mutex) {
         log_error("ESP-NOW: failed to create peer mutex");
-    }
-    if (!_packet_queue || !_pairing_queue || !_pair_confirm_queue) {
-        log_error("ESP-NOW: failed to create receive queues");
     }
 }
 
@@ -295,14 +287,52 @@ void ESPNowChannel::init() {
     if (_initialized) {
         return;
     }
-    if (!_peer_mutex || !_packet_queue || !_pairing_queue || !_pair_confirm_queue) {
-        log_error("ESP-NOW: initialization blocked by missing synchronization resources");
-        return;
+    _initialized = true;
+
+    // Registering the channel and its report interval is cheap (no buffers);
+    // do it unconditionally so $ESPNow commands and pairing work on demand.
+    if (!_registered) {
+        allChannels.registration(this);
+        _registered = true;
+    }
+    setReportInterval(ESPNowConfig::DEFAULT_REPORT_INTERVAL_MS);
+
+    // Probe NVS for a saved pairing.  If one exists, come up armed; otherwise
+    // stay dark until the operator runs $ESPNow/Pair.
+    ESPNowPairingRecord probe[ESPNowConfig::MAX_PAIRINGS];
+    size_t              saved = ESPNowConfig::loadPairings(probe, ESPNowConfig::MAX_PAIRINGS);
+    ESPNowCrypto::secureZero(probe, sizeof(probe));
+    _want_arm = saved > 0;
+    if (_want_arm) {
+        arm();  // may fail if Wi-Fi is not started yet; poll() retries
+    }
+}
+
+// Allocate the ESP-NOW runtime: esp_now_init(), the receive callbacks, the
+// inbound packet queue, and the saved-pairing roster.  Idempotent.  Returns
+// false (leaving the node dark) if Wi-Fi is not ready or allocation fails.
+bool ESPNowChannel::arm() {
+    if (_espnow_started) {
+        return true;
+    }
+    if (!_peer_mutex) {
+        log_error("ESP-NOW: cannot arm without peer mutex");
+        return false;
     }
 
-    if (esp_now_init() != ESP_OK) {
-        log_error("ESP-NOW: esp_now_init() failed");
-        return;
+    if (WiFi.getMode() == WIFI_OFF) {
+        WiFi.mode(WIFI_STA);
+        WiFi.disconnect(false, false);
+    }
+
+    esp_err_t init_err = esp_now_init();
+    if (init_err != ESP_OK) {
+        // ESP_ERR_ESPNOW_INTERNAL here usually means Wi-Fi has not finished
+        // starting yet; poll() will retry.  Log at debug so a transient
+        // startup race does not spam, but name the actual error so a
+        // persistent failure is still diagnosable.
+        log_debug("ESP-NOW: esp_now_init() failed: " << esp_err_to_name(init_err) << " (will retry)");
+        return false;
     }
 
     uint8_t pmk[16];
@@ -313,10 +343,34 @@ void ESPNowChannel::init() {
     esp_now_register_recv_cb(ESPNowChannel::onRecv);
     esp_now_register_send_cb(ESPNowChannel::onSent);
 
+    _packet_queue = xQueueCreate(RX_PACKET_QUEUE_DEPTH, sizeof(RxPacket));
+    if (!_packet_queue) {
+        log_error("ESP-NOW: failed to create packet queue");
+        esp_now_unregister_recv_cb();
+        esp_now_unregister_send_cb();
+        esp_now_deinit();
+        return false;
+    }
+
+    _espnow_started = true;
+    _want_arm       = false;
+
     ESPNowPairingRecord records[ESPNowConfig::MAX_PAIRINGS];
-    size_t saved_count = ESPNowConfig::loadPairings(records, ESPNowConfig::MAX_PAIRINGS);
+    size_t              saved_count = ESPNowConfig::loadPairings(records, ESPNowConfig::MAX_PAIRINGS);
+    loadRoster(records, saved_count);
+    ESPNowCrypto::secureZero(records, sizeof(records));
+
+    if (_paired.load(std::memory_order_acquire)) {
+        setActivePeer(0);
+    }
+
+    log_debug("ESP-NOW: armed");
+    return true;
+}
+
+void ESPNowChannel::loadRoster(const ESPNowPairingRecord* records, size_t count) {
     _paired_count.store(0, std::memory_order_release);
-    for (size_t i = 0; i < saved_count; ++i) {
+    for (size_t i = 0; i < count; ++i) {
         size_t paired_count = _paired_count.load(std::memory_order_acquire);
         if (paired_count >= MAX_SERVER_PAIRINGS) {
             log_error("ESP-NOW: saved pairing roster exceeds runtime capacity");
@@ -335,24 +389,56 @@ void ESPNowChannel::init() {
             log_error("ESP-NOW: failed to restore saved pairing for " << mac_str(records[i].peer_mac));
         }
     }
-    ESPNowCrypto::secureZero(records, sizeof(records));
     _paired.store(_paired_count.load(std::memory_order_acquire) > 0, std::memory_order_release);
+}
 
-    if (!_registered) {
-        allChannels.registration(this);
-        _registered = true;
+// The inbound byte ring (4 kB) is only needed once a peer actually streams
+// line data; realtime/keepalive traffic never touches it.
+bool ESPNowChannel::ensureRxBuf() {
+    if (_rx_buf) {
+        return true;
     }
-
-    if (_paired.load(std::memory_order_acquire)) {
-        setActivePeer(0);
-    } else {
-        setReportInterval(ESPNowConfig::DEFAULT_REPORT_INTERVAL_MS);
+    _rx_buf = static_cast<uint8_t*>(malloc(RX_BUF_SIZE));
+    if (!_rx_buf) {
+        log_error("ESP-NOW: failed to allocate receive ring");
+        return false;
     }
+    _rx_head.store(0, std::memory_order_release);
+    _rx_tail.store(0, std::memory_order_release);
+    return true;
+}
 
-    _initialized = true;
+// The pairing queues are only exercised while a pairing window is open.  Once
+// created they persist for the session (deleting them would race the Wi-Fi
+// task recv callback); xQueueReset on close keeps them empty.
+void ESPNowChannel::ensurePairingQueues() {
+    if (!_pairing_queue) {
+        _pairing_queue = xQueueCreate(PAIRING_PACKET_QUEUE_DEPTH, sizeof(RxPacket));
+    }
+    if (!_pair_confirm_queue) {
+        _pair_confirm_queue = xQueueCreate(PAIR_CONFIRM_QUEUE_DEPTH, sizeof(RxPacket));
+    }
+    if (!_pairing_queue || !_pair_confirm_queue) {
+        log_error("ESP-NOW: failed to create pairing queues");
+    }
+}
+
+void ESPNowChannel::freeFrag(PairedPeer& peer) {
+    if (peer.frag) {
+        free(peer.frag);
+        peer.frag = nullptr;
+    }
 }
 
 bool ESPNowChannel::startPairingWindow(uint32_t window_ms) {
+    if (!arm()) {
+        return false;
+    }
+    ensurePairingQueues();
+    if (!_pairing_queue || !_pair_confirm_queue) {
+        return false;
+    }
+
     clearPairingTransaction(true);
     if (_pairing_queue) {
         xQueueReset(_pairing_queue);
@@ -443,6 +529,9 @@ bool ESPNowChannel::removeRuntimePeer(const uint8_t* mac) {
 
     _paired_count.store(last, std::memory_order_release);
     _paired.store(last > 0, std::memory_order_release);
+    if (last == 0) {
+        _want_arm = false;  // roster empty: cancel any pending arm() retry
+    }
     int active = _active_peer_index.load(std::memory_order_acquire);
     if (active == index || active >= (int)last) {
         _active_peer_index.store(last > 0 ? 0 : -1, std::memory_order_release);
@@ -480,6 +569,9 @@ void ESPNowChannel::clearPairings() {
     _paired.store(false, std::memory_order_release);
     _active_peer_index.store(-1, std::memory_order_release);
     _pairing_window_active.store(false, std::memory_order_release);
+    // Cancel any pending arm() retry so a node whose roster was cleared before
+    // Wi-Fi came up stays dark.  An already-armed node stays armed (harmless).
+    _want_arm = false;
     ESPNowConfig::clearPairing();
     refreshReportInterval();
 }
@@ -552,7 +644,7 @@ void ESPNowChannel::resetPeerRuntimeLocked(int index) {
     ESPNowCrypto::issueRxChallenge(peer.rx_nonce);
     peer.rx_replay = {};
     peer.motion_barrier_counter = 0;
-    memset(&peer.frag, 0, sizeof(peer.frag));
+    freeFrag(peer);
     peer.tx_seq = 0;
 }
 
@@ -583,9 +675,12 @@ bool ESPNowChannel::dataMessageClaimsControl(const PairedPeer& peer) const {
     size_t line_len = 0;
     bool started = false;
 
-    for (uint8_t frag = 0; frag < peer.frag.total && frag < MAX_FRAGS; ++frag) {
-        for (uint16_t i = 0; i < peer.frag.sizes[frag]; ++i) {
-            char c = (char)peer.frag.data[frag][i];
+    if (!peer.frag) {
+        return false;
+    }
+    for (uint8_t frag = 0; frag < peer.frag->total && frag < MAX_FRAGS; ++frag) {
+        for (uint16_t i = 0; i < peer.frag->sizes[frag]; ++i) {
+            char c = (char)peer.frag->data[frag][i];
             if (!started) {
                 if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
                     continue;
@@ -901,6 +996,9 @@ void ESPNowChannel::sendFragmentedToPeer(PairedPeer& peer, const uint8_t* data, 
 
 
 void ESPNowChannel::rxPush(uint8_t byte) {
+    if (!_rx_buf) {
+        return;
+    }
     int cur  = _rx_head.load(std::memory_order_relaxed);
     int next = (cur + 1) % RX_BUF_SIZE;
     if (next == _rx_tail.load(std::memory_order_acquire)) {
@@ -911,6 +1009,9 @@ void ESPNowChannel::rxPush(uint8_t byte) {
 }
 
 size_t ESPNowChannel::rxBuffered() const {
+    if (!_rx_buf) {
+        return 0;
+    }
     int head = _rx_head.load(std::memory_order_acquire);
     int tail = _rx_tail.load(std::memory_order_acquire);
     if (head >= tail) {
@@ -920,11 +1021,21 @@ size_t ESPNowChannel::rxBuffered() const {
 }
 
 size_t ESPNowChannel::rxFree() const {
+    if (!_rx_buf) {
+        return 0;
+    }
     // One slot is kept empty to distinguish a full ring from an empty one.
     return RX_BUF_SIZE - 1 - rxBuffered();
 }
 
 void ESPNowChannel::poll() {
+    if (_want_arm && !_espnow_started) {
+        arm();  // Wi-Fi may not have been ready at init() time
+    }
+    if (!_espnow_started) {
+        return;  // dark: no queues, no peers, nothing to service
+    }
+
     processPairingTransaction();
     uint32_t now = (uint32_t)millis();
 
@@ -1019,6 +1130,9 @@ int ESPNowChannel::available() {
 }
 
 int ESPNowChannel::read() {
+    if (!_rx_buf) {
+        return -1;
+    }
     int tail = _rx_tail.load(std::memory_order_relaxed);
     if (tail == _rx_head.load(std::memory_order_acquire)) {
         return -1;
@@ -1030,6 +1144,9 @@ int ESPNowChannel::read() {
 }
 
 int ESPNowChannel::peek() {
+    if (!_rx_buf) {
+        return -1;
+    }
     int tail = _rx_tail.load(std::memory_order_acquire);
     if (tail == _rx_head.load(std::memory_order_acquire)) {
         return -1;
@@ -1063,7 +1180,7 @@ void ESPNowChannel::flushRx() {
     PeerStateLock peer_lock(_peer_mutex);
     size_t paired_count = _paired_count.load(std::memory_order_acquire);
     for (size_t i = 0; i < paired_count; ++i) {
-        memset(&_paired_peers[i].frag, 0, sizeof(_paired_peers[i].frag));
+        freeFrag(_paired_peers[i]);
     }
 }
 
@@ -1538,36 +1655,47 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
         refreshReportInterval();
     }
 
+    // Reassembly scratch is allocated on first inbound data from this peer and
+    // held until it disconnects (freeFrag via resetPeerRuntimeLocked / flushRx).
+    if (!peer.frag) {
+        peer.frag = static_cast<FragBuf*>(calloc(1, sizeof(FragBuf)));
+        if (!peer.frag) {
+            log_error("ESP-NOW: failed to allocate reassembly buffer");
+            return;
+        }
+    }
+    FragBuf& frag = *peer.frag;
+
     // Expire stale reassembly window before accepting a new sequence
-    if (peer.frag.active) {
-        bool stale_seq     = (peer.frag.seq != seq);
-        bool stale_timeout = ((uint32_t)(millis() - peer.frag.start_ms)
+    if (frag.active) {
+        bool stale_seq     = (frag.seq != seq);
+        bool stale_timeout = ((uint32_t)(millis() - frag.start_ms)
                               > FRAG_REASSEMBLY_TIMEOUT_MS);
         if (stale_seq || stale_timeout) {
-            memset(&peer.frag, 0, sizeof(peer.frag));
+            memset(&frag, 0, sizeof(frag));
         }
     }
 
-    if (!peer.frag.active) {
-        peer.frag.seq      = seq;
-        peer.frag.total    = total_frags;
-        peer.frag.active   = true;
-        peer.frag.start_ms = (uint32_t)millis();
-        peer.frag.received = 0;
-        memset(peer.frag.sizes, 0, sizeof(peer.frag.sizes));
+    if (!frag.active) {
+        frag.seq      = seq;
+        frag.total    = total_frags;
+        frag.active   = true;
+        frag.start_ms = (uint32_t)millis();
+        frag.received = 0;
+        memset(frag.sizes, 0, sizeof(frag.sizes));
     }
 
-    if (peer.frag.total != total_frags) {
+    if (frag.total != total_frags) {
         return;
     }
 
-    memcpy(peer.frag.data[frag_idx], data + FRAG_HDR_SIZE, payload_len);
-    peer.frag.sizes[frag_idx]  = (uint16_t)payload_len;
-    peer.frag.received        |= (1u << frag_idx);
+    memcpy(frag.data[frag_idx], data + FRAG_HDR_SIZE, payload_len);
+    frag.sizes[frag_idx]  = (uint16_t)payload_len;
+    frag.received        |= (1u << frag_idx);
 
     // Check whether all fragments received
     uint8_t full_mask = (uint8_t)((1u << total_frags) - 1u);
-    if ((peer.frag.received & full_mask) != full_mask) {
+    if ((frag.received & full_mask) != full_mask) {
         return;
     }
 
@@ -1582,22 +1710,24 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
 
     size_t reassembled_size = 0;
     for (uint8_t i = 0; i < total_frags; ++i) {
-        reassembled_size += peer.frag.sizes[i];
+        reassembled_size += frag.sizes[i];
     }
     bool append_newline =
-        peer.frag.sizes[total_frags - 1] == 0 ||
-        peer.frag.data[total_frags - 1][peer.frag.sizes[total_frags - 1] - 1] != '\n';
+        frag.sizes[total_frags - 1] == 0 ||
+        frag.data[total_frags - 1][frag.sizes[total_frags - 1] - 1] != '\n';
 
-    // Preserve msg boundaries.
-    if (reassembled_size + (append_newline ? 1 : 0) > rxFree()) {
-        peer.frag.active = false;
+    // Preserve msg boundaries.  The ring is allocated here, on the first
+    // message that actually needs to reach the line parser.
+    if (!ensureRxBuf() ||
+        reassembled_size + (append_newline ? 1 : 0) > rxFree()) {
+        frag.active = false;
         return;
     }
 
     // Reassembly complete — push the whole message into the bounded ring.
     for (uint8_t i = 0; i < total_frags; i++) {
-        for (uint16_t j = 0; j < peer.frag.sizes[i]; j++) {
-            rxPush(peer.frag.data[i][j]);
+        for (uint16_t j = 0; j < frag.sizes[i]; j++) {
+            rxPush(frag.data[i][j]);
         }
     }
 
@@ -1605,7 +1735,7 @@ void ESPNowChannel::handleData(int peer_index, const uint8_t* data, int len) {
         rxPush('\n');
     }
 
-    peer.frag.active = false;
+    frag.active = false;
 }
 
 
