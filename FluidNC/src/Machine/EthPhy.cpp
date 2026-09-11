@@ -86,8 +86,8 @@ namespace Machine {
                             rstPin,
                             SPI2_HOST,
                             int(sckPin),
-                            int(mosiPin),
                             int(misoPin),
+                            int(mosiPin),
                             uint8_t(_frequency_hz / 1000000));
         if (!ok) {
             log_error("Ethernet PHY init failed");
