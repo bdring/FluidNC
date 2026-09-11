@@ -44,6 +44,9 @@ enum class Cmd : uint8_t {
     SpindleOvrStop        = 0x9E,
     CoolantFloodOvrToggle = 0xA0,
     CoolantMistOvrToggle  = 0xA1,
+    // Single-block (step) mode is toggled via the pin-event mechanism (see
+    // Control::_singleBlockPin, Channel::registerVirtualPin), not a dedicated
+    // realtime command.
     // Channel Extender uses the Bx range; see Channel.h
 };
 

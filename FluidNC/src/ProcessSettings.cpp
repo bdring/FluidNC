@@ -275,6 +275,36 @@ static Error toggle_check_mode(const char* value, AuthenticationLevel auth_level
     return Error::Ok;
 }
 
+static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (state_is(State::ConfigAlarm)) {
+        return Error::ConfigurationInvalid;
+    }
+    auto& singleBlockPin = config->_control->_singleBlockPin;
+    bool  enable;
+    if (*value == '\0') {
+        enable = !singleBlockPin.get();  // No value given: toggle
+    } else if (string_util::equal_ignore_case(value, "On")) {
+        enable = true;
+    } else if (string_util::equal_ignore_case(value, "Off")) {
+        enable = false;
+    } else {
+        return Error::InvalidValue;
+    }
+    if (enable == singleBlockPin.get()) {
+        return Error::Ok;  // Already in the requested state
+    }
+    // Drive the toggle through the same pin-event path that a real single_block_pin
+    // and the WebUI/pendant button use. That runs InputPin::trigger() (and the Pn:
+    // string recompute) on the protocol task regardless of which task this command
+    // ran on, so gcode_block_mode() itself needs no protocol context: it is
+    // registered as a ReportCommand and works from any channel in any state,
+    // including mid-job. Enabling while a job runs just makes it pause at the next
+    // line; $GB=Off (or a cycle start per line) gets out of it.
+    protocol_send_event(enable ? &pinActiveEvent : &pinInactiveEvent, &singleBlockPin);
+    log_info_to(out, (enable ? "Single Block Mode Enabled" : "Single Block Mode Disabled"));
+    return Error::Ok;
+}
+
 static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
@@ -1050,6 +1080,7 @@ void make_user_commands() {
     new ReportCommand("A", "Alarms/List", listAlarms, anyState);
     new ReportCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
+    new ReportCommand("GB", "GCode/BlockMode", gcode_block_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);

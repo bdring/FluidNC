@@ -5,6 +5,7 @@
 
 #include "Protocol.h"        // *Event
 #include "Machine/Macros.h"  // macro0Event
+#include "Channel.h"         // Channel::registerVirtualPin, Channel::MaxPinIndex
 
 Control::Control() {
     // All control inputs (Pin, input, default NO_PIN) must read non-active at boot -- this
@@ -99,12 +100,25 @@ Control::Control() {
     // @pin_attributes input
     // Runs $H (home all) when active.
     _pins.push_back(new ControlPin(&homingButtonEvent, "homing_button_pin", 'O'));
+
+    // @config single_block_pin
+    // @default NO_PIN
+    // @pin_attributes input
+    // Toggles single-block (step) mode when active. Unlike the other pins above, this
+    // one works even without a config entry: it is always reachable via the pin-event
+    // mechanism (Channel::registerVirtualPin(), set up in init()), on every channel.
+    // A real Pin here is optional, for anyone who also wants a physical switch/expander
+    // input to control it.
+    _pins.push_back(&_singleBlockPin);
 }
 
 void Control::init() {
     for (auto pin : _pins) {
         pin->init();
     }
+    // _singleBlockPin must work regardless of whether single_block_pin: was configured
+    // above, so register it directly as a virtual pin, reachable on every channel.
+    Channel::registerVirtualPin(Channel::MaxPinIndex, &_singleBlockPin);
 }
 
 void Control::group(Configuration::HandlerBase& handler) {
@@ -116,7 +130,9 @@ void Control::group(Configuration::HandlerBase& handler) {
 std::string Control::report_status() {
     std::string ret = "";
     for (auto pin : _pins) {
-        if (pin->get()) {
+        // letter() is '\0' for pins that don't participate in Pn: reporting;
+        // guard against appending that as a stray byte.
+        if (pin->get() && pin->letter()) {
             ret += pin->letter();
         }
     }

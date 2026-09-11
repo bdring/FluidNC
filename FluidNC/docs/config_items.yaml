@@ -3574,6 +3574,13 @@ control:
     description: |
       Runs $H (home all) when active.
 
+  single_block_pin:
+    type: pin
+    default: 'NO_PIN'
+    pin_attributes: input
+    description: |
+      Toggles single-block (step) mode when active. Unlike the other pins above, this one works even without a config entry: it is always reachable via the pin-event mechanism (Channel::registerVirtualPin(), set up in init()), on every channel. A real Pin here is optional, for anyone who also wants a physical switch/expander input to control it.
+
 # Same data-driven-list shape as control: above.
 user_inputs:
   digital0_pin:

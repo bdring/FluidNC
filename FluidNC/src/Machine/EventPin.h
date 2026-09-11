@@ -11,7 +11,8 @@ protected:
     ExecAlarm    _alarm;
 
 public:
-    EventPin(const Event* event, const ExecAlarm alarm, const char* legend) : InputPin(legend), _event(event), _alarm(alarm) {};
+    EventPin(const Event* event, const ExecAlarm alarm, const char* legend, char letter = '\0') :
+        InputPin(legend, letter), _event(event), _alarm(alarm) {};
 
     void trigger(bool active) override;
 

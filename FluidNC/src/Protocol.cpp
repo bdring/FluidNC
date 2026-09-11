@@ -10,7 +10,8 @@
 #include "Protocol.h"
 #include "Event.h"
 
-#include <climits>  // UINT_MAX
+#include <climits>      // UINT_MAX
+#include <string_view>  // std::string_view (single-block line preview)
 
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"
@@ -265,6 +266,7 @@ static void heap_monitor_poll() {
 }
 
 bool pollingPaused = false;
+
 // One pass of the polling loop.  Factored out of polling_loop() so that the
 // whole pass can be wrapped in a try block; "continue" becomes "return".
 static void poll_once() {
@@ -465,6 +467,54 @@ void protocol_main_loop() {
 
                 Channel* ldr         = Job::leader_channel();
                 Channel* out_channel = ldr ? ldr : channel;
+
+                // Single-step mode: pause before each job line exactly like an inferred
+                // M0 ahead of that line, reporting a preview of what will run next. The
+                // line is only executed once a cycle start releases the hold.
+                if (config->_control->_singleBlockPin.get() && Job::active() && !sys.abort()) {
+                    protocol_buffer_synchronize();  // Finish all remaining buffered motion before pausing.
+
+                    // protocol_buffer_synchronize() pumps realtime commands, during which the
+                    // polling task can Job::abort() (Alarm/Critical/unwind_cause) and empty the
+                    // job stack. Fetch the job channel once, afterwards, and skip the pause if it
+                    // is gone rather than dereferencing a null Job::channel(). jc->lineNumber()
+                    // still matches item.line because CMD_QUEUE_DEPTH == 1 and poll_once() will
+                    // not read another job line while our processing_ref is held -- exactly one
+                    // job line is ever in flight; a deeper queue would let that skew.
+                    Channel* jc = Job::channel();
+                    if (jc && !state_is(State::CheckMode)) {
+                        std::string_view preview(item.line);
+                        bool             truncated = preview.size() > 20;
+                        if (truncated) {
+                            preview = preview.substr(0, 20);
+                        }
+                        log_info("Step " << jc->name() << ":" << jc->lineNumber() << " " << preview << (truncated ? "..." : ""));
+
+                        // protocol_execute_realtime() processes the feedhold event and then, because
+                        // the resulting suspend state is non-zero, blocks inside
+                        // protocol_exec_rt_suspend() until a cycle start clears it. So this call is
+                        // itself the wait for resume; nothing further is needed after it.
+                        //
+                        // protocol_exec_rt_suspend()'s wait loop also returns as soon as sys.abort()
+                        // is set, without clearing suspend -- that's the normal path for a reset
+                        // while paused here, not just a resume. Without the sys.abort() check below,
+                        // a reset issued while waiting would still fall through to execute_line() and
+                        // run the very line the reset was meant to discard.
+                        protocol_send_event(&feedHoldEvent);
+                        protocol_execute_realtime();
+                        if (sys.abort()) {
+                            // Must "continue", not fall through: reaching execute_line() below
+                            // would run item.line, the very line this reset should discard.
+                            // The trade-off is that the loop-bottom "sys.set_abort(false)" is
+                            // skipped this pass, so abort stays set one extra iteration (~1ms)
+                            // versus the normal post-execute_line abort path. Harmless here --
+                            // should_exit() is constant-false on ESP32 and the planner is
+                            // already flushed -- and it clears on the next pass.
+                            channel->release_processing_ref();
+                            continue;
+                        }
+                    }
+                }
 
                 Error status_code = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
 
@@ -1368,16 +1418,16 @@ void protocol_do_rt_reset() {
     protocol_send_event(&restartEvent);
 }
 
-void protocol_do_pin_active(void* vpEventPin) {
-    auto eventPin = static_cast<EventPin*>(vpEventPin);
-    if (eventPin) {  // Safety check; null eventPin should not happen
-        eventPin->trigger(true);
+void protocol_do_pin_active(void* vpInputPin) {
+    auto inputPin = static_cast<InputPin*>(vpInputPin);
+    if (inputPin) {  // Safety check; null inputPin should not happen
+        inputPin->trigger(true);
     }
 }
-void protocol_do_pin_inactive(void* vpEventPin) {
-    auto eventPin = static_cast<EventPin*>(vpEventPin);
-    if (eventPin) {  // Safety check; null eventPin should not happen
-        eventPin->trigger(false);
+void protocol_do_pin_inactive(void* vpInputPin) {
+    auto inputPin = static_cast<InputPin*>(vpInputPin);
+    if (inputPin) {  // Safety check; null inputPin should not happen
+        inputPin->trigger(false);
     }
 }
 

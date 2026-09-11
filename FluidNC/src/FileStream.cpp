@@ -76,11 +76,14 @@ void FileStream::setup(const char* mode) {
     _size = stdfs::file_size(_fpath);
 }
 
-FileStream::FileStream(const char* filename, const char* mode, const Volume& fs) : Channel(filename), _fpath(filename, fs), _mode(mode) {
-    setup(mode);
-}
+// Delegates to the FluidPath constructor below so Channel's base-class name
+// (Channel::_name, returned by the non-virtual Channel::name()) is set from
+// the fully resolved FluidPath, not the raw pre-resolution filename -- code
+// that only has a Channel* (e.g. Job::channel()) sees Channel::name(), not
+// FileStream::name()/path() below, since name() isn't virtual.
+FileStream::FileStream(const char* filename, const char* mode, const Volume& fs) : FileStream(FluidPath(filename, fs), mode) {}
 
-FileStream::FileStream(FluidPath fpath, const char* mode) : Channel("file"), _mode(mode) {
+FileStream::FileStream(FluidPath fpath, const char* mode) : Channel(fpath.string()), _mode(mode) {
     std::swap(_fpath, fpath);
     setup(mode);
 }
