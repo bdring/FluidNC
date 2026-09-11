@@ -157,6 +157,25 @@ namespace WebUI {
             return 0;
         }
 
+        // With a non-blocking flush there is no producer backpressure, so a
+        // client that has stopped draining would grow _output_line without
+        // bound on the polling task's heap.  Check the incoming size against
+        // the backlog limit *before* appending - otherwise one large write
+        // could grow _output_line past WS_OUT_MAX_BACKLOG before the drop
+        // fires, briefly defeating the bounded-heap guarantee this is for.
+        if (_output_line.length() + size > WS_OUT_MAX_BACKLOG) {
+            size_t dropped = _output_line.length();
+            std::string().swap(_output_line);
+            _active = false;  // clear/deactivate first: the diagnostic below can
+                               // throw (it queues through the shared log path),
+                               // and state must not be left half-torn-down if it does.
+            if (auto client = get_client(_server, _clientNum)) {
+                client->close();
+            }
+            log_debug_to(Console, "WebSocket cid#" << _clientNum << " backlog " << dropped << "+" << size << ", closing");
+            return size;
+        }
+
         // Coalesce output: accumulate here and emit at most one frame per
         // WS_OUT_FLUSH_LEN bytes.  The tail of a burst is shipped from
         // pollLine() once output goes idle, or explicitly via flush().  This
@@ -169,19 +188,6 @@ namespace WebUI {
 
         if (_output_line.length() >= WS_OUT_FLUSH_LEN) {
             flush_output(false);  // non-blocking - this runs on the polling task
-        }
-
-        // With a non-blocking flush there is no producer backpressure, so a
-        // client that has stopped draining would grow _output_line without
-        // bound on the polling task's heap.  Drop it once the backlog it
-        // cannot take exceeds WS_OUT_MAX_BACKLOG.
-        if (_output_line.length() > WS_OUT_MAX_BACKLOG) {
-            log_debug_to(Console, "WebSocket cid#" << _clientNum << " backlog " << _output_line.length() << ", closing");
-            std::string().swap(_output_line);
-            if (auto client = get_client(_server, _clientNum)) {
-                client->close();
-            }
-            _active = false;
         }
         return size;
     }

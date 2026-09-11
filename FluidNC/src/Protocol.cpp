@@ -144,6 +144,7 @@ void drain_messages() {
         LogMessage message;
         while (xQueueReceive(message_queue, &message, 0) == pdTRUE) {
             process_one_message(message);
+            feed_watchdog();
         }
     } else {
         while (uxQueueMessagesWaiting(message_queue)) {
