@@ -1,291 +1,109 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "Report.h"
-#include "FileStream.h"
 #include "WebClient.h"
 #include "Driver/Console.h"
-#include <ESPAsyncWebServer.h>
-#include "Settings.h"        // settings_execute_line()
-#include "Authentication.h"  // Auth levels
+#include <ESPAsyncWebServer.h>  // RESPONSE_TRY_AGAIN
+#include <algorithm>
 
 namespace WebUI {
-    namespace {
-        constexpr UBaseType_t webclient_task_priority() {
-#ifdef configMAX_PRIORITIES
-            return (configMAX_PRIORITIES > 1) ? ((20 < (configMAX_PRIORITIES - 1)) ? 20 : (configMAX_PRIORITIES - 1)) : 0;
-#else
-            return 20;
-#endif
-        }
-    }
-
-    QueueHandle_t WebClients::_background_task_queue  = nullptr;
-    TaskHandle_t  WebClients::_background_task_handle = nullptr;
-
-    void WebClients::background_task(void* pvParameters) {
-        std::string cmd;
-        while (true) {
-            WebClient* webClient;
-            if (xQueueReceive(_background_task_queue, &webClient, portMAX_DELAY) == pdTRUE) {
-                xSemaphoreTake(webClient->xBufferLock, portMAX_DELAY);
-                if (webClient->cmds.size() > 0) {
-                    cmd = webClient->cmds.front();
-                    webClient->cmds.pop_front();
-                    xSemaphoreGive(webClient->xBufferLock);
-                    // TODO: check error result and see if we can do anything...
-                    // An exception escaping this raw task would terminate the
-                    // controller, taking any running job with it.
-                    try {
-                        settings_execute_line(cmd.c_str(), *webClient, AuthenticationLevel::LEVEL_ADMIN);
-                    } catch (...) {
-                        try {
-                            log_error_to(Console, "Web command failed");
-                        } catch (...) {}
-                    }
-                    // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.
-                    xSemaphoreTake(webClient->xBufferLock, portMAX_DELAY);
-                    webClient->done = true;
-                    xSemaphoreGive(webClient->xBufferLock);
-                } else {
-                    xSemaphoreGive(webClient->xBufferLock);
-                }
-                // Balances the reference taken in executeCommandBackground().
-                // After this the channel may be reaped at any time, so nothing
-                // below may touch webClient.
-                webClient->release_processing_ref();
-            } else
-                delay(1);  // This should never happen if portMAX_DELAY is trully infinite
-        }
-    }
-
-    void WebClients::init() {
-        if (_background_task_queue == nullptr) {  // first call: create the shared event queue
-            _background_task_queue = xQueueCreate(64, sizeof(WebClient*));
-            if (_background_task_queue == nullptr) {
-                log_error("WebClient: could not allocate background task queue");
-                return;  // don't start a task that would xQueueReceive() a null handle
-            }
-        }
-        if (_background_task_handle == nullptr) {  // first call: create the unique background task
-            BaseType_t ok =
-#if defined(PICO_RP2040) || defined(PICO_RP2350)
-                xTaskCreateAffinitySet(WebClients::background_task,  // task
-                                       "WebClient_background_task",  // name for task
-                                       5 * 1024,                     // 4KB seems enough, 3.5 crash, setting to 5KB
-                                       NULL,                         // parameters
-                                       webclient_task_priority(),    // Keep within configMAX_PRIORITIES
-                                       (1 << SUPPORT_TASK_CORE),      // affinity mask
-                                       &_background_task_handle);
-#else
-                xTaskCreatePinnedToCore(WebClients::background_task,
-                                        "WebClient_background_task",
-                                        5 * 1024,
-                                        NULL,
-                                        webclient_task_priority(),
-                                        &_background_task_handle,
-                                        SUPPORT_TASK_CORE);
-#endif
-            if (ok != pdPASS) {
-                log_error("WebClient: could not create background task");
-                _background_task_handle = nullptr;
-            }
-        }
-    }
-
-    WebClient::WebClient() : Channel("webclient") {
-        xBufferLock = xSemaphoreCreateMutex();
-        WebClients::init();  // no-op after the first call
-    }
+    WebClient::WebClient() : Channel("webclient") { _lock = xSemaphoreCreateMutex(); }
 
     WebClient::~WebClient() {
-        if (!xBufferLock) {
-            return;
+        if (_lock) {
+            vSemaphoreDelete(_lock);
+            _lock = nullptr;
         }
-        xSemaphoreTake(xBufferLock, portMAX_DELAY);
-        if (_buffer)
-            free(_buffer);
-        _buffer    = nullptr;
-        _allocsize = 0;
-        _buflen    = 0;
-        done       = true;
-        xSemaphoreGive(xBufferLock);
-        vSemaphoreDelete(xBufferLock);
-        xBufferLock = nullptr;
     }
 
     void WebClient::attachWS(bool silent) {
-        _silent = silent;
-        xSemaphoreTake(xBufferLock, portMAX_DELAY);
-        _buflen    = 0;
-        _allocsize = 0;
-        if (_buffer) {
-            free(_buffer);
-            _buffer = nullptr;
-        }
-        done = false;
-        xSemaphoreGive(xBufferLock);
+        _silent.store(silent);
+        _done.store(false);
+        _aborted.store(false);
+        xSemaphoreTake(_lock, portMAX_DELAY);
+        _head = _tail = 0;
+        xSemaphoreGive(_lock);
     }
 
-    // Should be used externally to signify to free any potential resources
-    // Any unread buffer will be cleared after that.
     void WebClient::detachWS() {
-        xSemaphoreTake(xBufferLock, portMAX_DELAY);
-        _silent = true;
-        while (!done) {
-            //done = true;
-            xSemaphoreGive(xBufferLock);
+        _silent.store(true);
+        // Wait briefly for the polling task to finish the command (ack() latches
+        // _done) so the chunked-response callback is not mid-run against a
+        // channel about to be reaped - but never block forever.  An aborted
+        // command skips ack(), and kill() (which sets is_closing()) is only
+        // queued after this returns; the reaper still gates the actual delete
+        // on the processing reference, so proceeding after the timeout is safe.
+        for (int i = 0; i < 200 && !_done.load() && !is_closing(); ++i) {
             delay(1);
-            xSemaphoreTake(xBufferLock, portMAX_DELAY);
         }
-        xSemaphoreGive(xBufferLock);
     }
 
-    size_t WebClient::copyBufferSafe(uint8_t* dest_buffer, size_t maxLen, size_t total) {
-        xSemaphoreTake(xBufferLock, portMAX_DELAY);
-        if (_buflen > 0) {
-            int bytes = min(_buflen, maxLen);
-            memcpy(dest_buffer, _buffer, bytes);
-            memmove(_buffer, &_buffer[bytes], _buflen - bytes);
-            _buflen -= bytes;
-            xSemaphoreGive(xBufferLock);
-            return bytes;
-        } else if (done) {
-            free(_buffer);
-            _buffer    = nullptr;
-            _allocsize = 0;
-            _buflen    = 0;
-            xSemaphoreGive(xBufferLock);
-            return 0;
-        }
-
-        // Give the background command a brief chance to produce output so
-        // chunked HTTP responses do not spin on empty buffers unnecessarily.
-        size_t wait_loops = 0;
-        while (_buflen == 0 && !done && !_silent && _active && wait_loops < 20) {
-            xSemaphoreGive(xBufferLock);
-            delay(1);
-            ++wait_loops;
-            xSemaphoreTake(xBufferLock, portMAX_DELAY);
-            if (_buflen > 0) {
-                int bytes = min(_buflen, maxLen);
-                memcpy(dest_buffer, _buffer, bytes);
-                memmove(_buffer, &_buffer[bytes], _buflen - bytes);
-                _buflen -= bytes;
-                xSemaphoreGive(xBufferLock);
-                return bytes;
-            }
-        }
-
-        if (done) {
-            free(_buffer);
-            _buffer    = nullptr;
-            _allocsize = 0;
-            _buflen    = 0;
-            xSemaphoreGive(xBufferLock);
-            return 0;
-        }
-
-        xSemaphoreGive(xBufferLock);
-        return RESPONSE_TRY_AGAIN;
+    void WebClient::deliverCommand(const char* cmd) {
+        // Feed the base Channel input queue; pollChannels() -> pollLine() then
+        // hands this line to execute_line() on the polling task.
+        push(std::string(cmd));
+        push(static_cast<uint8_t>('\n'));
     }
 
-    void WebClient::executeCommandBackground(const char* cmd) {
-        if (!WebClients::_background_task_queue || !WebClients::_background_task_handle || !xBufferLock) {
-            settings_execute_line(cmd, *this, AuthenticationLevel::LEVEL_ADMIN);
-            done = true;
-            return;
+    void WebClient::ack(Error status) {
+        if (status != Error::Ok && status != Error::Deferred) {
+            log_debug_to(Console, "Web command error " << static_cast<int>(status));
         }
-        // The queue carries a bare pointer, and the request's onDisconnect
-        // handler can kill() this channel at any moment.  Without a reference
-        // the reaper sees both counts at zero and frees it while the entry is
-        // still queued, leaving background_task() to run a command against a
-        // deleted Channel.  Hold a processing reference until the background
-        // task is finished with it.
-        if (!try_acquire_processing_ref()) {
-            xSemaphoreTake(xBufferLock, portMAX_DELAY);
-            done = true;
-            xSemaphoreGive(xBufferLock);
-            return;  // already closing; nothing would read the result
-        }
-        xSemaphoreTake(xBufferLock, portMAX_DELAY);
-        cmds.push_back(std::string(cmd));
-        WebClient* _this = this;
-        if (xQueueSend(WebClients::_background_task_queue, &_this, portTICK_PERIOD_MS * 100) != pdTRUE) {
-            cmds.pop_back();
-            done = true;
-            xSemaphoreGive(xBufferLock);
-            release_processing_ref();
-            log_error("WebClient: could not queue command for background execution");
-            return;
-        }
-        xSemaphoreGive(xBufferLock);
+        _done.store(true);
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
-        if (_silent || !_active) {
+        if (_silent.load() || _aborted.load() || !length) {
             return length;
         }
-        xSemaphoreTake(xBufferLock, portMAX_DELAY);
-        if (_buflen + length > _allocsize) {
-            if (_allocsize >= BUFLEN) {
-                while (_buflen + length > _allocsize && !_silent && _active) {
-                    xSemaphoreGive(xBufferLock);
-                    delay(1);
-                    xSemaphoreTake(xBufferLock, portMAX_DELAY);
-                }
-                if (_silent || !_active) {
-                    xSemaphoreGive(xBufferLock);
-                    return length;
-                }
-            } else {
-                _allocsize       = _allocsize + ((length / 256 + 1) * 256);
-                char* new_buffer = (char*)realloc((void*)_buffer, _allocsize);
-                if (!new_buffer) {
-                    log_info_to(Console, "Not enough memory!" << _allocsize);
-                    xSemaphoreGive(xBufferLock);
-                    return length;
-                }
-                _buffer = new_buffer;
+        size_t written = 0;
+        // Bounded backpressure: give the HTTP side a short window to drain a
+        // full ring, then give up rather than stall the polling task.
+        for (int spins = 0; written < length; ) {
+            xSemaphoreTake(_lock, portMAX_DELAY);
+            while (written < length && _count() < BUFLEN - 1) {
+                _buffer[_head] = static_cast<char>(buffer[written++]);
+                _head          = (_head + 1) % BUFLEN;
             }
+            xSemaphoreGive(_lock);
+            if (written == length) {
+                break;
+            }
+            if (_silent.load()) {
+                break;
+            }
+            if (++spins > 500) {  // ~500 ms and the client still is not reading
+                // Latch the response as truncated: copyBufferSafe() ends the
+                // stream after the ring drains so the client sees a short
+                // (broken) body rather than a hang, and further output is
+                // dropped fast.
+                _aborted.store(true);
+                break;
+            }
+            delay(1);
         }
-        if (_buffer) {
-            memcpy(&_buffer[_buflen], buffer, length);
-            _buflen += length;
-        }
-        xSemaphoreGive(xBufferLock);
         return length;
     }
 
-    size_t WebClient::write(uint8_t data) {
-        return write(&data, 1);
-    }
+    size_t WebClient::write(uint8_t data) { return write(&data, 1); }
 
-    // Flush is no longer really needed
-    void WebClient::flush() {}
+    size_t WebClient::copyBufferSafe(uint8_t* dest_buffer, size_t maxLen, size_t total) {
+        xSemaphoreTake(_lock, portMAX_DELAY);
+        size_t n = std::min(_count(), maxLen);
+        for (size_t i = 0; i < n; ++i) {
+            dest_buffer[i] = static_cast<uint8_t>(_buffer[_tail]);
+            _tail          = (_tail + 1) % BUFLEN;
+        }
+        xSemaphoreGive(_lock);
 
-    void WebClient::sendLine(MsgLevel level, const char* line) {
-        print_msg(level, line);
+        if (n) {
+            return n;
+        }
+        if (_done.load() || is_closing() || _aborted.load()) {
+            return 0;  // end of stream: command finished, channel closing, or output truncated
+        }
+        // _silent alone is not end-of-stream - a silent command still runs to
+        // completion and its ack() latches _done.
+        return RESPONSE_TRY_AGAIN;  // command still running, nothing buffered yet
     }
-    void WebClient::sendLine(MsgLevel level, const std::string* line) {
-        print_msg(level, line->c_str());
-        delete line;
-    }
-    void WebClient::sendLine(MsgLevel level, const std::string& line) {
-        print_msg(level, line.c_str());
-    }
-
-    void WebClient::out(const char* s, const char* tag) {
-        write((uint8_t*)s, strlen(s));
-    }
-
-    void WebClient::out(const std::string& s, const char* tag) {
-        write((uint8_t*)s.c_str(), s.size());
-    }
-
-    void WebClient::out_acked(const std::string& s, const char* tag) {
-        out(s, tag);
-    }
-
-    void WebClient::sendError(uint16_t code, const std::string& line) {}
 }
