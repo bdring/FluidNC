@@ -10,6 +10,7 @@
 // immediately.
 
 #include <emscripten.h>
+#include <atomic>
 #include <cstring>
 #include <string>
 #include <thread>
@@ -24,7 +25,11 @@ void loop();
 }
 
 namespace {
-std::thread fluidnc_thread;
+// Not std::thread::joinable(): detach() below makes the thread object
+// non-joinable immediately, so that guard would be false again on every
+// call after the first, letting a second fluidnc_start() spawn a duplicate
+// setup()/loop() against the same global FluidNC state.
+std::atomic<bool> fluidnc_started{ false };
 }
 
 extern "C" {
@@ -38,17 +43,17 @@ void wasm_shim_init();
 
 EMSCRIPTEN_KEEPALIVE
 void fluidnc_start() {
-    if (fluidnc_thread.joinable()) {
+    bool expected = false;
+    if (!fluidnc_started.compare_exchange_strong(expected, true)) {
         return;  // already started
     }
     wasm_shim_init();
-    fluidnc_thread = std::thread([]() {
+    std::thread([]() {
         setup();
         while (!should_exit()) {
             loop();
         }
-    });
-    fluidnc_thread.detach();
+    }).detach();
 }
 
 // wasm/Console.cpp's receiver: feeds a queue that WasmConsole's own

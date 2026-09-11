@@ -14,6 +14,8 @@
 // alone doesn't configure a card.
 
 #include <emscripten.h>
+#include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -27,13 +29,16 @@ bool valid_root(const char* root) {
     return root != nullptr && (std::strcmp(root, "native_localfs") == 0 || std::strcmp(root, "native_sd") == 0);
 }
 
-// Minimal JSON string escaping -- just enough for filenames, which won't
-// contain most of the characters that need escaping, but could plausibly
-// contain a quote or backslash.
+// JSON string escaping for filenames. fluidnc_stage_file() below accepts
+// any byte a caller cares to put in a path, including raw control bytes,
+// so every U+0000-U+001F byte needs escaping here too -- not just the
+// couple most filenames happen to contain -- or a staged name containing
+// one produces invalid JSON that the demo's JSON.parse(fsList(...)) chokes
+// on.
 std::string json_escape(const std::string& s) {
     std::string out;
     out.reserve(s.size());
-    for (char c : s) {
+    for (unsigned char c : s) {
         switch (c) {
             case '"':
                 out += "\\\"";
@@ -41,11 +46,29 @@ std::string json_escape(const std::string& s) {
             case '\\':
                 out += "\\\\";
                 break;
+            case '\b':
+                out += "\\b";
+                break;
+            case '\f':
+                out += "\\f";
+                break;
             case '\n':
                 out += "\\n";
                 break;
+            case '\r':
+                out += "\\r";
+                break;
+            case '\t':
+                out += "\\t";
+                break;
             default:
-                out += c;
+                if (c < 0x20) {
+                    char buf[8];
+                    std::snprintf(buf, sizeof(buf), "\\u%04x", c);
+                    out += buf;
+                } else {
+                    out += static_cast<char>(c);
+                }
         }
     }
     return out;

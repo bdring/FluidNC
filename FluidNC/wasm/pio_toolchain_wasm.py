@@ -47,6 +47,12 @@ link_flags = [
     # blocking main()/loop() -- JS instantiates the module, then calls an
     # exported start function that spawns FreeRTOS-emulated tasks as real
     # pthreads and returns immediately, keeping the browser main thread free.
+    #
+    # --no-entry: there is no main() to link against -- capture/main.cpp is
+    # excluded (see platformio.ini) and wasm_main.cpp only exports
+    # fluidnc_start(). Without this, emcc's default link expects a main
+    # symbol and fails with "undefined symbol: main".
+    "--no-entry",
     "-sPTHREAD_POOL_SIZE=8",
     "-sALLOW_MEMORY_GROWTH=1",
     "-sMODULARIZE=1",

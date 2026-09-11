@@ -22,6 +22,14 @@ const zlib = require('zlib');
 
 const SAFE_IDENTIFIER = /^[A-Za-z0-9._-]+$/;
 
+// A real WebUI build's index.html.gz is well under a megabyte. These caps
+// are generous headroom above that, not a tight fit -- their job is only
+// to stop a malicious or misconfigured owner/repo/tag from making this
+// public endpoint buffer an unbounded asset (or a gzip bomb's unbounded
+// decompressed output) in Netlify function memory.
+const MAX_COMPRESSED_BYTES   = 10 * 1024 * 1024;
+const MAX_DECOMPRESSED_BYTES = 50 * 1024 * 1024;
+
 exports.handler = async (event) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -51,8 +59,15 @@ exports.handler = async (event) => {
     if (!upstream.ok) {
       return { statusCode: 502, headers: cors, body: `Upstream fetch failed: ${upstream.status} ${upstream.statusText}` };
     }
+    const declaredLength = Number(upstream.headers.get('content-length'));
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_COMPRESSED_BYTES) {
+      return { statusCode: 502, headers: cors, body: 'Upstream asset exceeds size limit' };
+    }
     const compressed = Buffer.from(await upstream.arrayBuffer());
-    const html = zlib.gunzipSync(compressed).toString('utf-8');
+    if (compressed.length > MAX_COMPRESSED_BYTES) {
+      return { statusCode: 502, headers: cors, body: 'Upstream asset exceeds size limit' };
+    }
+    const html = zlib.gunzipSync(compressed, { maxOutputLength: MAX_DECOMPRESSED_BYTES }).toString('utf-8');
     return {
       statusCode: 200,
       headers: { ...cors, 'Content-Type': 'text/html; charset=utf-8' },

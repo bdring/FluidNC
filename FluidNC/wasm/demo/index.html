@@ -29,7 +29,8 @@
 <p>This is FluidNC running in a browser.  It is compiled to Web
   Assembly code from the real FluidNC source.  It cannot access actual
   machine hardware, but it can process GCode and simulate motion.  It
-  has a minimal config.yaml and a sample, read-only SD card.  Input
+  has a minimal config.yaml and a sample SD card, writable for the life
+  of the tab but never persisted past a page reload.  Input
   editing works the same a FluidNC running on an ESP32.
 </p>
 <div id="webuiPanel">
@@ -57,7 +58,7 @@
      bridge and will just show "Connecting..." forever. See webui-proxy.js's
      comment for why the fetch to load a release build at all is needed,
      and wasm/README.md's WebUI section. -->
-<iframe id="webuiFrame"></iframe>
+<iframe id="webuiFrame" title="FluidNC WebUI"></iframe>
 <div id="terminal"></div>
 
 <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
@@ -159,7 +160,13 @@ const terminalEl = document.getElementById('terminal');
 // tag as "close script" rather than writing it out literally.
 function loadWebuiHtml(html) {
   const marker = '<script>window.__FLUIDNC_WASM_BRIDGE__ = true;<\/script>';
-  webuiFrame.src = URL.createObjectURL(new Blob([marker + html], { type: 'text/html' }));
+  // Insert the marker after a leading doctype, if any, rather than always
+  // prepending it: a bare WebUI build normally starts with
+  // "<!doctype html>", and pushing that out of first position drops the
+  // document into quirks mode in the iframe.
+  const doctypeMatch = html.match(/^\s*<!doctype[^>]*>/i);
+  const combined = doctypeMatch ? doctypeMatch[0] + marker + html.slice(doctypeMatch[0].length) : marker + html;
+  webuiFrame.src = URL.createObjectURL(new Blob([combined], { type: 'text/html' }));
   webuiFrame.style.display = 'block';
   terminalEl.classList.add('terminal-compact');
   fitTerminal();
@@ -387,6 +394,78 @@ const shimSendQueue = []; // { kind: 'raw', text } | { kind: 'command', id, cmd 
 let currentShimSend = null; // { kind, id, responseLines, jsonText }
 let sendShimTextRef = null;
 
+// Filesystem-bridge cwrap functions, assigned once FluidNCModule() resolves
+// (see below). Messages that arrive before then -- e.g. an iframe's
+// handshake landing while the WASM module is still compiling -- are queued
+// here and replayed once fsOps is set, rather than being handled (or, if
+// the message listener were installed only inside the .then() below,
+// silently dropped because no listener existed yet to see them at all).
+let fsOps = null;
+const pendingFsMessages = [];
+
+function handleFsRequest(msg) {
+  let result, ok = true;
+  try {
+    switch (msg.op) {
+      case 'list':
+        result = JSON.parse(fsOps.fsList(msg.root, msg.path));
+        break;
+      case 'delete':
+        ok = fsOps.fsDelete(msg.root, msg.path);
+        break;
+      case 'deletedir':
+        ok = fsOps.fsDeleteDir(msg.root, msg.path);
+        break;
+      case 'mkdir':
+        ok = fsOps.fsMkdir(msg.root, msg.path);
+        break;
+      case 'read':
+        result = fsOps.fsRead(msg.root, msg.path);
+        break;
+      case 'write':
+        ok = fsOps.stageFile(msg.root, msg.path, msg.content);
+        break;
+      default:
+        ok = false;
+    }
+  } catch (err) {
+    ok = false;
+    result = String(err);
+  }
+  return { type: 'fluidnc-fs-response', id: msg.id, ok, result };
+}
+
+// Installed immediately (not inside FluidNCModule().then() below) so an
+// iframe handshake or fs request that arrives while the module is still
+// compiling is captured and queued instead of silently missed -- see
+// handleFsRequest/fsOps above and the flush after FluidNCModule() resolves.
+// Only messages from the currently-loaded iframe are honored (event.source
+// check) -- postMessage's targetOrigin is '*' on both ends since the iframe
+// is loaded from a blob: URL with no fixed origin to pin to, so this is the
+// only available authenticity check.
+window.addEventListener('message', (event) => {
+  if (!webuiFrame || event.source !== webuiFrame.contentWindow) {
+    return;
+  }
+  const msg = event.data;
+  if (!msg) {
+    return;
+  }
+  if (msg.type === 'fluidnc-shim-send' && typeof msg.text === 'string') {
+    shimSendQueue.push({ kind: 'raw', text: msg.text });
+    maybeStartNextShimSend();
+  } else if (msg.type === 'fluidnc-shim-command' && typeof msg.id === 'number' && typeof msg.cmd === 'string') {
+    shimSendQueue.push({ kind: 'command', id: msg.id, cmd: msg.cmd });
+    maybeStartNextShimSend();
+  } else if (msg.type === 'fluidnc-fs-request') {
+    if (!fsOps) {
+      pendingFsMessages.push(msg);
+      return;
+    }
+    webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
+  }
+});
+
 function maybeStartNextShimSend() {
   if (currentShimSend || shimSendQueue.length === 0 || !sendShimTextRef) {
     return;
@@ -526,78 +605,28 @@ FluidNCModule().then((Module) => {
   const sendText = Module.cwrap('fluidnc_send_text', null, ['string']);
   const sendShimText = Module.cwrap('fluidnc_shim_send', null, ['string']);
   sendShimTextRef = sendShimText;
+  // Files are session-writable (native_sd/native_localfs are never locked
+  // read-only here, unlike earlier drafts of this demo): MEMFS never
+  // persists past a page reload regardless, so there's no
+  // illusion-of-persistence problem with letting writes actually take
+  // effect for the life of the tab.
   const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string', 'string']);
-  const fsList = Module.cwrap('fluidnc_fs_list', 'string', ['string', 'string']);
-  const fsDelete = Module.cwrap('fluidnc_fs_delete', 'boolean', ['string', 'string']);
-  const fsDeleteDir = Module.cwrap('fluidnc_fs_deletedir', 'boolean', ['string', 'string']);
-  const fsMkdir = Module.cwrap('fluidnc_fs_mkdir', 'boolean', ['string', 'string']);
-  const fsRead = Module.cwrap('fluidnc_fs_read', 'string', ['string', 'string']);
-
-  // Handles one { type: 'fluidnc-fs-request', id, op, root, path, ... }
-  // message -- see WebUI-mm's wasmBridgeTransport.ts fsRequest(), the
-  // other end of this exchange. Files are session-writable (native_sd/
-  // native_localfs are never locked read-only here, unlike earlier drafts
-  // of this demo): MEMFS never persists past a page reload regardless, so
-  // there's no illusion-of-persistence problem with letting writes
-  // actually take effect for the life of the tab.
-  function handleFsRequest(msg) {
-    let result, ok = true;
-    try {
-      switch (msg.op) {
-        case 'list':
-          result = JSON.parse(fsList(msg.root, msg.path));
-          break;
-        case 'delete':
-          ok = fsDelete(msg.root, msg.path);
-          break;
-        case 'deletedir':
-          ok = fsDeleteDir(msg.root, msg.path);
-          break;
-        case 'mkdir':
-          ok = fsMkdir(msg.root, msg.path);
-          break;
-        case 'read':
-          result = fsRead(msg.root, msg.path);
-          break;
-        case 'write':
-          ok = stageFile(msg.root, msg.path, msg.content);
-          break;
-        default:
-          ok = false;
-      }
-    } catch (err) {
-      ok = false;
-      result = String(err);
-    }
-    return { type: 'fluidnc-fs-response', id: msg.id, ok, result };
+  fsOps = {
+    stageFile,
+    fsList: Module.cwrap('fluidnc_fs_list', 'string', ['string', 'string']),
+    fsDelete: Module.cwrap('fluidnc_fs_delete', 'boolean', ['string', 'string']),
+    fsDeleteDir: Module.cwrap('fluidnc_fs_deletedir', 'boolean', ['string', 'string']),
+    fsMkdir: Module.cwrap('fluidnc_fs_mkdir', 'boolean', ['string', 'string']),
+    fsRead: Module.cwrap('fluidnc_fs_read', 'string', ['string', 'string']),
+  };
+  // Replay anything the top-level message listener queued while fsOps was
+  // still null (see handleFsRequest/pendingFsMessages above), then let any
+  // shim sends that queued before sendShimTextRef was set start flowing.
+  while (pendingFsMessages.length) {
+    const msg = pendingFsMessages.shift();
+    webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
   }
-
-  // The other half of self.fluidncOnShimOutput above: relays commands sent
-  // by WebUI-mm's WasmBridgeWsAdapter/bridge sendCommand back into
-  // ShimChannel, and handles file-operation requests (see
-  // handleFsRequest() above). Only messages from the currently-loaded
-  // iframe are honored (event.source check) -- postMessage's targetOrigin
-  // is '*' on both ends since the iframe is loaded from a blob: URL with
-  // no fixed origin to pin to, so this is the only available authenticity
-  // check.
-  window.addEventListener('message', (event) => {
-    if (!webuiFrame || event.source !== webuiFrame.contentWindow) {
-      return;
-    }
-    const msg = event.data;
-    if (!msg) {
-      return;
-    }
-    if (msg.type === 'fluidnc-shim-send' && typeof msg.text === 'string') {
-      shimSendQueue.push({ kind: 'raw', text: msg.text });
-      maybeStartNextShimSend();
-    } else if (msg.type === 'fluidnc-shim-command' && typeof msg.id === 'number' && typeof msg.cmd === 'string') {
-      shimSendQueue.push({ kind: 'command', id: msg.id, cmd: msg.cmd });
-      maybeStartNextShimSend();
-    } else if (msg.type === 'fluidnc-fs-request') {
-      webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
-    }
-  });
+  maybeStartNextShimSend();
 
   stageFile('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
   stageFile('native_sd', 'square.nc', TEST_GCODE);
