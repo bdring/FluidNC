@@ -1,0 +1,94 @@
+// JS-driven entry point for the wasm port, replacing capture/main.cpp's
+// classic blocking `main(); while(!should_exit()) loop();` (which this env
+// deliberately excludes -- see platformio.ini). setup()/loop() together
+// never return except on exit (loop() calls protocol_main_loop(), which
+// itself only returns on should_exit()), so running that chain on the
+// thread a JS call arrived on would freeze the page. Instead,
+// fluidnc_start() spawns exactly that chain on its own std::thread/pthread
+// (matching how xTaskCreate already spawns real threads inside setup()
+// itself: the polling/output tasks in Protocol.cpp) and returns to JS
+// immediately.
+
+#include <emscripten.h>
+#include <atomic>
+#include <cstring>
+#include <string>
+#include <thread>
+
+#include "Channel.h"
+#include "Driver/Console.h"
+#include "Platform.h"  // should_exit()
+
+extern "C" {
+void setup();
+void loop();
+}
+
+namespace {
+// Not std::thread::joinable(): detach() below makes the thread object
+// non-joinable immediately, so that guard would be false again on every
+// call after the first, letting a second fluidnc_start() spawn a duplicate
+// setup()/loop() against the same global FluidNC state.
+std::atomic<bool> fluidnc_started{ false };
+}
+
+extern "C" {
+
+// wasm/ShimChannel.cpp's init hook: registers the shim channel with
+// allChannels. Called once, before the FreeRTOS task thread starts --
+// registration only touches AllChannels' semaphores/vector, which are
+// already valid at static-init time, so this doesn't need to wait for
+// setup().
+void wasm_shim_init();
+
+EMSCRIPTEN_KEEPALIVE
+void fluidnc_start() {
+    bool expected = false;
+    if (!fluidnc_started.compare_exchange_strong(expected, true)) {
+        return;  // already started
+    }
+    wasm_shim_init();
+    std::thread([]() {
+        setup();
+        while (!should_exit()) {
+            loop();
+        }
+    }).detach();
+}
+
+// wasm/Console.cpp's receiver: feeds a queue that WasmConsole's own
+// read()/available() drain, rather than Channel::push() -- see the
+// comment atop wasm/Console.cpp for why push() specifically doesn't work
+// here (it would let Lineedit's realtimeOkay() veto be bypassed).
+void wasm_console_receive(const uint8_t* data, size_t len);
+
+// Bridge for JS to deliver raw input bytes exactly as typed/pasted (e.g.
+// from an xterm.js onData callback) -- unlike a plain line-oriented input
+// box, no newline is appended here: Console's Lineedit does its own local
+// echo, intra-line editing, and realtime-character interception the same
+// way it would from a real serial terminal, one byte at a time.
+EMSCRIPTEN_KEEPALIVE
+void fluidnc_send_text(const char* text) {
+    if (text == nullptr) {
+        return;
+    }
+    wasm_console_receive(reinterpret_cast<const uint8_t*>(text), std::strlen(text));
+}
+
+// wasm/ShimChannel.cpp's receiver -- see fluidnc_shim_send() below.
+void wasm_shim_receive(const uint8_t* data, size_t len);
+
+// Bridge for a WebUI build (loaded into an iframe -- see demo/index.html)
+// to send a command to the shim channel. Unlike fluidnc_send_text(), the
+// caller is expected to already terminate lines with '\n' itself (it's
+// building protocol lines, not forwarding raw keystrokes), so nothing is
+// appended here either.
+EMSCRIPTEN_KEEPALIVE
+void fluidnc_shim_send(const char* text) {
+    if (text == nullptr) {
+        return;
+    }
+    wasm_shim_receive(reinterpret_cast<const uint8_t*>(text), std::strlen(text));
+}
+
+}  // extern "C"

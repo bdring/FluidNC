@@ -1,0 +1,680 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FluidNC Demonstration</title>
+<link rel="stylesheet" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
+<style>
+  body { font-family: monospace; padding: 2rem; }
+  /* Fixed height + hidden overflow + box-sizing so the terminal fills and
+     clips to this box rather than a fixed pixel size (previously cols:100)
+     that could be wider than the actual window, pushing long lines past
+     the right edge instead of wrapping/clipping within it. FitAddon (see
+     below) recalculates cols/rows to match this box's actual size, both on
+     load and on window resize, so widening the window reveals more columns
+     instead of requiring a page reload. */
+  #terminal { border: 1px solid #ccc; padding: 0.5rem; margin-top: 1rem; height: 60vh; box-sizing: border-box; overflow: hidden; }
+  /* Shrunk to make room once a WebUI iframe is showing -- see
+     terminalEl.classList.add('terminal-compact') below. Approximate, not
+     computed from the actual font metrics: "about 4 lines" is the ask,
+     not an exact fit. */
+  #terminal.terminal-compact { height: 8em; }
+  #webuiPanel { margin-top: 1rem; }
+  #webuiFrame { display: none; width: 100%; height: 60vh; border: 1px solid #ccc; margin-top: 0.5rem; box-sizing: border-box; }
+  #webuiStatus { margin-left: 0.5rem; color: #666; }
+</style>
+</head>
+<body>
+<h1>FluidNC Demonstration</h1>
+<p>This is FluidNC running in a browser.  It is compiled to Web
+  Assembly code from the real FluidNC source.  It cannot access actual
+  machine hardware, but it can process GCode and simulate motion.  It
+  has a minimal config.yaml and a sample SD card, writable for the life
+  of the tab but never persisted past a page reload.  Input
+  editing works the same a FluidNC running on an ESP32.
+</p>
+<div id="webuiPanel">
+  <label for="webuiSelect">WebUI:</label>
+  <select id="webuiSelect">
+    <option value="">-- none --</option>
+    <option data-owner="figamore" data-repo="FigUI" data-tag="v1.2.7">FigUI (figamore)</option>
+    <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="">ESP3D-WEBUI (michmela44)</option>
+    <option data-local-file="true">Load local build file (.html/.html.gz)...</option>
+  </select>
+  <input type="file" id="webuiFileInput" accept=".html,.gz" style="display:none">
+  <span id="webuiStatus"></span>
+</div>
+<!-- Commands, the WebSocket-equivalent status/response stream, and file
+     operations (list/upload/download/delete/createdir) are all bridged to
+     the running FluidNC instance via postMessage (see
+     self.fluidncOnShimOutput/the 'fluidnc-shim-send' and 'fluidnc-fs-*'
+     listeners below, and WebUI-mm's targets/CNC/FluidNC/{commandTransport,
+     wsAdapter,fileTransport}.ts on the other end). Only WebUI variants
+     whose local build has this bridge wired in will actually work here --
+     currently that's a local, unpublished WebUI-mm checkout only, reachable
+     via "Load local build file..." (build it with `npm run build` in
+     WebUI-mm, then pick dist/index.html.gz here). The two GitHub-release
+     options load the real published builds, which don't know about this
+     bridge and will just show "Connecting..." forever. See webui-proxy.js's
+     comment for why the fetch to load a release build at all is needed,
+     and wasm/README.md's WebUI section. -->
+<iframe id="webuiFrame" title="FluidNC WebUI"></iframe>
+<div id="terminal"></div>
+
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+<script>
+// convertEol: FluidNC (like any Unix-style program) only ever writes "\n",
+// not "\r\n" -- a real serial terminal's tty driver usually does that
+// translation (see posix/Console.cpp's ONLCR flag), but nothing here does
+// that on FluidNC's behalf, so xterm.js needs to do it or every line would
+// render as a "staircase" (line feed without carriage return).
+const term = new Terminal({ convertEol: true });
+const fitAddon = new FitAddon.FitAddon();
+term.loadAddon(fitAddon);
+term.open(document.getElementById('terminal'));
+
+// FitAddon.fit() alone isn't enough: it sizes the character grid to
+// .xterm-viewport's *outer* box, not the space actually left over once the
+// viewport's own scrollbar (needed once scrollback grows past one screen)
+// reserves its gutter -- confirmed by measuring directly: the grid comes
+// out wider (and, same root cause, occasionally one row taller) than the
+// viewport's clientWidth/clientHeight even when fit() is called with the
+// scrollbar already showing, so this isn't a timing issue fit() will
+// resolve on its own. Clamp cols/rows down afterward using the actual (if
+// wrongly-sized) per-cell pixel dimensions to find out how much needs to
+// go in each direction.
+function fitTerminal() {
+  fitAddon.fit();
+  const viewport = term.element && term.element.querySelector('.xterm-viewport');
+  const screen = term.element && term.element.querySelector('.xterm-screen');
+  if (!viewport || !screen || term.cols < 2 || term.rows < 2) {
+    return;
+  }
+  // A small fixed safety margin on top of the measured overflow, not just
+  // the measured overflow alone: exact-fit math trusts getBoundingClientRect()
+  // more than real font rendering deserves -- sub-pixel rounding between how
+  // the browser lays out each row and the cell height xterm.js computed can
+  // drift by a fraction of a pixel per row, accumulating across many rows
+  // until the last one's glyphs spill past the container edge even though
+  // the *measured* overflow at fit time looked like zero.
+  const SAFETY_MARGIN_PX = 4;
+  const screenRect = screen.getBoundingClientRect();
+  const overflowX = screenRect.width - viewport.clientWidth + SAFETY_MARGIN_PX;
+  const overflowY = screenRect.height - viewport.clientHeight + SAFETY_MARGIN_PX;
+  let cols = term.cols;
+  let rows = term.rows;
+  if (overflowX > 0) {
+    const cellWidth = screenRect.width / term.cols;
+    cols -= Math.max(1, Math.ceil(overflowX / cellWidth));
+  }
+  if (overflowY > 0) {
+    const cellHeight = screenRect.height / term.rows;
+    rows -= Math.max(1, Math.ceil(overflowY / cellHeight));
+  }
+  if (cols !== term.cols || rows !== term.rows) {
+    term.resize(cols, rows);
+  }
+}
+fitTerminal();
+term.focus();
+
+// Re-fitting only on window resize isn't enough: the scrollbar-reservation
+// issue above also means the grid needs reclamping whenever scrollback
+// crosses the one-screen threshold and the scrollbar first appears -- that
+// doesn't change the *container's* size, so it never fires a window resize
+// event. Re-fitting after every write (batched to one fit per frame)
+// catches that transition whenever it happens.
+let fitScheduled = false;
+function scheduleFit() {
+  if (fitScheduled) {
+    return;
+  }
+  fitScheduled = true;
+  requestAnimationFrame(() => {
+    fitScheduled = false;
+    fitTerminal();
+  });
+}
+window.addEventListener('resize', scheduleFit);
+
+// Loads a WebUI build (chosen from the dropdown) into the iframe, either
+// fetched from GitHub via webui-proxy.js (see wasm/README.md -- only works
+// when this page is served from the Netlify site the function is deployed
+// alongside, not under local serve.py/python3 -m http.server) or read from
+// a local file the user picks (see webuiFileInput's listener below). Either
+// way the result is a single HTML string, which loadWebuiHtml() marks with
+// the bridge marker and hands to the iframe the same way.
+const webuiSelect = document.getElementById('webuiSelect');
+const webuiFrame = document.getElementById('webuiFrame');
+const webuiStatus = document.getElementById('webuiStatus');
+const webuiFileInput = document.getElementById('webuiFileInput');
+const terminalEl = document.getElementById('terminal');
+
+// Marker so WebUI-mm's targets/CNC/FluidNC/{commandTransport,wsAdapter,
+// fileTransport}.ts can tell at runtime that they're loaded inside this
+// demo (vs. talking to real hardware) and switch to the postMessage-based
+// bridge instead of real HTTP/WebSocket calls. The closing tag below is
+// split with a backslash so the HTML parser doesn't end our own enclosing
+// script element early -- and for the same reason, this comment spells the
+// tag as "close script" rather than writing it out literally.
+function loadWebuiHtml(html) {
+  const marker = '<script>window.__FLUIDNC_WASM_BRIDGE__ = true;<\/script>';
+  // Insert the marker after a leading doctype, if any, rather than always
+  // prepending it: a bare WebUI build normally starts with
+  // "<!doctype html>", and pushing that out of first position drops the
+  // document into quirks mode in the iframe.
+  const doctypeMatch = html.match(/^\s*<!doctype[^>]*>/i);
+  const combined = doctypeMatch ? doctypeMatch[0] + marker + html.slice(doctypeMatch[0].length) : marker + html;
+  webuiFrame.src = URL.createObjectURL(new Blob([combined], { type: 'text/html' }));
+  webuiFrame.style.display = 'block';
+  terminalEl.classList.add('terminal-compact');
+  fitTerminal();
+  webuiStatus.textContent = '';
+}
+
+webuiFileInput.addEventListener('change', async () => {
+  const file = webuiFileInput.files[0];
+  webuiFileInput.value = ''; // allow re-picking the same file later
+  if (!file) {
+    webuiSelect.value = '';
+    return;
+  }
+  webuiStatus.textContent = 'Loading ' + file.name + '...';
+  try {
+    // .gz files (e.g. WebUI-mm's own `npm run build` output,
+    // dist/index.html.gz) need decompressing first; DecompressionStream is
+    // a standard browser API, no library needed. Detected by extension
+    // rather than sniffing magic bytes -- good enough for a file the user
+    // just chose deliberately.
+    const isGzip = /\.gz$/i.test(file.name);
+    const html = isGzip
+      ? await new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text()
+      : await file.text();
+    loadWebuiHtml(html);
+  } catch (err) {
+    console.error(err);
+    webuiStatus.textContent = 'Failed to load: ' + err.message;
+    webuiSelect.value = '';
+  }
+});
+
+webuiSelect.addEventListener('change', async () => {
+  const opt = webuiSelect.selectedOptions[0];
+  const owner = opt.dataset.owner;
+  const repo = opt.dataset.repo;
+  const tag = opt.dataset.tag;
+  const localFile = opt.dataset.localFile;
+
+  if (!owner && !localFile) {
+    webuiFrame.style.display = 'none';
+    webuiFrame.src = 'about:blank';
+    terminalEl.classList.remove('terminal-compact');
+    fitTerminal();
+    return;
+  }
+
+  if (localFile) {
+    webuiFileInput.click();
+    return;
+  }
+
+  webuiStatus.textContent = 'Loading ' + opt.textContent + '...';
+  let url = '/.netlify/functions/webui-proxy?owner=' + encodeURIComponent(owner) + '&repo=' + encodeURIComponent(repo);
+  if (tag) {
+    url += '&tag=' + encodeURIComponent(tag);
+  }
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(res.status + ' ' + res.statusText + ': ' + (await res.text()));
+    }
+    loadWebuiHtml(await res.text());
+  } catch (err) {
+    console.error(err);
+    webuiStatus.textContent = 'Failed to load: ' + err.message;
+  }
+});
+
+function log(line) {
+  term.write(line + '\n');
+  scheduleFit();
+}
+
+// Ported from FluidTerm2's src/Colorize.cpp -- same ANSI color codes, same
+// tag list, same line-buffering/immediate-flush heuristic -- since xterm.js
+// is a real terminal that interprets raw ANSI escapes natively, this can be
+// a much more direct port than the DOM-span version used before switching
+// to xterm.js.
+const GRAY          = '\x1b[0;37;40m';
+const BRIGHT_GREEN  = '\x1b[92m';
+const BRIGHT_YELLOW = '\x1b[93m';
+const BRIGHT_RED    = '\x1b[91m';
+const BOLD_YELLOW   = '\x1b[1;33;40m';
+const BOLD_CYAN     = '\x1b[1;36;40m';
+const BOLD_WHITE    = '\x1b[1;37;40m';
+
+const INPUT_COLOR   = GRAY;
+const GOOD_COLOR    = BRIGHT_GREEN;
+const WARN_COLOR    = BRIGHT_YELLOW;
+const ERROR_COLOR   = BRIGHT_RED;
+const DEBUG_COLOR   = BRIGHT_YELLOW;
+const EQUALS_COLOR  = BOLD_WHITE;
+const SETTING_COLOR = BOLD_CYAN;
+const VALUE_COLOR   = BOLD_YELLOW;
+
+// Colorize.cpp's colorizedSetting(): $key=value lines get key/=/value each
+// colored separately, then back to input color for whatever follows.
+function colorizedSetting(line) {
+  if (line.length && line[0] === '$') {
+    const eq = line.indexOf('=');
+    if (eq !== -1) {
+      term.write('$' + SETTING_COLOR + line.slice(1, eq) + EQUALS_COLOR + line.slice(eq, eq + 1) + VALUE_COLOR +
+                  line.slice(eq + 1) + INPUT_COLOR + '\n');
+      return true;
+    }
+  }
+  return false;
+}
+
+// Colorize.cpp's colorized(): only the matched tag itself is colored (the
+// leading '[' or '<' prints in whatever color was already active), then
+// back to input color for the rest of the line.
+function colorized(line, tag, color) {
+  if (!line.startsWith(tag)) {
+    return false;
+  }
+  const offset = tag[0] === '[' || tag[0] === '<' ? 1 : 0;
+  term.write(line.slice(0, offset) + color + line.slice(offset, tag.length) + INPUT_COLOR + line.slice(tag.length) + '\n');
+  return true;
+}
+
+// Colorize.cpp's colorizeLine().
+function colorizeLine(line) {
+  const matched =
+      colorizedSetting(line) ||
+      colorized(line, '[MSG:INFO', GOOD_COLOR) ||
+      colorized(line, '[MSG:ERR', ERROR_COLOR) ||
+      colorized(line, '[MSG:WARN', WARN_COLOR) ||
+      colorized(line, '[MSG:DBG', DEBUG_COLOR) ||
+      colorized(line, '<Alarm', WARN_COLOR) ||
+      colorized(line, '<Idle', GOOD_COLOR) ||
+      colorized(line, '<Run', GOOD_COLOR) ||
+      colorized(line, 'error', ERROR_COLOR);
+  if (!matched) {
+    term.write(line + '\n');
+  }
+}
+
+// Colorize.cpp's colorizeOutput(): buffers until a full line has arrived so
+// a tag can be matched against the whole line, EXCEPT when what's pending
+// doesn't look like it could be the start of a colorizable tag (or we just
+// sent input and are expecting a live per-character echo back, e.g. from
+// Lineedit's editing-mode redraw) -- in which case it's flushed immediately
+// uncolored, so interactive echo still appears live rather than waiting
+// indefinitely for a newline that might not come until Enter.
+let residue = '';
+let expectingEcho = false;
+function expectEcho() {
+  expectingEcho = true;
+}
+function colorizeOutput(text) {
+  residue += text;
+  const lines = residue.split('\n');
+  residue = lines.pop();
+  for (const line of lines) {
+    colorizeLine(line);
+  }
+  if (residue.length &&
+      lines.length === 0 &&
+      (expectingEcho || residue.length === 1 || (residue[0] !== '<' && residue[0] !== '[' && residue[0] !== '$'))) {
+    expectingEcho = false;
+    term.write(residue);
+    residue = '';
+  }
+  scheduleFit();
+}
+self.fluidncOnOutput = (text) => colorizeOutput(text);
+
+// Forwards ShimChannel's output (wasm/ShimChannel.cpp) to whatever WebUI
+// build is currently loaded in the iframe, so it can be routed into
+// WebUI-mm's WasmBridgeWsAdapter (a plain postMessage relay -- see
+// wasm/README.md's section on the WebUI bridge). Harmless no-op when no
+// WebUI is loaded (webuiFrame.contentWindow is then either null or
+// about:blank's, and postMessage on it just goes nowhere).
+//
+// Buffers raw shim text into complete lines and reassembles any
+// [JSON:...]-encapsulated chunks (see FluidNC's JSONencoder -- when
+// constructed with a tag, JSONencoder::flush() wraps each ~100-char chunk
+// of output in a "[JSON:" ... "]" line, since a serial-shaped channel like
+// ShimChannel has no message framing of its own to keep a JSON payload
+// line from colliding with the ok/error line that terminates a command)
+// here rather than leaving it to each WebUI bridge -- WebUI-mm's
+// wasmBridgeTransport.ts, FigUI's shimTransport.ts, and ESP3D-WEBUI's
+// wasmbridge.js all used to reimplement this same ~100-line buffer/regex
+// dance independently. Every WebUI bridge now just listens for
+// 'fluidnc-shim-line' and gets plain, already-unwrapped lines -- the same
+// shape a real WSChannel connection would produce.
+const JSON_CHUNK_RE = /^\[JSON:([\s\S]*)\]$/;
+let shimLineBuffer = '';
+let shimJsonAccum = null;
+
+function postToWebui(msg) {
+  if (webuiFrame && webuiFrame.contentWindow) {
+    webuiFrame.contentWindow.postMessage(msg, '*');
+  }
+}
+
+// Queue of everything waiting to go out over the shim -- both raw
+// 'fluidnc-shim-send' text (e.g. G-code/realtime bytes a WebSocket-shaped
+// facade sends directly) and 'fluidnc-shim-command' requests (see the
+// message listener below) -- plus the one currently awaiting its
+// ok/error terminator, if any. Both kinds share this one gate because
+// they share one physical ShimChannel: an earlier version of this only
+// serialized commands against each other (closing the cross-attribution
+// gap FigUI's bridge used to work around per-bridge with a Promise chain
+// -- commandBridge.ts's old `chain` variable), on the theory that a raw
+// send's own ok/error isn't tracked here anyway, so letting it through
+// immediately couldn't matter. In practice it can: ESP3D-WEBUI sends a
+// raw "$G" the moment its WebSocket facade opens, which can land in
+// ShimChannel's queue *while* the connect handshake's ESP800 request is
+// still in flight, and FluidNC's output for it can arrive split across
+// more than one self.fluidncOnShimOutput() call -- enough of a gap for a
+// second queued command (ESP400 next in this app's boot sequence) to
+// become "current" in between, so $G's own "ok" gets misattributed to
+// ESP400 and ESP400's real response never gets read. A real WSChannel
+// connection never has this problem (genuinely independent connections,
+// independent response streams); this bridge only has the one channel,
+// so treating every send -- raw or command -- as mutually exclusive is
+// what actually matches real hardware's observed behavior (never two
+// unacknowledged things in flight at once), even though it costs a WS
+// send the ability to jump ahead of a pending command the way it could
+// on real hardware's separate connection.
+const shimSendQueue = []; // { kind: 'raw', text } | { kind: 'command', id, cmd }
+let currentShimSend = null; // { kind, id, responseLines, jsonText }
+let sendShimTextRef = null;
+
+// Realtime command bytes (RealtimeCmd.h): picked off the input stream by
+// FluidNC itself rather than queued/parsed as a line, so -- unlike every
+// other raw send -- they never produce an ok/error terminator line.
+// Gating them through currentShimSend the same as ordinary sends would
+// wedge it permanently on the first feed hold/status/reset, blocking every
+// later command; real hardware doesn't queue these behind anything else
+// either, so they bypass shimSendQueue/currentShimSend entirely below.
+function isRealtimeByte(text) {
+  if (text.length !== 1) {
+    return false;
+  }
+  const code = text.charCodeAt(0);
+  return code === 0x18 /* Ctrl-X reset */ || code === 0x3f /* ? status */ || code === 0x7e /* ~ cycle start */ ||
+    code === 0x21 /* ! feed hold */ || code >= 0x80 /* extended-ASCII overrides */;
+}
+
+// Filesystem-bridge cwrap functions, assigned once FluidNCModule() resolves
+// (see below). Messages that arrive before then -- e.g. an iframe's
+// handshake landing while the WASM module is still compiling -- are queued
+// here and replayed once fsOps is set, rather than being handled (or, if
+// the message listener were installed only inside the .then() below,
+// silently dropped because no listener existed yet to see them at all).
+let fsOps = null;
+const pendingFsMessages = [];
+
+function handleFsRequest(msg) {
+  let result, ok = true;
+  try {
+    switch (msg.op) {
+      case 'list':
+        result = JSON.parse(fsOps.fsList(msg.root, msg.path));
+        break;
+      case 'delete':
+        ok = fsOps.fsDelete(msg.root, msg.path);
+        break;
+      case 'deletedir':
+        ok = fsOps.fsDeleteDir(msg.root, msg.path);
+        break;
+      case 'mkdir':
+        ok = fsOps.fsMkdir(msg.root, msg.path);
+        break;
+      case 'read':
+        result = fsOps.fsRead(msg.root, msg.path);
+        break;
+      case 'write':
+        ok = fsOps.stageFile(msg.root, msg.path, msg.content);
+        break;
+      default:
+        ok = false;
+    }
+  } catch (err) {
+    ok = false;
+    result = String(err);
+  }
+  return { type: 'fluidnc-fs-response', id: msg.id, ok, result };
+}
+
+// Installed immediately (not inside FluidNCModule().then() below) so an
+// iframe handshake or fs request that arrives while the module is still
+// compiling is captured and queued instead of silently missed -- see
+// handleFsRequest/fsOps above and the flush after FluidNCModule() resolves.
+// Only messages from the currently-loaded iframe are honored (event.source
+// check) -- postMessage's targetOrigin is '*' on both ends since the iframe
+// is loaded from a blob: URL with no fixed origin to pin to, so this is the
+// only available authenticity check.
+window.addEventListener('message', (event) => {
+  if (!webuiFrame || event.source !== webuiFrame.contentWindow) {
+    return;
+  }
+  const msg = event.data;
+  if (!msg) {
+    return;
+  }
+  if (msg.type === 'fluidnc-shim-send' && typeof msg.text === 'string') {
+    if (isRealtimeByte(msg.text)) {
+      if (sendShimTextRef) {
+        sendShimTextRef(msg.text);
+      }
+    } else {
+      shimSendQueue.push({ kind: 'raw', text: msg.text });
+      maybeStartNextShimSend();
+    }
+  } else if (msg.type === 'fluidnc-shim-command' && typeof msg.id === 'number' && typeof msg.cmd === 'string') {
+    shimSendQueue.push({ kind: 'command', id: msg.id, cmd: msg.cmd });
+    maybeStartNextShimSend();
+  } else if (msg.type === 'fluidnc-fs-request') {
+    if (!fsOps) {
+      pendingFsMessages.push(msg);
+      return;
+    }
+    webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
+  }
+});
+
+function maybeStartNextShimSend() {
+  if (currentShimSend || shimSendQueue.length === 0 || !sendShimTextRef) {
+    return;
+  }
+  const next = shimSendQueue.shift();
+  currentShimSend = { kind: next.kind, id: next.id, responseLines: [], jsonText: '' };
+  sendShimTextRef(next.kind === 'raw' ? next.text : `${next.cmd}\n`);
+}
+
+// The single point every reassembled shim line passes through: broadcasts
+// it to the loaded WebUI exactly as before, and -- if something is
+// currently in flight -- also feeds it, settling it (and, for a command,
+// posting its response) once the ok/error terminator line arrives, then
+// starting the next queued send. Lines are still broadcast either way, so
+// nothing changes for a WebUI bridge that only ever listens to the
+// broadcast stream itself (e.g. a WebSocket-shaped facade tracking its
+// own G-code acks) -- this is purely additive.
+function deliverShimLine(line, isJson) {
+  postToWebui({ type: 'fluidnc-shim-line', line, isJson });
+  if (!currentShimSend) {
+    return;
+  }
+  if (!isJson && (line.indexOf('ok') === 0 || line.indexOf('error') === 0)) {
+    const sent = currentShimSend;
+    currentShimSend = null;
+    if (sent.kind === 'command') {
+      postToWebui({
+        type: 'fluidnc-shim-command-response',
+        id: sent.id,
+        ok: line.indexOf('ok') === 0,
+        response: sent.jsonText || sent.responseLines.join('\n'),
+        ackLine: line,
+      });
+    }
+    maybeStartNextShimSend();
+    return;
+  }
+  if (isJson) {
+    currentShimSend.jsonText += line;
+  } else {
+    currentShimSend.responseLines.push(line);
+  }
+}
+
+function dispatchShimLine(line) {
+  const chunk = JSON_CHUNK_RE.exec(line);
+  if (chunk) {
+    shimJsonAccum = (shimJsonAccum === null ? '' : shimJsonAccum) + chunk[1];
+    return;
+  }
+  if (shimJsonAccum !== null) {
+    deliverShimLine(shimJsonAccum, true);
+    shimJsonAccum = null;
+  }
+  deliverShimLine(line, false);
+}
+
+self.fluidncOnShimOutput = (text) => {
+  shimLineBuffer += text.replace(/\r/g, '');
+  let endLineIndex = shimLineBuffer.indexOf('\n');
+  while (endLineIndex >= 0) {
+    const line = shimLineBuffer.slice(0, endLineIndex);
+    shimLineBuffer = shimLineBuffer.slice(endLineIndex + 1);
+    if (line) dispatchShimLine(line);
+    endLineIndex = shimLineBuffer.indexOf('\n');
+  }
+};
+
+const TEST_CONFIG_YAML = `
+name: "WASM test machine"
+board: "None"
+
+stepping:
+  engine: timed
+  idle_ms: 255
+  dir_delay_us: 10
+  pulse_us: 1
+  disable_delay_us: 0
+
+axes:
+  x:
+    steps_per_mm: 800
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 100
+    max_travel_mm: 300
+    motor0:
+      standard_stepper:
+        step_pin: gpio.10
+        direction_pin: gpio.11
+
+  y:
+    steps_per_mm: 800
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 100
+    max_travel_mm: 300
+    motor0:
+      standard_stepper:
+        step_pin: gpio.13
+        direction_pin: gpio.14
+
+  z:
+    steps_per_mm: 800
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 100
+    max_travel_mm: 300
+    motor0:
+      standard_stepper:
+        step_pin: gpio.16
+        direction_pin: gpio.17
+
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.21
+  sck_pin: gpio.18
+
+sdcard:
+  cs_pin: gpio.5
+
+start:
+  must_home: false
+`;
+
+const TEST_GCODE = `; sample job for $SD/List and $SD/Run
+G21 G90
+G0 X0 Y0
+G1 X10 Y0 F500
+G1 X10 Y10
+G1 X0 Y10
+G1 X0 Y0
+M30
+`;
+</script>
+<script src="program.js"></script>
+<script>
+FluidNCModule().then((Module) => {
+  const start = Module.cwrap('fluidnc_start', null, []);
+  const sendText = Module.cwrap('fluidnc_send_text', null, ['string']);
+  const sendShimText = Module.cwrap('fluidnc_shim_send', null, ['string']);
+  sendShimTextRef = sendShimText;
+  // Files are session-writable (native_sd/native_localfs are never locked
+  // read-only here, unlike earlier drafts of this demo): MEMFS never
+  // persists past a page reload regardless, so there's no
+  // illusion-of-persistence problem with letting writes actually take
+  // effect for the life of the tab.
+  const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string', 'string']);
+  fsOps = {
+    stageFile,
+    fsList: Module.cwrap('fluidnc_fs_list', 'string', ['string', 'string']),
+    fsDelete: Module.cwrap('fluidnc_fs_delete', 'boolean', ['string', 'string']),
+    fsDeleteDir: Module.cwrap('fluidnc_fs_deletedir', 'boolean', ['string', 'string']),
+    fsMkdir: Module.cwrap('fluidnc_fs_mkdir', 'boolean', ['string', 'string']),
+    fsRead: Module.cwrap('fluidnc_fs_read', 'string', ['string', 'string']),
+  };
+  // Replay anything the top-level message listener queued while fsOps was
+  // still null (see handleFsRequest/pendingFsMessages above), then let any
+  // shim sends that queued before sendShimTextRef was set start flowing.
+  while (pendingFsMessages.length) {
+    const msg = pendingFsMessages.shift();
+    webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
+  }
+  maybeStartNextShimSend();
+
+  stageFile('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
+  stageFile('native_sd', 'square.nc', TEST_GCODE);
+
+  start();
+
+  // No local echo, on purpose: FluidNC boots mimicking classic Grbl, which
+  // doesn't echo either -- conventional Grbl senders are a line-collecting
+  // send box that transmits the whole line unechoed, and Grbl-style
+  // firmware works poorly with character-at-a-time terminals even *with*
+  // local echo, because editing a line that was never echoed just garbles
+  // the display. So a real FluidNC session over a real terminal shows
+  // nothing as you type until you press some control character (backspace,
+  // an arrow key, Tab, ...), at which point Lineedit (src/lineedit.cpp)
+  // takes full manual control of the display via its needs_reecho/
+  // echo_line() catch-up reprint, and everything from then on echoes
+  // correctly. Matching that (not adding our own local echo) is what makes
+  // this behave the same as real FluidNC on a real terminal emulator.
+  term.onData((data) => {
+    expectEcho();
+    sendText(data);
+  });
+}).catch((err) => {
+  console.error(err);
+  log('Failed to load: ' + err);
+});
+</script>
+</body>
+</html>

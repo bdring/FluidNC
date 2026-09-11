@@ -60,7 +60,8 @@ public:
     // add availableForWrite to make compatible with Arduino Print.h
     // default to zero, meaning "a single write may block"
     // should be overridden by subclasses with buffering
-    virtual int availableForWrite() { return 0; }
+    virtual int  availableForWrite() { return 0; }
+    virtual void flush() {}
     size_t      print(const String&);
     size_t      print(const char[]);
     size_t      print(char);
