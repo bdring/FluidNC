@@ -46,14 +46,20 @@ BaseType_t xTaskCreatePinnedToCore(TaskFunction_t      pvTaskCode,
 
     TaskHandle_t handle = new char;  // unique token, never freed: tasks live for the process lifetime
 
+    // Publish the handle to the caller's *pvCreatedTask before the thread starts
+    // running (not after, as the naive version would): the std::thread ctor below
+    // synchronizes-with the new thread's start, so this ordering is what lets a
+    // task that immediately compares against e.g. Protocol.cpp's `pollingTask`
+    // see a fully-published value instead of racing the creator for it.
+    if (pvCreatedTask != nullptr) {
+        *pvCreatedTask = handle;
+    }
+
     std::unique_ptr<std::thread> thread = std::make_unique<std::thread>(
         [pvTaskCode, pvParameters, handle]() {
             t_current_task_handle = handle;
             pvTaskCode(pvParameters);
         });
-    if (pvCreatedTask != nullptr) {
-        *pvCreatedTask = handle;
-    }
     {
         std::lock_guard<std::mutex> lock(threads_mutex);
         threads.emplace_back(std::move(thread));
