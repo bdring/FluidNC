@@ -90,7 +90,7 @@ jobs:
             --verbose
       - if: matrix.os == 'ubuntu-latest'
         name: Upload ${{ matrix.pio_env }}${{ matrix.pio_env_variant }} firmware.bin
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.pio_env }}${{ matrix.pio_env_variant }}_firmware
           path: |
