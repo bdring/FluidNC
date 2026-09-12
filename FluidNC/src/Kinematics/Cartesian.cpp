@@ -47,12 +47,12 @@ namespace Kinematics {
         if (axes->_axis[the_axis]->_softLimits) {
             float amin = std::min(position[the_axis], target[the_axis]);
             if (amin < limitsMinPosition(the_axis)) {
-                limit_error(the_axis, amin);
+                limit_error(the_axis, amin, target, pl_data);
                 return true;
             }
             float amax = std::max(position[the_axis], target[the_axis]);
             if (amax > limitsMaxPosition(the_axis)) {
-                limit_error(the_axis, amax);
+                limit_error(the_axis, amax, target, pl_data);
                 return true;
             }
         }
@@ -187,12 +187,12 @@ namespace Kinematics {
                 // and the minimum extent.
                 float amin = m[a] ? center[a] - radius : std::min(target[the_axis], position[the_axis]);
                 if (amin < limitsMinPosition(the_axis)) {
-                    limit_error(the_axis, amin);
+                    limit_error(the_axis, amin, target, pl_data);
                     return true;
                 }
                 float amax = p[a] ? center[a] + radius : std::max(target[the_axis], position[the_axis]);
                 if (amax > limitsMaxPosition(the_axis)) {
-                    limit_error(the_axis, amax);
+                    limit_error(the_axis, amax, target, pl_data);
                     return true;
                 }
             }
@@ -259,14 +259,14 @@ namespace Kinematics {
         pl_data->limits_checked = true;
     }
 
-    bool Cartesian::invalid_line(float* cartesian) {
+    bool Cartesian::invalid_line(float* cartesian, plan_line_data_t* pl_data) {
         auto axes   = config->_axes;
         auto n_axis = Axes::_numberAxis;
 
         for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
             float coordinate = cartesian[axis];
             if (axes->_axis[axis]->_softLimits && (coordinate < limitsMinPosition(axis) || coordinate > limitsMaxPosition(axis))) {
-                limit_error(axis, coordinate);
+                limit_error(axis, coordinate, cartesian, pl_data);
                 return true;
             }
         }

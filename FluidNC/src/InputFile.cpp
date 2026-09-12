@@ -37,6 +37,11 @@ Error InputFile::readLine(char* line, size_t maxlen) {
         // either: a truncated GCode line is a wrong move, not a short one.
         return Error::FsFailedRead;
     }
+    if (c < 0 && len) {
+        // Hit EOF without a trailing newline, but still got a complete last line.
+        // Count it so lineNumber() reflects the line just returned.
+        ++_line_number;
+    }
     return len || c >= 0 ? Error::Ok : Error::Eof;
 }
 
