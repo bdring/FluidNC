@@ -144,7 +144,7 @@ namespace Kinematics {
 #endif
     }
 
-    bool ParallelDelta::invalid_line(float* cartesian) {
+    bool ParallelDelta::invalid_line(float* cartesian, plan_line_data_t* pl_data) {
         float motor_pos[MAX_N_AXIS] = { 0.0 };
 
         if (!transform_cartesian_to_motors(motor_pos, cartesian)) {

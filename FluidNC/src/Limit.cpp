@@ -10,6 +10,8 @@
 #include "Protocol.h"       // protocol_execute_realtime
 #include "Platform.h"       // WEAK_LINK
 #include "Machine/Axis.h"
+#include "GCode.h"  // gc_last_line
+#include "Job.h"    // Job::channel()
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -58,8 +60,30 @@ bool soft_limit = false;
 // Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,
 // the workspace volume is in all negative space, and the system is in normal operation.
 // NOTE: Used by jogging to limit travel within soft-limit volume.
-void limit_error(axis_t axis, float coordinate) {
-    log_info("Soft limit on " << Machine::Axes::axisName(axis) << " target:" << coordinate);
+void limit_error(axis_t axis, float coordinate, float* target, plan_line_data_t* pl_data) {
+    log_info("Soft limit exceeded on " << Machine::Axes::axisName(axis) << " axis: target " << coordinate << " mm, limit ["
+                                        << limitsMinPosition(axis) << ", " << limitsMaxPosition(axis) << "] mm");
+
+    if (target) {
+        LogStream ls(MsgLevelInfo, "[MSG:INFO: ");
+        ls << "Commanded mpos:";
+        auto n_axis = Machine::Axes::_numberAxis;
+        for (axis_t a = X_AXIS; a < n_axis; a++) {
+            ls << " " << Machine::Axes::axisName(a) << target[a];
+        }
+    }
+
+    if (gc_last_line && gc_last_line[0]) {
+        log_info("GCode line: " << gc_last_line);
+    }
+
+    Channel* job = Job::channel();
+    if (job) {
+        // Running from a file or macro; report where in the job this occurred.
+        log_info("In " << job->name() << " at line " << job->lineNumber());
+    } else if (pl_data && pl_data->line_number) {
+        log_info("At N" << pl_data->line_number);
+    }
 
     limit_error();
 }

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "System.h"
+#include "Planner.h"  // plan_line_data_t
 
 #include <cstdint>
 
@@ -17,7 +18,11 @@ void limits_init();
 MotorMask limits_get_state();
 
 void limit_error();
-void limit_error(axis_t axis, float coordinate);
+
+// axis is the axis whose limit was exceeded, coordinate is the out-of-range value.
+// target, if non-null, is the full commanded mpos (all axes) for the move that was
+// rejected, and pl_data, if non-null, carries the gcode line number for that move.
+void limit_error(axis_t axis, float coordinate, float* target = nullptr, plan_line_data_t* pl_data = nullptr);
 
 float limitsMaxPosition(axis_t axis);
 float limitsMinPosition(axis_t axis);

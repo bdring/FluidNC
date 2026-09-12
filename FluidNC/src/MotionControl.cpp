@@ -110,7 +110,7 @@ static bool mc_linear_no_check(float* target, plan_line_data_t* pl_data, float* 
 }
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
     if (!pl_data->is_jog && !pl_data->limits_checked) {  // soft limits for jogs have already been dealt with
-        if (config->_kinematics->invalid_line(target)) {
+        if (config->_kinematics->invalid_line(target, pl_data)) {
             return false;
         }
     }

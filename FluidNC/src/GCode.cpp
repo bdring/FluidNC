@@ -269,7 +269,11 @@ void gc_wco_changed() {
 // In this function, all units and positions are converted and
 // exported to internal functions in terms of (mm, mm/min) and absolute machine
 // coordinates, respectively.
+const char* gc_last_line = "";
+
 Error gc_execute_line(const char* input_line) {
+    gc_last_line = input_line;
+
     char line[128];
     if (strlen(input_line) > 127) {
         return Error::LineLengthExceeded;
