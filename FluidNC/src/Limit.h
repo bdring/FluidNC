@@ -24,6 +24,10 @@ void limit_error();
 // rejected, and pl_data, if non-null, carries the gcode line number for that move.
 void limit_error(axis_t axis, float coordinate, float* target = nullptr, plan_line_data_t* pl_data = nullptr);
 
+// Reports a soft limit failure that isn't tied to a single axis/bound, e.g. a
+// commanded position that inverse kinematics cannot reach at all (ParallelDelta).
+void limit_error(float* target, plan_line_data_t* pl_data);
+
 float limitsMaxPosition(axis_t axis);
 float limitsMinPosition(axis_t axis);
 

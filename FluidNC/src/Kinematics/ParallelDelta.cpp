@@ -148,8 +148,7 @@ namespace Kinematics {
         float motor_pos[MAX_N_AXIS] = { 0.0 };
 
         if (!transform_cartesian_to_motors(motor_pos, cartesian)) {
-            log_info("Soft limit at " << cartesian[0] << "," << cartesian[1] << "," << cartesian[2]);
-            limit_error();
+            limit_error(cartesian, pl_data);
             return true;
         }
 

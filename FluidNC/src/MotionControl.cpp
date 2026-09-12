@@ -137,6 +137,7 @@ void mc_clustered_linear_move(float* target, plan_line_data_t* pl_data, float* p
 
     for (size_t cluster = 0; cluster < cluster_count; cluster++) {
         plan_line_data_t segment_data = *pl_data;
+        segment_data.report_target    = target;  // full commanded endpoint, for soft limit diagnostics
 
         if (segment_data.motion.inverseTime) {
             // G93 inverse-time feed specifies the total move duration. When one

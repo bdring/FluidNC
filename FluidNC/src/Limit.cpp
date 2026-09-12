@@ -57,12 +57,16 @@ bool ambiguousLimit() {
 
 bool soft_limit = false;
 
-// Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,
-// the workspace volume is in all negative space, and the system is in normal operation.
-// NOTE: Used by jogging to limit travel within soft-limit volume.
-void limit_error(axis_t axis, float coordinate, float* target, plan_line_data_t* pl_data) {
-    log_info("Soft limit exceeded on " << Machine::Axes::axisName(axis) << " axis: target " << coordinate << " mm, limit ["
-                                        << limitsMinPosition(axis) << ", " << limitsMaxPosition(axis) << "] mm");
+// Logs the commanded mpos, the gcode line that produced it, and the job location
+// (file+line, or N-word), shared by both flavors of limit_error() below. target is
+// the full N-axis position that was commanded, if known.
+static void log_limit_context(float* target, plan_line_data_t* pl_data) {
+    // A clustered move (e.g. dynamic laser power) reports the original un-split
+    // command endpoint rather than the interior segment endpoint that was actually
+    // being planned when the violation was detected.
+    if (pl_data && pl_data->report_target) {
+        target = pl_data->report_target;
+    }
 
     if (target) {
         LogStream ls(MsgLevelInfo, "[MSG:INFO: ");
@@ -84,6 +88,26 @@ void limit_error(axis_t axis, float coordinate, float* target, plan_line_data_t*
     } else if (pl_data && pl_data->line_number) {
         log_info("At N" << pl_data->line_number);
     }
+}
+
+// Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,
+// the workspace volume is in all negative space, and the system is in normal operation.
+// NOTE: Used by jogging to limit travel within soft-limit volume.
+void limit_error(axis_t axis, float coordinate, float* target, plan_line_data_t* pl_data) {
+    log_info("Soft limit exceeded on " << Machine::Axes::axisName(axis) << " axis: target " << coordinate << " mm, limit ["
+                                        << limitsMinPosition(axis) << ", " << limitsMaxPosition(axis) << "] mm");
+
+    log_limit_context(target, pl_data);
+
+    limit_error();
+}
+
+// Reports a soft limit failure that isn't tied to a single axis/bound, e.g. a
+// commanded position that inverse kinematics cannot reach at all.
+void limit_error(float* target, plan_line_data_t* pl_data) {
+    log_info("Soft limit: commanded position is outside the reachable workspace");
+
+    log_limit_context(target, pl_data);
 
     limit_error();
 }
