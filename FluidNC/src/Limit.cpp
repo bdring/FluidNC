@@ -68,7 +68,7 @@ static void log_limit_context(float* target, plan_line_data_t* pl_data) {
         target = pl_data->report_target;
     }
 
-    if (target) {
+    if (target && atMsgLevel(MsgLevelInfo)) {
         LogStream ls(MsgLevelInfo, "[MSG:INFO: ");
         ls << "Commanded mpos:";
         auto n_axis = Machine::Axes::_numberAxis;
@@ -85,7 +85,9 @@ static void log_limit_context(float* target, plan_line_data_t* pl_data) {
     if (job) {
         // Running from a file or macro; report where in the job this occurred.
         log_info("In " << job->name() << " at line " << job->lineNumber());
-    } else if (pl_data && pl_data->line_number) {
+    } else if (pl_data && pl_data->has_line_number) {
+        // N0 is a valid explicit line number, so has_line_number (not line_number != 0)
+        // is what distinguishes "N0 was given" from "no N-word at all".
         log_info("At N" << pl_data->line_number);
     }
 }

@@ -66,9 +66,10 @@ struct plan_line_data_t {
     PlMotion     motion;          // Bitflag variable to indicate motion conditions. See defines above.
     SpindleState spindle;         // Spindle enable state
     CoolantState coolant;         // Coolant state
-    int32_t      line_number;     // Desired line number to report when executing.
-    bool         is_jog;          // true if this was generated due to a jog command
-    bool         limits_checked;  // true if soft limits already checked
+    int32_t      line_number;       // Desired line number to report when executing.
+    bool         has_line_number;   // true if an explicit N-word set line_number (N0 is valid and distinct from "no N-word")
+    bool         is_jog;            // true if this was generated due to a jog command
+    bool         limits_checked;    // true if soft limits already checked
 
     // When a move is split into several planner blocks (e.g. clustered spindle-speed
     // segments), each block's target is an interior point of the original command.

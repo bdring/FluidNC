@@ -1670,8 +1670,9 @@ Error gc_execute_line(const char* input_line) {
     }
     // [0. Non-specific/common error-checks and miscellaneous setup]:
     // NOTE: If no line number is present, the value is zero.
-    gc_state.line_number = gc_block.values.n;
-    pl_data->line_number = gc_state.line_number;  // Record data for planner use.
+    gc_state.line_number     = gc_block.values.n;
+    pl_data->line_number     = gc_state.line_number;  // Record data for planner use.
+    pl_data->has_line_number = bitnum_is_true(value_words, GCodeWord::N);
 
     // [1. Comments feedback ]:  NOT SUPPORTED
     // [2. Set feed rate mode ]:
