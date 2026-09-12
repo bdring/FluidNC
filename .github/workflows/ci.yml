@@ -15,9 +15,9 @@ jobs:
     # build below.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Regenerate config_items.yaml, fail on drift warnings
@@ -60,9 +60,9 @@ jobs:
           - "_s3"
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           # pioarduino's esp_install tool (used by the wifi_s3/*_s3 envs)
           # requires Python 3.10-3.14; 3.9 fails with
@@ -74,7 +74,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Cache PlatformIO
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: ~/.platformio
           key: platformio-${{ runner.os }}
@@ -109,7 +109,7 @@ jobs:
             pio_env: tests
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       # Windows has issues running gtest code with the included gcc, so install
       # MSYS2 and use that instead (remember to add it to the path)
       - if: matrix.os == 'windows-latest'
@@ -120,7 +120,7 @@ jobs:
           location: D:\
           install: mingw-w64-ucrt-x86_64-gcc
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           python-version: "3.9"
           cache: "pip"
@@ -129,7 +129,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Cache PlatformIO
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: ~/.platformio
           key: platformio-${{ runner.os }}
