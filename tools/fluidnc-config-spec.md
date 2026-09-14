@@ -67,7 +67,7 @@ axes:
                                 # tmc_2160Pro | rc_servo | solenoid | dynamixel2 |
                                 # unipolar | null_motor
 kinematics:
-  <one type block>         # Cartesian | CoreXY | midtbot | ParallelDelta | WallPlotter
+  <one type block>         # Cartesian | CoreXY | midtbot | parallel_delta | WallPlotter
 uart3:
   usb_host:                # optional: selects USB-host mode instead of the plain txd/rxd fields
 ```
@@ -214,9 +214,8 @@ special_value := "NO_PIN"               (canonical "no pin", stands alone with n
 - **`kinematics:` may be omitted** for a plain 3-axis Cartesian machine — `Cartesian` is auto-created. `CoreXY.x_scaler` stays `1.0` unless the motors themselves move in X (midTbot-style).
 - **`enable_parking_override_control`** (a top-level scalar) additionally allows GCode `M56` to toggle parking at runtime; **`parking.enable`** is the base switch for the feature existing at all.
 
-### A couple of stale example-file traps
+### A stale example-file trap
 
-- `example_configs/uartio.yaml` contains `all_messages:` under a `uart_channelN:` — **not a valid key**, the example is stale.
 - Older/generator-only VFD configs use a nested `uart:` sub-block under the spindle instead of `uart_num:` — use `uart_num:` + a top-level `uartN:` section.
 
 ---
