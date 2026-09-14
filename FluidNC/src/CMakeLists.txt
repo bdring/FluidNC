@@ -16,6 +16,7 @@ idf_component_register(SRCS BTConfig.cpp
                             SHA256.cpp
 							InputFile.cpp
 							Job.cpp
+							JobResume.cpp
 							Jog.cpp
 							JSONEncoder.cpp
 							Limit.cpp

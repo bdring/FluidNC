@@ -7,4 +7,7 @@ bool sd_init_slot(uint32_t freq_hz, pinnum_t cs_pin, pinnum_t cd_pin = INVALID_P
 void sd_unmount();
 void sd_deinit_slot();
 
-std::error_code sd_mount(uint32_t max_files = 2);
+// 4, not 2: a running job holds one descriptor and a resume checkpoint takes a
+// second while it writes, which left nothing for a concurrent WebUI file
+// request.  Each extra descriptor costs a FATFS FIL plus its sector buffer.
+std::error_code sd_mount(uint32_t max_files = 4);

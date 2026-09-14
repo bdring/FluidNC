@@ -166,6 +166,14 @@ Channel* Job::channel() {
     JobLock lock;
     return job.empty() ? nullptr : job.back()->channel();
 }
+
+// The outermost job - the file the operator actually started.  channel()
+// returns the innermost, which during a nested macro is the macro; a resume
+// checkpoint wants the job the macro was called from, not the macro.
+Channel* Job::root_channel() {
+    JobLock lock;
+    return job.empty() ? nullptr : job.front()->channel();
+}
 Channel* Job::leader_channel() {
     JobLock lock;
     if (leader && leader->is_closing()) {

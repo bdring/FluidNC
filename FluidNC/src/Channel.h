@@ -154,6 +154,11 @@ public:
     virtual void sendLine(MsgLevel level, const std::string& line);
 
     size_t _line_number = 0;
+    // Byte offset in the source file at which the most recently polled line
+    // begins.  A resume checkpoint records the start of a line rather than the
+    // read head, so resuming re-runs the interrupted line instead of skipping
+    // the part of it that never got cut.
+    size_t _line_start_position = 0;
 
     std::string _progress;
 
@@ -256,9 +261,19 @@ public:
 
     size_t lineNumber() { return _line_number; }
     void   setLineNumber(size_t line_number) { _line_number = line_number; }
+    size_t lineStartPosition() { return _line_start_position; }
+    void   setLineStartPosition(size_t pos) { _line_start_position = pos; }
 
     virtual void   save() {}
     virtual void   restore() {}
+    // Size of the backing file, for channels that have one.  A resume checkpoint
+    // records it so a job file that changed since the checkpoint can be refused
+    // rather than resumed at an offset that now lands mid-line.
+    virtual size_t size() { return 0; }
+    // The canonical path of the backing file - "/sd/job.gcode".  name() is
+    // whatever string the channel was constructed with, which for a file opened
+    // as "/job.gcode" carries no volume at all.
+    virtual std::string path() { return ""; }
     virtual size_t position() { return 0; }
     virtual void   set_position(size_t pos) {}
 

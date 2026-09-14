@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Settings.h"
+#include "JobResume.h"
 #include "Parameters.h"  // global_named_params
 
 #define CRASH_TEST
@@ -947,6 +948,28 @@ static Error setGPIOInput(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 
+// $Job/Resume with no value reports what is stored and does nothing; only
+// "=go" moves the machine.  Resuming drives the tool back to a recorded
+// position, and doing that unannounced after a power cut is a good way to
+// break something - the operator gets to see where it intends to go first.
+static Error jobResume(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (value == nullptr || *value == '\0') {
+        JobResume::describe(out);
+        return Error::Ok;
+    }
+    if (!string_util::equal_ignore_case(value, "go")) {
+        log_error_to(out, "Use $Job/Resume to inspect, or $Job/Resume=go to resume");
+        return Error::InvalidValue;
+    }
+    return JobResume::resume(out);
+}
+
+static Error jobResumeClear(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    JobResume::clear();
+    log_string(out, "Resume checkpoint cleared");
+    return Error::Ok;
+}
+
 static Error setGPIOOutput(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (pins.find(value) == pins.end()) {
         Pin* thePin = new Pin(Pin::create(value));
@@ -1062,6 +1085,8 @@ void make_user_commands() {
     new ReportCommand("GD", "GPIO/Dump", showGPIOs, anyState);
     new UserCommand("GI", "GPIO/Input", setGPIOInput, anyState);
     new UserCommand("GO", "GPIO/Output", setGPIOOutput, anyState);
+    new UserCommand(NULL, "Job/Resume", jobResume, anyState);
+    new UserCommand(NULL, "Job/Resume/Clear", jobResumeClear, anyState);
     new UserCommand("G+", "GPIO/On", writeGPIOOn, anyState);
     new UserCommand("G-", "GPIO/Off", writeGPIOOff, anyState);
     new ReportCommand("GR", "GPIO/Read", readGPIO, anyState);

@@ -1673,6 +1673,7 @@ Error gc_execute_line(const char* input_line) {
     gc_state.line_number     = gc_block.values.n;
     pl_data->line_number     = gc_state.line_number;  // Record data for planner use.
     pl_data->has_line_number = bitnum_is_true(value_words, GCodeWord::N);
+    pl_data->file_offset     = parsing_file_offset();  // For resume checkpoints.
 
     // [1. Comments feedback ]:  NOT SUPPORTED
     // [2. Set feed rate mode ]:
