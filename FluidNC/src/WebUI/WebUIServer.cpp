@@ -276,6 +276,7 @@ namespace WebUI {
     const int         MAX_AUTH_IP          = 10;
 #endif
     FileStream* WebUI_Server::_uploadFile = nullptr;
+    uint32_t    WebUI_Server::_uploadGeneration = 0;
     std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
 
     EnumSetting *http_enable, *http_block_during_motion;
@@ -1355,8 +1356,18 @@ namespace WebUI {
         // is starting and only one is tracked at a time.
         if (_uploadFile) {
             log_info("Reclaiming a previous upload that was never closed");
+            // Copy the FluidPath rather than slicing it to a plain path: it
+            // carries the SD mount, and deleting the stream can otherwise drop
+            // the last reference and unmount the card before remove() runs.
+            FluidPath stranded = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
+            // What it left behind is a partial file.  Half a GCode file is
+            // worse than none - it will run, and stop somewhere arbitrary - so
+            // drop it rather than leave it to be found later.
+            std::error_code rec;
+            stdfs::remove(stranded, rec);
+            HashFS::rehash_file(stranded);
         }
 
         FluidPath fpath { filename, fs, ec };
@@ -1402,16 +1413,22 @@ namespace WebUI {
                 // every later upload fail with "no free file descriptors" until
                 // the board is restarted.
                 //
-                // Compare against the pointer this request opened: by the time
-                // the callback runs, a later upload may own _uploadFile, and
-                // closing that one would be worse than the leak.
-                FileStream* thisUpload = _uploadFile;
+                // Identify this upload by generation, not by pointer.  By the
+                // time the callback runs a later upload may be in progress, and
+                // tearing that one down would be worse than the leak - and the
+                // pointer cannot tell them apart, because the allocator readily
+                // returns the just-freed block for the next upload's stream.
+                const uint32_t thisUpload = ++_uploadGeneration;
                 request->onDisconnect([thisUpload]() {
-                    if (!_uploadFile || _uploadFile != thisUpload) {
-                        return;  // already finished, or superseded
+                    if (!_uploadFile || _uploadGeneration != thisUpload) {
+                        return;  // already finished, or superseded by a later upload
                     }
                     log_info("Upload aborted - discarding partial file");
-                    std::filesystem::path filepath = _uploadFile->fpath();
+                    // Hold the FluidPath, not a sliced std::filesystem::path:
+                    // it carries the SD mount, and deleting the stream can
+                    // otherwise unmount the card before remove() runs, leaving
+                    // the partial file exactly where it was meant to be removed.
+                    FluidPath filepath = _uploadFile->fpath();
                     delete _uploadFile;
                     _uploadFile    = nullptr;
                     _upload_status = UploadStatus::FAILED;
@@ -1433,12 +1450,17 @@ namespace WebUI {
 
     // Chunks arrive at roughly the TCP segment size, so delaying on every one
     // costs about a millisecond per kilobyte -- seconds on a large file.
-    // Yielding periodically keeps the original intent at a fraction of the cost.
-    static constexpr uint32_t UPLOAD_CHUNKS_PER_YIELD = 32;
+    // Bound the gap by elapsed time rather than by a chunk count: how long a
+    // chunk takes to write is a property of the card, so a fixed count can run
+    // arbitrarily long on a slow one, which is exactly the case this path has
+    // to survive.  Time keeps the yield interval the same on any card.
+    static constexpr uint32_t UPLOAD_YIELD_INTERVAL_MS = 20;
 
     void WebUI_Server::uploadWrite(AsyncWebServerRequest* request, uint8_t* buffer, size_t length) {
-        static uint32_t chunk_count = 0;
-        if ((++chunk_count % UPLOAD_CHUNKS_PER_YIELD) == 0) {
+        static uint32_t last_yield = 0;
+        uint32_t        now        = millis();
+        if ((uint32_t)(now - last_yield) >= UPLOAD_YIELD_INTERVAL_MS) {
+            last_yield = now;
             delay_ms(1);
         }
         if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
