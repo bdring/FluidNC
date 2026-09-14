@@ -215,6 +215,10 @@ namespace {
         AsyncWebServerResponse* response = request->beginChunkedResponse(
             asyncsrv::T_application_json,
             [state](uint8_t* buffer, size_t maxLen, size_t total) mutable -> size_t {
+                // Runs on async_tcp, which the task watchdog watches.  Walking a
+                // directory on a slow or failing card can take a long time, and
+                // rebooting mid-listing helps nobody.
+                feed_watchdog();
                 (void)total;
 
                 size_t written = 0;
@@ -575,6 +579,7 @@ namespace WebUI {
                     request->client()->close();
                     return 0;  //RESPONSE_TRY_AGAIN; // This only works for ChunkedResponse
                 }
+                feed_watchdog();
                 if (total >= file->size() || request->method() != HTTP_GET) {
                     file = nullptr;
                     return 0;
@@ -1272,7 +1277,14 @@ namespace WebUI {
             }
         }
 
+        // Mounting happens here, and a card that cannot be read - failing, or
+        // formatted as exFAT, which this build of FATFS does not support - can
+        // take a long time to give up.  This runs on the watchdog-watched
+        // async_tcp task, so an unreadable card used to reboot the controller
+        // repeatedly instead of simply reporting that there is no usable card.
+        feed_watchdog();
         FluidPath fpath { path, fs, ec };
+        feed_watchdog();
         if (ec) {
             sendJSON(request, 200, "{\"status\":\"No SD card\"}");
             return;
