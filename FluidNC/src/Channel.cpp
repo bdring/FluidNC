@@ -2,6 +2,8 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Channel.h"
+
+#include <cstdio>  // snprintf
 #include "Driver/Console.h"
 #include "Report.h"                 // report_gcode_modes
 #include "Machine/MachineConfig.h"  // config
@@ -463,11 +465,32 @@ void Channel::print_msg(MsgLevel level, const char* msg) {
 // exactly when something has gone wrong and the message matters most.
 // Dropping it silently is how an ALARM can reach the machine with nothing on
 // the console to say so.  Fall back to the console, which writes directly and
-// does not depend on the output task.  Debug and verbose messages are left to
-// drop, since they are the likely source of the flood in the first place.
+// does not depend on the output task.
+//
+// Only real log levels.  MsgLevelNone is not a log level: Channel::ack() sends
+// "ok" at it, so a queue-full moment would deliver a sender's acknowledgement
+// to the console instead of back to the sender, and a WebSocket or telnet
+// client waiting for that "ok" would wait forever.  Debug and verbose are left
+// to drop, since they are the likely source of the flood in the first place.
+//
+// Emitted as one write rather than print_msg()'s two.  This runs on whichever
+// task found the queue full, while the polling task may still be draining, so
+// a message built from two calls can be split down the middle by another
+// writer.  One call cannot prevent interleaving outright - nothing here holds
+// the console against other tasks - but it removes the tearing this path would
+// otherwise introduce on its own.
 static void report_dropped_message(MsgLevel level, const char* text) {
-    if (level <= MsgLevelInfo) {
-        Console.print_msg(level, text);
+    if (level < MsgLevelError || level > MsgLevelInfo) {
+        return;
+    }
+    if (Console.message_level() < static_cast<uint32_t>(level)) {
+        return;  // the same filter print_msg() applies
+    }
+    char buf[Channel::maxLine];
+    int  len = snprintf(buf, sizeof buf, "%s\n", text);
+    if (len > 0) {
+        size_t n = (static_cast<size_t>(len) < sizeof buf) ? static_cast<size_t>(len) : sizeof buf - 1;
+        Console.write(reinterpret_cast<const uint8_t*>(buf), n);
     }
 }
 

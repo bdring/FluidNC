@@ -212,6 +212,11 @@ public:
 
     virtual void print_msg(MsgLevel level, const char* msg);
 
+    // The level this channel is currently filtering at.  The queue-full
+    // fallback in Channel.cpp applies the same filter print_msg() would, while
+    // emitting its line as a single write.
+    uint32_t message_level() const { return _message_level; }
+
     void print_msg(MsgLevel level, const std::string& msg) { print_msg(level, msg.c_str()); }
 
     uint32_t     setReportInterval(uint32_t ms);
