@@ -313,6 +313,13 @@ static Error listFilesystem(const Volume& fs, const char* value, AuthenticationL
         auto      iter  = stdfs::recursive_directory_iterator { fpath };
         auto      space = stdfs::space(fpath);
         for (auto const& dir_entry : iter) {
+            // This walks the whole tree, and a card that has been in a Mac or a
+            // Windows box carries an index directory - .Spotlight-V100,
+            // System Volume Information - holding thousands of entries.  The
+            // walk then runs for long enough to trip the task watchdog and
+            // reboot the board, which is not an obvious consequence of asking
+            // for a file listing.
+            feed_watchdog();
             if (dir_entry.is_directory()) {
                 log_stream(out, "[DIR:" << std::string(iter.depth(), ' ') << dir_entry.path().filename().string());
             } else {
