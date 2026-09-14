@@ -48,10 +48,13 @@ namespace Spindles {
             if (candidate != spindle) {  // we are changing spindles
                 gc_state.selected_tool = new_tool;
                 spindle                = candidate;
-                spindle_isr_speed_fn   = candidate->isr_speed_fn();
                 new_spindle            = true;
                 log_info("Changed to spindle:" << spindle->name());
             }
+            // Keep the ISR-safe speed thunk in sync with spindle even when it was
+            // already pointed at candidate by some other path (e.g. MachineConfig's
+            // precautionary assignment), so it is never left null after this call.
+            spindle_isr_speed_fn = candidate->isr_speed_fn();
         } else {
             if (spindle == nullptr) {
                 if (spindles.size() == 0) {
