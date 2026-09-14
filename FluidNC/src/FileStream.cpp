@@ -4,16 +4,31 @@
 #include "FileStream.h"
 #include "Machine/MachineConfig.h"  // config->
 
+#include <cstring>  // strchr
+
 // Writes reach this class in small pieces -- a WebUI upload arrives at about
 // the TCP segment size -- and stdio coalesces them into buffer-sized calls
-// down to the filesystem.  Sizing the buffer at several sectors means FATFS
-// sees longer runs of whole sectors and can issue them as SD multi-block
-// writes rather than a shorter transfer per stdio flush.  On the host, this
-// cuts write() calls per megabyte fourfold versus a 1 KiB buffer; on the
-// device the gain was not separable from run-to-run variation in the card
-// itself, so treat it as cheap insurance rather than a measured win.  Costs
-// 4 KiB of heap per open file.
-static constexpr size_t FILE_BUFFER_SIZE = 4096;
+// down to the filesystem.  Four sectors is enough for FATFS to see runs of
+// whole sectors and issue them as SD multi-block writes rather than a shorter
+// transfer per stdio flush.
+//
+// Only for streams opened for writing, and deliberately modest.  The buffer is
+// heap, and the reasoning above is about coalescing writes, so there is no case
+// for spending it on reads -- which is where it would cost most, since a job's
+// file stays open for the whole job.  The earlier version applied 4 KiB to
+// every stream, so a job plus an upload plus a WebUI read held three times that
+// for as long as the job ran.
+//
+// Sized down from 4 KiB on the same evidence that set it: on the host the call
+// count per megabyte is within a few percent of the larger buffer, and on the
+// device neither was separable from run-to-run variation in the card.  Given
+// that, the smaller number is the honest one.
+static constexpr size_t WRITE_BUFFER_SIZE = 2048;
+
+// fopen() modes that write.  "r" is the common case here and gets nothing.
+static bool mode_writes(const char* mode) {
+    return strchr(mode, 'w') || strchr(mode, 'a') || strchr(mode, '+');
+}
 
 std::string FileStream::path() {
     return _fpath.string();
@@ -86,7 +101,9 @@ void FileStream::setup(const char* mode) {
     }
     // Must happen before any I/O on the stream.  A failure here is not fatal;
     // the stream just keeps the default buffer and runs slower.
-    setvbuf(_fd, nullptr, _IOFBF, FILE_BUFFER_SIZE);
+    if (mode_writes(mode)) {
+        setvbuf(_fd, nullptr, _IOFBF, WRITE_BUFFER_SIZE);
+    }
     _size = stdfs::file_size(_fpath);
 }
 
