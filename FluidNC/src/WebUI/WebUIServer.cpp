@@ -280,6 +280,7 @@ namespace WebUI {
     const int         MAX_AUTH_IP          = 10;
 #endif
     FileStream* WebUI_Server::_uploadFile = nullptr;
+    uint32_t    WebUI_Server::_uploadGeneration = 0;
     std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
 
     EnumSetting *http_enable, *http_block_during_motion;
@@ -1358,6 +1359,29 @@ namespace WebUI {
     void WebUI_Server::uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const Volume& fs) {
         std::error_code ec;
 
+        // An upload that never finished leaves its file open.  The onDisconnect
+        // handler installed below normally closes it, but if that callback is
+        // missed for any reason the descriptor stays held for the rest of the
+        // session, and with only two SD descriptors that blocks every later
+        // upload until the board is restarted.  Reclaim it here as well:
+        // whatever it belonged to cannot still be running, because a new upload
+        // is starting and only one is tracked at a time.
+        if (_uploadFile) {
+            log_info("Reclaiming a previous upload that was never closed");
+            // Copy the FluidPath rather than slicing it to a plain path: it
+            // carries the SD mount, and deleting the stream can otherwise drop
+            // the last reference and unmount the card before remove() runs.
+            FluidPath stranded = _uploadFile->fpath();
+            delete _uploadFile;
+            _uploadFile = nullptr;
+            // What it left behind is a partial file.  Half a GCode file is
+            // worse than none - it will run, and stop somewhere arbitrary - so
+            // drop it rather than leave it to be found later.
+            std::error_code rec;
+            stdfs::remove(stranded, rec);
+            HashFS::rehash_file(stranded);
+        }
+
         FluidPath fpath { filename, fs, ec };
         if (ec) {
             _upload_status = UploadStatus::FAILED;
@@ -1391,6 +1415,42 @@ namespace WebUI {
             try {
                 _uploadFile    = new FileStream(fpath, "w");
                 _upload_status = UploadStatus::ONGOING;
+
+                // The upload handler is only called while chunks are arriving.
+                // If the client goes away mid-transfer - the browser cancels, or
+                // the connection drops - it is never called again, so neither
+                // uploadEnd() nor uploadStop() runs, and the open file is
+                // stranded.  There are only two SD file descriptors and a
+                // running job holds one, so a single abandoned upload makes
+                // every later upload fail with "no free file descriptors" until
+                // the board is restarted.
+                //
+                // Identify this upload by generation, not by pointer.  By the
+                // time the callback runs a later upload may be in progress, and
+                // tearing that one down would be worse than the leak - and the
+                // pointer cannot tell them apart, because the allocator readily
+                // returns the just-freed block for the next upload's stream.
+                const uint32_t thisUpload = ++_uploadGeneration;
+                request->onDisconnect([thisUpload]() {
+                    if (!_uploadFile || _uploadGeneration != thisUpload) {
+                        return;  // already finished, or superseded by a later upload
+                    }
+                    log_info("Upload aborted - discarding partial file");
+                    // Hold the FluidPath, not a sliced std::filesystem::path:
+                    // it carries the SD mount, and deleting the stream can
+                    // otherwise unmount the card before remove() runs, leaving
+                    // the partial file exactly where it was meant to be removed.
+                    FluidPath filepath = _uploadFile->fpath();
+                    delete _uploadFile;
+                    _uploadFile    = nullptr;
+                    _upload_status = UploadStatus::FAILED;
+                    _uploadPath.clear();
+                    // A half-written file is worse than none, particularly for
+                    // GCode, so drop it as uploadCheck() would have.
+                    std::error_code ec;
+                    stdfs::remove(filepath, ec);
+                    HashFS::rehash_file(filepath);
+                });
             } catch (const ErrorException& err) {
                 _uploadFile    = nullptr;
                 _upload_status = UploadStatus::FAILED;
@@ -1400,8 +1460,21 @@ namespace WebUI {
         }
     }
 
+    // Chunks arrive at roughly the TCP segment size, so delaying on every one
+    // costs about a millisecond per kilobyte -- seconds on a large file.
+    // Bound the gap by elapsed time rather than by a chunk count: how long a
+    // chunk takes to write is a property of the card, so a fixed count can run
+    // arbitrarily long on a slow one, which is exactly the case this path has
+    // to survive.  Time keeps the yield interval the same on any card.
+    static constexpr uint32_t UPLOAD_YIELD_INTERVAL_MS = 20;
+
     void WebUI_Server::uploadWrite(AsyncWebServerRequest* request, uint8_t* buffer, size_t length) {
-        delay_ms(1);
+        static uint32_t last_yield = 0;
+        uint32_t        now        = millis();
+        if ((uint32_t)(now - last_yield) >= UPLOAD_YIELD_INTERVAL_MS) {
+            last_yield = now;
+            delay_ms(1);
+        }
         if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
             //no error write post data
             if (length != _uploadFile->write(buffer, length)) {
@@ -1423,11 +1496,29 @@ namespace WebUI {
             // _uploadFile = nullptr;
 
             std::string pathname = _uploadFile->fpath();
+
+            // Take the reference to the volume before closing the file, so the
+            // mount count never drops to zero here.  Re-establishing it after
+            // the close costs a full card re-initialization, and when heap is
+            // tight it can fail outright -- which would discard a file that had
+            // in fact been written successfully.
+            //
+            // The non-throwing constructor matters because this runs in an
+            // async web server callback, where an escaping exception would
+            // terminate the task and reboot the controller.
+            std::error_code ec;
+            FluidPath       filepath { pathname, LocalFS, ec };
+
             delete _uploadFile;
             _uploadFile = nullptr;
             log_debug("pathname " << pathname);
 
-            FluidPath filepath { pathname, LocalFS };
+            if (ec) {
+                _upload_status = UploadStatus::FAILED;
+                log_info("Upload failed - filesystem inaccessible after write");
+                pushError(request, ESP_ERROR_UPLOAD, "Upload failed, filesystem inaccessible");
+                return;
+            }
 
             HashFS::rehash_file(filepath);
 

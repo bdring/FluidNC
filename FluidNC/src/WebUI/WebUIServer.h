@@ -75,6 +75,13 @@ namespace WebUI {
         static UploadStatus _upload_status;
         static FileStream*  _uploadFile;
         static std::string  _uploadPath;  // Store upload directory path for listing
+        // Bumped for every upload.  A disconnect callback captures the value it
+        // started with, so it can tell "my upload is still the current one"
+        // from "a later upload is running".  Comparing the FileStream pointer
+        // cannot: the allocator readily hands the just-freed block back for the
+        // next upload, and the callback would then act on a different upload
+        // that happens to live at the same address.
+        static uint32_t     _uploadGeneration;
         static bool         _schedule_reboot;
         static uint32_t     _schedule_reboot_time;
 
