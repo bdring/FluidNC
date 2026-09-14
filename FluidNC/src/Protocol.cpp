@@ -21,6 +21,7 @@
 #include "SettingsDefinitions.h"  // gcode_echo
 #include "Machine/LimitPin.h"
 #include "Job.h"
+#include "JobResume.h"
 #include "Driver/restart.h"
 #include "Driver/watchdog.h"
 #include "Driver/heap.h"
@@ -329,6 +330,9 @@ static void poll_once() {
             feed_watchdog();
         }
 
+        // Rate-limited internally, and a no-op unless an SD job is running.
+        JobResume::poll();
+
         heap_monitor_poll();
 
         if (!Job::active()) {
@@ -385,6 +389,9 @@ static void poll_once() {
                         case Error::Eof:
                             notifyf("Job done", "%s job sent", channel->name());
                             log_debug(channel->name() << " job sent");
+                            // Only discards a checkpoint describing this very
+                            // file; a nested macro must not wipe it.
+                            JobResume::finished(channel->path());
                             Job::unnest();
                             break;
                         default: {
