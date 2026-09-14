@@ -87,7 +87,7 @@ void feed_watchdog() {
 static thread_local bool wdt_was_subscribed = false;
 
 void suspend_watchdog_for_task() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     wdt_was_subscribed = esp_task_wdt_status(NULL) == ESP_OK;
     if (wdt_was_subscribed) {
         esp_task_wdt_delete(NULL);
@@ -96,7 +96,7 @@ void suspend_watchdog_for_task() {
 }
 
 void resume_watchdog_for_task() {
-#ifdef CONFIG_ESP_TASK_WDT_EN
+#ifdef FLUIDNC_TASK_WDT_ENABLED
     if (wdt_was_subscribed) {
         esp_task_wdt_add(NULL);
         esp_task_wdt_reset();
