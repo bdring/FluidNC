@@ -1,6 +1,6 @@
 from collections import defaultdict, deque
 
-from tool.grbl_message import ASYNC_NOISE_TYPES, MessageType, classify
+from tool.grbl_message import ASYNC_NOISE_TYPES, MessageType, classify, parse_msg
 from tool.transport import Transport, create_transport
 
 
@@ -33,6 +33,33 @@ class Controller:
         # pass, but handy for a human debugging a failure to see what async
         # chatter (status reports, [MSG:...], etc.) was actually going by.
         self._recent = defaultdict(lambda: deque(maxlen=5))
+        # command -> handler(arguments: str), dispatched from expect() for
+        # every [MSG:<command>: ...] line it sees -- see on_msg().
+        self._msg_handlers = {}
+
+    def on_msg(self, command, handler):
+        """Register `handler(arguments)` to run whenever a
+        `[MSG:<command>: ...]` line is seen by expect() -- including ones
+        it's transparently skipping past while a fixture step waits for
+        something else entirely. Mirrors GrblParserC.h's overridable
+        `handle_msg(command, arguments)` hook, driven here from inside
+        expect()'s classify step instead of a dedicated poll function.
+
+        A fixture that wants to observe e.g. `[MSG:PWM: gpio.2,2500]`
+        lines emitted as a side effect of some motion doesn't need to
+        explicitly wait for them at all: register the callback once, then
+        run the motion normally through `<-`/`<~` fixture entries, and
+        the callback fires as those entries' expect() calls skip past the
+        interleaved PWM chatter on their way to whatever they're actually
+        waiting for (an `ok`, a status report, ...).
+        """
+        self._msg_handlers[command] = handler
+
+    def _dispatch_msg(self, msg):
+        command, arguments = parse_msg(msg.body)
+        handler = self._msg_handlers.get(command)
+        if handler is not None:
+            handler(arguments)
 
     def send_soft_reset(self):
         self._transport.write(b"\x18")
@@ -91,6 +118,9 @@ class Controller:
                 return None
 
             msg = classify(raw)
+
+            if msg.type == MessageType.MSG:
+                self._dispatch_msg(msg)
 
             if msg.type in want_types:
                 return msg

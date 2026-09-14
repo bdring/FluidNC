@@ -108,3 +108,19 @@ def classify(line: str) -> GrblMessage:
 ASYNC_NOISE_TYPES = frozenset(
     {MessageType.STATUS, MessageType.MSG, MessageType.GC, MessageType.VER}
 )
+
+
+def parse_msg(body: str) -> tuple[str, str]:
+    """Splits a [MSG:...] body into (command, arguments) on the first ':',
+    mirroring GrblParserC.c's parse_msg() -- the same split that turns
+    "INFO: Caution: Unlocked" into ("INFO", " Caution: Unlocked"). Used to
+    further dispatch MSG-type GrblMessages by their command tag (see
+    Controller.on_msg() in tool/controller.py), the same way GrblParserC.h
+    declares handle_msg(command, arguments) as an overridable hook.
+
+    `command` is stripped of surrounding whitespace (GrblParserC.c does
+    the same before comparing it); `arguments` is returned as-is, since
+    callers generally want to parse its content themselves.
+    """
+    command, _, arguments = body.partition(":")
+    return command.strip(), arguments
