@@ -110,7 +110,7 @@ static bool mc_linear_no_check(float* target, plan_line_data_t* pl_data, float* 
 }
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
     if (!pl_data->is_jog && !pl_data->limits_checked) {  // soft limits for jogs have already been dealt with
-        if (config->_kinematics->invalid_line(target)) {
+        if (config->_kinematics->invalid_line(target, pl_data)) {
             return false;
         }
     }
@@ -137,6 +137,7 @@ void mc_clustered_linear_move(float* target, plan_line_data_t* pl_data, float* p
 
     for (size_t cluster = 0; cluster < cluster_count; cluster++) {
         plan_line_data_t segment_data = *pl_data;
+        segment_data.report_target    = target;  // full commanded endpoint, for soft limit diagnostics
 
         if (segment_data.motion.inverseTime) {
             // G93 inverse-time feed specifies the total move duration. When one

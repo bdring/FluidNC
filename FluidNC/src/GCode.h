@@ -336,6 +336,12 @@ void gc_init();
 // Execute one block of rs275/ngc/g-code
 Error gc_execute_line(const char* line);
 
+// Raw text of the g-code line currently (or most recently) being executed,
+// as received before whitespace/comment stripping.  Used for diagnostics
+// such as soft limit alarm reports.  Points into the caller's line buffer,
+// which is valid for the duration of the synchronous gc_execute_line() call.
+extern const char* gc_last_line;
+
 // Set g-code parser position. Input in steps.
 void gc_sync_position();
 

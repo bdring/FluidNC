@@ -24,7 +24,7 @@ namespace Kinematics {
         // Kinematic Interface
 
         virtual void constrain_jog(float* cartesian, plan_line_data_t* pl_data, float* position) override;
-        virtual bool invalid_line(float* cartesian) override;
+        virtual bool invalid_line(float* cartesian, plan_line_data_t* pl_data) override;
         virtual bool invalid_arc(float*            target,
                                  plan_line_data_t* pl_data,
                                  float*            position,
