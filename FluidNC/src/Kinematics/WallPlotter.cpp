@@ -136,13 +136,22 @@ namespace Kinematics {
         float total_cartesian_distance = vector_distance(position, target, n_axis);
         if (total_cartesian_distance == 0) {
             // target is in cartesian space; mc_move_motors() expects motor (cable-length)
-            // space, so it must go through the same transform as every other path below.
-            // Sending target directly used to send the machine to a bogus out-of-bounds
-            // position for a repeated move with the same cartesian target.
+            // space, so it must go through the same transform used by the segmented path
+            // below. Sending target directly used to send the machine to a bogus
+            // out-of-bounds position for a repeated move with the same cartesian target.
+            // This mirrors the segmented path's cables[0]/cables[1] mapping (rather than
+            // transform_cartesian_to_motors()'s _left_axis/_right_axis mapping) so both
+            // paths agree on where the cable lengths land.
+            float left_length, right_length;
+            xy_to_lengths(target[X_AXIS], target[Y_AXIS], left_length, right_length);
+
             float motors[MAX_N_AXIS];
-            transform_cartesian_to_motors(motors, target);
-            mc_move_motors(motors, pl_data);
-            return true;
+            motors[0] = 0 - (left_length - zero_left);
+            motors[1] = 0 + (right_length - zero_right);
+            for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
+                motors[axis] = target[axis];
+            }
+            return mc_move_motors(motors, pl_data);
         }
 
         float cartesian_feed_rate = pl_data->feed_rate;
