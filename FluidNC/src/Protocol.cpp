@@ -21,6 +21,7 @@
 #include "SettingsDefinitions.h"  // gcode_echo
 #include "Machine/LimitPin.h"
 #include "Job.h"
+#include "JobResume.h"
 #include "Driver/restart.h"
 #include "Driver/watchdog.h"
 #include "Driver/heap.h"
@@ -179,15 +180,30 @@ bool poll_task_drain_one_message() {
 // to read on the other core.  Depth 1 keeps the strict one-line-in-flight flow
 // control of the previous single-slot handoff.
 struct LineItem {
-    Channel* channel;  // source; holds a processing_ref until the line is acked
+    Channel* channel;      // source; holds a processing_ref until the line is acked
+    size_t   file_offset;  // where this line begins, for resume checkpoints
     char     line[Channel::maxLine];
 };
 static constexpr UBaseType_t CMD_QUEUE_DEPTH = 1;
 QueueHandle_t                cmd_queue        = nullptr;
 
+// Byte offset, in the job file, of the line currently being parsed.  Set by the
+// cmd_queue consumer and read by gc_execute_line(), which stores it in the
+// planner block; a resume checkpoint then reads it off the executing block.
+// Zero when the line did not come from a file.
+static size_t s_parsing_file_offset = 0;
+
+void set_parsing_file_offset(size_t offset) {
+    s_parsing_file_offset = offset;
+}
+size_t parsing_file_offset() {
+    return s_parsing_file_offset;
+}
+
 bool cmd_queue_defer(const char* line, Channel& channel) {
     LineItem item;
-    item.channel = &channel;
+    item.channel     = &channel;
+    item.file_offset = channel.lineStartPosition();
     strncpy(item.line, line, Channel::maxLine - 1);
     item.line[Channel::maxLine - 1] = '\0';
     return xQueueSend(cmd_queue, &item, 0) == pdTRUE;
@@ -314,6 +330,9 @@ static void poll_once() {
             feed_watchdog();
         }
 
+        // Rate-limited internally, and a no-op unless an SD job is running.
+        JobResume::poll();
+
         heap_monitor_poll();
 
         if (!Job::active()) {
@@ -350,9 +369,13 @@ static void poll_once() {
             char buf[Channel::maxLine];
             if (uxQueueSpacesAvailable(cmd_queue)) {
                 if (Channel* channel = Job::channel(); channel && channel->pending_processing_refs() == 0) {
-                    auto status = channel->pollLine(buf);
+                    // Where this line starts, captured before the read moves the
+                    // file position past it.
+                    const size_t line_start = channel->position();
+                    auto         status     = channel->pollLine(buf);
                     switch (status) {
                         case Error::Ok:
+                            channel->setLineStartPosition(line_start);
                             // From the job channel, so execute_line() defers it.
                             // Hold a processing_ref from here to the consumer's ack.
                             if (channel->try_acquire_processing_ref()) {
@@ -366,6 +389,9 @@ static void poll_once() {
                         case Error::Eof:
                             notifyf("Job done", "%s job sent", channel->name());
                             log_debug(channel->name() << " job sent");
+                            // Only discards a checkpoint describing this very
+                            // file; a nested macro must not wipe it.
+                            JobResume::finished(channel->path());
                             Job::unnest();
                             break;
                         default: {
@@ -475,6 +501,9 @@ void protocol_main_loop() {
         LineItem item;
         if (xQueueReceive(cmd_queue, &item, 0)) {
             Channel* channel = item.channel;
+            // Where the line about to be parsed began, so gc_execute_line() can
+            // store it in the planner block.
+            set_parsing_file_offset(item.file_offset);
             if (channel->is_closing()) {
                 channel->release_processing_ref();
             } else {

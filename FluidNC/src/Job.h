@@ -68,6 +68,10 @@ public:
     static void       abort();
     static JobSource* source();  // nullptr when no job is active
 
+    // The outermost job's channel, or nullptr when idle.  channel() gives the
+    // innermost, which is a nested macro while one runs.
+    static Channel* root_channel();
+
     static bool     get_param(const std::string& name, float& value);
     static bool     set_param(const std::string& name, float value);
     static bool     param_exists(const std::string& name);

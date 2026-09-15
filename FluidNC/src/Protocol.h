@@ -128,3 +128,10 @@ bool cmd_queue_defer(const char* line, Channel& channel);
 
 extern uint32_t heapLowWater;
 extern uint32_t maxBlockLowWater;  // largest-free-block low-water; UINT_MAX where unavailable
+
+// Byte offset, in the job file, of the line currently being parsed.  Set by the
+// cmd_queue consumer and read by gc_execute_line(), which stores it in the
+// planner block; a resume checkpoint then reads it off the executing block.
+// Zero when the line did not come from a file.
+void   set_parsing_file_offset(size_t offset);
+size_t parsing_file_offset();
