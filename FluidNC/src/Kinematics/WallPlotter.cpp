@@ -96,22 +96,28 @@ namespace Kinematics {
         return false;
     }
 
+    // Inverse of the mapping used in motors_to_cartesian() (left motor runs backward).
+    // Shared by transform_cartesian_to_motors() and the segmented path in
+    // cartesian_to_motors() so they can't disagree on where cable lengths land.
+    //
+    // KNOWN ISSUE: _left_axis/_right_axis come straight from config with no
+    // validation. An out-of-range value is an out-of-bounds write into motors[];
+    // a value >= Z_AXIS gets silently overwritten by the caller's copy of the
+    // remaining cartesian axes into motors[], which would produce wrong (not
+    // crashing) soft-limit bounds. Same unchecked pattern already existed in
+    // motors_to_cartesian()'s reads of motors[_left_axis]/motors[_right_axis]
+    // before this function was implemented -- flagged in PR review
+    // (bdring/FluidNC#1771) as worth a real fix (bounds-check in validate()),
+    // just not folded into that PR.
+    void WallPlotter::lengths_to_motors(float left_length, float right_length, float* motors) {
+        motors[_left_axis]  = 0 - (left_length - zero_left);
+        motors[_right_axis] = 0 + (right_length - zero_right);
+    }
+
     bool WallPlotter::transform_cartesian_to_motors(float* motors, float* cartesian) {
         float left_length, right_length;
         xy_to_lengths(cartesian[X_AXIS], cartesian[Y_AXIS], left_length, right_length);
-
-        // Inverse of the mapping used in motors_to_cartesian() (left motor runs backward).
-        //
-        // KNOWN ISSUE: _left_axis/_right_axis come straight from config with no
-        // validation. An out-of-range value is an out-of-bounds write into motors[];
-        // a value >= Z_AXIS gets silently overwritten by the copy loop below, which
-        // would produce wrong (not crashing) soft-limit bounds. Same unchecked
-        // pattern already existed in motors_to_cartesian()'s reads of motors[_left_axis]/
-        // motors[_right_axis] before this function was implemented -- flagged in PR
-        // review (bdring/FluidNC#1771) as worth a real fix (bounds-check in validate()),
-        // just not folded into that PR.
-        motors[_left_axis]  = 0 - (left_length - zero_left);
-        motors[_right_axis] = 0 + (right_length - zero_right);
+        lengths_to_motors(left_length, right_length, motors);
 
         auto n_axis = Axes::_numberAxis;
         for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
@@ -135,8 +141,13 @@ namespace Kinematics {
 
         float total_cartesian_distance = vector_distance(position, target, n_axis);
         if (total_cartesian_distance == 0) {
-            mc_move_motors(target, pl_data);
-            return true;
+            // target is in cartesian space; mc_move_motors() expects motor (cable-length)
+            // space, so it must go through the same transform used by the segmented path
+            // below. Sending target directly used to send the machine to a bogus
+            // out-of-bounds position for a repeated move with the same cartesian target.
+            float motors[MAX_N_AXIS];
+            transform_cartesian_to_motors(motors, target);
+            return mc_move_motors(motors, pl_data);
         }
 
         float cartesian_feed_rate = pl_data->feed_rate;
@@ -208,8 +219,7 @@ namespace Kinematics {
             // Note that the left motor runs backward.
             // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
             float cables[MAX_N_AXIS];
-            cables[0] = 0 - (motor_segment_end[0] - zero_left);
-            cables[1] = 0 + (motor_segment_end[1] - zero_right);
+            lengths_to_motors(motor_segment_end[0], motor_segment_end[1], cables);
             for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
                 cables[axis] = cartesian_segment_end[axis];
             }
