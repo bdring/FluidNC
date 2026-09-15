@@ -78,17 +78,6 @@ namespace Machine {
         uint32_t stepRate = uint32_t(_stepsPerMm * _maxRate / 60.0);
         auto     maxRate  = Stepping::maxPulsesPerSec();
         if (stepRate > maxRate) {
-            // Report rather than throw.  This runs inside main_init()'s try
-            // block, ahead of the module init that brings up networking, so an
-            // exception here took WiFi down with it: a steps_per_mm or
-            // max_rate_mm_per_min that is merely too large left the board
-            // reachable only over USB serial, to fix a config file that the
-            // WebUI could otherwise have edited.  Asking someone to find a
-            // cable because they typed one number too big is a poor trade.
-            //
-            // log_config_error() raises ConfigAlarm, so the machine still
-            // refuses to move until the config is corrected - the rate is not
-            // silently clamped to something the user did not ask for.
             log_config_error("Axis " << Axes::axisName(_axis) << " stepping rate " << stepRate
                                      << " steps/sec exceeds the maximum rate " << maxRate);
         }
