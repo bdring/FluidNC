@@ -139,18 +139,8 @@ namespace Kinematics {
             // space, so it must go through the same transform used by the segmented path
             // below. Sending target directly used to send the machine to a bogus
             // out-of-bounds position for a repeated move with the same cartesian target.
-            // This mirrors the segmented path's cables[0]/cables[1] mapping (rather than
-            // transform_cartesian_to_motors()'s _left_axis/_right_axis mapping) so both
-            // paths agree on where the cable lengths land.
-            float left_length, right_length;
-            xy_to_lengths(target[X_AXIS], target[Y_AXIS], left_length, right_length);
-
             float motors[MAX_N_AXIS];
-            motors[0] = 0 - (left_length - zero_left);
-            motors[1] = 0 + (right_length - zero_right);
-            for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
-                motors[axis] = target[axis];
-            }
+            transform_cartesian_to_motors(motors, target);
             return mc_move_motors(motors, pl_data);
         }
 
@@ -222,9 +212,11 @@ namespace Kinematics {
             // In that case we stop sending segments to the planner.
             // Note that the left motor runs backward.
             // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
+            // Uses the same _left_axis/_right_axis mapping as transform_cartesian_to_motors()
+            // so this path and the zero-distance path above agree on where cable lengths land.
             float cables[MAX_N_AXIS];
-            cables[0] = 0 - (motor_segment_end[0] - zero_left);
-            cables[1] = 0 + (motor_segment_end[1] - zero_right);
+            cables[_left_axis]  = 0 - (motor_segment_end[0] - zero_left);
+            cables[_right_axis] = 0 + (motor_segment_end[1] - zero_right);
             for (axis_t axis = Z_AXIS; axis < n_axis; axis++) {
                 cables[axis] = cartesian_segment_end[axis];
             }
