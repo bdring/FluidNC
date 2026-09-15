@@ -135,7 +135,13 @@ namespace Kinematics {
 
         float total_cartesian_distance = vector_distance(position, target, n_axis);
         if (total_cartesian_distance == 0) {
-            mc_move_motors(target, pl_data);
+            // target is in cartesian space; mc_move_motors() expects motor (cable-length)
+            // space, so it must go through the same transform as every other path below.
+            // Sending target directly used to send the machine to a bogus out-of-bounds
+            // position for a repeated move with the same cartesian target.
+            float motors[MAX_N_AXIS];
+            transform_cartesian_to_motors(motors, target);
+            mc_move_motors(motors, pl_data);
             return true;
         }
 
