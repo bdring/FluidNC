@@ -20,7 +20,7 @@ void UartChannel::init() {
     } else {
         init(uart);
     }
-    if (uart->_rxd_pin.undefined()) {
+    if (!uart || uart->_rxd_pin.undefined()) {
         _active = true; // there will be no rx activity to set this true
     }
     setReportInterval(_report_interval_ms);
@@ -51,7 +51,7 @@ void UartChannel::getExpanderId() {
     out("ID", "EXP:");
     char   buf[128];
     size_t len;
-    while ((len = _uart->timedReadBytes(buf, 128, 50)) != 0) {
+    while ((len = _uart->timedReadBytes(buf, sizeof(buf) - 1, 50)) != 0) {
         buf[len] = '\0';
         if (strncmp(buf, "(EXP,", 5) == 0) {
             auto pos = strrchr(buf, ')');
