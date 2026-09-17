@@ -14,6 +14,11 @@ private:
 
     uint32_t _uart_num           = 0;
     int32_t  _report_interval_ms = 0;
+    uint32_t _last_greeting_ms   = 0;
+
+    // Set once a complete line or an expander ID arrives.  A received byte is
+    // not enough: line noise at power-up produces those.
+    bool _peer_spoke = false;
 
     static constexpr int _ack_timeout = 2000;
 
@@ -22,6 +27,9 @@ public:
 
     void init() override;
     void init(Uart* uart);
+
+    void handle() override;
+    void sendGreeting();
 
     // Print methods (Stream inherits from Print)
     size_t write(uint8_t c) override;
