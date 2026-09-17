@@ -5,6 +5,7 @@
 #include "Driver/Console.h"
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
+#include "Report.h"                 // report_realtime_status
 
 UartChannel::UartChannel(objnum_t num, bool addCR) : Channel("uart_channel", num, addCR) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
@@ -37,21 +38,51 @@ void UartChannel::init(Uart* uart) {
     } else {
         log_info(name() << " created");
     }
-    // Tell the channel listener that FluidNC has restarted.
-    // The initial newline clears out any garbage characters that might have
-    // resulted from the UART initialization and turn-on
-    print("\n");
-    out("RST", "MSG:");
+    sendGreeting();
     if (_uart_num) {
         getExpanderId();
     }
 }
 
+void UartChannel::sendGreeting() {
+    // Tell the channel listener that FluidNC has restarted.
+    // The initial newline clears out any garbage characters that might have
+    // resulted from the UART initialization and turn-on
+    print("\n");
+    out("RST", "MSG:");
+    _last_greeting_ms = millis();
+}
+
+static const uint32_t greeting_repeat_ms = 1000;
+
+// A device that powers up with FluidNC is often not listening yet when init()
+// sends the greeting, and an idle machine sends nothing after it.  If the
+// device waits for data before talking, neither side ever starts.  Repeat the
+// greeting, with a status report, until a complete line arrives.
+void UartChannel::handle() {
+    if (_peer_spoke || !_report_interval_ms || _uart->_rxd_pin.undefined()) {
+        return;
+    }
+    if ((millis() - _last_greeting_ms) < greeting_repeat_ms) {
+        return;
+    }
+    sendGreeting();
+    report_realtime_status(*this);
+}
+
+// An expander answers the ID query immediately; bound the wait so that a
+// device that keeps transmitting cannot stall startup.
+static const uint32_t expander_id_timeout_ms = 100;
+
 void UartChannel::getExpanderId() {
     out("ID", "EXP:");
-    char   buf[128];
-    size_t len;
-    while ((len = _uart->timedReadBytes(buf, sizeof(buf) - 1, 50)) != 0) {
+    char     buf[128];
+    uint32_t start = millis();
+    while ((millis() - start) < expander_id_timeout_ms) {
+        size_t len = _uart->timedReadBytes(buf, sizeof(buf) - 1, 10);
+        if (!len) {
+            continue;
+        }
         buf[len] = '\0';
         if (strncmp(buf, "(EXP,", 5) == 0) {
             auto pos = strrchr(buf, ')');
@@ -60,7 +91,16 @@ void UartChannel::getExpanderId() {
             }
             print("ok\n");
             log_info("IO Expander " << &buf[5]);
+            _peer_spoke = true;
+            return;
         }
+        // Not an expander reply, so it belongs to whatever else is on the port,
+        // typically a pendant's opening message.  These reads bypass pollLine(),
+        // so pass the bytes to the normal input path instead of dropping them.
+        for (size_t i = 0; i < len; i++) {
+            queue_push(static_cast<uint8_t>(buf[i]));
+        }
+        _active = true;
     }
 }
 
@@ -114,6 +154,7 @@ bool UartChannel::realtimeOkay(char c) {
 
 bool UartChannel::lineComplete(char* line, char c) {
     if (_lineedit->step(c)) {
+        _peer_spoke     = true;
         _linelen        = _lineedit->finish();
         _line[_linelen] = '\0';
         strcpy(line, _line);
