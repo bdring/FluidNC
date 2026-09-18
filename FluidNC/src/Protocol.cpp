@@ -589,22 +589,15 @@ void protocol_main_loop() {
                     }
                 }
 
-                size_t depth_before = Job::depth();
-                Error  status_code  = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
+                Error status_code = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
 
-                if (status_code == Error::Ok && Job::depth() > depth_before) {
-                    // This line pushed a new job (M6's tool-change macro,
-                    // $SD/Run, $LocalFS/Run) rather than running to
-                    // completion itself -- Job::nest() only pushes the job
-                    // source and returns; the real work has not started.
-                    // Acking now would tell the sender it is safe to resume
-                    // sending while the job is still starting up, racing
-                    // that job's own Job::unnest()/Job::abort() teardown
-                    // (FluidNC issue #1862). Hold the ack, and this
-                    // LineItem's processing ref, until the job we just
-                    // nested is fully popped.
-                    Job::defer_ack(channel);
-                } else {
+                // Error::Deferred means the line started a job (M6's
+                // tool-change macro, $SD/Run, $LocalFS/Run) whose completion
+                // -- not this dispatch -- owns the ack; see Job::nest()'s
+                // ack_channel argument and FluidNC issue #1862. Hold this
+                // LineItem's processing ref until then, same as the other
+                // Error::Deferred producers in this file.
+                if (status_code != Error::Deferred) {
                     // If the line was aborted, the channel could be invalid.
                     if (!sys.abort()) {
                         channel->ack(status_code);

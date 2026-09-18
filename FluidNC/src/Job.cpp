@@ -97,7 +97,7 @@ void Job::restore() {
     JobLock lock;
     restore_nl();
 }
-void Job::nest(Channel* in_channel, Channel* out_channel, int32_t stop_line) {
+void Job::nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel, int32_t stop_line) {
     JobLock lock;
     if (job.empty()) {
         // A fresh job stack did not exist when any pending unwind_cause was
@@ -108,6 +108,9 @@ void Job::nest(Channel* in_channel, Channel* out_channel, int32_t stop_line) {
         unwind_cause = nullptr;
     }
     auto source = new JobSource(in_channel);
+    if (ack_channel) {
+        source->set_pending_ack(ack_channel);
+    }
     source->set_stop_line(stop_line);
     if (out_channel && job.empty()) {
         // Hold a processing reference for the duration of the job.  A leader
@@ -218,16 +221,6 @@ bool Job::param_exists(const std::string& name) {
 Channel* Job::channel() {
     JobLock lock;
     return job.empty() ? nullptr : job.back()->channel();
-}
-size_t Job::depth() {
-    JobLock lock;
-    return job.size();
-}
-void Job::defer_ack(Channel* channel) {
-    JobLock lock;
-    if (!job.empty()) {
-        job.back()->set_pending_ack(channel);
-    }
 }
 int32_t Job::stop_line() {
     JobLock lock;

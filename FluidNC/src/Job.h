@@ -23,8 +23,10 @@ private:
     // nested this JobSource (M6's tool-change macro, $SD/Run, $LocalFS/Run),
     // once this JobSource is popped. nullptr if that line was already acked
     // immediately (the common case: informational commands, or nest() calls
-    // that are not standing in for a line awaiting a reply). See
-    // Job::defer_ack() and Job::pop().
+    // that are not standing in for a line awaiting a reply, e.g. a
+    // restart_macro or a pin-triggered macro event). Set atomically with the
+    // push, from Job::nest()'s own ack_channel argument -- see the note
+    // there for why this can't be inferred after the fact.
     Channel* _ack_channel = nullptr;
 
 public:
@@ -33,7 +35,7 @@ public:
     void    set_stop_line(int32_t line) { _stop_line = line; }
     void     set_pending_ack(Channel* channel) { _ack_channel = channel; }
     Channel* ack_channel() const { return _ack_channel; }
-    bool get_param(const std::string& name, float& value) {
+    bool     get_param(const std::string& name, float& value) {
         auto it = _local_params.find(name);
         if (it == _local_params.end()) {
             return false;
@@ -71,10 +73,10 @@ public:
 class Job {
 private:
     // Caller holds s_job_mutex.  Removes the top JobSource; if it had a
-    // deferred ack pending (Job::defer_ack()), appends its channel to
-    // acks_owed so unnest()/abort() can fire it once the lock is released --
-    // ack()/release_processing_ref() may do channel I/O, which should not run
-    // under s_job_mutex.
+    // deferred ack pending (set via nest()'s ack_channel argument), appends
+    // its channel to acks_owed so unnest()/abort() can fire it once the lock
+    // is released -- ack()/release_processing_ref() may do channel I/O,
+    // which should not run under s_job_mutex.
     static void pop(std::vector<Channel*>& acks_owed);
 
     // Caller holds s_job_mutex.  Drops the processing reference taken in
@@ -88,28 +90,31 @@ public:
 
     static bool active();
 
-    static void       save();
-    static void       restore();
-    static void       nest(Channel* in_channel, Channel* out_channel, int32_t stop_line = 0);
+    static void save();
+    static void restore();
+    // ack_channel, if non-null, marks the pushed JobSource as owing a
+    // deferred ack/error reply to that channel once this same JobSource is
+    // popped (Error::Ok from a normal Job::unnest(), or whatever status is
+    // given to Job::abort()) -- see FluidNC issue #1862: the command line
+    // that gets here (M6, $SD/Run, $LocalFS/Run) would otherwise be acked
+    // immediately, before the job it just started has done anything, letting
+    // the sender believe it is safe to resume sending while the job is still
+    // starting up.
+    //
+    // This must be set here, atomically with the push under s_job_mutex, not
+    // inferred afterward from whether the stack grew: nest() can also be
+    // reached from a pin-triggered macro event serviced by
+    // protocol_handle_events(), which execute_line() can call synchronously
+    // (via protocol_buffer_synchronize()) while dispatching a completely
+    // unrelated line. A post-hoc "did the depth change" check cannot tell
+    // that unrelated push apart from this one.
+    //
+    // stop_line, if non-zero, sets the new JobSource's own stop_line (see
+    // JobSource above) atomically with the push.
+    static void nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel = nullptr, int32_t stop_line = 0);
     static void       unnest();
     static void       abort(Error status = Error::Reset);
     static JobSource* source();  // nullptr when no job is active
-
-    // Stack depth, for detecting that a line just dispatched pushed a new job
-    // (see Protocol.cpp's cmd_queue consumer, which compares this before and
-    // after execute_line()).
-    static size_t depth();
-
-    // Marks the top-of-stack JobSource as owing a deferred ack/error reply to
-    // `channel` for the command line that just nested it. Job::nest() only
-    // pushes the job source and returns -- the real work (opening the file,
-    // running the macro's first line) has not happened yet -- so acking that
-    // line immediately would tell the sender it is safe to resume sending
-    // while the job is still starting up, racing this same JobSource's own
-    // Job::unnest()/Job::abort() teardown. See FluidNC issue #1862. The reply
-    // is sent once this JobSource is popped: Error::Ok from a normal
-    // Job::unnest(), or whatever status is given to Job::abort().
-    static void defer_ack(Channel* channel);
 
     // Atomically checks unwind_cause against the job stack and, if a job is
     // active, aborts it and clears the flag - all under the one job-mutex
