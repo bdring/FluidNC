@@ -589,7 +589,15 @@ void protocol_main_loop() {
                     }
                 }
 
-                Error status_code = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
+                // Job::dispatch_channel, not out_channel (which execute_line()
+                // itself is called with, and may be the job leader instead of
+                // `channel` -- see its declaration), is what a deferred ack
+                // started by this line must target: it is `channel` that
+                // holds the processing ref this dispatch will skip releasing
+                // below on Error::Deferred.
+                Job::dispatch_channel = channel;
+                Error status_code     = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
+                Job::dispatch_channel = nullptr;
 
                 // Error::Deferred means the line started a job (M6's
                 // tool-change macro, $SD/Run, $LocalFS/Run) whose completion

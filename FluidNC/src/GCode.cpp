@@ -285,7 +285,18 @@ Error gc_execute_line(const char* input_line, Channel& channel) {
     // have protocol_main_loop ack this line immediately, a double reply and
     // a double release of the channel's processing ref.
     bool deferred_ack = false;
-    auto deferred_err = [&](Error err) { return deferred_ack ? Error::Deferred : err; };
+    auto deferred_err = [&](Error err) {
+        if (!deferred_ack) {
+            return err;
+        }
+        // The job is already running and its own completion will send the
+        // eventual reply, normally Error::Ok -- attach this real error to it
+        // instead, or it would otherwise be silently lost (e.g. a valid
+        // "M6 M62 P0" with an undefined output would report ok once the tool
+        // change finishes, never telling the sender the M62 half failed).
+        Job::set_ack_error(Job::dispatch_channel, err);
+        return Error::Deferred;
+    };
 
     char line[128];
     if (strlen(input_line) > 127) {
@@ -2067,21 +2078,7 @@ Error gc_execute_line(const char* input_line, Channel& channel) {
     gc_state.modal.program_flow = ProgramFlow::Running;  // Reset program flow.
 
     bool assignments_ok = perform_assignments();
-    if (deferred_ack) {
-        // A macro/ATC job is now running asynchronously and owns this
-        // line's ack (see Job::nest()'s ack_channel argument). Report that
-        // instead of Ok even if assignments_ok is false: the caller already
-        // started the job, and returning anything other than
-        // Error::Deferred here would make protocol_main_loop ack this line
-        // immediately while the job's own completion, later, also fires the
-        // deferred ack -- a double reply and a double release of the
-        // channel's processing ref.
-        if (!assignments_ok) {
-            log_error("Parameter assignment failed on a line that also started a job");
-        }
-        return Error::Deferred;
-    }
-    return assignments_ok ? Error::Ok : Error::ParameterAssignmentFailed;
+    return assignments_ok ? deferred_err(Error::Ok) : deferred_err(Error::ParameterAssignmentFailed);
 
     // TODO: % to denote start of program.
 }

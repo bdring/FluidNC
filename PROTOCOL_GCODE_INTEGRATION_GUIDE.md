@@ -216,8 +216,13 @@ Error execute_line(const char* line, Channel& channel,
         return Error::SystemGcLock;
     }
     
-    Error result = gc_execute_line(line);
-    if (result != Error::Ok) {
+    // `channel` is threaded through so M6/M61 tool-change handling can defer
+    // this line's ack to an asynchronous macro/ATC job's completion instead
+    // of gc_execute_line() returning immediately after only starting it
+    // (Error::Deferred; see FluidNC issue #1862). Callers must treat
+    // Error::Deferred like Error::Ok here -- it is not a "Bad GCode".
+    Error result = gc_execute_line(line, channel);
+    if (result != Error::Ok && result != Error::Deferred) {
         log_error_to(channel, "Bad GCode: " << line);
     }
     return result;
@@ -230,7 +235,7 @@ Error execute_line(const char* line, Channel& channel,
 
 #### Entry Point
 ```cpp
-Error gc_execute_line(const char* input_line);
+Error gc_execute_line(const char* line, Channel& channel);
 ```
 
 #### Four-Step Process

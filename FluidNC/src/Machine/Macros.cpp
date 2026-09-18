@@ -142,7 +142,13 @@ bool Macro::run(Channel* channel, bool defer_ack) {
             log_debug_to(*channel, "Run " << name() << ": " << _gcode);
         }
         Job::save();
-        Job::nest(new MacroChannel(this), channel, defer_ack ? channel : nullptr);
+        // `channel` is the right leader/output-routing target (it may be the
+        // outer job's leader, not the actual line-dispatch channel -- see
+        // Job::dispatch_channel's declaration), but the ack, when deferred,
+        // must go to Job::dispatch_channel instead: that is the channel
+        // holding the processing ref for the M6/M61 line that got us here
+        // (FluidNC issue #1862).
+        Job::nest(new MacroChannel(this), channel, defer_ack ? Job::dispatch_channel : nullptr);
         return true;
     }
     return false;
