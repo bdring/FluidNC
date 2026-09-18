@@ -126,7 +126,7 @@ void Channel::flushRx() {
     // protocol_do_soft_restart(), so any channel that somehow ended up
     // pending-ack-gated survives at most until the next reset regardless of
     // how it got that way.
-    _pending_ack = false;
+    _pending_ack.store(false, std::memory_order_release);
 }
 
 // Enqueue one non-realtime byte.  Drop policy is whole-line: if a new line
@@ -381,7 +381,7 @@ Error       Channel::pollLine(char* line) {
     // characters still work below, but no new line is completed -- other
     // bytes queue in _queue instead, to be consumed once the ack arrives and
     // this channel is polled with a real buffer again.
-    char* effective_line = _pending_ack ? nullptr : line;
+    char* effective_line = _pending_ack.load(std::memory_order_acquire) ? nullptr : line;
     handle();
     while (1) {
         if (_cnt) {
@@ -413,7 +413,7 @@ Error       Channel::pollLine(char* line) {
         }
 
         if (lineComplete(effective_line, ch)) {
-            _pending_ack = true;
+            _pending_ack.store(true, std::memory_order_release);
             return Error::Ok;
         }
     }
@@ -446,7 +446,7 @@ void Channel::registerVirtualPin(pinnum_t pinnum, InputPin* obj) {
 }
 
 void Channel::ack(Error status) {
-    _pending_ack = false;
+    _pending_ack.store(false, std::memory_order_release);
     if (status == Error::Ok) {
         sendLine(MsgLevelNone, "ok");
         return;
