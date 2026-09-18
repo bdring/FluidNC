@@ -479,6 +479,11 @@ void protocol_main_loop() {
         if (xQueueReceive(cmd_queue, &item, 0)) {
             Channel* channel = item.channel;
             if (channel->is_closing()) {
+                // No ack() -- the channel is on its way out -- but still
+                // clear its pending-ack gate: the ref release just below is
+                // what actually lets it be reaped, so nothing else will ever
+                // ack this line for it (see Channel::_pending_ack).
+                channel->clear_pending_ack();
                 channel->release_processing_ref();
             } else {
                 if (gcode_echo->get()) {
@@ -606,9 +611,15 @@ void protocol_main_loop() {
                 // LineItem's processing ref until then, same as the other
                 // Error::Deferred producers in this file.
                 if (status_code != Error::Deferred) {
-                    // If the line was aborted, the channel could be invalid.
+                    // If the line was aborted, avoid writing a stale reply
+                    // to the channel mid-teardown -- but still clear its
+                    // pending-ack gate (Channel::_pending_ack), or it would
+                    // never accept another line: nothing else is going to
+                    // ack this one now.
                     if (!sys.abort()) {
                         channel->ack(status_code);
+                    } else {
+                        channel->clear_pending_ack();
                     }
                     channel->release_processing_ref();
                 }
