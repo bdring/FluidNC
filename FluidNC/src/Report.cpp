@@ -517,7 +517,7 @@ void report_realtime_status(Channel& channel) {
         msg << "|Bf:" << plan_get_block_buffer_available() << "," << channel.rx_buffer_available();
     }
 
-    if (config->_useLineNumbers) {
+    if (config->_useLineNumbers || file_line_numbers->get()) {
         // Report current line number
         plan_block_t* cur_block = plan_get_current_block();
         if (cur_block != NULL) {

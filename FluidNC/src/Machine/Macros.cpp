@@ -129,9 +129,10 @@ bool Macro::run(Channel* channel) {
 }
 
 Error MacroChannel::readLine(char* line, size_t maxlen) {
-    size_t             len       = 0;
-    const std::string& gcode     = _macro->_gcode;
-    const int          gcode_len = gcode.length();
+    size_t             len        = 0;
+    const std::string& gcode      = _macro->_gcode;
+    const int          gcode_len  = gcode.length();
+    bool               terminated = false;
     while (_position < gcode_len) {
         if (len >= maxlen) {
             return Error::LineLengthExceeded;
@@ -152,14 +153,20 @@ Error MacroChannel::readLine(char* line, size_t maxlen) {
         // & is a proxy for newlines in macros, because you cannot
         // enter a newline directly in a config file string value.
         if (c == '&' || c == '\n') {
+            terminated = true;
             break;
         }
         line[len++] = c;
     }
     line[len] = '\0';
-    ++_line_number;
-    if (len == 0) {
-        ++_blank_lines;
+    // Match InputFile::readLine's semantics: count a line when it was properly
+    // terminated, or when EOF was reached with pending content lacking a
+    // terminator, but not when this call found nothing at all (true EOF).
+    if (terminated || len > 0) {
+        ++_line_number;
+        if (len == 0) {
+            ++_blank_lines;
+        }
     }
 
     return len ? Error::Ok : Error::Eof;

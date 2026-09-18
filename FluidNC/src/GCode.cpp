@@ -16,6 +16,7 @@
 #include "Machine/UserInputs.h"   // read digital/analog inputs
 #include "Platform.h"             // WEAK_LINK
 #include "Job.h"                  // Job::active() and Job::channel()
+#include "SettingsDefinitions.h"  // file_line_numbers
 
 #include "Machine/MachineConfig.h"
 #include "Parameters.h"
@@ -1667,7 +1668,15 @@ Error gc_execute_line(const char* input_line) {
     // [0. Non-specific/common error-checks and miscellaneous setup]:
     // NOTE: If no line number is present, the value is zero.
     gc_state.line_number = gc_block.values.n;
-    pl_data->line_number = gc_state.line_number;  // Record data for planner use.
+    // $File/LineNumbers reports progress through the running file rather than
+    // the GCode N word, which most senders omit or use for other purposes.
+    // Job::channel() is null when this line did not come from a file/macro job
+    // (e.g. jogging or a manual console command), so fall back to the N word.
+    if (file_line_numbers->get() && Job::channel()) {
+        pl_data->line_number = (int32_t)Job::channel()->lineNumber();
+    } else {
+        pl_data->line_number = gc_state.line_number;  // Record data for planner use.
+    }
 
     // [1. Comments feedback ]:  NOT SUPPORTED
     // [2. Set feed rate mode ]:
