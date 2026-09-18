@@ -89,6 +89,20 @@ Macro Macros::_after_reset { "after_reset" };
 // Runs after a $X unlock command.
 Macro Macros::_after_unlock { "after_unlock" };
 
+// @config after_dry_run
+// @default ""
+// @default_note empty
+// @tuning typical
+// Runs when a check-mode dry run ($C then $SD/Run=path,line or
+// $LocalFS/Run=path,line) reaches its target line. gc_state has been
+// reconstructed by the dry run as of that line, so #<_target_x/y/z>,
+// #<_spindle_cw>, #<_rpm>, #<_flood>, and #<_mist> reflect where the file's
+// G-code would have left the tool and its spindle/coolant state -- useful
+// for a macro that repositions and re-establishes spindle/coolant state
+// before resuming a job after a crash. If empty, the dry run just pauses at
+// the target line in single block mode with no macro run first.
+Macro Macros::_after_dry_run { "after_dry_run" };
+
 // clang-format off
 const std::map<std::string, Cmd> overrideCodes = {
     { "fr", Cmd::FeedOvrReset },

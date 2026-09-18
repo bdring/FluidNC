@@ -333,6 +333,7 @@ static void poll_once() {
             char buf[Channel::maxLine];
             if (uxQueueSpacesAvailable(cmd_queue)) {
                 if (Channel* channel = Job::channel(); channel && channel->pending_processing_refs() == 0) {
+                    channel->setLineStartPosition(channel->position());
                     auto status = channel->pollLine(buf);
                     switch (status) {
                         case Error::Ok:
@@ -497,15 +498,34 @@ void protocol_main_loop() {
                     if (jc && (!state_is(State::CheckMode) || atStopLine)) {
                         if (atStopLine) {
                             Job::set_stop_line(0);  // one-shot
+                            bool wasDryRun = state_is(State::CheckMode);
                             log_info("Job reached line " << jc->lineNumber() << "; switching to single block mode");
                             // Only a check-mode dry run needs to be kicked out of CheckMode
                             // here; a future breakpoint on a normal (non-check-mode) job would
                             // already be in Cycle, and forcing Idle then would be wrong.
-                            if (state_is(State::CheckMode)) {
+                            if (wasDryRun) {
                                 set_state(State::Idle);
                             }
                             if (!config->_control->_singleBlockPin.get()) {
                                 protocol_send_event(&pinActiveEvent, &config->_control->_singleBlockPin);
+                            }
+
+                            // A dry run may have an after_dry_run macro configured to move
+                            // into position and re-establish spindle/coolant state (using
+                            // #<_target_x/y/z>, #<_spindle_cw>, #<_rpm>, #<_flood>, #<_mist>,
+                            // which reflect gc_state as reconstructed by the dry run) before
+                            // resuming the file for real -- see Machine/Macros.cpp. If one is
+                            // configured, rewind the file to the start of this not-yet-executed
+                            // line first, so it reads correctly again once the macro finishes
+                            // and unnests back to it, then nest the macro and skip dispatching
+                            // item.line (this file's line, just rewound) this pass -- the
+                            // macro's own first line is polled and previewed fresh next pass.
+                            if (wasDryRun && !config->_macros->_after_dry_run.get().empty()) {
+                                jc->set_position(jc->lineStartPosition());
+                                jc->setLineNumber(jc->lineNumber() - 1);
+                                config->_macros->_after_dry_run.run(out_channel);
+                                channel->release_processing_ref();
+                                continue;
                             }
                         }
                         std::string_view preview(item.line);

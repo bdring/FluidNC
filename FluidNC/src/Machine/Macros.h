@@ -34,6 +34,7 @@ namespace Machine {
         static Macro _after_homing;
         static Macro _after_reset;
         static Macro _after_unlock;
+        static Macro _after_dry_run;
 
         Macros() = default;
 
@@ -49,6 +50,7 @@ namespace Machine {
             handler.item(_after_homing.name(), _after_homing);
             handler.item(_after_reset.name(), _after_reset);
             handler.item(_after_unlock.name(), _after_unlock);
+            handler.item(_after_dry_run.name(), _after_dry_run);
         }
 
         ~Macros() {}

@@ -155,6 +155,14 @@ public:
 
     size_t _line_number = 0;
 
+    // position() as of just before the most recent pollLine() read the line
+    // currently in flight. Set by poll_once() (Protocol.cpp) right before
+    // pollLine() is called. Used to rewind a job's file back to the start of
+    // a not-yet-executed line -- e.g. when a dry-run stop line (Job::stop_line)
+    // defers that line to run a resume macro first -- so the line is read
+    // again, unchanged, once the file is reached normally.
+    size_t _line_start_position = 0;
+
     std::string _progress;
 
     // rx_buffer_available() is the number of bytes that can be sent without overflowing
@@ -256,6 +264,9 @@ public:
 
     size_t lineNumber() { return _line_number; }
     void   setLineNumber(size_t line_number) { _line_number = line_number; }
+
+    size_t lineStartPosition() { return _line_start_position; }
+    void   setLineStartPosition(size_t pos) { _line_start_position = pos; }
 
     virtual void   save() {}
     virtual void   restore() {}
