@@ -74,6 +74,17 @@ public:
     static Channel* channel();         // top-of-stack channel, or nullptr when idle
     static Channel* leader_channel();  // job leader, or nullptr when idle
 
+    // Line number at which protocol_main_loop's pre-dispatch pause gate
+    // should pause before dispatching, in addition to (or instead of) single
+    // block mode; 0 means no stop is requested. Set via $SD/Run and
+    // $LocalFS/Run's optional ",line" argument (runFile() in
+    // FileCommands.cpp): preceded by $C, this stops a check-mode dry run at a
+    // specific line; without $C first, it stops a normal run there instead.
+    // Cleared automatically when the job stack empties, so it cannot leak
+    // into an unrelated later job.
+    static int32_t stop_line;
+    static void    set_stop_line(int32_t line) { stop_line = line; }
+
     // Snapshot of the stack for $Local/Params listing.  Not safe against a
     // concurrent unnest()/abort(); only meaningful for interactive use.
     static const std::vector<JobSource*>& jobs_stack();

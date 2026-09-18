@@ -249,18 +249,43 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
     return err;
 }
 
+// parameter is "path[,line]". line, if present, is a 1-based line number at
+// which protocol_main_loop's pre-dispatch pause gate should pause the job
+// before it dispatches (see Job::stop_line) -- combined with a prior $C, this
+// gives a check-mode dry run that stops partway through the file with
+// gc_state reconstructed as of that line; without $C first, it stops a real
+// run at that line instead.
 static Error runFile(const Volume& fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
     Error err;
     if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
         log_string(out, "Alarm");
         return Error::IdleError;
     }
+
+    std::string_view args(parameter);
+    std::string_view path;
+    string_util::split_prefix(args, path, ',');
+    if (path.empty()) {
+        log_error_to(out, "Missing filename");
+        return Error::InvalidValue;
+    }
+    int32_t stopLine = 0;  // 0 means run to EOF without stopping
+    if (!args.empty()) {
+        auto result = std::from_chars(args.data(), args.data() + args.length(), stopLine);
+        if (result.ec != std::errc() || stopLine <= 0) {
+            log_error_to(out, "Invalid line number");
+            return Error::InvalidValue;
+        }
+    }
+    std::string pathStr(path);
+
     Job::save();
     InputFile* theFile;
-    if ((err = openFile(fs, parameter, out, theFile)) != Error::Ok) {
+    if ((err = openFile(fs, pathStr.c_str(), out, theFile)) != Error::Ok) {
         Job::restore();
         return err;
     }
+    Job::set_stop_line(stopLine);
     Job::nest(theFile, &out);
 
     return Error::Ok;

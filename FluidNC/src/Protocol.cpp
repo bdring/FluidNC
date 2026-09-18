@@ -471,7 +471,18 @@ void protocol_main_loop() {
                 // Single-step mode: pause before each job line exactly like an inferred
                 // M0 ahead of that line, reporting a preview of what will run next. The
                 // line is only executed once a cycle start releases the hold.
-                if (config->_control->_singleBlockPin.get() && Job::active() && !sys.abort()) {
+                //
+                // Job::stop_line reuses this same pre-dispatch pause for a one-shot stop
+                // at a specific line, regardless of single_block_pin. $SD/Run and
+                // $LocalFS/Run's optional ",line" argument (see runFile() in
+                // FileCommands.cpp) set it; preceded by $C, that stops a check-mode dry
+                // run at the target line with gc_state reconstructed as of that line;
+                // without $C first, it stops a real run there instead. The check below
+                // therefore also fires while in CheckMode, which the plain single-block
+                // case does not. When it fires for a dry run specifically, it additionally
+                // leaves CheckMode and turns on single block mode, so the job continues one
+                // real line at a time from here on -- no separate "resume" path is needed.
+                if ((config->_control->_singleBlockPin.get() || Job::stop_line) && Job::active() && !sys.abort()) {
                     protocol_buffer_synchronize();  // Finish all remaining buffered motion before pausing.
 
                     // protocol_buffer_synchronize() pumps realtime commands, during which the
@@ -481,8 +492,22 @@ void protocol_main_loop() {
                     // still matches item.line because CMD_QUEUE_DEPTH == 1 and poll_once() will
                     // not read another job line while our processing_ref is held -- exactly one
                     // job line is ever in flight; a deeper queue would let that skew.
-                    Channel* jc = Job::channel();
-                    if (jc && !state_is(State::CheckMode)) {
+                    Channel* jc         = Job::channel();
+                    bool     atStopLine = jc && Job::stop_line && (int32_t)jc->lineNumber() == Job::stop_line;
+                    if (jc && (!state_is(State::CheckMode) || atStopLine)) {
+                        if (atStopLine) {
+                            Job::set_stop_line(0);  // one-shot
+                            log_info("Job reached line " << jc->lineNumber() << "; switching to single block mode");
+                            // Only a check-mode dry run needs to be kicked out of CheckMode
+                            // here; a future breakpoint on a normal (non-check-mode) job would
+                            // already be in Cycle, and forcing Idle then would be wrong.
+                            if (state_is(State::CheckMode)) {
+                                set_state(State::Idle);
+                            }
+                            if (!config->_control->_singleBlockPin.get()) {
+                                protocol_send_event(&pinActiveEvent, &config->_control->_singleBlockPin);
+                            }
+                        }
                         std::string_view preview(item.line);
                         bool             truncated = preview.size() > 20;
                         if (truncated) {

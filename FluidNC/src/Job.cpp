@@ -48,7 +48,8 @@ JobSource::~JobSource() {
 }
 
 
-Channel* Job::leader = nullptr;
+Channel* Job::leader    = nullptr;
+int32_t  Job::stop_line = 0;
 
 // Guards `job` and `leader`.  See the note in Job.h.
 static SemaphoreHandle_t s_job_mutex = xSemaphoreCreateMutex();
@@ -124,6 +125,7 @@ void Job::pop() {
     delete source;
     if (job.empty()) {
         release_leader();
+        stop_line = 0;
     }
 }
 
