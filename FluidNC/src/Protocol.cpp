@@ -359,7 +359,7 @@ static void poll_once() {
                                              static_cast<int>(status) << " (" << errorString(status) << ") in "
                                                                       << channel->name() << " at line " << channel->lineNumber());
                             }
-                            Job::abort();
+                            Job::abort(status);
                             break;
                         }
                     }
@@ -570,13 +570,28 @@ void protocol_main_loop() {
                     }
                 }
 
-                Error status_code = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
+                size_t depth_before = Job::depth();
+                Error  status_code  = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
 
-                // If the line was aborted, the channel could be invalid.
-                if (!sys.abort()) {
-                    channel->ack(status_code);
+                if (status_code == Error::Ok && Job::depth() > depth_before) {
+                    // This line pushed a new job (M6's tool-change macro,
+                    // $SD/Run, $LocalFS/Run) rather than running to
+                    // completion itself -- Job::nest() only pushes the job
+                    // source and returns; the real work has not started.
+                    // Acking now would tell the sender it is safe to resume
+                    // sending while the job is still starting up, racing
+                    // that job's own Job::unnest()/Job::abort() teardown
+                    // (FluidNC issue #1862). Hold the ack, and this
+                    // LineItem's processing ref, until the job we just
+                    // nested is fully popped.
+                    Job::defer_ack(channel);
+                } else {
+                    // If the line was aborted, the channel could be invalid.
+                    if (!sys.abort()) {
+                        channel->ack(status_code);
+                    }
+                    channel->release_processing_ref();
                 }
-                channel->release_processing_ref();
             }
         }
 
