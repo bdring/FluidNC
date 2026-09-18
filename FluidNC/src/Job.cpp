@@ -118,9 +118,12 @@ void Job::nest(Channel* in_channel, Channel* out_channel) {
     job.push_back(source);
 }
 // Caller holds s_job_mutex.
-void Job::pop() {
+void Job::pop(std::vector<Channel*>& acks_owed) {
     auto source = job.back();
     job.pop_back();
+    if (Channel* ch = source->ack_channel()) {
+        acks_owed.push_back(ch);
+    }
     delete source;
     if (job.empty()) {
         release_leader();
@@ -135,18 +138,34 @@ void Job::release_leader() {
     }
 }
 void Job::unnest() {
-    JobLock lock;
-    if (active_nl()) {
-        pop();
-        restore_nl();
+    std::vector<Channel*> acks_owed;
+    {
+        JobLock lock;
+        if (active_nl()) {
+            pop(acks_owed);
+            restore_nl();
+        }
+    }
+    // Fired after the lock is released: ack()/release_processing_ref() may do
+    // channel I/O.
+    for (Channel* ch : acks_owed) {
+        ch->ack(Error::Ok);
+        ch->release_processing_ref();
     }
 }
 
-void Job::abort() {
-    JobLock lock;
-    // Kill all active jobs
-    while (active_nl()) {
-        pop();
+void Job::abort(Error status) {
+    std::vector<Channel*> acks_owed;
+    {
+        JobLock lock;
+        // Kill all active jobs
+        while (active_nl()) {
+            pop(acks_owed);
+        }
+    }
+    for (Channel* ch : acks_owed) {
+        ch->ack(status);
+        ch->release_processing_ref();
     }
 }
 
@@ -165,6 +184,16 @@ bool Job::param_exists(const std::string& name) {
 Channel* Job::channel() {
     JobLock lock;
     return job.empty() ? nullptr : job.back()->channel();
+}
+size_t Job::depth() {
+    JobLock lock;
+    return job.size();
+}
+void Job::defer_ack(Channel* channel) {
+    JobLock lock;
+    if (!job.empty()) {
+        job.back()->set_pending_ack(channel);
+    }
 }
 Channel* Job::leader_channel() {
     JobLock lock;
