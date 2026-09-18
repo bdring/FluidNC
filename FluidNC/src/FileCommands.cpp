@@ -261,9 +261,13 @@ static Error runFile(const Volume& fs, const char* parameter, AuthenticationLeve
         Job::restore();
         return err;
     }
-    Job::nest(theFile, &out);
+    // `out` is also the ack_channel: `out` is the channel that sent this
+    // $SD/Run or $LocalFS/Run command and is waiting for its reply, so that
+    // reply must wait for the job -- not this dispatch -- to finish. See
+    // Job::nest()'s ack_channel argument and FluidNC issue #1862.
+    Job::nest(theFile, &out, &out);
 
-    return Error::Ok;
+    return Error::Deferred;
 }
 
 static Error runSDFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP220

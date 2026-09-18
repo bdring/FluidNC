@@ -116,13 +116,13 @@ Cmd findOverride(std::string name) {
     return it == overrideCodes.end() ? Cmd::None : it->second;
 }
 
-bool Macro::run(Channel* channel) {
+bool Macro::run(Channel* channel, bool defer_ack) {
     if (_gcode.length()) {
         if (channel) {
             log_debug_to(*channel, "Run " << name() << ": " << _gcode);
         }
         Job::save();
-        Job::nest(new MacroChannel(this), channel);
+        Job::nest(new MacroChannel(this), channel, defer_ack ? channel : nullptr);
         return true;
     }
     return false;

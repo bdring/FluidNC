@@ -96,9 +96,12 @@ void Job::restore() {
     JobLock lock;
     restore_nl();
 }
-void Job::nest(Channel* in_channel, Channel* out_channel) {
+void Job::nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel) {
     JobLock lock;
     auto source = new JobSource(in_channel);
+    if (ack_channel) {
+        source->set_pending_ack(ack_channel);
+    }
     if (out_channel && job.empty()) {
         // Hold a processing reference for the duration of the job.  A leader
         // can die while the job runs - a WebSocket or an HTTP client
@@ -184,16 +187,6 @@ bool Job::param_exists(const std::string& name) {
 Channel* Job::channel() {
     JobLock lock;
     return job.empty() ? nullptr : job.back()->channel();
-}
-size_t Job::depth() {
-    JobLock lock;
-    return job.size();
-}
-void Job::defer_ack(Channel* channel) {
-    JobLock lock;
-    if (!job.empty()) {
-        job.back()->set_pending_ack(channel);
-    }
 }
 Channel* Job::leader_channel() {
     JobLock lock;
