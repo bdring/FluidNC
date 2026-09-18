@@ -19,10 +19,22 @@ private:
     // there for why this can't be inferred after the fact.
     Channel* _ack_channel = nullptr;
 
+    // Status to report on a normal (Eof-driven) Job::unnest() instead of the
+    // usual Error::Ok, if non-Ok. Covers a line that both starts this job
+    // and fails afterward in some other way it already returned
+    // Error::Deferred for -- e.g. a combined "M6 M62 P0" line where the M62
+    // half is invalid: the M6 half already started the job by the time the
+    // M62 half fails, so the failure has to ride along on the eventual
+    // deferred ack instead of being returned directly (FluidNC issue
+    // #1862). Job::abort()'s own status always takes priority over this.
+    Error _ack_error = Error::Ok;
+
 public:
     JobSource(Channel* channel) : _channel(channel) {}
     void     set_pending_ack(Channel* channel) { _ack_channel = channel; }
     Channel* ack_channel() const { return _ack_channel; }
+    void     set_ack_error(Error err) { _ack_error = err; }
+    Error    ack_error() const { return _ack_error; }
     bool     get_param(const std::string& name, float& value) {
         auto it = _local_params.find(name);
         if (it == _local_params.end()) {
@@ -59,13 +71,21 @@ public:
 // should use one call (e.g. channel(), which returns nullptr when idle) rather
 // than active() followed by a second call.
 class Job {
+public:
+    // A deferred ack (see nest()'s ack_channel argument) collected by pop(),
+    // to be fired once s_job_mutex is released.
+    struct PendingAck {
+        Channel* channel;
+        Error    status;
+    };
+
 private:
     // Caller holds s_job_mutex.  Removes the top JobSource; if it had a
     // deferred ack pending (set via nest()'s ack_channel argument), appends
-    // its channel to acks_owed so unnest()/abort() can fire it once the lock
-    // is released -- ack()/release_processing_ref() may do channel I/O,
-    // which should not run under s_job_mutex.
-    static void pop(std::vector<Channel*>& acks_owed);
+    // it to acks_owed so unnest()/abort() can fire it once the lock is
+    // released -- ack()/release_processing_ref() may do channel I/O, which
+    // should not run under s_job_mutex.
+    static void pop(std::vector<PendingAck>& acks_owed);
 
     // Caller holds s_job_mutex.  Drops the processing reference taken in
     // nest() and clears the pointer.
@@ -75,6 +95,24 @@ public:
     // Prefer leader_channel() for a locked read; the bare pointer is retained
     // for existing call sites and is written only under the job mutex.
     static Channel* leader;
+
+    // The channel actually holding the processing ref for the command line
+    // protocol_main_loop's cmd_queue consumer is currently dispatching on
+    // the protocol task -- set there just before calling execute_line(),
+    // valid only for the duration of that call, nullptr otherwise.
+    //
+    // This is deliberately NOT the same channel execute_line()/
+    // gc_execute_line() are themselves called with: that one is
+    // out_channel (the job leader, when the dispatched line is itself a
+    // job's own line, e.g. M6/$SD/Run executed from inside an already-
+    // running SD file), used for routing diagnostics to whoever is
+    // watching the job. A deferred ack, in contrast, must go back to
+    // whichever channel actually sent this specific line and holds cmd_queue's
+    // matching processing ref -- using out_channel there instead would ack
+    // the wrong party and release the wrong ref (FluidNC issue #1862).
+    // nest()'s ack_channel argument (via Macro::run()'s defer_ack and
+    // FileCommands.cpp's runFile()) must read this, not out_channel.
+    static Channel* dispatch_channel;
 
     static bool active();
 
@@ -100,6 +138,16 @@ public:
     static void       unnest();
     static void       abort(Error status = Error::Reset);
     static JobSource* source();  // nullptr when no job is active
+
+    // Overrides the status a pending deferred ack reports on a normal
+    // Job::unnest(), for the JobSource whose ack_channel is `ack_channel`
+    // (a no-op if none matches -- nothing deferred there, or it already
+    // fired). Found by channel identity rather than stack position because
+    // more of the stack may have been pushed and popped by the time this is
+    // called (e.g. a combined M6 M62 line: protocol_buffer_synchronize()
+    // inside the M62 handling can pump a pin-triggered macro event in
+    // between M6 starting this job and M62 failing). See JobSource::_ack_error.
+    static void set_ack_error(Channel* ack_channel, Error err);
 
     static bool     get_param(const std::string& name, float& value);
     static bool     set_param(const std::string& name, float value);

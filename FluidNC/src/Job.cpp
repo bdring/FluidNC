@@ -48,7 +48,8 @@ JobSource::~JobSource() {
 }
 
 
-Channel* Job::leader = nullptr;
+Channel* Job::leader           = nullptr;
+Channel* Job::dispatch_channel = nullptr;
 
 // Guards `job` and `leader`.  See the note in Job.h.
 static SemaphoreHandle_t s_job_mutex = xSemaphoreCreateMutex();
@@ -121,11 +122,11 @@ void Job::nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel) 
     job.push_back(source);
 }
 // Caller holds s_job_mutex.
-void Job::pop(std::vector<Channel*>& acks_owed) {
+void Job::pop(std::vector<PendingAck>& acks_owed) {
     auto source = job.back();
     job.pop_back();
     if (Channel* ch = source->ack_channel()) {
-        acks_owed.push_back(ch);
+        acks_owed.push_back({ ch, source->ack_error() });
     }
     delete source;
     if (job.empty()) {
@@ -141,7 +142,7 @@ void Job::release_leader() {
     }
 }
 void Job::unnest() {
-    std::vector<Channel*> acks_owed;
+    std::vector<PendingAck> acks_owed;
     {
         JobLock lock;
         if (active_nl()) {
@@ -150,15 +151,17 @@ void Job::unnest() {
         }
     }
     // Fired after the lock is released: ack()/release_processing_ref() may do
-    // channel I/O.
-    for (Channel* ch : acks_owed) {
-        ch->ack(Error::Ok);
-        ch->release_processing_ref();
+    // channel I/O. `status` is normally Ok, but a line that both started
+    // this job and later failed in some other way it already returned
+    // Error::Deferred for (Job::set_ack_error()) reports that instead.
+    for (auto& pending : acks_owed) {
+        pending.channel->ack(pending.status);
+        pending.channel->release_processing_ref();
     }
 }
 
 void Job::abort(Error status) {
-    std::vector<Channel*> acks_owed;
+    std::vector<PendingAck> acks_owed;
     {
         JobLock lock;
         // Kill all active jobs
@@ -166,9 +169,12 @@ void Job::abort(Error status) {
             pop(acks_owed);
         }
     }
-    for (Channel* ch : acks_owed) {
-        ch->ack(status);
-        ch->release_processing_ref();
+    // The abort's own status takes priority over any Job::set_ack_error()
+    // override: a system-wide abort reason is more relevant than a stale
+    // note about this line's own validity.
+    for (auto& pending : acks_owed) {
+        pending.channel->ack(status);
+        pending.channel->release_processing_ref();
     }
 }
 
@@ -187,6 +193,18 @@ bool Job::param_exists(const std::string& name) {
 Channel* Job::channel() {
     JobLock lock;
     return job.empty() ? nullptr : job.back()->channel();
+}
+void Job::set_ack_error(Channel* ack_channel, Error err) {
+    if (!ack_channel) {
+        return;
+    }
+    JobLock lock;
+    for (auto source : job) {
+        if (source->ack_channel() == ack_channel) {
+            source->set_ack_error(err);
+            return;
+        }
+    }
 }
 Channel* Job::leader_channel() {
     JobLock lock;
