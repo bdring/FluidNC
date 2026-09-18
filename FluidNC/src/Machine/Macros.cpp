@@ -89,19 +89,25 @@ Macro Macros::_after_reset { "after_reset" };
 // Runs after a $X unlock command.
 Macro Macros::_after_unlock { "after_unlock" };
 
-// @config after_dry_run
+// @config restart_macro
 // @default ""
-// @default_note empty
+// @default_note empty (no restart macro is run)
 // @tuning typical
-// Runs when a check-mode dry run ($C then $SD/Run=path,line or
+// A macro (one config-file line, same syntax as macros: and Spindle's
+// m6_macro) run when a check-mode dry run ($C then $SD/Run=path,line or
 // $LocalFS/Run=path,line) reaches its target line. gc_state has been
 // reconstructed by the dry run as of that line, so #<_target_x/y/z>,
 // #<_spindle_cw>, #<_rpm>, #<_flood>, and #<_mist> reflect where the file's
-// G-code would have left the tool and its spindle/coolant state -- useful
-// for a macro that repositions and re-establishes spindle/coolant state
-// before resuming a job after a crash. If empty, the dry run just pauses at
-// the target line in single block mode with no macro run first.
-Macro Macros::_after_dry_run { "after_dry_run" };
+// G-code would have left the tool and its spindle/coolant state. A real
+// restart sequence typically needs conditionals, (PRINT ...), and its own
+// explicit M0 pauses that don't fit in one config-file line, so this is
+// usually just a delegating line like "$SD/Run=restart.nc" rather than the
+// sequence itself. It runs in normal (not single block) mode; single block
+// mode is switched on only once it finishes, so it steps through the
+// resumed job one line at a time from there. If empty, the dry run just
+// pauses at the target line in single block mode with no restart macro run
+// first.
+Macro Macros::_restart_macro { "restart_macro" };
 
 // clang-format off
 const std::map<std::string, Cmd> overrideCodes = {

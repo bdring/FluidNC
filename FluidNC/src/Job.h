@@ -9,8 +9,20 @@ private:
     Channel*                     _channel;
     std::map<std::string, float> _local_params;
 
+    // Line number at which protocol_main_loop's pre-dispatch pause gate
+    // should pause before dispatching this job's channel, in addition to (or
+    // instead of) single block mode; 0 means no stop is requested. Scoped to
+    // this JobSource (like _local_params) rather than shared across the whole
+    // stack, so a nested job (e.g. a restart_macro) can never
+    // collide with a stop line meant for the job underneath it -- it simply
+    // isn't job.back() while the nested job is on top, so its own stop_line
+    // (0, unless someone sets one) is the only one ever consulted.
+    int32_t _stop_line = 0;
+
 public:
     JobSource(Channel* channel) : _channel(channel) {}
+    int32_t stop_line() { return _stop_line; }
+    void    set_stop_line(int32_t line) { _stop_line = line; }
     bool get_param(const std::string& name, float& value) {
         auto it = _local_params.find(name);
         if (it == _local_params.end()) {
@@ -63,7 +75,7 @@ public:
 
     static void       save();
     static void       restore();
-    static void       nest(Channel* in_channel, Channel* out_channel);
+    static void       nest(Channel* in_channel, Channel* out_channel, int32_t stop_line = 0);
     static void       unnest();
     static void       abort();
     static JobSource* source();  // nullptr when no job is active
@@ -74,16 +86,28 @@ public:
     static Channel* channel();         // top-of-stack channel, or nullptr when idle
     static Channel* leader_channel();  // job leader, or nullptr when idle
 
-    // Line number at which protocol_main_loop's pre-dispatch pause gate
-    // should pause before dispatching, in addition to (or instead of) single
-    // block mode; 0 means no stop is requested. Set via $SD/Run and
-    // $LocalFS/Run's optional ",line" argument (runFile() in
-    // FileCommands.cpp): preceded by $C, this stops a check-mode dry run at a
+    // Delegate to the top-of-stack JobSource's own stop_line (see above); 0
+    // (no stop requested) if no job is active. Set via $SD/Run and
+    // $LocalFS/Run's optional ",line" argument, or nest()'s stop_line
+    // parameter: preceded by $C, this stops a check-mode dry run at a
     // specific line; without $C first, it stops a normal run there instead.
-    // Cleared automatically when the job stack empties, so it cannot leak
-    // into an unrelated later job.
-    static int32_t stop_line;
-    static void    set_stop_line(int32_t line) { stop_line = line; }
+    static int32_t stop_line();
+    static void    set_stop_line(int32_t line);
+
+    // True if the top-of-stack job's channel has reached its own configured
+    // stop_line(). A pure query -- it does not clear the stop line. The
+    // caller decides when the stop is truly consumed, via set_stop_line(0):
+    // a nested restart_macro job needs the original job's stop line left
+    // alone, so reaching it again re-triggers once the macro finishes and
+    // unnests, rather than only firing once. Used by protocol_main_loop's
+    // pre-dispatch pause gate (Protocol.cpp).
+    static bool at_stop_line();
+
+    // Rewinds the top-of-stack job's channel back to the start of the line
+    // it just read (via Channel::lineStartPosition()/lineNumber()), so that
+    // line is read again, unchanged, on a later pollLine() call -- e.g. to
+    // defer it while a restart_macro runs first.
+    static void rewind_current_line();
 
     // Snapshot of the stack for $Local/Params listing.  Not safe against a
     // concurrent unnest()/abort(); only meaningful for interactive use.

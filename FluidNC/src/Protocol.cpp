@@ -473,17 +473,15 @@ void protocol_main_loop() {
                 // M0 ahead of that line, reporting a preview of what will run next. The
                 // line is only executed once a cycle start releases the hold.
                 //
-                // Job::stop_line reuses this same pre-dispatch pause for a one-shot stop
+                // Job::stop_line() reuses this same pre-dispatch pause for a one-shot stop
                 // at a specific line, regardless of single_block_pin. $SD/Run and
                 // $LocalFS/Run's optional ",line" argument (see runFile() in
                 // FileCommands.cpp) set it; preceded by $C, that stops a check-mode dry
                 // run at the target line with gc_state reconstructed as of that line;
                 // without $C first, it stops a real run there instead. The check below
                 // therefore also fires while in CheckMode, which the plain single-block
-                // case does not. When it fires for a dry run specifically, it additionally
-                // leaves CheckMode and turns on single block mode, so the job continues one
-                // real line at a time from here on -- no separate "resume" path is needed.
-                if ((config->_control->_singleBlockPin.get() || Job::stop_line) && Job::active() && !sys.abort()) {
+                // case does not.
+                if ((config->_control->_singleBlockPin.get() || Job::stop_line()) && Job::active() && !sys.abort()) {
                     protocol_buffer_synchronize();  // Finish all remaining buffered motion before pausing.
 
                     // protocol_buffer_synchronize() pumps realtime commands, during which the
@@ -494,38 +492,49 @@ void protocol_main_loop() {
                     // not read another job line while our processing_ref is held -- exactly one
                     // job line is ever in flight; a deeper queue would let that skew.
                     Channel* jc         = Job::channel();
-                    bool     atStopLine = jc && Job::stop_line && (int32_t)jc->lineNumber() == Job::stop_line;
+                    bool     atStopLine = Job::at_stop_line();
                     if (jc && (!state_is(State::CheckMode) || atStopLine)) {
                         if (atStopLine) {
-                            Job::set_stop_line(0);  // one-shot
                             bool wasDryRun = state_is(State::CheckMode);
-                            log_info("Job reached line " << jc->lineNumber() << "; switching to single block mode");
+                            log_info("Job reached line " << jc->lineNumber());
                             // Only a check-mode dry run needs to be kicked out of CheckMode
                             // here; a future breakpoint on a normal (non-check-mode) job would
                             // already be in Cycle, and forcing Idle then would be wrong.
                             if (wasDryRun) {
                                 set_state(State::Idle);
+
+                                // A dry run may have a restart_macro configured, to move into
+                                // position and re-establish spindle/coolant state (using
+                                // #<_target_x/y/z>, #<_spindle_cw>, #<_rpm>, #<_flood>, #<_mist>,
+                                // which reflect gc_state as reconstructed by the dry run) before
+                                // resuming the file for real -- see Machine/Macros.cpp. Same
+                                // shape as Spindle's m6_macro: typically just a delegating line
+                                // like "$SD/Run=restart.nc", since a real restart sequence needs
+                                // real conditionals, (PRINT ...), and its own explicit M0 pauses
+                                // that don't fit in one config-file line. It runs in normal (not
+                                // single block) mode; single block mode (below) is switched on
+                                // only once it finishes and control returns here.
+                                if (!config->_macros->_restart_macro.get().empty()) {
+                                    // Job::at_stop_line() deliberately did not clear stop_line --
+                                    // leave it alone (still on this job's own JobSource, and 0 on
+                                    // the macro's fresh one, so nothing it or a file it delegates
+                                    // to does can collide with it) so re-reaching this line once
+                                    // the macro unnests re-triggers this same handler, this time
+                                    // with wasDryRun false, falling through to set_stop_line(0)
+                                    // and the plain single-block pause below. Rewind first, so the
+                                    // line reads correctly again once the macro unnests back to
+                                    // it; item.line (this file's line, just rewound) must not run
+                                    // this pass -- the macro's own first line is polled and
+                                    // dispatched fresh next pass instead.
+                                    Job::rewind_current_line();
+                                    config->_macros->_restart_macro.run(out_channel);
+                                    channel->release_processing_ref();
+                                    continue;
+                                }
                             }
+                            Job::set_stop_line(0);  // truly done: consume the one-shot stop
                             if (!config->_control->_singleBlockPin.get()) {
                                 protocol_send_event(&pinActiveEvent, &config->_control->_singleBlockPin);
-                            }
-
-                            // A dry run may have an after_dry_run macro configured to move
-                            // into position and re-establish spindle/coolant state (using
-                            // #<_target_x/y/z>, #<_spindle_cw>, #<_rpm>, #<_flood>, #<_mist>,
-                            // which reflect gc_state as reconstructed by the dry run) before
-                            // resuming the file for real -- see Machine/Macros.cpp. If one is
-                            // configured, rewind the file to the start of this not-yet-executed
-                            // line first, so it reads correctly again once the macro finishes
-                            // and unnests back to it, then nest the macro and skip dispatching
-                            // item.line (this file's line, just rewound) this pass -- the
-                            // macro's own first line is polled and previewed fresh next pass.
-                            if (wasDryRun && !config->_macros->_after_dry_run.get().empty()) {
-                                jc->set_position(jc->lineStartPosition());
-                                jc->setLineNumber(jc->lineNumber() - 1);
-                                config->_macros->_after_dry_run.run(out_channel);
-                                channel->release_processing_ref();
-                                continue;
                             }
                         }
                         std::string_view preview(item.line);

@@ -251,8 +251,8 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
 
 // parameter is "path[,line]". line, if present, is a 1-based line number at
 // which protocol_main_loop's pre-dispatch pause gate should pause the job
-// before it dispatches (see Job::stop_line) -- combined with a prior $C, this
-// gives a check-mode dry run that stops partway through the file with
+// before it dispatches (see Job::stop_line()) -- combined with a prior $C,
+// this gives a check-mode dry run that stops partway through the file with
 // gc_state reconstructed as of that line; without $C first, it stops a real
 // run at that line instead.
 static Error runFile(const Volume& fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
@@ -285,8 +285,7 @@ static Error runFile(const Volume& fs, const char* parameter, AuthenticationLeve
         Job::restore();
         return err;
     }
-    Job::set_stop_line(stopLine);
-    Job::nest(theFile, &out);
+    Job::nest(theFile, &out, stopLine);
 
     return Error::Ok;
 }
