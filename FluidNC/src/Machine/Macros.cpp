@@ -8,6 +8,18 @@
 #include "Job.h"                    // Job::
 
 void MacroEvent::run(void* arg) const {
+    // A macro pin is an asynchronous trigger -- it can fire at any arbitrary
+    // moment, unlike M6's macro or $SD/Run, which are always the result of a
+    // line within whatever job is currently running its own control flow.
+    // Nesting it into an already-active job would interject its gcode into
+    // a motion stream that is still mid-flight, under whatever units/
+    // coordinate state happen to be active at that moment -- reject it
+    // instead, the same way an interloping channel's gcode is rejected with
+    // AnotherInterfaceBusy.
+    if (Job::active()) {
+        log_error("macro" << _num << " ignored: a job is already running");
+        return;
+    }
     config->_macros->_macro[_num].run(nullptr);
 }
 
