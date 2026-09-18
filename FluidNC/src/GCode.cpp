@@ -271,8 +271,31 @@ void gc_wco_changed() {
 // coordinates, respectively.
 const char* gc_last_line = "";
 
-Error gc_execute_line(const char* input_line) {
+Error gc_execute_line(const char* input_line, Channel& channel) {
     gc_last_line = input_line;
+    // Set by M6/M61 tool-change handling below if it started an
+    // asynchronous macro/ATC job whose completion, not this call, owns the
+    // reply to this line (FluidNC issue #1862). Once set, every return from
+    // this function -- including the error returns further down, e.g. for a
+    // combined M6/M62 line where the M62 half fails -- must go through
+    // deferred_err() rather than returning its own Error directly: the job
+    // is already running and will fire its own deferred ack when it
+    // finishes, so returning anything but Error::Deferred here would also
+    // have protocol_main_loop ack this line immediately, a double reply and
+    // a double release of the channel's processing ref.
+    bool deferred_ack = false;
+    auto deferred_err = [&](Error err) {
+        if (!deferred_ack) {
+            return err;
+        }
+        // The job is already running and its own completion will send the
+        // eventual reply, normally Error::Ok -- attach this real error to it
+        // instead, or it would otherwise be silently lost (e.g. a valid
+        // "M6 M62 P0" with an undefined output would report ok once the tool
+        // change finishes, never telling the sender the M62 half failed).
+        Job::set_ack_error(Job::dispatch_channel, err);
+        return Error::Deferred;
+    };
 
     char line[128];
     if (strlen(input_line) > 127) {
@@ -1713,7 +1736,9 @@ Error gc_execute_line(const char* input_line) {
                 gc_state.spindle_speed = 0.0;
             }
             log_info("Current T:" << gc_state.current_tool << " Selected T:" << gc_state.selected_tool);
-            spindle->tool_change(gc_state.selected_tool, false, false);
+            if (spindle->tool_change(gc_state.selected_tool, false, false, &channel)) {
+                deferred_ack = true;
+            }
             if (spindle->_atc_name == "" && spindle->_m6_macro.get().empty()) {  // if neither of these exist we need to set the value here
                 gc_state.current_tool = gc_state.selected_tool;
             }
@@ -1723,7 +1748,7 @@ Error gc_execute_line(const char* input_line) {
     }
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {  // M61
         if (gc_block.values.q < 0) {
-            return Error::NegativeValue;  // https://linuxcnc.org/docs/2.8/html/gcode/m-code.html#mcode:m61
+            return deferred_err(Error::NegativeValue);  // https://linuxcnc.org/docs/2.8/html/gcode/m-code.html#mcode:m61
         }
         gc_state.selected_tool = gc_block.values.q;
         bool stopped_spindle   = false;  // was spindle stopped via the change
@@ -1736,7 +1761,9 @@ Error gc_execute_line(const char* input_line) {
         if (new_spindle) {
             gc_state.spindle_speed = 0.0;
         }
-        spindle->tool_change(gc_state.selected_tool, false, true);
+        if (spindle->tool_change(gc_state.selected_tool, false, true, &channel)) {
+            deferred_ack = true;
+        }
         gc_state.current_tool = gc_block.values.q;
         report_ovr_counter    = 0;  // Set to report change immediately
         gc_ovr_changed();
@@ -1791,10 +1818,10 @@ Error gc_execute_line(const char* input_line) {
             }
             bool turnOn = gc_block.modal.io_control == IoControl::DigitalOnSync || gc_block.modal.io_control == IoControl::DigitalOnImmediate;
             if (!config->_userOutputs->setDigital((int)gc_block.values.p, turnOn)) {
-                return Error::PParamMaxExceeded;
+                return deferred_err(Error::PParamMaxExceeded);
             }
         } else {
-            return Error::PParamMaxExceeded;
+            return deferred_err(Error::PParamMaxExceeded);
         }
     }
     if ((gc_block.modal.io_control == IoControl::SetAnalogSync) || (gc_block.modal.io_control == IoControl::SetAnalogImmediate)) {
@@ -1808,10 +1835,10 @@ Error gc_execute_line(const char* input_line) {
                 protocol_buffer_synchronize();
             }
             if (!config->_userOutputs->setAnalogPercent((int)gc_block.values.e, gc_block.values.q)) {
-                return Error::PParamMaxExceeded;
+                return deferred_err(Error::PParamMaxExceeded);
             }
         } else {
-            return Error::PParamMaxExceeded;
+            return deferred_err(Error::PParamMaxExceeded);
         }
     }
     if (gc_block.modal.io_control == IoControl::WaitOnInput) {
@@ -1830,7 +1857,7 @@ Error gc_execute_line(const char* input_line) {
         };
         auto const maybe_input_number = validate_input_number(isWaitOnInputDigital ? gc_block.values.p : gc_block.values.e);
         if (!maybe_input_number.has_value()) {
-            return Error::PParamMaxExceeded;
+            return deferred_err(Error::PParamMaxExceeded);
         }
         auto const input_number = *maybe_input_number;
         auto const wait_mode    = *validate_wait_on_input_mode_value(gc_block.values.l);
@@ -1967,7 +1994,7 @@ Error gc_execute_line(const char* input_line) {
             // motion control system might still be processing the action and the real tool position
             // in any intermediate location.
             if (sys.abort()) {
-                return Error::Reset;
+                return deferred_err(Error::Reset);
             }
             if (gc_update_pos == GCUpdatePos::Target) {
                 copyAxes(gc_state.position, gc_block.values.xyz);
@@ -2041,7 +2068,8 @@ Error gc_execute_line(const char* input_line) {
     }
     gc_state.modal.program_flow = ProgramFlow::Running;  // Reset program flow.
 
-    return perform_assignments() ? Error::Ok : Error::ParameterAssignmentFailed;
+    bool assignments_ok = perform_assignments();
+    return assignments_ok ? deferred_err(Error::Ok) : deferred_err(Error::ParameterAssignmentFailed);
 
     // TODO: % to denote start of program.
 }

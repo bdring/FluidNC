@@ -118,8 +118,30 @@ protected:
     bool _percent = false;
 
 protected:
-    bool                  _active = true;
-    bool                  _paused = false;
+    bool _active = true;
+    bool _paused = false;
+
+    // Set by pollLine() when it returns a complete line, cleared by ack() (or
+    // by clear_pending_ack(), for a caller that must not write to the
+    // channel but still needs to unblock it -- see its declaration). While
+    // set, pollLine() behaves as though called with line == nullptr: realtime
+    // characters still work, but no further line is completed, and
+    // non-realtime bytes queue in _queue instead (see its comment) until the
+    // ack arrives, however long that takes -- including the duration of an
+    // M6/$SD/Run job this same line started (FluidNC issue #1862). This
+    // caps a sender at one line in flight without rejecting anything it
+    // sends ahead of that ack under character-counting flow control: it
+    // simply waits in _queue and is processed, in order, once unblocked.
+    //
+    // pollLine() sets it on the polling task, but ack()/clear_pending_ack()
+    // can run on either task (protocol_main_loop's cmd_queue consumer calls
+    // ack() directly on the protocol task; a deferred job's completion,
+    // Job::unnest()/Job::abort(), calls it from the polling task; flushRx()
+    // can run from whichever task resets the system) -- atomic like
+    // _processing_refs/_closing below, not a plain bool, so a write on one
+    // task is guaranteed visible to a read on the other.
+    std::atomic<bool> _pending_ack { false };
+
     std::atomic<uint32_t> _queued_log_refs { 0 };
     std::atomic<uint32_t> _processing_refs { 0 };
     std::atomic<bool>     _closing { false };
@@ -147,7 +169,13 @@ public:
     virtual void  handle() {}
     virtual Error pollLine(char* line);
     virtual void  ack(Error status);
-    const char*   name() { return _name.c_str(); }
+    // Clears the pending-ack gate pollLine() set for the line just resolved,
+    // without writing anything to the channel -- for a caller that has a
+    // reason not to call ack() (e.g. protocol_main_loop skips it on
+    // sys.abort(), where a channel could be mid-teardown) but must still
+    // unblock the channel's next line, or it would stay gated forever.
+    void        clear_pending_ack() { _pending_ack.store(false, std::memory_order_release); }
+    const char* name() { return _name.c_str(); }
 
     virtual void sendLine(MsgLevel level, const char* line);
     virtual void sendLine(MsgLevel level, const std::string* line);
