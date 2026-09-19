@@ -98,7 +98,7 @@ void Job::restore() {
     JobLock lock;
     restore_nl();
 }
-void Job::nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel, int32_t stop_line) {
+void Job::nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel) {
     JobLock lock;
     if (job.empty()) {
         // A fresh job stack did not exist when any pending unwind_cause was
@@ -112,7 +112,6 @@ void Job::nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel, 
     if (ack_channel) {
         source->set_pending_ack(ack_channel);
     }
-    source->set_stop_line(stop_line);
     if (out_channel && job.empty()) {
         // Hold a processing reference for the duration of the job.  A leader
         // can die while the job runs - a WebSocket or an HTTP client
@@ -230,24 +229,47 @@ Channel* Job::channel() {
     JobLock lock;
     return job.empty() ? nullptr : job.back()->channel();
 }
-int32_t Job::stop_line() {
+// Guards s_breakpoints too -- reusing s_job_mutex rather than a second lock,
+// since at_stop_line() already needs it to read the top-of-stack JobSource's
+// channel/line atomically with the breakpoint lookup. Named s_breakpoints,
+// not breakpoints, to avoid colliding with Job::breakpoints() below: inside
+// a Job:: member function body, an unqualified name is looked up in class
+// scope before the enclosing namespace, so "breakpoints" there would resolve
+// to the static method, not this variable.
+static std::set<std::pair<std::string, int32_t>> s_breakpoints;
+
+void Job::set_breakpoint(const std::string& path, int32_t line) {
     JobLock lock;
-    return active_nl() ? job.back()->stop_line() : 0;
+    s_breakpoints.insert({ path, line });
 }
-void Job::set_stop_line(int32_t line) {
+bool Job::clear_breakpoint(const std::string& path, int32_t line) {
     JobLock lock;
-    if (active_nl()) {
-        job.back()->set_stop_line(line);
+    return s_breakpoints.erase({ path, line }) != 0;
+}
+bool Job::clear_breakpoint(size_t index) {
+    JobLock lock;
+    if (index == 0 || index > s_breakpoints.size()) {
+        return false;
     }
+    auto it = s_breakpoints.begin();
+    std::advance(it, index - 1);
+    s_breakpoints.erase(it);
+    return true;
+}
+void Job::clear_all_breakpoints() {
+    JobLock lock;
+    s_breakpoints.clear();
+}
+const std::set<std::pair<std::string, int32_t>>& Job::breakpoints() {
+    return s_breakpoints;
 }
 bool Job::at_stop_line() {
     JobLock lock;
     if (!active_nl()) {
         return false;
     }
-    auto    source = job.back();
-    int32_t target = source->stop_line();
-    return target && (int32_t)source->lineNumber() == target;
+    auto source = job.back();
+    return s_breakpoints.count({ source->channel()->name(), (int32_t)source->lineNumber() }) != 0;
 }
 void Job::rewind_current_line() {
     JobLock lock;

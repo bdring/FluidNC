@@ -306,53 +306,153 @@ static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level,
     return Error::Ok;
 }
 
-// $Job/StopLine=N sets the current job's Job::stop_line() (protocol_main_loop's
-// pre-dispatch pause gate in Protocol.cpp) directly, on the job that is
-// already running, rather than a file about to be nested (that's
-// $File/Breakpoint -- see FileCommands.cpp). Meant to be composed with
-// $GB=Off (or a pin-driven single-block toggle) and a cycle start while a job
-// is already paused: arm a new stop line, drop out of single-block, then
-// resume -- runs in normal mode until the new target line, rather than
-// single-stepping every line to get there.
+// Parses a line-number spec that may have a leading '+' or '-' (relative to
+// some "current line", resolved by the caller) or be a bare absolute number.
+// std::from_chars accepts a leading '-' but not '+', so that one is stripped
+// before parsing. Returns false (and logs) on a malformed spec.
+static bool parseLineSpec(std::string_view spec, Channel& out, bool& relative, int32_t& parsed) {
+    if (spec.empty()) {
+        log_error_to(out, "Missing line number");
+        return false;
+    }
+    relative = (spec[0] == '+' || spec[0] == '-');
+    if (spec[0] == '+') {
+        spec = spec.substr(1);
+    }
+    auto result = std::from_chars(spec.data(), spec.data() + spec.length(), parsed);
+    if (result.ec != std::errc() || result.ptr != spec.data() + spec.length()) {
+        log_error_to(out, "Invalid line number");
+        return false;
+    }
+    return true;
+}
+
+// $Breakpoint/Set=[+-]line,path arms a persistent, debugger-style breakpoint
+// (Job::set_breakpoint(), see Job.h) -- checked live against whichever job is
+// currently running, so this takes effect immediately even on a file that's
+// already partway through executing; there is no separate "new job" step.
+// Combined with $C, a breakpoint gives a check-mode dry run that stops with
+// gc_state reconstructed as of that line; without $C, it stops a normal run
+// there. Composed with $GB=Off (or a pin-driven single-block toggle) and a
+// cycle start, it can also redirect a job that is already paused to stop
+// somewhere else, running in normal mode until it gets there rather than
+// single-stepping every line.
 //
-// N is an absolute 1-based line number. +N/-N is instead relative to the
-// current job's line (Job::channel()->lineNumber()) at the moment this
-// command runs -- e.g. $Job/StopLine=+5 stops 5 lines past wherever the job
-// is paused (or currently executing) right now.
-static Error jobStopLine(const char* value, AuthenticationLevel auth_level, Channel& out) {
+// path, if omitted, means the currently active job's own file. line is an
+// absolute 1-based line number; +N/-N is instead relative to the current
+// line of whichever active job's canonical name matches path (the active
+// job itself, if path was omitted) -- e.g. $Breakpoint/Set=+5 (no path)
+// stops 5 lines past wherever the current job is paused or executing right
+// now. Relative addressing is an error if path doesn't name a currently
+// active job, since there is no "current line" to be relative to.
+static Error breakpointSet(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
     if (!value || !*value) {
-        log_error_to(out, "Missing line number");
+        log_error_to(out, "Missing argument");
         return Error::InvalidValue;
     }
-    Channel* jc = Job::channel();
-    if (!jc) {
-        log_error_to(out, "No job is active");
-        return Error::IdleError;
-    }
+    std::string_view args(value);
+    std::string_view lineSpec;
+    string_util::split_prefix(args, lineSpec, ',');  // args is now the path, or empty if omitted
 
-    bool             relative = (*value == '+' || *value == '-');
-    std::string_view digits(value);
-    if (*value == '+') {
-        // std::from_chars does not accept a leading '+', unlike '-'.
-        digits = digits.substr(1);
-    }
+    bool    relative;
     int32_t parsed;
-    auto    result = std::from_chars(digits.data(), digits.data() + digits.length(), parsed);
-    if (result.ec != std::errc() || result.ptr != digits.data() + digits.length()) {
-        log_error_to(out, "Invalid line number");
+    if (!parseLineSpec(lineSpec, out, relative, parsed)) {
         return Error::InvalidValue;
     }
 
-    int32_t target = relative ? (int32_t)jc->lineNumber() + parsed : parsed;
+    Channel* jc = Job::channel();
+    std::string path;
+    if (args.empty()) {
+        if (!jc) {
+            log_error_to(out, "No job is active");
+            return Error::IdleError;
+        }
+        path = jc->name();
+    } else {
+        path = FluidPath::canonPath(args, SD);
+    }
+
+    int32_t target = parsed;
+    if (relative) {
+        if (!jc || jc->name() != path) {
+            log_error_to(out, "No active job matches path; can't use a relative line number");
+            return Error::InvalidValue;
+        }
+        target = (int32_t)jc->lineNumber() + parsed;
+    }
     if (target <= 0) {
         log_error_to(out, "Invalid line number");
         return Error::InvalidValue;
     }
-    Job::set_stop_line(target);
-    log_info_to(out, "Job will stop before line " << target);
+    Job::set_breakpoint(path, target);
+    log_info_to(out, "Breakpoint set at " << path << ":" << target);
+    return Error::Ok;
+}
+
+// $Breakpoint/Clear=line,path removes one breakpoint by exact match.
+// $Breakpoint/Clear=N (no comma) instead removes the Nth breakpoint in
+// $Breakpoint/List's order; N=0 clears all of them.
+static Error breakpointClear(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (!value || !*value) {
+        log_error_to(out, "Missing argument");
+        return Error::InvalidValue;
+    }
+    std::string_view args(value);
+    std::string_view first;
+    string_util::split_prefix(args, first, ',');
+
+    if (args.empty()) {
+        // No comma: a bare number selects an existing breakpoint by position.
+        int32_t index;
+        auto    result = std::from_chars(first.data(), first.data() + first.length(), index);
+        if (result.ec != std::errc() || result.ptr != first.data() + first.length() || index < 0) {
+            log_error_to(out, "Invalid breakpoint number");
+            return Error::InvalidValue;
+        }
+        if (index == 0) {
+            Job::clear_all_breakpoints();
+            log_info_to(out, "All breakpoints cleared");
+            return Error::Ok;
+        }
+        if (!Job::clear_breakpoint((size_t)index)) {
+            log_error_to(out, "No such breakpoint");
+            return Error::InvalidValue;
+        }
+        log_info_to(out, "Cleared breakpoint " << index);
+        return Error::Ok;
+    }
+
+    int32_t line;
+    auto    result = std::from_chars(first.data(), first.data() + first.length(), line);
+    if (result.ec != std::errc() || result.ptr != first.data() + first.length()) {
+        log_error_to(out, "Invalid line number");
+        return Error::InvalidValue;
+    }
+    std::string path = FluidPath::canonPath(args, SD);
+    if (!Job::clear_breakpoint(path, line)) {
+        log_error_to(out, "No such breakpoint");
+        return Error::InvalidValue;
+    }
+    log_info_to(out, "Cleared breakpoint at " << path << ":" << line);
+    return Error::Ok;
+}
+
+// Plain text for now; a JSON variant will be needed eventually for UI
+// consumption.
+static Error breakpointList(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    auto& breakpoints = Job::breakpoints();
+    if (breakpoints.empty()) {
+        log_info_to(out, "No breakpoints set");
+        return Error::Ok;
+    }
+    int index = 1;
+    for (auto& [path, line] : breakpoints) {
+        log_info_to(out, index << ": " << path << ":" << line);
+        ++index;
+    }
     return Error::Ok;
 }
 
@@ -1132,7 +1232,9 @@ void make_user_commands() {
     new ReportCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new ReportCommand("GB", "GCode/BlockMode", gcode_block_mode, anyState);
-    new ReportCommand(NULL, "Job/StopLine", jobStopLine, anyState);
+    new ReportCommand(NULL, "Breakpoint/Set", breakpointSet, anyState);
+    new ReportCommand(NULL, "Breakpoint/Clear", breakpointClear, anyState);
+    new ReportCommand(NULL, "Breakpoint/List", breakpointList, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);

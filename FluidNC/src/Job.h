@@ -3,21 +3,13 @@
 
 #include "Channel.h"
 #include <vector>
+#include <set>
+#include <utility>
 
 class JobSource {
 private:
     Channel*                     _channel;
     std::map<std::string, float> _local_params;
-
-    // Line number at which protocol_main_loop's pre-dispatch pause gate
-    // should pause before dispatching this job's channel, in addition to (or
-    // instead of) single block mode; 0 means no stop is requested. Scoped to
-    // this JobSource (like _local_params) rather than shared across the whole
-    // stack, so a nested job (e.g. a restart_macro) can never
-    // collide with a stop line meant for the job underneath it -- it simply
-    // isn't job.back() while the nested job is on top, so its own stop_line
-    // (0, unless someone sets one) is the only one ever consulted.
-    int32_t _stop_line = 0;
 
     // Channel owed a deferred ack/error reply for the command line that
     // nested this JobSource (M6's tool-change macro, $SD/Run, $LocalFS/Run),
@@ -41,8 +33,6 @@ private:
 
 public:
     JobSource(Channel* channel) : _channel(channel) {}
-    int32_t stop_line() { return _stop_line; }
-    void    set_stop_line(int32_t line) { _stop_line = line; }
     void     set_pending_ack(Channel* channel) { _ack_channel = channel; }
     Channel* ack_channel() const { return _ack_channel; }
     void     set_ack_error(Error err) { _ack_error = err; }
@@ -146,10 +136,7 @@ public:
     // (via protocol_buffer_synchronize()) while dispatching a completely
     // unrelated line. A post-hoc "did the depth change" check cannot tell
     // that unrelated push apart from this one.
-    //
-    // stop_line, if non-zero, sets the new JobSource's own stop_line (see
-    // JobSource above) atomically with the push.
-    static void nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel = nullptr, int32_t stop_line = 0);
+    static void nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel = nullptr);
     static void       unnest();
     static void       abort(Error status = Error::Reset);
     static JobSource* source();  // nullptr when no job is active
@@ -180,22 +167,31 @@ public:
     static Channel* channel();         // top-of-stack channel, or nullptr when idle
     static Channel* leader_channel();  // job leader, or nullptr when idle
 
-    // Delegate to the top-of-stack JobSource's own stop_line (see above); 0
-    // (no stop requested) if no job is active. Set via nest()'s stop_line
-    // parameter -- runFile() (FileCommands.cpp) passes one whenever a
-    // $File/Breakpoint is armed for the file being nested -- or directly via
-    // $Job/StopLine on an already-active job. Preceded by $C, this stops a
-    // check-mode dry run at a specific line; without $C first, it stops a
-    // normal run there instead.
-    static int32_t stop_line();
-    static void    set_stop_line(int32_t line);
+    // Persistent, debugger-style breakpoints: canonical path
+    // (FluidPath::canonPath()) + 1-based line number. Checked live -- via
+    // at_stop_line(), below -- against the top-of-stack job's own channel
+    // name (which for a file-backed JobSource already *is* its canonical
+    // path; see FileStream::FileStream()) and current line, on every
+    // pre-dispatch pause check in Protocol.cpp. Not snapshotted into a
+    // JobSource at nest() time, so $Breakpoint/Set or $Breakpoint/Clear take
+    // effect immediately, even on a file that's already running -- there is
+    // no separate "arm this job" step. A breakpoint stays armed after being
+    // hit, like a real debugger's, firing again on every subsequent visit to
+    // that line (e.g. inside a WHILE loop) until explicitly cleared.
+    static void set_breakpoint(const std::string& path, int32_t line);
+    // Removes one breakpoint by exact (path, line); returns false if no such
+    // breakpoint was armed.
+    static bool clear_breakpoint(const std::string& path, int32_t line);
+    // Removes one breakpoint by its 1-based position in breakpoints()'s
+    // (sorted, stable) order; returns false if index is out of range.
+    static bool clear_breakpoint(size_t index);
+    static void clear_all_breakpoints();
+    // Not safe against a concurrent Set/Clear; interactive use only -- same
+    // caveat as jobs_stack() below.
+    static const std::set<std::pair<std::string, int32_t>>& breakpoints();
 
-    // True if the top-of-stack job's channel has reached its own configured
-    // stop_line(). A pure query -- it does not clear the stop line. The
-    // caller decides when the stop is truly consumed, via set_stop_line(0):
-    // a nested restart_macro job needs the original job's stop line left
-    // alone, so reaching it again re-triggers once the macro finishes and
-    // unnests, rather than only firing once. Used by protocol_main_loop's
+    // True if the top-of-stack job's channel has a breakpoint armed at its
+    // current line (see breakpoints() above). Used by protocol_main_loop's
     // pre-dispatch pause gate (Protocol.cpp).
     static bool at_stop_line();
 

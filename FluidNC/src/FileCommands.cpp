@@ -251,87 +251,11 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
     return err;
 }
 
-// Canonical path (FluidPath::canonPath()) -> 1-based line number. Persistent,
-// like a debugger breakpoint: set via $File/Breakpoint=line,path, it stays
-// armed across multiple runs of that file until explicitly cleared, and
-// consulted by runFile() below every time that file is about to be nested --
-// including a file nested indirectly as a subfile call embedded in another
-// file's own G-code (an $SD/Run= line baked into its text), which a
-// one-shot argument on the top-level run command could never reach. At most
-// one breakpoint per file: setting a new one for an already-armed path just
-// moves it.
-static std::map<std::string, int32_t> breakpoints;
-
-// $File/Breakpoint=line,path sets (or moves) a breakpoint. $File/Breakpoint=N
-// with no path instead removes one: N is the 1-based position of an existing
-// breakpoint in $File/Breakpoints' listing, and N=0 clears all of them.
-static Error fileBreakpoint(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    if (!parameter || !*parameter) {
-        log_error_to(out, "Missing argument");
-        return Error::InvalidValue;
-    }
-    std::string_view args(parameter);
-    std::string_view first;
-    string_util::split_prefix(args, first, ',');
-
-    if (args.empty()) {
-        // No comma: a bare number selects an existing breakpoint by position.
-        int32_t index;
-        auto    result = std::from_chars(first.data(), first.data() + first.length(), index);
-        if (result.ec != std::errc() || result.ptr != first.data() + first.length() || index < 0) {
-            log_error_to(out, "Invalid breakpoint number");
-            return Error::InvalidValue;
-        }
-        if (index == 0) {
-            breakpoints.clear();
-            log_info_to(out, "All breakpoints cleared");
-            return Error::Ok;
-        }
-        if ((size_t)index > breakpoints.size()) {
-            log_error_to(out, "No such breakpoint");
-            return Error::InvalidValue;
-        }
-        auto it = breakpoints.begin();
-        std::advance(it, index - 1);
-        log_info_to(out, "Cleared breakpoint " << index << ": " << it->first << ":" << it->second);
-        breakpoints.erase(it);
-        return Error::Ok;
-    }
-
-    // line,path: set (or move) a breakpoint.
-    int32_t line;
-    auto    result = std::from_chars(first.data(), first.data() + first.length(), line);
-    if (result.ec != std::errc() || result.ptr != first.data() + first.length() || line <= 0) {
-        log_error_to(out, "Invalid line number");
-        return Error::InvalidValue;
-    }
-    if (args.empty()) {
-        log_error_to(out, "Missing filename");
-        return Error::InvalidValue;
-    }
-    std::string canonical  = FluidPath::canonPath(args, SD);
-    breakpoints[canonical] = line;
-    log_info_to(out, "Breakpoint set at " << canonical << ":" << line);
-    return Error::Ok;
-}
-
-static Error fileBreakpoints(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    if (breakpoints.empty()) {
-        log_info_to(out, "No breakpoints set");
-        return Error::Ok;
-    }
-    int index = 1;
-    for (auto& [path, line] : breakpoints) {
-        log_info_to(out, index << ": " << path << ":" << line);
-        ++index;
-    }
-    return Error::Ok;
-}
-
-// Combined with a prior $C, a breakpoint on this file gives a check-mode dry
-// run that stops partway through with gc_state reconstructed as of that
-// line; without $C first, it stops a normal run there instead (see
-// protocol_main_loop's pre-dispatch pause gate and Job::stop_line()).
+// Combined with a prior $C, a $Breakpoint/Set (ProcessSettings.cpp) armed on
+// this file gives a check-mode dry run that stops partway through with
+// gc_state reconstructed as of that line; without $C first, it stops a
+// normal run there instead (see protocol_main_loop's pre-dispatch pause gate
+// and Job::at_stop_line()).
 static Error runFile(const Volume& fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
     Error err;
     if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
@@ -341,11 +265,6 @@ static Error runFile(const Volume& fs, const char* parameter, AuthenticationLeve
     if (!parameter || !*parameter) {
         log_error_to(out, "Missing filename");
         return Error::InvalidValue;
-    }
-
-    int32_t stopLine = 0;  // 0 means run to EOF without stopping
-    if (auto it = breakpoints.find(FluidPath::canonPath(parameter, fs)); it != breakpoints.end()) {
-        stopLine = it->second;
     }
 
     Job::save();
@@ -361,7 +280,7 @@ static Error runFile(const Volume& fs, const char* parameter, AuthenticationLeve
     // leader, not the inner job source whose processing ref this dispatch
     // holds. Job::dispatch_channel is that one -- see its declaration and
     // FluidNC issue #1862.
-    Job::nest(theFile, &out, Job::dispatch_channel, stopLine);
+    Job::nest(theFile, &out, Job::dispatch_channel);
 
     return Error::Deferred;
 }
@@ -794,8 +713,6 @@ void make_file_commands() {
     new WebCommand("path", WEBCMD, WU, NULL, "File/SendJSON", fileSendJson);
     new WebCommand("path", WEBCMD, WU, NULL, "File/ShowSome", fileShowSome);
     new WebCommand("path", WEBCMD, WU, NULL, "File/ShowHash", fileShowHash);
-    new WebCommand("line,path", WEBCMD, WU, NULL, "File/Breakpoint", fileBreakpoint);
-    new WebCommand(NULL, WEBCMD, WU, NULL, "File/Breakpoints", fileBreakpoints);
     new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
     new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile, nullptr);
     new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);

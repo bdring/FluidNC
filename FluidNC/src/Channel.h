@@ -186,9 +186,10 @@ public:
     // position() as of just before the most recent pollLine() read the line
     // currently in flight. Set by poll_once() (Protocol.cpp) right before
     // pollLine() is called. Used to rewind a job's file back to the start of
-    // a not-yet-executed line -- e.g. when a dry-run stop line (Job::stop_line())
-    // defers that line to run a restart_macro first -- so the line is read
-    // again, unchanged, once the file is reached normally.
+    // a not-yet-executed line -- e.g. when a dry-run breakpoint (see
+    // Job::at_stop_line()) defers that line to run a restart_macro first --
+    // so the line is read again, unchanged, once the file is reached
+    // normally.
     size_t _line_start_position = 0;
 
     std::string _progress;
