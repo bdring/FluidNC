@@ -321,7 +321,7 @@ static void poll_once() {
         // clears the flag itself) can't be seen mid-transition and have its
         // brand-new job killed by a cause meant for whatever used to be on
         // the stack (FluidNC issue #1861).
-        if (Job::consumeUnwindCause()) {
+        if (Job::consume_unwind_cause()) {
             return;
         }
 

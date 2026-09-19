@@ -159,7 +159,7 @@ void Job::abort() {
     }
 }
 
-bool Job::consumeUnwindCause() {
+bool Job::consume_unwind_cause() {
     JobLock lock;
     if (!active_nl()) {
         unwind_cause = nullptr;

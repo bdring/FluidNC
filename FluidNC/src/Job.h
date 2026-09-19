@@ -76,7 +76,7 @@ public:
     // the flag for a brand-new job in the gap between the read and the
     // abort, so the freshly nested job got killed anyway (FluidNC issue
     // #1861). Returns true if it aborted a job.
-    static bool consumeUnwindCause();
+    static bool consume_unwind_cause();
 
     static bool     get_param(const std::string& name, float& value);
     static bool     set_param(const std::string& name, float value);
