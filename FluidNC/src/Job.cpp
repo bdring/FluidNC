@@ -159,6 +159,22 @@ void Job::abort() {
     }
 }
 
+bool Job::consumeUnwindCause() {
+    JobLock lock;
+    if (!active_nl()) {
+        unwind_cause = nullptr;
+        return false;
+    }
+    if (!unwind_cause) {
+        return false;
+    }
+    while (active_nl()) {
+        pop();
+    }
+    unwind_cause = nullptr;
+    return true;
+}
+
 bool Job::get_param(const std::string& name, float& value) {
     JobLock lock;
     return active_nl() && job.back()->get_param(name, value);

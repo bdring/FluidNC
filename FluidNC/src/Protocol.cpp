@@ -316,8 +316,16 @@ static void poll_once() {
 
         heap_monitor_poll();
 
+        // Checks unwind_cause against the job stack and aborts atomically
+        // with it, so a nest() that concurrently starts a fresh job (and
+        // clears the flag itself) can't be seen mid-transition and have its
+        // brand-new job killed by a cause meant for whatever used to be on
+        // the stack (FluidNC issue #1861).
+        if (Job::consumeUnwindCause()) {
+            return;
+        }
+
         if (!Job::active()) {
-            unwind_cause = nullptr;
             // No job: every line goes to cmd_queue.  Gate on queue room so a
             // slow consumer bounds read-ahead - the flow control the old
             // single slot gave.
@@ -328,12 +336,6 @@ static void poll_once() {
             if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Critical)) {
                 log_debug("Unwinding from Alarm");
                 Job::abort();
-                unwind_cause = nullptr;
-                return;
-            }
-            if (unwind_cause) {
-                Job::abort();
-                unwind_cause = nullptr;
                 return;
             }
 
