@@ -134,7 +134,14 @@ namespace WebUI {
 
             Error ret = do_command_or_setting(p, v, auth_level, out);
             if (isJSON) {
-                send_json_command_response(out, 401, ret == Error::Ok, errorString(ret));
+                // Error::Deferred means P= named a command (e.g. SD/Run) that
+                // started a job whose completion is reported later, elsewhere
+                // (e.g. status reports) -- not a failure of this request.
+                // Report it the same as Ok rather than leaking the internal
+                // "Deferred" sentinel as a literal error string with a false
+                // failure status (FluidNC issue #1862).
+                Error reported = (ret == Error::Deferred) ? Error::Ok : ret;
+                send_json_command_response(out, 401, reported == Error::Ok, errorString(reported));
             }
 
             return ret;
