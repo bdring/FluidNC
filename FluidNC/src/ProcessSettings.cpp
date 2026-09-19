@@ -38,6 +38,7 @@
 #include <string_view>
 #include <map>
 #include <filesystem>
+#include <charconv>
 
 #include <Arduino.h>  // PIN_LED
 
@@ -302,6 +303,55 @@ static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level,
     // line; $GB=Off (or a cycle start per line) gets out of it.
     protocol_send_event(enable ? &pinActiveEvent : &pinInactiveEvent, &singleBlockPin);
     log_info_to(out, (enable ? "Single Block Mode Enabled" : "Single Block Mode Disabled"));
+    return Error::Ok;
+}
+
+// $Job/StopLine=N sets the current job's Job::stop_line() (protocol_main_loop's
+// pre-dispatch pause gate in Protocol.cpp) directly, without starting a new job
+// the way $SD/Run=path,line's ",line" argument does. Meant to be composed with
+// $GB=Off (or a pin-driven single-block toggle) and a cycle start while a job
+// is already paused: arm a new stop line, drop out of single-block, then
+// resume -- runs in normal mode until the new target line, rather than
+// single-stepping every line to get there.
+//
+// N is an absolute 1-based line number. +N/-N is instead relative to the
+// current job's line (Job::channel()->lineNumber()) at the moment this
+// command runs -- e.g. $Job/StopLine=+5 stops 5 lines past wherever the job
+// is paused (or currently executing) right now.
+static Error jobStopLine(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (state_is(State::ConfigAlarm)) {
+        return Error::ConfigurationInvalid;
+    }
+    if (!value || !*value) {
+        log_error_to(out, "Missing line number");
+        return Error::InvalidValue;
+    }
+    Channel* jc = Job::channel();
+    if (!jc) {
+        log_error_to(out, "No job is active");
+        return Error::IdleError;
+    }
+
+    bool             relative = (*value == '+' || *value == '-');
+    std::string_view digits(value);
+    if (*value == '+') {
+        // std::from_chars does not accept a leading '+', unlike '-'.
+        digits = digits.substr(1);
+    }
+    int32_t parsed;
+    auto    result = std::from_chars(digits.data(), digits.data() + digits.length(), parsed);
+    if (result.ec != std::errc() || result.ptr != digits.data() + digits.length()) {
+        log_error_to(out, "Invalid line number");
+        return Error::InvalidValue;
+    }
+
+    int32_t target = relative ? (int32_t)jc->lineNumber() + parsed : parsed;
+    if (target <= 0) {
+        log_error_to(out, "Invalid line number");
+        return Error::InvalidValue;
+    }
+    Job::set_stop_line(target);
+    log_info_to(out, "Job will stop before line " << target);
     return Error::Ok;
 }
 
@@ -1081,6 +1131,7 @@ void make_user_commands() {
     new ReportCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new ReportCommand("GB", "GCode/BlockMode", gcode_block_mode, anyState);
+    new ReportCommand(NULL, "Job/StopLine", jobStopLine, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
