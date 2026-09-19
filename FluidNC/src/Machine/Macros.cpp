@@ -106,8 +106,9 @@ Macro Macros::_after_unlock { "after_unlock" };
 // @default_note empty (no restart macro is run)
 // @tuning typical
 // A macro (one config-file line, same syntax as macros: and Spindle's
-// m6_macro) run when a check-mode dry run ($C then $SD/Run=path,line or
-// $LocalFS/Run=path,line) reaches its target line. gc_state has been
+// m6_macro) run when a check-mode dry run ($C then $SD/Run=path or
+// $LocalFS/Run=path, with a $File/Breakpoint armed for that path -- see
+// FileCommands.cpp) reaches its target line. gc_state has been
 // reconstructed by the dry run as of that line, so #<_target_x/y/z>,
 // #<_spindle_cw>, #<_rpm>, #<_flood>, and #<_mist> reflect where the file's
 // G-code would have left the tool and its spindle/coolant state. A real

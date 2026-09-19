@@ -181,10 +181,12 @@ public:
     static Channel* leader_channel();  // job leader, or nullptr when idle
 
     // Delegate to the top-of-stack JobSource's own stop_line (see above); 0
-    // (no stop requested) if no job is active. Set via $SD/Run and
-    // $LocalFS/Run's optional ",line" argument, or nest()'s stop_line
-    // parameter: preceded by $C, this stops a check-mode dry run at a
-    // specific line; without $C first, it stops a normal run there instead.
+    // (no stop requested) if no job is active. Set via nest()'s stop_line
+    // parameter -- runFile() (FileCommands.cpp) passes one whenever a
+    // $File/Breakpoint is armed for the file being nested -- or directly via
+    // $Job/StopLine on an already-active job. Preceded by $C, this stops a
+    // check-mode dry run at a specific line; without $C first, it stops a
+    // normal run there instead.
     static int32_t stop_line();
     static void    set_stop_line(int32_t line);
 

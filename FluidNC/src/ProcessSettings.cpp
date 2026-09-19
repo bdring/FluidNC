@@ -307,8 +307,9 @@ static Error gcode_block_mode(const char* value, AuthenticationLevel auth_level,
 }
 
 // $Job/StopLine=N sets the current job's Job::stop_line() (protocol_main_loop's
-// pre-dispatch pause gate in Protocol.cpp) directly, without starting a new job
-// the way $SD/Run=path,line's ",line" argument does. Meant to be composed with
+// pre-dispatch pause gate in Protocol.cpp) directly, on the job that is
+// already running, rather than a file about to be nested (that's
+// $File/Breakpoint -- see FileCommands.cpp). Meant to be composed with
 // $GB=Off (or a pin-driven single-block toggle) and a cycle start while a job
 // is already paused: arm a new stop line, drop out of single-block, then
 // resume -- runs in normal mode until the new target line, rather than
