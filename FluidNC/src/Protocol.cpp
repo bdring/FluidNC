@@ -316,8 +316,16 @@ static void poll_once() {
 
         heap_monitor_poll();
 
+        // Checks unwind_cause against the job stack and aborts atomically
+        // with it, so a nest() that concurrently starts a fresh job (and
+        // clears the flag itself) can't be seen mid-transition and have its
+        // brand-new job killed by a cause meant for whatever used to be on
+        // the stack (FluidNC issue #1861).
+        if (Job::consume_unwind_cause()) {
+            return;
+        }
+
         if (!Job::active()) {
-            unwind_cause = nullptr;
             // No job: every line goes to cmd_queue.  Gate on queue room so a
             // slow consumer bounds read-ahead - the flow control the old
             // single slot gave.
@@ -328,12 +336,6 @@ static void poll_once() {
             if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Critical)) {
                 log_debug("Unwinding from Alarm");
                 Job::abort();
-                unwind_cause = nullptr;
-                return;
-            }
-            if (unwind_cause) {
-                Job::abort();
-                unwind_cause = nullptr;
                 return;
             }
 
@@ -1156,6 +1158,15 @@ static void protocol_do_late_reset() {
 
     sys.set_abort(true);
 
+    // Kill whatever job is on the stack right here, synchronously, instead of
+    // only setting unwind_cause for polling_loop (a separate task) to notice
+    // and act on later. restartEvent - queued by our caller right after this
+    // - runs after_reset via Job::nest() on this same task; if that raced
+    // ahead of polling_loop's abort, the freshly nested after_reset job would
+    // still find the old job on the stack and inherit the abort meant for it
+    // (FluidNC issue #1861). Aborting here guarantees the stack is empty
+    // before after_reset ever nests.
+    Job::abort();
     unwind_cause = "Reset";
 }
 
