@@ -51,6 +51,13 @@ extern volatile bool rtCycleStop;
 
 extern volatile bool runLimitLoop;
 
+// Set by protocol_do_late_reset() (and similar) for polling_loop() to consume
+// by aborting whatever job was running at the time. Job::nest() clears it
+// when starting a fresh job stack, so a job that did not exist yet when the
+// flag was raised - e.g. the after_reset macro that the same reset queues -
+// does not inherit it (FluidNC issue #1861).
+extern volatile const char* unwind_cause;
+
 #include <map>
 extern const std::map<ExecAlarm, const char*> AlarmNames;
 

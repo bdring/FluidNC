@@ -3,7 +3,8 @@
 
 #include "Job.h"
 #include "Logging.h"
-#include "Serial.h"  // allChannels
+#include "Serial.h"    // allChannels
+#include "Protocol.h"  // unwind_cause
 #include <map>
 #include <vector>
 #include <freertos/FreeRTOS.h>
@@ -98,6 +99,14 @@ void Job::restore() {
 }
 void Job::nest(Channel* in_channel, Channel* out_channel) {
     JobLock lock;
+    if (job.empty()) {
+        // A fresh job stack did not exist when any pending unwind_cause was
+        // raised, so it should not inherit that abort - e.g. the after_reset
+        // macro that the same reset queues (FluidNC issue #1861). A nested
+        // push (job already non-empty) keeps the flag, since it belongs to
+        // the still-running job this one is nesting inside of.
+        unwind_cause = nullptr;
+    }
     auto source = new JobSource(in_channel);
     if (out_channel && job.empty()) {
         // Hold a processing reference for the duration of the job.  A leader
