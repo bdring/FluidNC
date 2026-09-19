@@ -1156,6 +1156,15 @@ static void protocol_do_late_reset() {
 
     sys.set_abort(true);
 
+    // Kill whatever job is on the stack right here, synchronously, instead of
+    // only setting unwind_cause for polling_loop (a separate task) to notice
+    // and act on later. restartEvent - queued by our caller right after this
+    // - runs after_reset via Job::nest() on this same task; if that raced
+    // ahead of polling_loop's abort, the freshly nested after_reset job would
+    // still find the old job on the stack and inherit the abort meant for it
+    // (FluidNC issue #1861). Aborting here guarantees the stack is empty
+    // before after_reset ever nests.
+    Job::abort();
     unwind_cause = "Reset";
 }
 
