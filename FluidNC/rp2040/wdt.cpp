@@ -31,3 +31,8 @@ bool watchdog_is_enabled() {
 }
 
 void add_watchdog_to_task() {}
+
+// The RP2040 watchdog is a hardware timer with no per-task supervision, so
+// there is nothing to suspend.  The interface exists for the ESP32 port.
+void suspend_watchdog_for_task() {}
+void resume_watchdog_for_task() {}

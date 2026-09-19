@@ -15,9 +15,9 @@ namespace Kinematics {
         return _system->constrain_jog(target, pl_data, position);
     }
 
-    bool Kinematics::invalid_line(float* target) {
+    bool Kinematics::invalid_line(float* target, plan_line_data_t* pl_data) {
         Assert(_system != nullptr, no_system);
-        return _system->invalid_line(target);
+        return _system->invalid_line(target, pl_data);
     }
 
     bool Kinematics::invalid_arc(float*            target,

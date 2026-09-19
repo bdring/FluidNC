@@ -3,7 +3,8 @@
 
 #include "Job.h"
 #include "Logging.h"
-#include "Serial.h"  // allChannels
+#include "Serial.h"    // allChannels
+#include "Protocol.h"  // unwind_cause
 #include <map>
 #include <vector>
 #include <freertos/FreeRTOS.h>
@@ -98,6 +99,14 @@ void Job::restore() {
 }
 void Job::nest(Channel* in_channel, Channel* out_channel, int32_t stop_line) {
     JobLock lock;
+    if (job.empty()) {
+        // A fresh job stack did not exist when any pending unwind_cause was
+        // raised, so it should not inherit that abort - e.g. the after_reset
+        // macro that the same reset queues (FluidNC issue #1861). A nested
+        // push (job already non-empty) keeps the flag, since it belongs to
+        // the still-running job this one is nesting inside of.
+        unwind_cause = nullptr;
+    }
     auto source = new JobSource(in_channel);
     source->set_stop_line(stop_line);
     if (out_channel && job.empty()) {
@@ -168,6 +177,30 @@ void Job::abort(Error status) {
         ch->ack(status);
         ch->release_processing_ref();
     }
+}
+
+bool Job::consume_unwind_cause() {
+    std::vector<Channel*> acks_owed;
+    bool                  aborted = false;
+    {
+        JobLock lock;
+        if (!active_nl()) {
+            unwind_cause = nullptr;
+        } else if (unwind_cause) {
+            while (active_nl()) {
+                pop(acks_owed);
+            }
+            unwind_cause = nullptr;
+            aborted      = true;
+        }
+    }
+    // Fired after the lock is released: ack()/release_processing_ref() may do
+    // channel I/O. Matches Job::abort()'s own default status.
+    for (Channel* ch : acks_owed) {
+        ch->ack(Error::Reset);
+        ch->release_processing_ref();
+    }
+    return aborted;
 }
 
 bool Job::get_param(const std::string& name, float& value) {

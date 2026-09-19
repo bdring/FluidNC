@@ -20,8 +20,17 @@ Strict vs permissive mode:
     where casing style shouldn't block a merge. See fluidnc_validate_core.py
     for exactly which identifiers this covers.
 
+Opting a file out of validation entirely:
+    If the file's first non-blank line is "# DO NOT VALIDATE" (case-insensitive,
+    optionally followed by ": <reason>"), this script reports SKIP and exits 0
+    without even parsing it as YAML. For a config that intentionally targets a
+    kinematics type or other feature that only exists on an unmerged branch --
+    the schema correctly rejects it because mainline FluidNC really doesn't have
+    that feature yet, not because of a schema/tooling bug -- rather than a
+    permanent, silently-ignored failure in CI.
+
 Exit codes:
-    0  valid
+    0  valid, or skipped via the DO NOT VALIDATE marker above
     1  schema violations found
     2  file not found / YAML parse error / schema build error / dependency install failed
 
@@ -109,6 +118,28 @@ except ImportError:
 
 DEFAULT_CONFIG_ITEMS = "config_items.yaml"
 
+# A file's very first non-blank line can opt it out of validation entirely,
+# e.g. a config that intentionally targets a kinematics type or feature that
+# only exists on an unmerged branch (not a schema/tooling gap -- the schema
+# is correctly rejecting it because current mainline FluidNC really doesn't
+# have that feature). Optional ": <reason>" is echoed back in the skip
+# message but otherwise unparsed free text.
+_SKIP_MARKER = "# do not validate"
+
+
+def find_skip_reason(config_path: Path) -> str | None:
+    """None if the file should be validated normally; otherwise the reason
+    text after the marker (possibly empty) if it opts out."""
+    with open(config_path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.lower().startswith(_SKIP_MARKER):
+                return stripped[len(_SKIP_MARKER):].lstrip(": \t")
+            return None
+    return None
+
 
 def find_default_config_items(config_path: Path) -> Path:
     """config_items.yaml next to the script, then next to the config file,
@@ -139,6 +170,15 @@ def main() -> int:
     if not args.config.exists():
         print(f"error: config file not found: {args.config}", file=sys.stderr)
         return 2
+
+    skip_reason = find_skip_reason(args.config)
+    if skip_reason is not None:
+        if args.json:
+            print(json.dumps({"valid": True, "skipped": True, "reason": skip_reason}, indent=2))
+        else:
+            suffix = f": {skip_reason}" if skip_reason else ""
+            print(f"SKIP: {args.config} marked '{_SKIP_MARKER.upper()}'{suffix}")
+        return 0
 
     schema_path = args.config_items or find_default_config_items(args.config)
     if not schema_path.exists():

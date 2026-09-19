@@ -23,7 +23,9 @@
 #include "Job.h"
 #include "Driver/restart.h"
 #include "Driver/watchdog.h"
-#include "Driver/heap.h"  // platform_max_free_block()
+#include "Driver/heap.h"
+#include "Driver/Console.h"  // Console
+#include <cstdio>            // snprintf  // platform_max_free_block()
 
 #include <cstring>  // strncpy
 #include <memory>   // std::unique_ptr
@@ -220,6 +222,21 @@ static uint32_t heapLowWaterReportTime = 0;
 // returns 0 (no API).
 uint32_t maxBlockLowWater = UINT_MAX;
 
+// Deliberately allocation-free.  This fires when the heap is nearly gone, and
+// the normal logging path builds a std::string to do its work.  At the point
+// where that allocation fails, the runtime cannot allocate the std::bad_alloc
+// object either, so it calls std::terminate() outright and no catch block can
+// intervene - the warning that you are about to run out of memory must not be
+// the thing that finishes you off.  Straight to the console for the same
+// reason: whatever is consuming the heap is often the network stack.
+static void report_low_memory(uint32_t bytes) {
+    char msg[48];
+    int  len = snprintf(msg, sizeof(msg), "[MSG:WARN: Low memory: %u bytes]\n", static_cast<unsigned>(bytes));
+    if (len > 0) {
+        Console.write(reinterpret_cast<const uint8_t*>(msg), static_cast<size_t>(len));
+    }
+}
+
 // Heap instrumentation.  Called from poll_once(), i.e. on SUPPORT_TASK_CORE,
 // so none of it lands on the motion core: xPortGetFreeHeapSize() is a cheap
 // counter read, but platform_max_free_block() walks the free list under the
@@ -258,7 +275,7 @@ static void heap_monitor_poll() {
         // report, but the true minimum is reported eventually, and large drops are reported immediately.
         uint32_t ticksSinceReported = (getCpuTicks() - heapLowWaterReportTime);
         if ((heapLowWater < heapLowWaterReported - 2048) || (ticksSinceReported > (uint32_t)usToCpuTicks(200000))) {
-            //                log_warn("Low memory: " << heapLowWater << " bytes");
+            report_low_memory(heapLowWater);
             heapLowWaterReported   = heapLowWater;
             heapLowWaterReportTime = getCpuTicks();
         }
@@ -299,8 +316,16 @@ static void poll_once() {
 
         heap_monitor_poll();
 
+        // Checks unwind_cause against the job stack and aborts atomically
+        // with it, so a nest() that concurrently starts a fresh job (and
+        // clears the flag itself) can't be seen mid-transition and have its
+        // brand-new job killed by a cause meant for whatever used to be on
+        // the stack (FluidNC issue #1861).
+        if (Job::consume_unwind_cause()) {
+            return;
+        }
+
         if (!Job::active()) {
-            unwind_cause = nullptr;
             // No job: every line goes to cmd_queue.  Gate on queue room so a
             // slow consumer bounds read-ahead - the flow control the old
             // single slot gave.
@@ -311,12 +336,6 @@ static void poll_once() {
             if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Critical)) {
                 log_debug("Unwinding from Alarm");
                 Job::abort();
-                unwind_cause = nullptr;
-                return;
-            }
-            if (unwind_cause) {
-                Job::abort();
-                unwind_cause = nullptr;
                 return;
             }
 
@@ -1208,6 +1227,15 @@ static void protocol_do_late_reset() {
 
     sys.set_abort(true);
 
+    // Kill whatever job is on the stack right here, synchronously, instead of
+    // only setting unwind_cause for polling_loop (a separate task) to notice
+    // and act on later. restartEvent - queued by our caller right after this
+    // - runs after_reset via Job::nest() on this same task; if that raced
+    // ahead of polling_loop's abort, the freshly nested after_reset job would
+    // still find the old job on the stack and inherit the abort meant for it
+    // (FluidNC issue #1861). Aborting here guarantees the stack is empty
+    // before after_reset ever nests.
+    Job::abort();
     unwind_cause = "Reset";
 }
 

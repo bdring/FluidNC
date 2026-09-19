@@ -230,7 +230,16 @@ SECTIONS = [
         "(VFDSpindle::group() always calls groupDelaySettings()), but only actually applied at runtime when get_rpm_cmd is left unset -- see "
         "get_rpm_cmd's own description for why.",
     ),
-    ("kinematics.ParallelDelta", [("Kinematics/ParallelDelta.cpp", "ParallelDelta")], None),
+    # Section path is "parallel_delta" (lowercase, underscore), matching this
+    # file's own KinematicsFactory::InstanceBuilder<ParallelDelta>
+    # registration("parallel_delta") call -- NOT the C++ class name
+    # "ParallelDelta". Unlike CoreXY/WallPlotter (whose class name and
+    # registration string happen to be identical) or midtbot (whose entry
+    # below already correctly uses the lowercase registration string over
+    # the "Midtbot" class name), this one was previously written with the
+    # class name by mistake, which propagated the wrong canonical spelling
+    # into config_items.yaml, the generated schema, and the spec doc.
+    ("kinematics.parallel_delta", [("Kinematics/ParallelDelta.cpp", "ParallelDelta")], None),
     ("kinematics.WallPlotter", [("Kinematics/WallPlotter.cpp", "WallPlotter")], None),
     ("kinematics.CoreXY", [("Kinematics/CoreXY.cpp", "CoreXY")], None),
     (

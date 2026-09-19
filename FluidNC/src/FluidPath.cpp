@@ -20,10 +20,25 @@ namespace {
     SemaphoreHandle_t sd_lifecycle_lock = xSemaphoreCreateMutex();
     uint32_t          sd_mount_users    = 0;
 
+    // Set when a mount attempt fails, so repeated requests do not each pay for
+    // a full card initialisation.  Cleared on the next success.
+    std::error_code       sd_failed_ec;
+    uint32_t              sd_failed_at         = 0;
+    constexpr uint32_t    sd_retry_holdoff_ms  = 3000;
+
+    // Waiting forever for this lock is not safe.  It is taken by whichever task
+    // wants the card, and a slow or failing card holds it for as long as the
+    // mount takes.  A web request blocked behind a mount running on the polling
+    // task sat there past the task watchdog timeout and rebooted the board -
+    // the watchdog then names async_tcp as the task that failed to check in,
+    // while the task actually running is the one holding the lock.  Give up
+    // instead, and report the card as unavailable.
+    constexpr TickType_t sd_lock_timeout = pdMS_TO_TICKS(2000);
+
     class SDLock {
     public:
-        explicit SDLock(SemaphoreHandle_t lock) : _lock(lock) {
-            _locked = _lock && xSemaphoreTake(_lock, portMAX_DELAY) == pdTRUE;
+        explicit SDLock(SemaphoreHandle_t lock, TickType_t timeout = sd_lock_timeout) : _lock(lock) {
+            _locked = _lock && xSemaphoreTake(_lock, timeout) == pdTRUE;
         }
 
         SDLock(const SDLock&)            = delete;
@@ -59,10 +74,24 @@ SDMountState::SDMountState() {
     }
 
     if (sd_mount_users == 0) {
+        // A card that cannot be initialised takes a long time to fail, and
+        // sd_mount() tries twice.  WebUI asks for a directory listing every few
+        // seconds, and each attempt runs on the network task, which the task
+        // watchdog watches - so an unreadable card used to reboot the board
+        // over and over rather than simply reporting that it is unusable.
+        // Remember a failure briefly and fail fast within that window.  The
+        // window is short enough that swapping in a working card still gets
+        // picked up on the next attempt.
+        if (sd_failed_ec && (millis() - sd_failed_at) < sd_retry_holdoff_ms) {
+            throw stdfs::filesystem_error { "Failed to mount SD card", sd_failed_ec };
+        }
         auto ec = sd_mount();
         if (ec) {
+            sd_failed_ec = ec;
+            sd_failed_at = millis();
             throw stdfs::filesystem_error { "Failed to mount SD card", ec };
         }
+        sd_failed_ec = {};
     }
     ++sd_mount_users;
 }
