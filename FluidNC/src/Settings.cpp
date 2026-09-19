@@ -4,6 +4,7 @@
 #include "Protocol.h"  // protocol_buffer_synchronize
 #include "Machine/MachineConfig.h"
 #include "Parameters.h"
+#include "Job.h"  // Job::active()
 
 #include <map>
 #include <limits>
@@ -48,6 +49,19 @@ bool notIdleOrJog() {
 bool notIdleOrAlarm() {
     return !state_is(State::Idle) && !state_is(State::Alarm) && !state_is(State::ConfigAlarm) && !state_is(State::SafetyDoor) &&
            !state_is(State::Critical);
+}
+// notIdleOrAlarm() alone isn't enough for commands that write NVS/flash, or
+// that are otherwise unsafe while a job's motion or control flow is still
+// live: State::Idle is reachable while Job::active() is still true (e.g.
+// between motion segments, or during a job's non-motion lines -- see
+// protocol_do_cycle_start() setting State::Idle whenever a resume finds
+// nothing queued). A flash write racing a job's own motion is the sharper
+// danger, but disabling motors, going to sleep, deleting/renaming the file a
+// job is reading, or repurposing a UART a job's spindle may be using are
+// unsafe for the same underlying reason: the command's caller and the job
+// are two independent, uncoordinated actors.
+bool notIdleOrAlarmOrJobActive() {
+    return notIdleOrAlarm() || Job::active();
 }
 bool cycleOrHold() {
     return state_is(State::Cycle) || state_is(State::Hold);

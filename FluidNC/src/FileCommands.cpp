@@ -679,7 +679,8 @@ static Error restart(const char* parameter, AuthenticationLevel auth_level, Chan
 
 void make_file_commands() {
     new WebCommand(NULL, WEBCMD, WU, "ESP720", "LocalFS/Size", localFSSize);
-    new WebCommand("FORMAT", WEBCMD, WA, "ESP710", "LocalFS/Format", formatLocalFS);
+    new WebCommand(
+        "FORMAT", WEBCMD, WA, "ESP710", "LocalFS/Format", formatLocalFS, notIdleOrAlarmOrJobActive);  // wipes the local FS
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Show", showLocalFile);
     new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile, nullptr);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/List", listLocalFiles, allowConfigStates);
@@ -696,8 +697,11 @@ void make_file_commands() {
     new WebCommand("path", WEBCMD, WU, NULL, "File/ShowHash", fileShowHash);
     new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
     new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile, nullptr);
-    new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
-    new WebCommand("path", WEBCMD, WU, NULL, "SD/Rename", renameSDObject);
+    // notIdleOrAlarmOrJobActive: could delete/rename the file a job is
+    // currently reading from.
+    new WebCommand(
+        "file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject, notIdleOrAlarmOrJobActive);
+    new WebCommand("path", WEBCMD, WU, NULL, "SD/Rename", renameSDObject, notIdleOrAlarmOrJobActive);
     new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);
     new WebCommand("path", WEBCMD, WU, NULL, "SD/ListJSON", listSDFilesJSON);
     new WebCommand(NULL, WEBCMD, WU, "ESP200", "SD/Status", showSDStatus);

@@ -235,7 +235,12 @@ namespace WebUI {
 
             //      new WebCommand("ON|OFF", WEBCMD, WA, "ESP115", "Radio/State", setRadioState);
 
-            new WebCommand("P=position T=type V=value", WEBCMD, WA, "ESP401", "WebUI/Set", setWebSetting);
+            // notIdleOrAlarmOrJobActive, not the default notIdleOrAlarm: this is
+            // a WebUI-only hook, never used from macros or other automation, and
+            // it can reach NVS writes (flash) -- block it whenever a job is
+            // active even if the reported state happens to read Idle between
+            // motion segments (see notIdleOrAlarmOrJobActive's own comment).
+            new WebCommand("P=position T=type V=value", WEBCMD, WA, "ESP401", "WebUI/Set", setWebSetting, notIdleOrAlarmOrJobActive);
             new WebReportCommand(NULL, WEBCMD, WU, "ESP400", "WebUI/List", listSettings, anyState);
             new WebReportCommand(NULL, WEBCMD, WG, "ESP0", "WebUI/Help", showWebHelp, anyState);
             new WebReportCommand(NULL, WEBCMD, WG, "ESP", "WebUI/Help", showWebHelp, anyState);

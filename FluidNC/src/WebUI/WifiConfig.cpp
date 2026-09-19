@@ -707,7 +707,10 @@ namespace WebUI {
             new WebReportCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/Info", showFwInfo, anyState);
 
             new WebReportCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
-            new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
+            // notIdleOrAlarmOrJobActive: writes WiFi NVS settings and risks
+            // dropping the connection driving a running job.
+            new WebCommand(
+                "IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams, notIdleOrAlarmOrJobActive);
 
             //stop active services
             // wifi_services.end();

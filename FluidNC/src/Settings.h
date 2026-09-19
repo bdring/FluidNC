@@ -343,6 +343,7 @@ public:
 
 extern bool notIdleOrJog();
 extern bool notIdleOrAlarm();
+extern bool notIdleOrAlarmOrJobActive();
 extern bool anyState();
 extern bool cycleOrHold();
 extern bool allowConfigStates();

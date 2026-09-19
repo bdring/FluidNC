@@ -1082,10 +1082,10 @@ void make_user_commands() {
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new ReportCommand("GB", "GCode/BlockMode", gcode_block_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
-    new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
+    new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarmOrJobActive, WA);  // erases all NVS; flash write
     new ReportCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
     new ReportCommand("#", "GCode/Offsets", report_ngc, anyState);
-    new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
+    new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarmOrJobActive);  // loses position if a job is running
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
@@ -1113,9 +1113,9 @@ void make_user_commands() {
     new ReportCommand("LD", "Log/Debug", cmd_log_debug, anyState);
     new ReportCommand("LV", "Log/Verbose", cmd_log_verbose, anyState);
 
-    new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
+    new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarmOrJobActive);  // disables steppers; loses position mid-job
     new ReportCommand("I", "Build/Info", get_report_build_info, anyState);
-    new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
+    new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarmOrJobActive, WA);  // rewrites NVS; flash write
 
     new ReportCommand("SA", "Alarm/Send", sendAlarm, anyState);
     new ReportCommand("Heap", "Heap/Show", showHeap, anyState);
@@ -1129,7 +1129,7 @@ void make_user_commands() {
 #ifdef CRASH_TEST
     new UserCommand("CRASH", "Crash/Test", forceCrash, anyState);
 #endif
-    new UserCommand("UP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarm);
+    new UserCommand("UP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarmOrJobActive);  // may be a job's spindle UART
 
     new ReportCommand("RI", "Report/Interval", setReportInterval, anyState);
 

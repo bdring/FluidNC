@@ -473,8 +473,14 @@ namespace WebUI {
     void NotificationsService::init() {
         deinit();
 
-        new WebCommand(
-            "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
+        // notIdleOrAlarmOrJobActive: writes notification token/type NVS settings.
+        new WebCommand("TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings",
+                       WEBCMD,
+                       WA,
+                       "ESP610",
+                       "Notification/Setup",
+                       showSetNotification,
+                       notIdleOrAlarmOrJobActive);
         notification_ts = new StringSetting(
             "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH);
         notification_t2 = new StringSetting("Notification Token 2",

@@ -214,7 +214,10 @@ namespace WebUI {
             _eth_netmask = new IPaddrSetting("Ethernet Static Mask", WEBSET, WA, NULL, "Ethernet/Netmask", NULL_IP);
 
             new WebReportCommand(NULL, WEBCMD, WG, NULL, "Ethernet/Status", showEthStatus, anyState);
-            new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, NULL, "Ethernet/Setup", showSetEthParams);
+            // notIdleOrAlarmOrJobActive: writes Ethernet NVS settings and risks
+            // dropping the connection driving a running job.
+            new WebCommand(
+                "IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, NULL, "Ethernet/Setup", showSetEthParams, notIdleOrAlarmOrJobActive);
             new WebCommand(NULL, WEBCMD, WA, "EI", "Ethernet/Init", initEth, anyState);
 
             if (networkType() != NetworkTypeEthernet) {
