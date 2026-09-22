@@ -19,6 +19,7 @@
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include "Driver/watchdog.h"  // WatchdogSuspend
 // #include <base64.h>
 #include <libb64/cencode.h>
 
@@ -192,6 +193,11 @@ namespace WebUI {
             return false;
         }
         if (!((strlen(title) == 0) && (strlen(message) == 0))) {
+            // Sending blocks for a TLS handshake plus one or more reply waits of
+            // up to 5 s each, all inside library calls we cannot feed from.  It
+            // runs on the watched polling task (the "Job done" notice) or the
+            // protocol task, so step out of the watchdog for the duration.
+            WatchdogSuspend wdt_off;
             switch (_notificationType) {
                 case PUSHOVER_NOTIFICATION:
                     return sendPushoverMSG(title, message);

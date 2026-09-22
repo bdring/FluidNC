@@ -1,3 +1,5 @@
+#pragma once
+
 void feed_watchdog();
 void add_watchdog_to_task();
 
@@ -8,3 +10,13 @@ void add_watchdog_to_task();
 // going briefly unsupervised.
 void suspend_watchdog_for_task();
 void resume_watchdog_for_task();
+
+// Scoped form of the pair above, so an early return or an exception cannot
+// leave the task unsupervised.  Does not nest.
+class WatchdogSuspend {
+public:
+    WatchdogSuspend() { suspend_watchdog_for_task(); }
+    ~WatchdogSuspend() { resume_watchdog_for_task(); }
+    WatchdogSuspend(const WatchdogSuspend&)            = delete;
+    WatchdogSuspend& operator=(const WatchdogSuspend&) = delete;
+};
