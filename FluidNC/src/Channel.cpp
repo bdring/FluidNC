@@ -119,6 +119,14 @@ void Channel::flushRx() {
     _queue_discarding      = false;
     _queue_overflow_logged = false;
     xSemaphoreGive(_queue_mutex);
+    // System-wide safety net, not the primary mechanism (see pollLine()'s
+    // comment on _pending_ack for that): this channel's outstanding line, if
+    // any, is moot after a reset -- whatever would have eventually acked it
+    // is gone too. Called via allChannels.flushRx() from
+    // protocol_do_soft_restart(), so any channel that somehow ended up
+    // pending-ack-gated survives at most until the next reset regardless of
+    // how it got that way.
+    _pending_ack.store(false, std::memory_order_release);
 }
 
 // Enqueue one non-realtime byte.  Drop policy is whole-line: if a new line
@@ -367,6 +375,13 @@ Error       Channel::pollLine(char* line) {
     if (_paused) {
         return Error::Ok;
     }
+    // While the line most recently returned is still awaiting ack() (see
+    // _pending_ack's declaration), behave as though called with line ==
+    // nullptr regardless of what the caller actually passed: realtime
+    // characters still work below, but no new line is completed -- other
+    // bytes queue in _queue instead, to be consumed once the ack arrives and
+    // this channel is polled with a real buffer again.
+    char* effective_line = _pending_ack.load(std::memory_order_acquire) ? nullptr : line;
     handle();
     while (1) {
         if (_cnt) {
@@ -374,7 +389,7 @@ Error       Channel::pollLine(char* line) {
         }
         int32_t ch = -1;
         uint8_t queued = 0;
-        if (line && try_pop_queued_byte(queued)) {
+        if (effective_line && try_pop_queued_byte(queued)) {
             ch = queued;
         } else {
             ch = read();
@@ -387,7 +402,7 @@ Error       Channel::pollLine(char* line) {
             handleRealtimeCharacter((uint8_t)ch);
             continue;
         }
-        if (!line) {
+        if (!effective_line) {
             queue_push((uint8_t)ch);
             continue;
         }
@@ -397,7 +412,8 @@ Error       Channel::pollLine(char* line) {
             --_cnt;
         }
 
-        if (lineComplete(line, ch)) {
+        if (lineComplete(effective_line, ch)) {
+            _pending_ack.store(true, std::memory_order_release);
             return Error::Ok;
         }
     }
@@ -430,6 +446,7 @@ void Channel::registerVirtualPin(pinnum_t pinnum, InputPin* obj) {
 }
 
 void Channel::ack(Error status) {
+    _pending_ack.store(false, std::memory_order_release);
     if (status == Error::Ok) {
         sendLine(MsgLevelNone, "ok");
         return;

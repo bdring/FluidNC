@@ -265,9 +265,16 @@ static Error runFile(const Volume& fs, const char* parameter, AuthenticationLeve
         Job::restore();
         return err;
     }
-    Job::nest(theFile, &out);
+    // `out` is the right channel for leader/diagnostic routing (passed as
+    // out_channel below), but NOT necessarily the channel actually waiting
+    // on this command's reply: when $SD/Run is itself a job's own line (an
+    // SD file that contains "$SD/Run=..."), `out` is that outer job's
+    // leader, not the inner job source whose processing ref this dispatch
+    // holds. Job::dispatch_channel is that one -- see its declaration and
+    // FluidNC issue #1862.
+    Job::nest(theFile, &out, Job::dispatch_channel);
 
-    return Error::Ok;
+    return Error::Deferred;
 }
 
 static Error runSDFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP220

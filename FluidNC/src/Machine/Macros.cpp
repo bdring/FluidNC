@@ -8,6 +8,18 @@
 #include "Job.h"                    // Job::
 
 void MacroEvent::run(void* arg) const {
+    // A macro pin is an asynchronous trigger -- it can fire at any arbitrary
+    // moment, unlike M6's macro or $SD/Run, which are always the result of a
+    // line within whatever job is currently running its own control flow.
+    // Nesting it into an already-active job would interject its gcode into
+    // a motion stream that is still mid-flight, under whatever units/
+    // coordinate state happen to be active at that moment -- reject it
+    // instead, the same way an interloping channel's gcode is rejected with
+    // AnotherInterfaceBusy.
+    if (Job::active()) {
+        log_error("macro" << _num << " ignored: a job is already running");
+        return;
+    }
     config->_macros->_macro[_num].run(nullptr);
 }
 
@@ -116,13 +128,19 @@ Cmd findOverride(std::string name) {
     return it == overrideCodes.end() ? Cmd::None : it->second;
 }
 
-bool Macro::run(Channel* channel) {
+bool Macro::run(Channel* channel, bool defer_ack) {
     if (_gcode.length()) {
         if (channel) {
             log_debug_to(*channel, "Run " << name() << ": " << _gcode);
         }
         Job::save();
-        Job::nest(new MacroChannel(this), channel);
+        // `channel` is the right leader/output-routing target (it may be the
+        // outer job's leader, not the actual line-dispatch channel -- see
+        // Job::dispatch_channel's declaration), but the ack, when deferred,
+        // must go to Job::dispatch_channel instead: that is the channel
+        // holding the processing ref for the M6/M61 line that got us here
+        // (FluidNC issue #1862).
+        Job::nest(new MacroChannel(this), channel, defer_ack ? Job::dispatch_channel : nullptr);
         return true;
     }
     return false;

@@ -333,8 +333,15 @@ enum class AxisCommand : uint8_t {
 // Initialize the parser
 void gc_init();
 
-// Execute one block of rs275/ngc/g-code
-Error gc_execute_line(const char* line);
+class Channel;  // Channel.h includes this header, so it cannot be included here.
+
+// Execute one block of rs275/ngc/g-code. `channel` is the channel whose
+// command line this is, threaded down to M6/M61 tool-change handling so a
+// macro/ATC that runs asynchronously can defer that line's ack to the
+// macro's completion (see Macro::run()'s defer_ack argument, FluidNC issue
+// #1862) instead of gc_execute_line() returning immediately after only
+// starting it.
+Error gc_execute_line(const char* line, Channel& channel);
 
 // Raw text of the g-code line currently (or most recently) being executed,
 // as received before whitespace/comment stripping.  Used for diagnostics

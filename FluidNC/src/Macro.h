@@ -6,8 +6,15 @@ class Macro {
     std::string _name;
 
 public:
-    std::string        _gcode;
-    bool               run(Channel* channel);
+    std::string _gcode;
+    // defer_ack: true when `channel` is also the channel waiting on a reply
+    // to the command that is calling run() (M6's tool-change macro, an ATC's
+    // tool_change()) -- the job this starts should own that reply, not this
+    // call (see Job::nest()'s ack_channel argument, FluidNC issue #1862).
+    // false (the default) for callers where `channel` is just an
+    // output-routing target with no command line of its own waiting on an
+    // ack, e.g. a restart_macro or a pin-triggered macro event.
+    bool               run(Channel* channel, bool defer_ack = false);
     void               set(const char* value) { _gcode = value; }
     void               set(const std::string& value) { _gcode = value; }
     void               set(const std::string_view value) { _gcode = value; }

@@ -66,7 +66,13 @@ namespace Spindles {
         virtual void   config_message() = 0;
         virtual bool   isRateAdjusted();
         virtual tool_t get_current_tool_num() { return _current_tool; }
-        virtual bool   tool_change(uint32_t tool_number, bool pre_select, bool set_tool);
+        // channel: the channel whose command line (M6, M61) triggered this
+        // call, threaded down to a macro/ATC that may run asynchronously so
+        // that command's ack can be deferred to the macro's completion
+        // instead of being sent immediately (FluidNC issue #1862). Returns
+        // true if a macro/job was actually started -- the caller must know
+        // this to decide whether to return Error::Deferred.
+        virtual bool tool_change(uint32_t tool_number, bool pre_select, bool set_tool, Channel* channel = nullptr);
 
         virtual void setSpeedfromISR(uint32_t dev_speed) = 0;
 

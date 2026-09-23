@@ -50,7 +50,7 @@ namespace ATCs {
     public:
         void init() override;
         void probe_notification() override;
-        bool tool_change(tool_t value, bool pre_select, bool set_tool) override;
+        bool tool_change(tool_t value, bool pre_select, bool set_tool, Channel* channel) override;
 
         void validate() override {}
 

@@ -377,7 +377,7 @@ static void poll_once() {
                                              static_cast<int>(status) << " (" << errorString(status) << ") in "
                                                                       << channel->name() << " at line " << channel->lineNumber());
                             }
-                            Job::abort();
+                            Job::abort(status);
                             break;
                         }
                     }
@@ -478,6 +478,11 @@ void protocol_main_loop() {
         if (xQueueReceive(cmd_queue, &item, 0)) {
             Channel* channel = item.channel;
             if (channel->is_closing()) {
+                // No ack() -- the channel is on its way out -- but still
+                // clear its pending-ack gate: the ref release just below is
+                // what actually lets it be reaped, so nothing else will ever
+                // ack this line for it (see Channel::_pending_ack).
+                channel->clear_pending_ack();
                 channel->release_processing_ref();
             } else {
                 if (gcode_echo->get()) {
@@ -535,13 +540,35 @@ void protocol_main_loop() {
                     }
                 }
 
-                Error status_code = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
+                // Job::dispatch_channel, not out_channel (which execute_line()
+                // itself is called with, and may be the job leader instead of
+                // `channel` -- see its declaration), is what a deferred ack
+                // started by this line must target: it is `channel` that
+                // holds the processing ref this dispatch will skip releasing
+                // below on Error::Deferred.
+                Job::dispatch_channel = channel;
+                Error status_code     = execute_line(item.line, *out_channel, AuthenticationLevel::LEVEL_GUEST, true);
+                Job::dispatch_channel = nullptr;
 
-                // If the line was aborted, the channel could be invalid.
-                if (!sys.abort()) {
-                    channel->ack(status_code);
+                // Error::Deferred means the line started a job (M6's
+                // tool-change macro, $SD/Run, $LocalFS/Run) whose completion
+                // -- not this dispatch -- owns the ack; see Job::nest()'s
+                // ack_channel argument and FluidNC issue #1862. Hold this
+                // LineItem's processing ref until then, same as the other
+                // Error::Deferred producers in this file.
+                if (status_code != Error::Deferred) {
+                    // If the line was aborted, avoid writing a stale reply
+                    // to the channel mid-teardown -- but still clear its
+                    // pending-ack gate (Channel::_pending_ack), or it would
+                    // never accept another line: nothing else is going to
+                    // ack this one now.
+                    if (!sys.abort()) {
+                        channel->ack(status_code);
+                    } else {
+                        channel->clear_pending_ack();
+                    }
+                    channel->release_processing_ref();
                 }
-                channel->release_processing_ref();
             }
         }
 
