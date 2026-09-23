@@ -334,12 +334,48 @@ for version in versions:
             addImage(mcu + '-bootloader', '0x1000' if mcu == 'esp32' else '0x0', bootloader, buildDir, mcu)
             addImage(mcu + '-bootapp', '0xe000', bootapp, buildDir, mcu)
 
+# wifi_s3_octalPSRAM is esp32s3 built against the Octal-PSRAM Arduino core
+# variant instead of Quad (see platformio.ini). It shares the same board,
+# partition table and WebUI filesystem as the regular esp32s3 'wifi' build
+# above -- confirmed byte-identical bootloader.bin/partitions.bin -- so only
+# its firmware image is unique; it reuses the esp32s3-bootloader/-bootapp/
+# -4m-partitions/-wifi-4m-filesystem images already added above instead of
+# rebuilding a filesystem or copying its own bootapp/bootloader.
+octalPsramEnv = 'wifi_s3_octalPSRAM'
+octalPsramBuildEnviron = environFor('esp32s3')
+if buildEnv(octalPsramEnv, verbose=verbose, env=octalPsramBuildEnviron) != 0:
+    sys.exit(1)
+octalPsramBuildDir = os.path.join('.pio', 'build', octalPsramEnv)
+octalPsramElfRelPath = os.path.join(relPath, 'esp32s3-wifi-octalpsram-firmware.elf')
+shutil.copy(os.path.join(octalPsramBuildDir, 'firmware.elf'), octalPsramElfRelPath)
+
+octalPsramAddrinfoDir = os.path.join(manifestRelPath, 'esp32s3', 'wifi-octalpsram')
+os.makedirs(octalPsramAddrinfoDir, exist_ok=True)
+octalPsramAddrinfoPath = os.path.join(octalPsramAddrinfoDir, 'firmware.addrinfo')
+print(f'Generating {octalPsramAddrinfoPath}')
+try:
+    generate_addrinfo(
+        elf_path=octalPsramElfRelPath,
+        output_path=octalPsramAddrinfoPath,
+        mcu='esp32s3',
+        build='wifi-octalpsram',
+        tag=tag,
+        verbose=verbose,
+    )
+except SystemExit:
+    print(f'Warning: Failed to generate .addrinfo for {octalPsramEnv}', file=sys.stderr)
+addAddrinfo('esp32s3-wifi-octalpsram-addrinfo', octalPsramAddrinfoPath)
+
+addImage('esp32s3-wifi-octalpsram-firmware', '0x10000', 'firmware.bin', octalPsramBuildDir, 'esp32s3/wifi-octalpsram')
+
 installableChoices = manifest['installable']['choices']
-def addSection(node, name, description, choice):
+def addSection(node, name, description, choice, compatible_psram=None):
     section = {
         "name": name,
         "description": description,
     }
+    if compatible_psram != None:
+        section['compatible_psram'] = compatible_psram
     if choice != None:
         section['choice-name'] = choice
         section['choices'] = []
@@ -352,9 +388,9 @@ def addMCU(name, description, choice=None):
     mcuChoices = addSection(installableChoices, name, description, choice)
 
 variantChoices = None
-def addVariant(variant, description, choice=None):
+def addVariant(variant, description, choice=None, compatible_psram=None):
     global variantChoices
-    variantChoices = addSection(mcuChoices, variant, description, choice)
+    variantChoices = addSection(mcuChoices, variant, description, choice, compatible_psram)
 
 def addInstallable(install_type, erase, images):
     for image in images:
@@ -395,26 +431,61 @@ def makeManifest():
     mcu = "esp32"
     addMCU(mcu, "ESP32-WROOM", "Firmware variant")
 
-    addVariant("wifi", "Supports WiFi and WebUI", "Installation type")
+    # Classic ESP32 has no PSRAM support at all, on any of these variants
+    # (the web installer's efuse detection only runs on ESP32-S3 anyway, so
+    # this is never actually consulted for filtering -- listed for
+    # documentation accuracy).
+    addVariant("wifi", "Supports WiFi and WebUI", "Installation type", compatible_psram=["none"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-firmware", mcu + "-wifi-4m-filesystem"])
     addInstallable(firmware_update, False, [mcu + "-wifi-firmware"])
 
-    addVariant("bt", "Supports Bluetooth serial", "Installation type")
+    addVariant("bt", "Supports Bluetooth serial", "Installation type", compatible_psram=["none"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-bt-firmware"])
     addInstallable(firmware_update, False, [mcu + "-bt-firmware"])
 
-    addVariant("noradio", "Supports neither WiFi nor Bluetooth", "Installation type")
+    addVariant("noradio", "Supports neither WiFi nor Bluetooth", "Installation type", compatible_psram=["none"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
     addInstallable(firmware_update, False, [mcu + "-noradio-firmware"])
 
     mcu = "esp32s3"
     addMCU(mcu, "ESP32-S3-WROOM-1", "Firmware variant")
 
-    addVariant("wifi", "Supports WiFi and WebUI", "Installation type")
+    # "compatible_psram" lists the module PSRAM types (as reported by the
+    # web installer's efuse detection: "none", "quad", "octal") each
+    # variant should be *offered* for -- not just which one it enables
+    # PSRAM on. "wifi"/"noradio" use the Quad-PSRAM core (memory_type=
+    # qio_qspi): PSRAM is only actually enabled on Quad modules, but the
+    # build still boots fine (without PSRAM) on none/Octal modules, same as
+    # it always has, so it stays universally offered.
+    #
+    # "wifi-octalpsram" (memory_type=qio_opi) only ever helps on Octal
+    # modules (R8/R16) -- offering it for none/Quad modules would be
+    # actively misleading, since it can't enable PSRAM there either -- so
+    # its compatible_psram is Octal-only. GPIO 33-37 is where Octal PSRAM
+    # lives electrically; a board using those pins for something else
+    # should not pick this variant even on Octal hardware, but that's a
+    # per-config fact the installer/manifest has no way to know, so it's
+    # called out in the description text instead of encoded as data.
+    addVariant("wifi", "Supports WiFi and WebUI", "Installation type", compatible_psram=["none", "quad", "octal"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-firmware", mcu + "-wifi-4m-filesystem"])
     addInstallable(firmware_update, False, [mcu + "-wifi-firmware"])
 
-    addVariant("noradio", "Does not support WiFi", "Installation type")
+    # Shares the plain "wifi" build's bootloader, partition table, and
+    # filesystem image -- only the firmware differs.
+    addVariant(
+        "wifi-octalpsram",
+        "Supports WiFi and WebUI, with Octal PSRAM enabled (for modules with Octal PSRAM, e.g. N8R8/N16R16V). "
+        "Do not choose this if your configuration uses any of GPIO 33-37 -- they conflict with Octal PSRAM.",
+        "Installation type",
+        compatible_psram=["octal"]
+    )
+    addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-octalpsram-firmware", mcu + "-wifi-4m-filesystem"])
+    addInstallable(firmware_update, False, [mcu + "-wifi-octalpsram-firmware"])
+
+    # noradio_s3 extends common_esp32s3 with no memory_type override, so it
+    # gets the same Quad-PSRAM core as "wifi" above -- same universal
+    # compatibility.
+    addVariant("noradio", "Does not support WiFi", "Installation type", compatible_psram=["none", "quad", "octal"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
     addInstallable(firmware_update, False, [mcu + "-noradio-firmware"])
 
