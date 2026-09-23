@@ -15,6 +15,10 @@
 (conditionals and its own explicit M0 pauses -- one immediately before each)
 (action below, so nothing happens without the operator confirming it first.)
 
+(Captured before G90 below changes it -- #<_incremental> reads the live)
+(distance mode, not a dry-run snapshot, so it must be saved now.)
+#<_was_incremental> = #<_incremental>
+
 (PRINT, About to move XY to X#<_target_x> Y#<_target_y> -- cycle start to continue)
 M0
 G90
@@ -47,7 +51,7 @@ o130 endif
 M0
 G1 Z#<_target_z> F50
 
-o140 if [#<_incremental> EQ 1]
+o140 if [#<_was_incremental> EQ 1]
     G91
 o140 endif
 (PRINT, Restart sequence complete -- resuming job)
