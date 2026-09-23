@@ -189,28 +189,27 @@ void Job::abort(Error status) {
 
 bool Job::consume_unwind_cause() {
     std::vector<PendingAck> acks_owed;
-    bool                    aborted = false;
     {
         JobLock lock;
         if (!active_nl()) {
             unwind_cause = nullptr;
-        } else if (unwind_cause) {
-            while (active_nl()) {
-                pop(acks_owed);
-            }
-            unwind_cause = nullptr;
-            aborted      = true;
+            return false;
         }
+        if (!unwind_cause) {
+            return false;
+        }
+        while (active_nl()) {
+            pop(acks_owed);
+        }
+        unwind_cause = nullptr;
     }
-    // Fired after the lock is released: ack()/release_processing_ref() may do
-    // channel I/O. Matches Job::abort()'s own default status, same as
-    // Job::abort() itself does, rather than each pending job's own
-    // set_ack_error() override -- an unwind is as system-wide as an abort.
+    // Fired after the lock is released, same as abort(): ack()/
+    // release_processing_ref() may do channel I/O.
     for (auto& pending : acks_owed) {
         pending.channel->ack(Error::Reset);
         pending.channel->release_processing_ref();
     }
-    return aborted;
+    return true;
 }
 
 bool Job::get_param(const std::string& name, float& value) {

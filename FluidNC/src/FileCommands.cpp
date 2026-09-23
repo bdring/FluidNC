@@ -13,6 +13,7 @@
 #include "string_util.h"  // split_prefix()
 
 #include "HashFS.h"
+#include "Driver/watchdog.h"  // feed_watchdog()
 
 #include <charconv>
 #include <map>
@@ -74,6 +75,7 @@ static Error showFile(const Volume& fs, const char* parameter, AuthenticationLev
     char  fileLine[255];
     Error res;
     while ((res = theFile->readLine(fileLine, 255)) == Error::Ok) {
+        feed_watchdog();  // A large file takes longer than the watchdog timeout
         // We cannot use the 2-argument form of log_stream() here because
         // fileLine can be overwritten by readLine before the output
         // task has a chance to forward the line to the output channel.
@@ -154,6 +156,7 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
         char  fileLine[255];
         Error res = Error::Ok;
         for (uint32_t linenum = 0; linenum < lastline && (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
+            feed_watchdog();  // Skipping to a late firstline reads the file from the start
             if (linenum >= firstline) {
                 j.string(fileLine);
             }
@@ -234,6 +237,7 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
         int  len;
 
         while ((len = theFile->read(fileLine, 100)) > 0) {
+            feed_watchdog();
             fileLine[len] = '\0';
             // std::string s(fileLine);
             //                replace_string_in_place(s, "\n", "");
@@ -305,6 +309,9 @@ static Error deleteObject(const Volume& fs, const char* name, Channel& out) {
     try {
         FluidPath fpath { name, fs };
         if (stdfs::is_directory(fpath)) {
+            // remove_all() walks the whole tree internally with no place to
+            // feed the watchdog, and a big directory takes a long time.
+            WatchdogSuspend wdt_off;
             stdfs::remove_all(fpath);
         } else {
             stdfs::remove(fpath);
@@ -380,6 +387,7 @@ static Error listFilesystemJSON(const Volume& fs, const char* value, Authenticat
 
         j.begin_array("files");
         for (auto const& dir_entry : iter) {
+            feed_watchdog();  // See listFilesystem() - index directories can be huge
             j.begin_object();
             j.member("name", dir_entry.path().filename().string());
             j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
@@ -437,6 +445,7 @@ static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_leve
             error = "Bad path";
         } else {
             for (auto const& dir_entry : iter) {
+                feed_watchdog();  // See listFilesystem() - index directories can be huge
                 auto fn     = dir_entry.path().filename();
                 auto is_dir = dir_entry.is_directory();
                 if (out.is_visible(fn.stem().string(), fn.extension().string(), is_dir)) {
@@ -512,6 +521,7 @@ static Error copyFile(const Volume& ifs, const char* ipath, const Volume& ofs, c
         uint8_t    buf[512];
         size_t     len;
         while ((len = inFile.read(buf, 512)) > 0) {
+            feed_watchdog();
             outFile.write(buf, len);
         }
         filepath = outFile.fpath();
@@ -555,6 +565,7 @@ static Error copyDir(const Volume& ifs, const std::string_view iDir, const Volum
     }
     Error err = Error::Ok;
     for (auto const& dir_entry : iter) {
+        feed_watchdog();
         if (dir_entry.is_directory()) {
             log_error_to(out, "Not handling localfs subdirectories");
         } else {

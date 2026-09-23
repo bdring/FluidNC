@@ -10,6 +10,7 @@
 #include "Configuration/RuntimeSetting.h"
 #include "Configuration/AfterParse.h"
 #include "Configuration/Validator.h"
+#include "Driver/watchdog.h"  // feed_watchdog()
 #include "Machine/Axes.h"
 #include "Regexpr.h"
 #include "WebUI/Authentication.h"
@@ -1062,7 +1063,10 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
 
     TickType_t last_ticks = xTaskGetTickCount();
 
+    // A passthrough session lasts as long as traffic keeps flowing - flashing
+    // a pendant through it takes minutes - so keep the task watchdog fed.
     while (xTaskGetTickCount() - last_ticks < timeout) {
+        feed_watchdog();
         size_t len;
         len = out.timedReadBytes((char*)buffer, buflen, 10);
         if (len > 0) {

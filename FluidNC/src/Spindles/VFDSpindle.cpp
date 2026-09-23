@@ -25,6 +25,7 @@
 #include "Protocol.h"  // rtAlarm
 #include "Report.h"    // hex message
 #include "Configuration/HandlerType.h"
+#include "Driver/watchdog.h"  // feed_watchdog()
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -158,6 +159,11 @@ namespace Spindles {
                 _syncing = false;
                 return;
             }
+            // This runs on the protocol task, which is subscribed to the task
+            // watchdog, and a spinup that keeps making progress can hold us here
+            // well past the TWDT timeout.  Each wait below is bounded at 3 s,
+            // under the 5 s timeout, so feeding once per pass is enough.
+            feed_watchdog();
             if (!xQueueReceive(VFD::VFDProtocol::vfd_speed_queue, &_sync_dev_speed, 3000)) {
                 mc_critical(ExecAlarm::SpindleControl);
                 log_error(name() << ": spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);

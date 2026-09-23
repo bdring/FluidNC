@@ -136,7 +136,7 @@ public:
     // (via protocol_buffer_synchronize()) while dispatching a completely
     // unrelated line. A post-hoc "did the depth change" check cannot tell
     // that unrelated push apart from this one.
-    static void nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel = nullptr);
+    static void       nest(Channel* in_channel, Channel* out_channel, Channel* ack_channel = nullptr);
     static void       unnest();
     static void       abort(Error status = Error::Reset);
     static JobSource* source();  // nullptr when no job is active

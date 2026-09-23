@@ -2,6 +2,7 @@
 #include "esp_littlefs.h"
 #include "esp_log.h"
 #include "wdt.h"
+#include "Driver/watchdog.h"  // suspend_watchdog_for_task()
 #include "Driver/localfs.h"
 #include "Config.h"
 
@@ -13,7 +14,11 @@ bool littlefs_format(const char* partition_label) {
     esp_log_level_set("esp_littlefs", ESP_LOG_NONE);
     esp_err_t err;
     disable_core0_WDT();
+    // Formatting erases the whole partition, which takes seconds, and the
+    // calling task (the protocol task, for $LocalFS/Format) is watched too.
+    suspend_watchdog_for_task();
     err = esp_littlefs_format(partition_label);
+    resume_watchdog_for_task();
     enable_core0_WDT();
     if (err) {
         log_debug("LittleFS format in " << partition_label << " partition failed: " << esp_err_to_name(err));

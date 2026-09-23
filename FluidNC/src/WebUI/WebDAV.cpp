@@ -24,6 +24,7 @@
 #include "WebDAV.h"
 #include "FileStream.h"
 #include "HashFS.h"
+#include "Driver/watchdog.h"  // WatchdogSuspend
 
 #include "Mime.h"
 
@@ -751,6 +752,9 @@ void WebDAV::handleDelete(const FluidPath& fpath, DavResource resource, AsyncWeb
     if (resource == DavResource::FILE) {
         okay = stdfs::remove(fpath, ec);
     } else {
+        // remove_all walks the whole tree with no place to feed the watchdog,
+        // and this runs on async_tcp, which AsyncTCP subscribes to it.
+        WatchdogSuspend wdt_off;
         // remove_all returns the number of items that were deleted
         okay = stdfs::remove_all(fpath, ec) != 0;
     }
