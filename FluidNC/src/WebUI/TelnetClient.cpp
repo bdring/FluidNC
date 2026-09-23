@@ -76,16 +76,7 @@ namespace WebUI {
 
     // Prevent dropping of critical command ack
     bool TelnetClient::isCriticalLine(const std::string& line) {
-        // "ok" has no variable content after it, unlike the others below, so
-        // match it by content rather than assuming a specific line ending --
-        // that assumption is just an accident of how write() normalizes "\n"
-        // to "\r\n", not a protocol guarantee this function should rely on.
-        size_t end = line.size();
-        while (end > 0 && (line[end - 1] == '\r' || line[end - 1] == '\n')) {
-            --end;
-        }
-        return line.compare(0, end, "ok") == 0 || line.rfind("error:", 0) == 0 || line.rfind("ALARM:", 0) == 0 ||
-               line.rfind("[MSG:ERR:", 0) == 0;
+        return line == "ok\r\n" || line.rfind("error:", 0) == 0 || line.rfind("ALARM:", 0) == 0 || line.rfind("[MSG:ERR:", 0) == 0;
     }
 
     size_t TelnetClient::queueFree() const {
