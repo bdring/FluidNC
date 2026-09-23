@@ -14,6 +14,11 @@ private:
 
     uint32_t _uart_num           = 0;
     int32_t  _report_interval_ms = 0;
+    uint32_t _last_greeting_ms   = 0;
+
+    // Set once a complete line or an expander ID arrives.  A received byte is
+    // not enough: line noise at power-up produces those.
+    bool _peer_spoke = false;
 
     static constexpr int _ack_timeout = 2000;
 
@@ -22,6 +27,10 @@ public:
 
     void init() override;
     void init(Uart* uart);
+
+    void handle() override;
+    void queueInput(const char* buf, size_t len);
+    void sendGreeting();
 
     // Print methods (Stream inherits from Print)
     size_t write(uint8_t c) override;
@@ -61,8 +70,10 @@ public:
         // @default_note off
         // @tuning per-machine
         // Interval, in milliseconds, at which a status report is proactively pushed to this
-        // channel while moving -- useful for driving a DRO without it having to poll. 0
-        // disables proactive reporting. No range is enforced by this item() call itself,
+        // channel, whether or not the machine is moving -- useful for driving a DRO without
+        // it having to poll. Also marks the channel as one that expects to be spoken to, so
+        // the startup greeting is repeated until the device answers. 0 disables proactive
+        // reporting. No range is enforced by this item() call itself,
         // but keeping it at 0 or in roughly the 50-5000 range is recommended to avoid
         // overloading the processor with reports.
         handler.item("report_interval_ms", _report_interval_ms);

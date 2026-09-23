@@ -86,6 +86,9 @@ protected:
     // Enqueue one non-realtime input byte, applying the whole-line drop policy.
     void queue_push(uint8_t byte);
 
+    // Send interval reports while idle too, not only while in motion.
+    bool _report_when_idle = false;
+
     uint32_t _reportInterval = 0;
     int32_t  _nextReportTime = 0;
 
