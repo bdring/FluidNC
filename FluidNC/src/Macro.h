@@ -21,7 +21,7 @@ public:
         va_list copy;
         va_start(arg, format);
         va_copy(copy, arg);
-        size_t len = vsnprintf(NULL, 0, format, arg);
+        size_t len = vsnprintf(NULL, 0, format, copy);
         va_end(copy);
 
         char* temp = new char[len + 1];
