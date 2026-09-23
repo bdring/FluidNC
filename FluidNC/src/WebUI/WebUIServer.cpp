@@ -36,6 +36,7 @@
 #include "JSONEncoder.h"
 
 #include "HashFS.h"
+#include "Driver/watchdog.h"  // WatchdogSuspend
 #include <cstdio>
 #include <list>
 #include <algorithm>
@@ -1306,7 +1307,13 @@ namespace WebUI {
             } else if (action == "deletedir") {
                 stdfs::path dirpath { fpath / filename };
                 log_debug("Deleting directory " << dirpath.string().c_str());
-                size_t count = stdfs::remove_all(dirpath, ec);
+                size_t count;
+                {
+                    // remove_all walks the whole tree with no place to feed the
+                    // watchdog, and this runs on the watched async_tcp task.
+                    WatchdogSuspend wdt_off;
+                    count = stdfs::remove_all(dirpath, ec);
+                }
                 if (count > 0) {
                     sstatus = filename + " deleted";
                     HashFS::report_change();
