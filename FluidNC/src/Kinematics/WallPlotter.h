@@ -41,6 +41,7 @@ namespace Kinematics {
     private:
         void lengths_to_xy(float left_length, float right_length, float& x, float& y);
         void xy_to_lengths(float x, float y, float& left_length, float& right_length);
+        void lengths_to_motors(float left_length, float right_length, float* motors);
 
         // State
         float zero_left;   //  The left cord offset corresponding to cartesian (0, 0).

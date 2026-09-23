@@ -1,9 +1,15 @@
 name: FluidNC Continuous Integration
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 jobs:
   config-docs:
+    # Skipped while the PR is a draft, so pushing tweaks doesn't burn CI on
+    # every commit; mark the PR "Ready for review" (or reopen it) when you're
+    # actually considering merging to get a run. workflow_dispatch always
+    # runs regardless of draft status.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     # Regenerates config_items.yaml from source (see ItemDocs.md) and fails
     # if that turns up a @default-vs-initializer drift warning -- a real
     # mismatch that needs fixing, or an explicit @ignore_drift <reason> if
@@ -43,6 +49,7 @@ jobs:
           PY
 
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     strategy:
       matrix:
         os:
@@ -98,6 +105,7 @@ jobs:
             .pio/build/${{ matrix.pio_env }}${{ matrix.pio_env_variant }}/partitions.bin
 
   tests:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     strategy:
       matrix:
         include:
