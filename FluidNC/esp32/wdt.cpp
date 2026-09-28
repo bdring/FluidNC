@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "wdt.h"
+#include "Driver/watchdog.h"
 #include "esp_task_wdt.h"
 #include <freertos/FreeRTOS.h>
 #include "Config.h"
@@ -15,6 +16,62 @@
 #if defined(CONFIG_ESP_TASK_WDT_EN) || defined(CONFIG_ESP_TASK_WDT)
 #    define FLUIDNC_TASK_WDT_ENABLED 1
 #endif
+
+// A task watchdog trip reports but does not reboot.  A reset cannot bring a
+// CNC controller back to a usable state - position, job and spindle state are
+// all lost - and every trip seen in the field so far has been a legitimate
+// long wait rather than a hang.  The timeout is long enough that ordinary slow
+// operations (VFD spinup, TLS handshakes, flash erase) stay clear of it.
+// The interrupt watchdog is unchanged and still resets on a real lockup.
+static const uint32_t task_wdt_timeout_s = 30;
+
+// Set by the TWDT interrupt, reported later from task context by
+// report_watchdog_timeouts().  The interrupt handler cannot log through
+// FluidNC's channels; the IDF prints the stalled task names and backtraces to
+// the UART console itself.
+static volatile uint32_t wdt_timeouts = 0;
+
+// Overrides the IDF's weak hook, called from the TWDT interrupt.  On IDF 4.x
+// it runs with the TWDT spinlock held, so it must not do anything but count.
+extern "C" void esp_task_wdt_isr_user_handler(void) {
+    wdt_timeouts = wdt_timeouts + 1;
+}
+
+void configure_task_watchdog() {
+#ifdef FLUIDNC_TASK_WDT_ENABLED
+#    if ESP_IDF_VERSION_MAJOR >= 5
+    uint32_t idle_core_mask = 0;
+#        ifdef CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0
+    idle_core_mask |= 1 << 0;
+#        endif
+#        ifdef CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1
+    idle_core_mask |= 1 << 1;
+#        endif
+    esp_task_wdt_config_t twdt_config = {
+        .timeout_ms     = task_wdt_timeout_s * 1000,
+        .idle_core_mask = idle_core_mask,
+        .trigger_panic  = false,
+    };
+    esp_err_t err = esp_task_wdt_reconfigure(&twdt_config);
+#    else
+    // On IDF 4.x, init on an already-initialized TWDT reconfigures it.
+    esp_err_t err = esp_task_wdt_init(task_wdt_timeout_s, false);
+#    endif
+    if (err != ESP_OK) {
+        log_error("Task watchdog reconfigure failed: " << esp_err_to_name(err));
+    }
+#endif
+}
+
+void report_watchdog_timeouts() {
+    static uint32_t reported = 0;
+    uint32_t        timeouts = wdt_timeouts;
+    if (timeouts != reported) {
+        log_warn("Task watchdog: a task went more than " << task_wdt_timeout_s << " s without feeding the watchdog ("
+                                                         << (timeouts - reported) << "x); backtrace on the serial console");
+        reported = timeouts;
+    }
+}
 
 static TaskHandle_t wdt_task_handle = nullptr;
 
