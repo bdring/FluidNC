@@ -56,12 +56,25 @@ void UartChannel::sendGreeting() {
 
 static const uint32_t greeting_repeat_ms = 1000;
 
+// Bounded, because a peer that never answers is a normal configuration, not a
+// fault: a write-only DRO is exactly what a uart_channel with a report interval
+// is for, and it never completes a line, so _peer_spoke never becomes true.
+// Repeating forever meant [MSG:RST] plus a full status report every second for
+// as long as the board was powered.  Thirty seconds is far longer than a device
+// takes to come up, and the configured report interval keeps feeding it
+// afterwards regardless.
+static const uint32_t greeting_repeat_limit = 30;
+
 // A device that powers up with FluidNC is often not listening yet when init()
 // sends the greeting, and an idle machine sends nothing after it.  If the
 // device waits for data before talking, neither side ever starts.  Repeat the
-// greeting, with a status report, until a complete line arrives.
+// greeting, with a status report, until a complete line arrives or the limit
+// above is reached.
 void UartChannel::handle() {
     if (_peer_spoke || !_report_interval_ms || _uart->_rxd_pin.undefined()) {
+        return;
+    }
+    if (_greetings_repeated >= greeting_repeat_limit) {
         return;
     }
     if ((millis() - _last_greeting_ms) < greeting_repeat_ms) {
@@ -69,6 +82,9 @@ void UartChannel::handle() {
     }
     sendGreeting();
     report_realtime_status(*this);
+    if (++_greetings_repeated >= greeting_repeat_limit) {
+        log_info(name() << ": no reply to the startup greeting; not repeating it further");
+    }
 }
 
 // An expander answers the ID query immediately; bound the wait so that a
