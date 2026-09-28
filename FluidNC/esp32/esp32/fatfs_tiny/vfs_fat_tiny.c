@@ -6,7 +6,7 @@
 // allocated:
 //
 //     esp_vfs_fat_register(): ff_memalloc(sizeof(vfs_fat_ctx_t) + max_files * sizeof(FIL))
-//     vfs_fat_link()/rename(): ff_memalloc(sizeof(FIL)) x2
+//     vfs_fat_link(): ff_memalloc(sizeof(FIL)) x2
 //
 // so it must see the same reduced sizeof(FIL) as ff_tiny.c or the ctx array and
 // the engine will disagree on the FIL layout.  See ff_tiny.c for the full
