@@ -1062,22 +1062,37 @@ namespace WebUI {
         delay(100);
     }
 
+    // WebUI names each part path + name and sends its size as path + name + "S",
+    // but browsers strip the directory from a part's filename before sending it.
+    // Put it back from the "path" field, or the size is never found - which
+    // silently skips the free-space check - and the file lands in the root.
+    static std::string uploadFullName(AsyncWebServerRequest* request, const String& filename) {
+        if (filename.startsWith("/") || !request->hasParam("path", true)) {
+            return filename.c_str();
+        }
+        std::string fullname(request->getParam("path", true)->value().c_str());
+        if (fullname.empty() || fullname.back() != '/') {
+            fullname += '/';
+        }
+        return fullname + filename.c_str();
+    }
+
+    static size_t uploadFileSize(AsyncWebServerRequest* request, const std::string& fullname) {
+        std::string sizeargname = fullname + "S";
+        return request->hasParam(sizeargname.c_str(), true) ? request->getParam(sizeargname.c_str(), true)->value().toInt() : 0;
+    }
+
     //LocalFS files uploader handle
     void WebUI_Server::fileUpload(
         AsyncWebServerRequest* request, const Volume& fs, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+        std::string fullname = uploadFullName(request, filename);
         if (!index) {
-            std::string sizeargname(filename.c_str());
-            sizeargname += "S";
-            size_t filesize = request->hasParam(sizeargname.c_str(), true) ? request->getParam(sizeargname.c_str(), true)->value().toInt() : 0;
-            uploadStart(request, filename.c_str(), filesize, fs);
+            uploadStart(request, fullname.c_str(), uploadFileSize(request, fullname), fs);
         }
         if (_upload_status == UploadStatus::ONGOING) {
             uploadWrite(request, data, len);
             if (final) {
-                std::string sizeargname(filename.c_str());
-                sizeargname += "S";
-                size_t filesize = request->hasParam(sizeargname.c_str(), true) ? request->getParam(sizeargname.c_str(), true)->value().toInt() : 0;
-                uploadEnd(request, filesize);
+                uploadEnd(request, uploadFileSize(request, fullname));
             }
         } else {
             uploadStop();
@@ -1404,12 +1419,19 @@ namespace WebUI {
             _uploadPath = "";  // Root directory
         }
 
+        // LittleFS needs blocks beyond the file's own size for metadata and
+        // copy-on-write, so "available" overstates what a write can use.  Keep a
+        // reserve: when littlefs does run out, the build we link panics with a
+        // divide by zero in its out-of-space log message instead of returning
+        // an error, taking the controller down in the middle of the upload.
+        static constexpr size_t UPLOAD_SPACE_RESERVE = 4 * 4096;
+
         auto space = stdfs::space(fpath, ec);
-        if (!ec && filesize && filesize > space.available) {
+        if (!ec && filesize && filesize + UPLOAD_SPACE_RESERVE > space.available) {
             // If the file already exists, maybe there will be enough space
             // when we replace it.
             auto existing_size = stdfs::file_size(fpath, ec);
-            if (ec || (filesize > (space.available + existing_size))) {
+            if (ec || (filesize + UPLOAD_SPACE_RESERVE > (space.available + existing_size))) {
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload not enough space");
                 pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
