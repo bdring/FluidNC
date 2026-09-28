@@ -82,12 +82,27 @@ void feed_watchdog() {
 #endif
 }
 
-// Tracks whether this task was subscribed before we suspended it, so resume
-// does not add a task that was never watched in the first place.
-static thread_local bool wdt_was_subscribed = false;
+// Tracks whether this task was subscribed before the outermost suspend, so
+// resume does not add a task that was never watched in the first place, and how
+// deeply suspends are nested.
+//
+// Without the depth count, nesting silently loses the subscription: the inner
+// suspend finds the task already unsubscribed, records "was not subscribed", and
+// its resume clears the flag, so the outermost resume re-adds nothing.  The task
+// then runs unwatched for the rest of the boot, with every feed_watchdog() in it
+// a no-op.
+//
+// The shape that nests is a guard held across a whole request, which then calls
+// into code that takes its own - a mount, or a remove_all().  Cheap to insure
+// against, given the failure is silent and permanent.
+static thread_local bool     wdt_was_subscribed = false;
+static thread_local uint32_t wdt_suspend_depth  = 0;
 
 void suspend_watchdog_for_task() {
 #ifdef FLUIDNC_TASK_WDT_ENABLED
+    if (wdt_suspend_depth++) {
+        return;  // an outer scope already unsubscribed this task
+    }
     wdt_was_subscribed = esp_task_wdt_status(NULL) == ESP_OK;
     if (wdt_was_subscribed) {
         esp_task_wdt_delete(NULL);
@@ -97,6 +112,12 @@ void suspend_watchdog_for_task() {
 
 void resume_watchdog_for_task() {
 #ifdef FLUIDNC_TASK_WDT_ENABLED
+    if (wdt_suspend_depth == 0) {
+        return;  // unbalanced resume; nothing was suspended
+    }
+    if (--wdt_suspend_depth) {
+        return;  // an inner scope ending; the outermost one resumes
+    }
     if (wdt_was_subscribed) {
         esp_task_wdt_add(NULL);
         esp_task_wdt_reset();

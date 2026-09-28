@@ -12,7 +12,8 @@ void suspend_watchdog_for_task();
 void resume_watchdog_for_task();
 
 // Scoped form of the pair above, so an early return or an exception cannot
-// leave the task unsupervised.  Does not nest.
+// leave the task unsupervised.  Nests: supervision resumes when the outermost
+// scope ends, so a guard held across a whole request may contain others.
 class WatchdogSuspend {
 public:
     WatchdogSuspend() { suspend_watchdog_for_task(); }
