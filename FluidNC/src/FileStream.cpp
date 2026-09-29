@@ -59,7 +59,28 @@ int FileStream::peek() {
     return -1;
 }
 
-void FileStream::flush() {}
+void FileStream::flush() {
+    // Was a no-op, so nothing could force buffered data out early.
+    if (_fd) {
+        fflush(_fd);
+    }
+}
+
+bool FileStream::close() {
+    if (!_fd) {
+        return !_io_error;
+    }
+    // fwrite() only fills the stdio buffer, so it reports success for data that
+    // has not been written yet.  The flush is where a full filesystem actually
+    // shows up, and fclose() flushes too - check both, and check the stream's
+    // error flag, which is sticky across the whole stream.
+    bool ok = fflush(_fd) == 0 && ferror(_fd) == 0;
+    if (fclose(_fd) != 0) {
+        ok = false;
+    }
+    _fd = nullptr;
+    return ok && !_io_error;
+}
 
 int FileStream::read(char* buffer, size_t length) {
     if (!_fd) {
