@@ -1068,7 +1068,7 @@ namespace WebUI {
         if (!index) {
             std::string sizeargname(filename.c_str());
             sizeargname += "S";
-            size_t filesize = request->hasParam(sizeargname.c_str()) ? request->getParam(sizeargname.c_str())->value().toInt() : 0;
+            size_t filesize = request->hasParam(sizeargname.c_str(), true) ? request->getParam(sizeargname.c_str(), true)->value().toInt() : 0;
             uploadStart(request, filename.c_str(), filesize, fs);
         }
         if (_upload_status == UploadStatus::ONGOING) {
@@ -1076,7 +1076,7 @@ namespace WebUI {
             if (final) {
                 std::string sizeargname(filename.c_str());
                 sizeargname += "S";
-                size_t filesize = request->hasParam(sizeargname.c_str()) ? request->getParam(sizeargname.c_str())->value().toInt() : 0;
+                size_t filesize = request->hasParam(sizeargname.c_str(), true) ? request->getParam(sizeargname.c_str(), true)->value().toInt() : 0;
                 uploadEnd(request, filesize);
             }
         } else {

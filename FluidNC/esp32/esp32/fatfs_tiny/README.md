@@ -11,8 +11,9 @@ On `framework-arduinoespressif32@3.20017.241212` (ESP-IDF v4.4.7) the precompile
 
 With `FF_FS_TINY == 0`, `struct FIL` embeds `BYTE buf[FF_MAX_SS]`, i.e. **~4 KB of
 internal DRAM per concurrently open SD file**. `esp_vfs_fat_register()` allocates
-`max_files * sizeof(FIL)` up front at mount time; `f_rename()` allocates two more
-transient `FIL`s. This is why `sd_mount()`'s default `max_files` had to drop from
+`max_files * sizeof(FIL)` up front at mount time, and `vfs_fat_link()` (not
+rename, which calls `f_rename()` and uses no `FIL`) heap-allocates two more
+transient `FIL`s outside the fd table. This is why `sd_mount()`'s default `max_files` had to drop from
 3 to 2 (commit 62bf3f6a).
 
 Setting `FF_FS_TINY == 1` removes the per-`FIL` buffer; all file data transfers
