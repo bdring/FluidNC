@@ -84,10 +84,10 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
             case ARDUINO_USB_CDC_LINE_CODING_EVENT:
 #if DEBUG_ME
                 esp_rom_printf("CDC LINE CODING: bit_rate: %u, data_bits: %u, stop_bits: %u, parity: %u\n\n",
-                         data->line_coding.bit_rate,
-                         data->line_coding.data_bits,
-                         data->line_coding.stop_bits,
-                         data->line_coding.parity);
+                               data->line_coding.bit_rate,
+                               data->line_coding.data_bits,
+                               data->line_coding.stop_bits,
+                               data->line_coding.parity);
 #endif
                 break;
             case ARDUINO_USB_CDC_RX_EVENT:
@@ -96,7 +96,7 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
                 {
                     uint8_t buf[data->rx.len];
                     size_t  len = USBSerial.read(buf, data->rx.len);
-                    esp_rom_printf("%.*s", buf, len);
+                    esp_rom_printf("%.*s", len, buf);
                 }
                 esp_rom_printf("\n");
 #endif
