@@ -27,21 +27,25 @@ USBCDCChannel::USBCDCChannel(bool addCR) : Channel("usbcdc", addCR), _cdc(TUSBCD
 
 static uint32_t state = 0;
 
+// This runs in the Arduino USB event task, whose stack is only
+// CONFIG_ARDUINO_SERIAL_EVENT_TASK_STACK_SIZE (2048) bytes.  newlib printf()
+// overflows that stack (vfprintf -> fflush -> VFS UART write + lock), so use
+// esp_rom_printf(), which is lock-free and uses very little stack.
 static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     if (event_base == ARDUINO_USB_EVENTS) {
         arduino_usb_event_data_t* data = (arduino_usb_event_data_t*)event_data;
         switch (event_id) {
             case ARDUINO_USB_STARTED_EVENT:
-                ::printf("USB PLUGGED\n");
+                esp_rom_printf("USB PLUGGED\n");
                 break;
             case ARDUINO_USB_STOPPED_EVENT:
-                ::printf("USB UNPLUGGED\n");
+                esp_rom_printf("USB UNPLUGGED\n");
                 break;
             case ARDUINO_USB_SUSPEND_EVENT:
-                ::printf("USB SUSPENDED: remote_wakeup_en: %u\n\n", data->suspend.remote_wakeup_en);
+                esp_rom_printf("USB SUSPENDED: remote_wakeup_en: %u\n\n", data->suspend.remote_wakeup_en);
                 break;
             case ARDUINO_USB_RESUME_EVENT:
-                ::printf("USB RESUMED\n");
+                esp_rom_printf("USB RESUMED\n");
                 break;
 
             default:
@@ -63,10 +67,10 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
                 state &= 0xfff;
 
 #if DEBUG_ME
-                ::putchar(((state >> 8) & 0xf) + '0');
-                ::putchar(((state >> 4) & 0xf) + '0');
-                ::putchar((state & 0xf) + '0');
-                ::putchar('\n');
+                esp_rom_printf("%c", ((state >> 8) & 0xf) + '0');
+                esp_rom_printf("%c", ((state >> 4) & 0xf) + '0');
+                esp_rom_printf("%c", (state & 0xf) + '0');
+                esp_rom_printf("%c", '\n');
 #endif
 
                 // A sequence of transitions from R1D1 to R0D0 to R1D0
@@ -79,7 +83,7 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
             } break;
             case ARDUINO_USB_CDC_LINE_CODING_EVENT:
 #if DEBUG_ME
-                ::printf("CDC LINE CODING: bit_rate: %u, data_bits: %u, stop_bits: %u, parity: %u\n\n",
+                esp_rom_printf("CDC LINE CODING: bit_rate: %u, data_bits: %u, stop_bits: %u, parity: %u\n\n",
                          data->line_coding.bit_rate,
                          data->line_coding.data_bits,
                          data->line_coding.stop_bits,
@@ -88,17 +92,17 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
                 break;
             case ARDUINO_USB_CDC_RX_EVENT:
 #if DEBUG_ME
-                ::printf("CDC RX [%u]:\n", data->rx.len);
+                esp_rom_printf("CDC RX [%u]:\n", data->rx.len);
                 {
                     uint8_t buf[data->rx.len];
                     size_t  len = USBSerial.read(buf, data->rx.len);
-                    ::printf("%.*s", buf, len);
+                    esp_rom_printf("%.*s", buf, len);
                 }
-                ::printf("\n");
+                esp_rom_printf("\n");
 #endif
                 break;
             case ARDUINO_USB_CDC_RX_OVERFLOW_EVENT:
-                ::printf("CDC RX Overflow of %d bytes\n", data->rx_overflow.dropped_bytes);
+                esp_rom_printf("CDC RX Overflow of %d bytes\n", data->rx_overflow.dropped_bytes);
                 break;
 
             default:
