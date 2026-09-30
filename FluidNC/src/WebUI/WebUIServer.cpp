@@ -517,12 +517,6 @@ namespace WebUI {
     }
     // Send a file, either the specified path or path.gz
     bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
-        std::error_code ec;
-        FluidPath       fpath { path, LocalFS, ec };
-        if (ec) {
-            return false;
-        }
-
         bool acceptGz = false;
         if (request->hasHeader("Accept-Encoding")) {
             auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
@@ -541,10 +535,12 @@ namespace WebUI {
         // This can make it hard to debug ISR IRAM problems, because the easiest
         // way to trigger such problems is to refresh WebUI during motion.
         if (http_block_during_motion->get() && inMotionState()) {
-            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH
-            hash = HashFS::hash(fpath, true);
+            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH.
+            // Use the canonical name rather than a FluidPath, whose constructor would mount an SD card.
+            std::filesystem::path cpath { FluidPath::canonPath(path, LocalFS) };
+            hash = HashFS::hash(cpath, true);
             if (!hash.length() && acceptGz) {
-                std::filesystem::path gzpath(fpath);
+                std::filesystem::path gzpath(cpath);
                 gzpath += ".gz";
                 hash = HashFS::hash(gzpath, true);
             }
@@ -558,12 +554,18 @@ namespace WebUI {
             // HTTP/IndexFile is hashed in advance, so with no hash it is
             // either missing or was not hashed yet.  Let the caller fall back
             // to LocalFS index.html, which might yet answer with a 304.
-            if (!hash.length() && HashFS::is_index_file(fpath)) {
+            if (!hash.length() && HashFS::is_index_file(cpath)) {
                 return false;
             }
 
             WebUI_Server::handleReloadBlocked(request);
             return true;
+        }
+
+        std::error_code ec;
+        FluidPath       fpath { path, LocalFS, ec };
+        if (ec) {
+            return false;
         }
 
         // Check for browser cache match
