@@ -290,6 +290,7 @@ static void poll_once() {
 
         // Poll the input sources waiting for a complete line to arrive
         /*feedLoopWDT(), */ vTaskDelay(1);
+        report_watchdog_timeouts();
         // Polling is paused when xmodem is using a channel for binary upload
         if (pollingPaused) {
             // xmodem only pauses channel *input*; log output must keep moving

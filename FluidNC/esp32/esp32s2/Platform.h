@@ -38,7 +38,11 @@ const int BAUD_RATE = 115200;
 
 #include <esp_idf_version.h>
 
+#include "wdt.h"  // configure_task_watchdog
+
 inline void platform_preinit() {
+    configure_task_watchdog();
+
 #if ESP_IDF_VERSION_MAJOR < 5
     disableCore0WDT();
 #else
