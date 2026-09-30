@@ -2,6 +2,7 @@
 #include <string>
 #include <map>
 #include <filesystem>
+#include <cstdint>
 
 class HashFS {
 public:
@@ -27,10 +28,11 @@ private:
     static std::map<std::string, std::string> localFsHashes;
     static std::string                        _indexFile;
     static bool                               _enabled;
+    static uint32_t                           _generation;
 
     static std::string key(const std::filesystem::path& path);
     static void        erase_locked(const std::filesystem::path& path);
     static std::string index_file();
-    static bool        enabled();
+    static bool        cacheable_locked(const std::filesystem::path& path);
     static void        hash_index_file();
 };
