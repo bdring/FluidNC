@@ -96,7 +96,7 @@ void FileStream::setup(const char* mode) {
     _fd = fopen(_fpath.string().c_str(), mode);
 
     if (!_fd) {
-        log_info("fopen failed for " << _fpath.string() << " mode " << mode << " errno: " << errno);
+        log_debug("fopen failed for " << _fpath.string() << " mode " << mode << " errno: " << errno);
         bool opening = strcmp(mode, "w");
         throw ErrorException(opening ? Error::FsFailedOpenFile : Error::FsFailedCreateFile);
     }
