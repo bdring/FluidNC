@@ -108,7 +108,7 @@ namespace WebUI {
 
         // Shown in response to $I, analogous to WiFiConfig::build_info()
         void build_info(Channel& channel) override {
-            if (!isOn()) {
+            if (networkType() != NetworkTypeEthernet || !isOn()) {
                 return;
             }
             std::string mac(ETH.macAddress().c_str());
