@@ -61,9 +61,17 @@ namespace Configuration {
 
     // Renders a config line for an error message: printable ASCII is kept
     // verbatim (spaces included); anything else becomes a %XX URI escape.
+    // Only the first max_line_bytes of the line are shown, followed by "..."
+    // if it was cut, so a huge or binary line cannot exhaust memory.
     static std::string escapeLine(std::string_view line) {
-        static const char hex[] = "0123456789ABCDEF";
-        std::string       s;
+        static const char   hex[]          = "0123456789ABCDEF";
+        static const size_t max_line_bytes = 80;
+        std::string         s;
+        bool                truncated = line.size() > max_line_bytes;
+        if (truncated) {
+            line = line.substr(0, max_line_bytes);
+        }
+        s.reserve(line.size() + 3);
         for (unsigned char c : line) {
             if (c >= 0x20 && c < 0x7f) {
                 s += char(c);
@@ -72,6 +80,9 @@ namespace Configuration {
                 s += hex[c >> 4];
                 s += hex[c & 0xf];
             }
+        }
+        if (truncated) {
+            s += "...";
         }
         return s;
     }
