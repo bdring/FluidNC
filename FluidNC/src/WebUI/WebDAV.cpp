@@ -358,7 +358,9 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
         if (state->outFile) {
             // The file was already opened and written in handleBody so
             // we are done.  We will handle PUT without body data below.
+            FluidPath fpath = state->outFile->fpath();  // Keeps the volume mounted for the rehash
             delete state->outFile;
+            HashFS::rehash_file(fpath, false);
             request->send(201);  // Created
         }
         // If state was non-null but state->outFile was null, handleBody
@@ -419,6 +421,7 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
             log_debug(fpath << " cannot be opened");
             return request->send(403);
         }
+        HashFS::rehash_file(fpath, false);
         return request->send(201);
     }
 
@@ -509,6 +512,7 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
 
                 if (!ec) {
                     stdfs::remove(fpath, ec);
+                    HashFS::delete_file(fpath, false);
                 }
 
                 return request->send(507);  // Insufficient storage
@@ -737,7 +741,7 @@ void WebDAV::handleMove(const FluidPath& fpath, DavResource resource, AsyncWebSe
         if (ec) {
             response = request->beginResponse(500, "text/plain", "Unable to move");
         } else {
-            //        HashFS::rename_file(fpath, newname);
+            HashFS::rename_file(fpath, newpath, false);
             response = request->beginResponse(201);
             // XXX webdav go server adds text/plain "Created" response
         }
@@ -759,6 +763,9 @@ void WebDAV::handleDelete(const FluidPath& fpath, DavResource resource, AsyncWeb
         okay = stdfs::remove_all(fpath, ec) != 0;
     }
 
+    if (okay) {
+        HashFS::delete_file(fpath, false);
+    }
     return request->send(okay ? 204 : 413);
 }
 
