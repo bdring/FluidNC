@@ -59,14 +59,30 @@ namespace Configuration {
         return std::string_view::npos;
     }
 
+    // Renders a config line for an error message: printable ASCII is kept
+    // verbatim (spaces included); anything else becomes a %XX URI escape.
+    static std::string escapeLine(std::string_view line) {
+        static const char hex[] = "0123456789ABCDEF";
+        std::string       s;
+        for (unsigned char c : line) {
+            if (c >= 0x20 && c < 0x7f) {
+                s += char(c);
+            } else {
+                s += '%';
+                s += hex[c >> 4];
+                s += hex[c & 0xf];
+            }
+        }
+        return s;
+    }
+
     void Tokenizer::parseError(const std::string_view description) const {
         set_state(State::ConfigAlarm);
 
-        std::string s("Line ");
-        s += std::to_string(_linenum);
-        s += ": ";
-        s += description;
-        throw std::runtime_error(s);
+        // The location goes out via log_error(); the exception carries
+        // only the description, which the catcher logs as a second line.
+        log_error("At line " << _linenum << ": \"" << escapeLine(_rawline) << "\"");
+        throw std::runtime_error(std::string(description));
     }
 
     void Tokenizer::parseKey() {
@@ -157,6 +173,8 @@ namespace Configuration {
             if (_line.empty()) {
                 continue;
             }
+
+            _rawline = _line;
 
             // Remove indentation and record the level
             _token._indent = _line.find_first_not_of(' ');
