@@ -33,6 +33,7 @@
 #    include "Driver/watchdog.h"  // feed_watchdog
 
 #    include <ETH.h>
+#    include <algorithm>
 #    include <string>
 #    include <cstring>
 
@@ -104,6 +105,22 @@ namespace WebUI {
         }
 
         void status_report(Channel& out) override { reportStatus(out); }
+
+        // Shown in response to $I, analogous to WiFiConfig::build_info()
+        void build_info(Channel& channel) override {
+            if (!isOn()) {
+                return;
+            }
+            std::string mac(ETH.macAddress().c_str());
+            std::replace(mac.begin(), mac.end(), ':', '-');
+            if (ETH.linkUp()) {
+                log_msg_to(channel,
+                           "Mode=Ethernet:Status=Link up:IP=" << IP_string(ETH.localIP()) << ":GW=" << IP_string(ETH.gatewayIP())
+                                                              << ":MAC=" << mac);
+            } else {
+                log_msg_to(channel, "Mode=Ethernet:Status=Link down:MAC=" << mac);
+            }
+        }
 
         void wifi_stats(JSONencoder& j) override {
             if (!isOn()) {
