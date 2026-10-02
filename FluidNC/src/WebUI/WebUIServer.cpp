@@ -1533,17 +1533,10 @@ namespace WebUI {
         }
         if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
             // Stop before the filesystem runs out rather than at it - on
-            // LittleFS running out is a panic, not an error.  The partial file
-            // is dropped here because nothing later removes it: once the status
-            // is FAILED the following chunk goes to uploadStop(), which keeps it.
+            // LittleFS running out is a panic, not an error.
             if (length > _uploadBudget - _uploadWritten) {
-                FluidPath filepath = _uploadFile->fpath();
-                delete _uploadFile;
-                _uploadFile    = nullptr;
+                discardUploadFile();
                 _upload_status = UploadStatus::FAILED;
-                std::error_code ec;
-                stdfs::remove(filepath, ec);
-                HashFS::rehash_file(filepath);
                 log_info("Upload failed - not enough space");
                 pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload failed, not enough space");
                 return;
@@ -1624,6 +1617,10 @@ namespace WebUI {
                     _upload_status = UploadStatus::FAILED;
                     pushError(request, ESP_ERROR_UPLOAD, "File upload mismatch");
                     log_info("Upload failed - size mismatch - exp " << filesize << " got " << actual_size);
+                    // Not the file the client sent, so do not leave it to be run.
+                    std::error_code rm_ec;
+                    stdfs::remove(filepath, rm_ec);
+                    HashFS::rehash_file(filepath);
                 }
             }
         } else {
@@ -1643,24 +1640,30 @@ namespace WebUI {
         _uploadPath.clear();  // Clear stored upload path on failure
         if (_uploadFile) {
             log_info("Upload cancelled");
-            std::filesystem::path filepath = _uploadFile->fpath();
-            delete _uploadFile;
-            _uploadFile = nullptr;
-            HashFS::rehash_file(filepath);
+            discardUploadFile();
         }
     }
     void WebUI_Server::uploadCheck(AsyncWebServerRequest* request) {
-        std::error_code error_code;
         if (_upload_status == UploadStatus::FAILED) {
             cancelUpload(request);
             if (_uploadFile) {
-                std::filesystem::path filepath = _uploadFile->fpath();
-                delete _uploadFile;
-                _uploadFile = nullptr;
-                stdfs::remove(filepath, error_code);
-                HashFS::rehash_file(filepath);
+                discardUploadFile();
             }
         }
+    }
+
+    // Close the upload's file and remove it - a partial upload is worse than
+    // none, particularly for GCode.  Hold the FluidPath, not a sliced
+    // std::filesystem::path: it carries the SD mount, and deleting the stream
+    // can otherwise drop the last reference and unmount the card before
+    // remove() runs, leaving the file where it was meant to be removed.
+    void WebUI_Server::discardUploadFile() {
+        FluidPath filepath = _uploadFile->fpath();
+        delete _uploadFile;
+        _uploadFile = nullptr;
+        std::error_code ec;
+        stdfs::remove(filepath, ec);
+        HashFS::rehash_file(filepath);
     }
 
     void WebUI_Server::poll() {

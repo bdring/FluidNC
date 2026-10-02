@@ -132,6 +132,7 @@ namespace WebUI {
         static void uploadWrite(AsyncWebServerRequest* request, uint8_t* buffer, size_t length);
         static void uploadEnd(AsyncWebServerRequest* request, size_t filesize);
         static void uploadStop();
+        static void discardUploadFile();
         static void uploadCheck(AsyncWebServerRequest* request);
 
         static bool isAllowedInMotion(String cmd);
