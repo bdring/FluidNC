@@ -75,6 +75,11 @@ namespace WebUI {
         static UploadStatus _upload_status;
         static FileStream*  _uploadFile;
         static std::string  _uploadPath;  // Store upload directory path for listing
+        // How many bytes the current upload may write, and how many it has.
+        // Enforced on every chunk, because the size the client declares is
+        // optional and is not checked against what it actually sends.
+        static size_t       _uploadBudget;
+        static size_t       _uploadWritten;
         // Bumped for every upload.  A disconnect callback captures the value it
         // started with, so it can tell "my upload is still the current one"
         // from "a later upload is running".  Comparing the FileStream pointer

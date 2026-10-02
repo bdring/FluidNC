@@ -283,6 +283,8 @@ namespace WebUI {
     FileStream* WebUI_Server::_uploadFile = nullptr;
     uint32_t    WebUI_Server::_uploadGeneration = 0;
     std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
+    size_t      WebUI_Server::_uploadBudget     = SIZE_MAX;
+    size_t      WebUI_Server::_uploadWritten    = 0;
 
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
@@ -1424,27 +1426,33 @@ namespace WebUI {
         // reserve: when littlefs does run out, the build we link panics with a
         // divide by zero in its out-of-space log message instead of returning
         // an error, taking the controller down in the middle of the upload.
+        // Four blocks of 4096 bytes, the fixed LittleFS block size on ESP32
+        // (one flash sector); revisit if the block size ever changes.  SD
+        // uploads go through here too, where the reserve is negligible.
         static constexpr size_t UPLOAD_SPACE_RESERVE = 4 * 4096;
 
-        // Compared by subtracting the reserve from what is free, not by adding it
-        // to filesize.  filesize comes from a request parameter through
-        // String::toInt(), which is signed and narrower than the free-space
-        // count, so a bogus value can be large enough that filesize + reserve
-        // wraps - and the check would then pass in exactly the case it exists to
-        // refuse.
-        auto space = stdfs::space(fpath, ec);
-        if (!ec && filesize && (space.available < UPLOAD_SPACE_RESERVE || filesize > space.available - UPLOAD_SPACE_RESERVE)) {
-            // If the file already exists, maybe there will be enough space
-            // when we replace it.
-            auto existing_size = stdfs::file_size(fpath, ec);
-            auto reclaimable   = space.available + existing_size;
-            if (ec || reclaimable < UPLOAD_SPACE_RESERVE || filesize > reclaimable - UPLOAD_SPACE_RESERVE) {
+        // The budget is what is free plus what replacing an existing file
+        // gives back, less the reserve.  It is enforced as the data arrives
+        // (uploadWrite), so it holds whether or not the client declared a size
+        // and whether or not the declared size was honest; the check against
+        // filesize here only refuses an upload that can never fit before any
+        // of it is sent.  Subtracting the reserve, rather than adding it to
+        // filesize, keeps a bogus filesize from wrapping past the comparison.
+        _uploadBudget = SIZE_MAX;
+        auto space    = stdfs::space(fpath, ec);
+        if (!ec) {
+            std::error_code size_ec;
+            auto            existing_size = stdfs::file_size(fpath, size_ec);
+            auto            reclaimable   = space.available + (size_ec ? 0 : existing_size);
+            if (reclaimable < UPLOAD_SPACE_RESERVE || filesize > reclaimable - UPLOAD_SPACE_RESERVE) {
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload not enough space");
                 pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
                 return;
             }
+            _uploadBudget = reclaimable - UPLOAD_SPACE_RESERVE;
         }
+        _uploadWritten = 0;
 
         if (_upload_status != UploadStatus::FAILED) {
             //Create file for writing
@@ -1512,6 +1520,23 @@ namespace WebUI {
             delay_ms(1);
         }
         if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
+            // Stop before the filesystem runs out rather than at it - on
+            // LittleFS running out is a panic, not an error.  The partial file
+            // is dropped here because nothing later removes it: once the status
+            // is FAILED the following chunk goes to uploadStop(), which keeps it.
+            if (length > _uploadBudget - _uploadWritten) {
+                FluidPath filepath = _uploadFile->fpath();
+                delete _uploadFile;
+                _uploadFile    = nullptr;
+                _upload_status = UploadStatus::FAILED;
+                std::error_code ec;
+                stdfs::remove(filepath, ec);
+                HashFS::rehash_file(filepath);
+                log_info("Upload failed - not enough space");
+                pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload failed, not enough space");
+                return;
+            }
+            _uploadWritten += length;
             //no error write post data
             if (length != _uploadFile->write(buffer, length)) {
                 _upload_status = UploadStatus::FAILED;
