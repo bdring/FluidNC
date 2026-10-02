@@ -1607,9 +1607,11 @@ namespace WebUI {
             // mismatch is discarded the same way as every other failure.
             if (filesize) {
                 size_t actual_size;
-                try {
-                    actual_size = stdfs::file_size(filepath);
-                } catch (const ErrorException& err) { actual_size = 0; }
+                std::error_code size_ec;
+                actual_size = stdfs::file_size(filepath, size_ec);
+                if (size_ec) {
+                    actual_size = 0;
+                }
 
                 if (filesize != actual_size) {
                     _upload_status = UploadStatus::FAILED;
@@ -1617,6 +1619,7 @@ namespace WebUI {
                     log_info("Upload failed - size mismatch - exp " << filesize << " got " << actual_size);
                     // Not the file the client sent, so do not leave it to be run.
                     discardUploadFile();
+                    return;
                 }
             }
             if (_uploadFile) {
