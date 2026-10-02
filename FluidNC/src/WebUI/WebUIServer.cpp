@@ -1597,9 +1597,10 @@ namespace WebUI {
                 pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload failed, not enough space");
                 return;
             }
-            _uploadWritten += length;
             //no error write post data
-            if (length != _uploadFile->write(buffer, length)) {
+            if (length == _uploadFile->write(buffer, length)) {
+                _uploadWritten += length;
+            } else {
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload failed - file write failed");
                 pushError(request, ESP_ERROR_FILE_WRITE, "File write failed");
@@ -1648,13 +1649,10 @@ namespace WebUI {
                 return;
             }
 
-            delete _uploadFile;
-            _uploadFile = nullptr;
             log_debug("pathname " << pathname);
 
-            HashFS::rehash_file(filepath);
-
-            // Check size
+            // Check size.  The stream is closed but kept until here, so a
+            // mismatch is discarded the same way as every other failure.
             if (filesize) {
                 // file_size() throws std::filesystem_error, which an
                 // ErrorException handler does not catch: use the error_code form.
@@ -1669,10 +1667,13 @@ namespace WebUI {
                     pushError(request, ESP_ERROR_UPLOAD, "File upload mismatch");
                     log_info("Upload failed - size mismatch - exp " << filesize << " got " << actual_size);
                     // Not the file the client sent, so do not leave it to be run.
-                    std::error_code rm_ec;
-                    stdfs::remove(filepath, rm_ec);
-                    HashFS::rehash_file(filepath);
+                    discardUploadFile();
                 }
+            }
+            if (_uploadFile) {
+                delete _uploadFile;
+                _uploadFile = nullptr;
+                HashFS::rehash_file(filepath);
             }
         } else {
             _upload_status = UploadStatus::FAILED;
