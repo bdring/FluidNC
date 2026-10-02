@@ -60,7 +60,9 @@ int FileStream::peek() {
 }
 
 void FileStream::flush() {
-    // Was a no-op, so nothing could force buffered data out early.
+    // Was a no-op, so nothing could force buffered data out early.  Best
+    // effort: Stream::flush() cannot report failure.  close() is what tells a
+    // caller whether the data was written.
     if (_fd) {
         fflush(_fd);
     }
@@ -73,7 +75,9 @@ bool FileStream::close() {
     // fwrite() only fills the stdio buffer, so it reports success for data that
     // has not been written yet.  The flush is where a full filesystem actually
     // shows up, and fclose() flushes too - check both, and check the stream's
-    // error flag, which is sticky across the whole stream.
+    // error flag, which is sticky across the whole stream.  A failure in
+    // fclose() alone counts as incomplete too, deliberately: the caller cannot
+    // then vouch for the file, and for an upload that means discarding it.
     bool ok = fflush(_fd) == 0 && ferror(_fd) == 0;
     if (fclose(_fd) != 0) {
         ok = false;
