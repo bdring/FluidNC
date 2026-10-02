@@ -283,8 +283,8 @@ namespace WebUI {
     FileStream* WebUI_Server::_uploadFile = nullptr;
     uint32_t    WebUI_Server::_uploadGeneration = 0;
     std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
-    size_t      WebUI_Server::_uploadBudget     = SIZE_MAX;
-    size_t      WebUI_Server::_uploadWritten    = 0;
+    uintmax_t   WebUI_Server::_uploadBudget     = SIZE_MAX;
+    uintmax_t   WebUI_Server::_uploadWritten    = 0;
 
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
@@ -1581,21 +1581,19 @@ namespace WebUI {
             // until this flush.  Ignoring it produced a file that stopped
             // half way while the browser was told the upload succeeded.
             bool written_completely = _uploadFile->close();
-            delete _uploadFile;
-            _uploadFile = nullptr;
-            log_debug("pathname " << pathname);
-
             if (!written_completely) {
                 _upload_status = UploadStatus::FAILED;
                 log_info("Upload failed - could not write the whole file");
                 pushError(request, ESP_ERROR_FILE_WRITE, "Upload failed, file not completely written");
                 // A truncated file is worse than none: half a preferences.json
                 // is not something WebUI can read back.
-                std::error_code rm_ec;
-                stdfs::remove(pathname, rm_ec);
-                HashFS::rehash_file(pathname);
+                discardUploadFile();
                 return;
             }
+
+            delete _uploadFile;
+            _uploadFile = nullptr;
+            log_debug("pathname " << pathname);
 
             if (ec) {
                 _upload_status = UploadStatus::FAILED;
