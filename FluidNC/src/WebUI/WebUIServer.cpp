@@ -1668,6 +1668,7 @@ namespace WebUI {
                     log_info("Upload failed - size mismatch - exp " << filesize << " got " << actual_size);
                     // Not the file the client sent, so do not leave it to be run.
                     discardUploadFile();
+                    return;
                 }
             }
             if (_uploadFile) {
