@@ -1428,8 +1428,20 @@ namespace WebUI {
         // an error, taking the controller down in the middle of the upload.
         // Four blocks of 4096 bytes, the fixed LittleFS block size on ESP32
         // (one flash sector); revisit if the block size ever changes.  SD
-        // uploads go through here too, where the reserve is negligible.
+        // runs out with an ordinary write error, so it needs no reserve.
         static constexpr size_t UPLOAD_SPACE_RESERVE = 4 * 4096;
+        const size_t            reserve              = &fs == &LocalFS ? UPLOAD_SPACE_RESERVE : 0;
+
+        // The free count reads the mounted driver directly, so it fails only
+        // when the volume is in trouble - no state to start writing into
+        // without knowing how far is safe.
+        auto space = stdfs::space(fpath, ec);
+        if (ec) {
+            _upload_status = UploadStatus::FAILED;
+            log_info("Upload cannot determine free space");
+            pushError(request, ESP_ERROR_UPLOAD, "Upload rejected, cannot determine free space");
+            return;
+        }
 
         // The budget is what is free plus what replacing an existing file
         // gives back, less the reserve.  It is enforced as the data arrives
@@ -1438,20 +1450,20 @@ namespace WebUI {
         // filesize here only refuses an upload that can never fit before any
         // of it is sent.  Subtracting the reserve, rather than adding it to
         // filesize, keeps a bogus filesize from wrapping past the comparison.
-        _uploadBudget = SIZE_MAX;
-        auto space    = stdfs::space(fpath, ec);
-        if (!ec) {
-            std::error_code size_ec;
-            auto            existing_size = stdfs::file_size(fpath, size_ec);
-            auto            reclaimable   = space.available + (size_ec ? 0 : existing_size);
-            if (reclaimable < UPLOAD_SPACE_RESERVE || filesize > reclaimable - UPLOAD_SPACE_RESERVE) {
-                _upload_status = UploadStatus::FAILED;
-                log_info("Upload not enough space");
-                pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-                return;
-            }
-            _uploadBudget = reclaimable - UPLOAD_SPACE_RESERVE;
+        //
+        // It is measured once, so it guards against the upload itself, not
+        // against something else writing to the same volume meanwhile; the
+        // reserve absorbs small writes such as a settings save, nothing more.
+        std::error_code size_ec;
+        auto            existing_size = stdfs::file_size(fpath, size_ec);
+        auto            reclaimable   = space.available + (size_ec ? 0 : existing_size);
+        if (reclaimable < reserve || filesize > reclaimable - reserve) {
+            _upload_status = UploadStatus::FAILED;
+            log_info("Upload not enough space");
+            pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+            return;
         }
+        _uploadBudget  = reclaimable - reserve;
         _uploadWritten = 0;
 
         if (_upload_status != UploadStatus::FAILED) {
