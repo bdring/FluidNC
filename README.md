@@ -31,6 +31,9 @@ FluidNC includes a built-in browser-based Web UI (Esp32_WebUI) so you control th
 
 ## Wiki
 
+For ESP32-S3 boards with only 4 MB flash, see the
+[4 MB build and flashing instructions](FluidNC/ld/esp32s3/4MB.md).
+
 [Check out the wiki](http://wiki.fluidnc.com) if you want the learn more about the feature or how to use it.
 
 ## Credits

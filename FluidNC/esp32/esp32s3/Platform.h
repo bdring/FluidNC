@@ -4,7 +4,9 @@
 
 #define WEAK_LINK __attribute__((weak))
 #define WITH_MBEDTLS
-#define HAVE_UPDATE
+#ifndef DISABLE_WEBUI_OTA
+#    define HAVE_UPDATE
+#endif
 
 #define MAX_N_UARTS (SOC_UART_NUM + MAX_N_USB_HOST)
 #define MAX_N_I2C SOC_I2C_NUM

@@ -1,0 +1,6 @@
+# Single application layout for 4 MB ESP32-S3 boards; no OTA firmware updates.
+# Keep 0xe000-0xffff reserved for the framework's boot_app0 image.
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x9000,  0x5000,
+factory,  app,  factory, 0x10000, 0x300000,
+spiffs,   data, spiffs,  0x310000,0xF0000,
