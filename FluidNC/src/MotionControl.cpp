@@ -78,9 +78,15 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
         // While we are waiting for room in the buffer, look for realtime
         // commands and other situations that could cause state changes.
         protocol_execute_realtime();
-        if (sys.abort()) {
+        // Bail on abort, and on Critical: a hard limit processed during this
+        // wait stops the steppers without setting abort or clearing the
+        // planner, so the buffer would never drain and this loop would spin
+        // until Ctrl-X.  Alarm is deliberately not included: $X clears it
+        // without resyncing the parser position to the machine, whereas
+        // Critical can only be cleared by Ctrl-X, which does.
+        if (sys.abort() || state_is(State::Critical)) {
             mc_pl_data_inflight = NULL;
-            return submitted_result;  // Bail, if system abort.
+            return submitted_result;
         }
     }
 
