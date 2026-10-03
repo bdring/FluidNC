@@ -1457,7 +1457,11 @@ void protocol_do_rt_reset() {
     if (state_is(State::Homing)) {
         Machine::Homing::fail(ExecAlarm::HomingFailReset);
     } else if (state_is(State::Cycle) || state_is(State::Jog) || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
-        Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
+        // Stepper::reset() puts the step ISR to sleep and empties the segment
+        // buffer.  stop_stepping() only ended the current pulse: the ISR kept
+        // draining up to _segments more segments (about 10 ms each) while
+        // alarm_msg() slept, so the machine kept moving after the reset.
+        Stepper::reset();  // Stop stepping immediately, possibly losing position
         protocol_do_alarm((void*)ExecAlarm::AbortCycle);
     } else if (state_is(State::Critical)) {
         if (Homing::unhomed_axes()) {
