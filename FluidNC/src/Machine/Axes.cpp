@@ -262,21 +262,6 @@ namespace Machine {
         return retval;
     }
 
-    MotorMask Axes::hardLimitMask() {
-        MotorMask mask = 0;
-        for (axis_t axis = X_AXIS; axis < _numberAxis; ++axis) {
-            auto a = _axis[axis];
-
-            for (motor_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; ++motor) {
-                auto m = a->_motors[motor];
-                if (m && m->_hardLimits) {
-                    set_bitnum(mask, axis);
-                }
-            }
-        }
-        return mask;
-    }
-
     bool Axes::namesToMask(const char* names, AxisMask& mask) {
         bool       retval      = true;
         const auto lenNames    = strlen(names);
