@@ -37,6 +37,7 @@
 
 #include "HashFS.h"
 #include "Driver/watchdog.h"  // WatchdogSuspend
+#include "Driver/random.h"    // random_u32
 #include <cstdio>
 #include <list>
 #include <algorithm>
@@ -480,14 +481,14 @@ namespace WebUI {
         return getSessionCookie(request);
     }
 
-    // Session IDs must differ between clients, so draw them from the hardware
-    // RNG (Arduino's random() wraps esp_random()) rather than from rand()
-    // reseeded with the wall-clock second, which gave every client that loaded
-    // a page in the same second the same cookie.
+    // Session IDs must differ between clients, so draw them from the platform
+    // entropy source rather than from rand() reseeded with the wall-clock
+    // second, which gave every client that loaded a page in the same second
+    // the same cookie.
     static void get_random_string(char* str, unsigned int len) {
         static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         for (unsigned int i = 0; i < len; i++) {
-            str[i] = alphabet[random(sizeof(alphabet) - 1)];
+            str[i] = alphabet[random_u32() % (sizeof(alphabet) - 1)];
         }
         str[len] = '\0';
     }
