@@ -61,8 +61,9 @@ static const uint32_t greeting_repeat_ms = 1000;
 // is for, and it never completes a line, so _peer_spoke never becomes true.
 // Repeating forever meant [MSG:RST] plus a full status report every second for
 // as long as the board was powered.  Thirty seconds is far longer than a device
-// takes to come up, and the configured report interval keeps feeding it
-// afterwards regardless.
+// takes to come up.  When the limit is reached the channel is marked active,
+// as it is when there is no RX pin, so the configured report interval keeps
+// feeding a peer that never sends a byte.
 static const uint32_t greeting_repeat_limit = 30;
 
 // A device that powers up with FluidNC is often not listening yet when init()
@@ -83,6 +84,7 @@ void UartChannel::handle() {
     sendGreeting();
     report_realtime_status(*this);
     if (++_greetings_repeated >= greeting_repeat_limit) {
+        _active = true;  // otherwise a silent peer would get no interval reports
         log_info(name() << ": no reply to the startup greeting; not repeating it further");
     }
 }
