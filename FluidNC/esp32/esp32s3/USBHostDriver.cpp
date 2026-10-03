@@ -14,6 +14,27 @@
 #include "Report.h"
 #include "NutsBolts.h"
 
+std::atomic<uint32_t> USBHostDriver::_attached_id { 0 };
+
+template <class Driver>
+static bool driverSupports(uint16_t vid, uint16_t pid) {
+    if (vid != Driver::vid) {
+        return false;
+    }
+    for (uint16_t p : Driver::pids) {
+        if (p == pid) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// True if one of the registered VCP drivers handles this USB-serial chip
+bool USBHostDriver::hasVcpDriver(uint16_t vid, uint16_t pid) {
+    using namespace esp_usb;
+    return driverSupports<CH34x>(vid, pid) || driverSupports<CP210x>(vid, pid) || driverSupports<FT23x>(vid, pid);
+}
+
 bool USBHostDriver::rxCallback(const uint8_t* data, size_t data_len, void* user_arg) {
     auto* self = static_cast<USBHostDriver*>(user_arg);
     if (self->_rx_ring && data_len > 0) {
@@ -41,6 +62,7 @@ void USBHostDriver::newDeviceCallback(usb_device_handle_t usb_dev) {
     if (desc) {
         log_info("USB Host: device attached (VID:" << to_hex(desc->idVendor)
                  << " PID:" << to_hex(desc->idProduct) << ")");
+        _attached_id.store(((uint32_t)desc->idVendor << 16) | desc->idProduct);
     } else {
         log_info("USB Host: unknown device attached");
     }
@@ -88,29 +110,42 @@ void USBHostDriver::classTask(void* arg) {
             .user_arg              = self,
         };
 
-        CdcAcmDevice* dev = nullptr;
-        const char* dev_type = "VCP";
-        try {
-            dev = VCP::open(&dev_config);
-        } catch (const std::exception& e) {
-            log_error("USB Host: device open failed: " << e.what());
-            if (self->_shutdown_requested.load()) break;
-            vTaskDelay(pdMS_TO_TICKS(1000));
+        // Open the device that attached, chosen by its VID/PID: the VCP driver
+        // for its USB-serial chip if there is one, otherwise standard CDC-ACM.
+        // A USB-serial chip opened as CDC-ACM "connects" but rejects
+        // line_coding_set, so its baud rate is never set and no data gets
+        // through. (Previously the loop alternated between VCP::open() and an
+        // any-device CDC-ACM open, and whichever happened to be waiting when
+        // the device enumerated got it.)
+        uint32_t id = _attached_id.load();
+        if (id == 0) {
+            vTaskDelay(pdMS_TO_TICKS(100));  // No device attached yet
             continue;
         }
+        uint16_t vid = id >> 16;
+        uint16_t pid = id & 0xffff;
 
-        // Fallback: if no VCP driver matched, try standard CDC-ACM
-        if (!dev) {
-            dev = new CdcAcmDevice();
-            if (dev->open(CDC_HOST_ANY_VID, CDC_HOST_ANY_PID, 0, &dev_config) != ESP_OK) {
+        CdcAcmDevice* dev      = nullptr;
+        const char*   dev_type = "VCP";
+        if (hasVcpDriver(vid, pid)) {
+            try {
+                dev = VCP::open(vid, pid, &dev_config);
+            } catch (const std::exception& e) {
+                log_error("USB Host: device open failed: " << e.what());
+                if (self->_shutdown_requested.load()) break;
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                continue;
+            }
+        } else {
+            dev_type = "CDC-ACM";
+            dev      = new CdcAcmDevice();
+            if (dev->open(vid, pid, 0, &dev_config) != ESP_OK) {
                 delete dev;
                 dev = nullptr;
-            } else {
-                dev_type = "CDC-ACM";
             }
         }
         if (!dev) {
-            continue;
+            continue;  // Still enumerating or unplugged again; the open timeout paces the retries
         }
 
         cdc_acm_line_coding_t line_coding = {
