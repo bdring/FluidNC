@@ -57,6 +57,12 @@ public:
     // that finished, the other is a job that must not be reported as done.
     bool read_failed();
 
+    // Flush and close, reporting whether the data actually reached the media.
+    // The destructor cannot report anything, and stdio buffering means a write
+    // failure - a full filesystem, most often - usually surfaces only at the
+    // final flush, long after write() returned success.
+    bool close();
+
     int read(char* buffer, size_t length);  // read chars from stream into buffer
     int read(uint8_t* buffer, size_t length) { return read((char*)buffer, length); }
 
