@@ -284,8 +284,25 @@ namespace WebUI {
     uint32_t    WebUI_Server::_uploadGeneration = 0;
     std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
 
-    EnumSetting *http_enable, *http_block_during_motion;
-    IntSetting*  http_port;
+    EnumSetting *  http_enable, *http_block_during_motion;
+    IntSetting*    http_port;
+    StringSetting* http_index_file;
+
+    // Canonical form of HTTP/IndexFile without any .gz suffix, which
+    // myStreamFile() adds as needed, or empty if it is not set.  Looked up
+    // per request so that a change takes effect without a restart.
+    static std::string indexFile() {
+        std::string_view value = http_index_file->get();
+        std::string      path;
+        if (!value.empty()) {
+            if (value.size() > 3 && value.substr(value.size() - 3) == ".gz") {
+                value.remove_suffix(3);
+            }
+            path = FluidPath::canonPath(value, LocalFS);
+        }
+        HashFS::set_index_file(path);
+        return path;
+    }
 
     WebUI_Server::~WebUI_Server() {
         deinit();
@@ -301,6 +318,9 @@ namespace WebUI {
                                                    "HTTP/BlockDuringMotion",
                                                    DEFAULT_HTTP_BLOCKED_DURING_MOTION,
                                                    &onoffOptions);
+        // A WebUI file, on any filesystem, served in preference to LocalFS
+        // index.html - e.g. /sd/webui/index.html for a build too big for FLASH
+        http_index_file = new StringSetting("HTTP index file", WEBSET, WA, NULL, "HTTP/IndexFile", "", 0, 0);
 
         _setupdone = false;
 
@@ -412,6 +432,8 @@ namespace WebUI {
         //start webserver
         _webserver->begin();
 
+        indexFile();  // Tell HashFS about the index file
+        HashFS::enable(true);
         HashFS::hash_all();
 
         _setupdone = true;
@@ -419,6 +441,7 @@ namespace WebUI {
 
     void WebUI_Server::deinit() {
         _setupdone = false;
+        HashFS::enable(false);
 
         //        SSDP.end();
 
@@ -494,12 +517,6 @@ namespace WebUI {
     }
     // Send a file, either the specified path or path.gz
     bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
-        std::error_code ec;
-        FluidPath       fpath { path, LocalFS, ec };
-        if (ec) {
-            return false;
-        }
-
         bool acceptGz = false;
         if (request->hasHeader("Accept-Encoding")) {
             auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
@@ -518,10 +535,12 @@ namespace WebUI {
         // This can make it hard to debug ISR IRAM problems, because the easiest
         // way to trigger such problems is to refresh WebUI during motion.
         if (http_block_during_motion->get() && inMotionState()) {
-            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH
-            hash = HashFS::hash(fpath, true);
+            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH.
+            // Use the canonical name rather than a FluidPath, whose constructor would mount an SD card.
+            std::filesystem::path cpath { FluidPath::canonPath(path, LocalFS) };
+            hash = HashFS::hash(cpath, true);
             if (!hash.length() && acceptGz) {
-                std::filesystem::path gzpath(fpath);
+                std::filesystem::path gzpath(cpath);
                 gzpath += ".gz";
                 hash = HashFS::hash(gzpath, true);
             }
@@ -532,8 +551,21 @@ namespace WebUI {
                 return true;
             }
 
+            // HTTP/IndexFile is hashed in advance, so with no hash it is
+            // either missing or was not hashed yet.  Let the caller fall back
+            // to LocalFS index.html, which might yet answer with a 304.
+            if (!hash.length() && HashFS::is_index_file(cpath)) {
+                return false;
+            }
+
             WebUI_Server::handleReloadBlocked(request);
             return true;
+        }
+
+        std::error_code ec;
+        FluidPath       fpath { path, LocalFS, ec };
+        if (ec) {
+            return false;
         }
 
         // Check for browser cache match
@@ -664,6 +696,10 @@ namespace WebUI {
             WSChannels::closeSessionChannels(session);
         }
         if (!(request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes")) {
+            auto index = indexFile();
+            if (!index.empty() && myStreamFile(request, index.c_str(), false, true)) {
+                return;
+            }
             if (myStreamFile(request, "index.html", false, true)) {
                 return;
             }
@@ -1316,7 +1352,7 @@ namespace WebUI {
                 }
                 if (count > 0) {
                     sstatus = filename + " deleted";
-                    HashFS::report_change();
+                    HashFS::delete_file(dirpath);
                 } else {
                     log_debug("remove_all returned " << count);
                     sstatus = "Cannot delete ";
