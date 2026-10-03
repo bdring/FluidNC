@@ -157,7 +157,11 @@ void mc_clustered_linear_move(float* target, plan_line_data_t* pl_data, float* p
 
         segment_data.spindle_speed = static_cast<SpindleSpeed>(clustered_values[cluster]);
         mc_linear(segment_target, &segment_data, segment_start);
-        if (sys.abort()) {
+        // Stop at the first rejected segment.  limit_error() only queues the
+        // alarm, so soft_limit (set synchronously) is what stops the next
+        // segment from raising a second alarm, each with its 500 ms delay,
+        // before the state has changed to Critical.
+        if (sys.abort() || soft_limit || state_is(State::Alarm) || state_is(State::Critical)) {
             return;
         }
 
@@ -304,9 +308,10 @@ void mc_arc(float*            target,
             previous_position[axis_0]      = position[axis_0];
             previous_position[axis_1]      = position[axis_1];
             previous_position[axis_linear] = position[axis_linear];
-            // Bail mid-circle on system abort. Runtime command check already performed by mc_linear.
-
-            if (sys.abort() || state_is(State::Alarm)) {
+            // Bail mid-circle on system abort or alarm (e.g. a hard limit), so the
+            // remaining segments are not planned into a buffer that will never run.
+            // Runtime command check already performed by mc_linear.
+            if (sys.abort() || state_is(State::Alarm) || state_is(State::Critical)) {
                 return;
             }
         }
