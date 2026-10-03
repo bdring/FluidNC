@@ -480,17 +480,16 @@ namespace WebUI {
         return getSessionCookie(request);
     }
 
+    // Session IDs must differ between clients, so draw them from the hardware
+    // RNG (Arduino's random() wraps esp_random()) rather than from rand()
+    // reseeded with the wall-clock second, which gave every client that loaded
+    // a page in the same second the same cookie.
     static void get_random_string(char* str, unsigned int len) {
-        unsigned int i;
-
-        // reseed the random number generator
-        srand(time(NULL));
-
-        for (i = 0; i < len; i++) {
-            // Add random printable ASCII char
-            str[i] = (rand() % ('A' - 'Z')) + 'A';
+        static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        for (unsigned int i = 0; i < len; i++) {
+            str[i] = alphabet[random(sizeof(alphabet) - 1)];
         }
-        str[i] = '\0';
+        str[len] = '\0';
     }
     // Send a file, either the specified path or path.gz
     bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
@@ -546,7 +545,7 @@ namespace WebUI {
         if (hash.length() && request->hasHeader("If-None-Match") &&
             std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
             if (setSession && getSessionCookie(request) == "") {
-                char session[9];
+                char session[17];
                 get_random_string(session, sizeof(session) - 1);
                 AsyncWebServerResponse* response = request->beginResponse(304);
                 response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
@@ -597,7 +596,7 @@ namespace WebUI {
         request->onDisconnect([request, file]() { delete file; });
 
         if (setSession && getSessionCookie(request) == "") {
-            char session[9];
+            char session[17];
             get_random_string(session, sizeof(session) - 1);
             response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
         }
