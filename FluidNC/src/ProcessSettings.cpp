@@ -321,10 +321,11 @@ static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_leve
         return Error::CheckDoor;
     }
     Homing::set_all_axes_homed();
-    // Release every configured motor, including the second motor of a ganged
-    // axis.  releaseMotors() takes a motor mask, which motorMask is; an axis
-    // mask would never carry the motor-1 bits.
-    config->_kinematics->releaseMotors(Axes::motors_to_axes(Axes::motorMask), Axes::motorMask);
+    // Release every motor, including the second motor of a ganged axis.  This
+    // deliberately bypasses Kinematics::releaseMotors(): that is a homing
+    // primitive whose overrides apply kinematics-specific rules (CoreXY frees
+    // only motor 0 of its Cartesian axes), and $X means release everything.
+    Stepping::unlimit_all();
     report_feedback_message(Message::AlarmUnlock);
     set_state(State::Idle);
 

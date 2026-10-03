@@ -111,6 +111,7 @@ namespace Machine {
         static bool* limit_var(axis_t axis, motor_t motor);
         static void  limit(axis_t axis, motor_t motor);
         static void  unlimit(axis_t axis, motor_t motor);
+        static void  unlimit_all();  // $X: release every motor, whatever the kinematics
 
         // Used to stop a motor during ganged homint
         static void block(axis_t axis, motor_t motor);
