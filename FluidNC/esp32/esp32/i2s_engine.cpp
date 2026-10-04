@@ -174,8 +174,16 @@ void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
     }
 
     if (!timer_running) {
-        // Direct write to the I2S FIFO in case the pulse timer is not running
-        I2S0.fifo_wr = i2s_out_port_data;
+        // With the pulse timer stopped nothing else pushes the word to the
+        // FIFO, so push it here.  Two tasks can race on this path: each pushes
+        // the word as of its own load, and the loser's stale push could land
+        // last.  Push again until the word we pushed is still the current one,
+        // so the final push always carries the final word.
+        uint32_t pushed;
+        do {
+            pushed       = i2s_out_port_data;
+            I2S0.fifo_wr = pushed;
+        } while (pushed != i2s_out_port_data);
     }
 }
 
