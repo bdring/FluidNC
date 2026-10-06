@@ -59,7 +59,7 @@ link_flags = [
     "-sEXPORT_NAME=FluidNCModule",
     # FS + -lidbfs.js: demo/index.html mounts IDBFS (IndexedDB-backed) on
     # native_localfs/native_sd/native_nvs so files and NVS settings persist
-    # across page reloads -- see persistFs in demo/index.html.
+    # across page reloads -- see restorePersistentFs() in demo/index.html.
     "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,FS",
     "-lidbfs.js",
     "-sEXIT_RUNTIME=0",

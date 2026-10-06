@@ -32,7 +32,7 @@
   has a minimal config.yaml and a sample SD card.  Files you change or
   upload, and settings you change, are saved in this browser and
   override the built-in copies on the next visit; reload the page to
-  apply a changed config.yaml.  Input editing works the same a FluidNC
+  apply a changed config.yaml.  Input editing works the same as on a FluidNC
   running on an ESP32.
 </p>
 <p>
@@ -49,7 +49,7 @@
 </p>
 <p><button id="resetStorage" type="button">Reset files and settings</button>
   discards everything saved in this browser and reloads with the built-in
-  copies.</p>
+  copies. <span id="resetStatus"></span></p>
 <div id="webuiPanel">
   <label for="webuiSelect">WebUI:</label>
   <select id="webuiSelect">
@@ -634,18 +634,36 @@ async function seedFs(FS, root, dir) {
 const PERSIST_DIRS = ['/native_localfs', '/native_sd', '/native_nvs'];
 const PERSIST_INTERVAL_MS = 3000;
 let persistFS = null;  // Module.FS once the mounts are up; null = not persisting
-let persistSaving = false;
+let persistSaveRun = null;  // the in-flight save loop's promise, if any
 let persistSaveAgain = false;
 
 function syncfs(FS, populate) {
   return new Promise((resolve, reject) => FS.syncfs(populate, (err) => (err ? reject(err) : resolve())));
 }
 
+// Resolves only once the database is really gone. 'blocked' means another
+// tab of this demo still has it open: the delete stays pending until that
+// tab closes (and this page's own open would queue behind it), so say so
+// and keep waiting rather than carrying on with the old data.
 function deleteDatabase(name) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase(name);
-    req.onsuccess = req.onerror = req.onblocked = () => resolve();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => {
+      document.getElementById('resetStatus').textContent =
+        'Reset is waiting: close any other tabs showing this demo.';
+    };
   });
+}
+
+async function resetPersistentFs() {
+  const results = await Promise.allSettled(PERSIST_DIRS.map(deleteDatabase));
+  history.replaceState(null, '', location.pathname);
+  const failed = results.filter((r) => r.status === 'rejected');
+  document.getElementById('resetStatus').textContent = failed.length === 0
+    ? 'Reset done.'
+    : `Reset failed (${failed[0].reason}); some saved files and settings were kept.`;
 }
 
 // Must run before fluidnc_start() -- FluidNC reads config.yaml and NVS
@@ -655,8 +673,7 @@ function deleteDatabase(name) {
 async function restorePersistentFs(FS) {
   try {
     if (new URLSearchParams(location.search).has('reset')) {
-      history.replaceState(null, '', location.pathname);
-      await Promise.all(PERSIST_DIRS.map(deleteDatabase));
+      await resetPersistentFs();
     }
     for (const dir of PERSIST_DIRS) {
       if (!FS.analyzePath(dir).exists) {
@@ -673,25 +690,33 @@ async function restorePersistentFs(FS) {
   }
 }
 
-async function savePersistentFs() {
+// Resolves true once everything written before the call is in IndexedDB,
+// false if saving failed or persistence is unavailable. A call made while a
+// save is running joins it: the loop runs one more pass for it before the
+// shared promise settles.
+function savePersistentFs() {
   if (!persistFS) {
-    return;
+    return Promise.resolve(false);
   }
-  if (persistSaving) {
+  if (persistSaveRun) {
     persistSaveAgain = true;
-    return;
+    return persistSaveRun;
   }
-  persistSaving = true;
-  try {
-    do {
-      persistSaveAgain = false;
-      await syncfs(persistFS, false);
-    } while (persistSaveAgain && persistFS);
-  } catch (err) {
-    console.warn('Saving files failed:', err);
-  } finally {
-    persistSaving = false;
-  }
+  persistSaveRun = (async () => {
+    try {
+      do {
+        persistSaveAgain = false;
+        await syncfs(persistFS, false);
+      } while (persistSaveAgain && persistFS);
+      return true;
+    } catch (err) {
+      console.warn('Saving files failed:', err);
+      return false;
+    } finally {
+      persistSaveRun = null;
+    }
+  })();
+  return persistSaveRun;
 }
 
 // The databases are deleted by the reloaded page, before anything opens
@@ -777,9 +802,16 @@ FluidNCModule().then(async (Module) => {
       savePersistentFs();
       return;
     }
-    savePersistentFs();
     refreshDownloadList();
-    const where = uploadRoot.selectedOptions[0].textContent;
+    // Label from the root captured above, not the selector, which the user
+    // may have changed while the files were being read.
+    const where = uploadRoot.querySelector(`option[value="${root}"]`).textContent;
+    uploadStatus.textContent = `Uploaded ${done.join(', ')} to ${where}; saving...`;
+    // Only after the save completes: a reload before then could lose it.
+    if (!(await savePersistentFs())) {
+      uploadStatus.textContent = `Uploaded ${done.join(', ')} to ${where}, but it could not be saved in this browser and will be lost on reload.`;
+      return;
+    }
     const yaml = root === 'native_localfs' && done.some((name) => /\.ya?ml$/i.test(name));
     uploadStatus.textContent = `Uploaded ${done.join(', ')} to ${where}` + (yaml ? ' -- reload the page to apply a config change.' : '.');
   });
