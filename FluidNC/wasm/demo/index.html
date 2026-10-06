@@ -29,10 +29,27 @@
 <p>This is FluidNC running in a browser.  It is compiled to Web
   Assembly code from the real FluidNC source.  It cannot access actual
   machine hardware, but it can process GCode and simulate motion.  It
-  has a minimal config.yaml and a sample SD card, writable for the life
-  of the tab but never persisted past a page reload.  Input
-  editing works the same a FluidNC running on an ESP32.
+  has a minimal config.yaml and a sample SD card.  Files you change or
+  upload, and settings you change, are saved in this browser and
+  override the built-in copies on the next visit; reload the page to
+  apply a changed config.yaml.  Input editing works the same a FluidNC
+  running on an ESP32.
 </p>
+<p>
+  <label for="uploadRoot">Files on</label>
+  <select id="uploadRoot">
+    <option value="native_localfs">LocalFS</option>
+    <option value="native_sd">SD card</option>
+  </select>
+  <button id="uploadButton" type="button" disabled>Upload files...</button>
+  <input type="file" id="uploadInput" multiple style="display:none">
+  <select id="downloadFile" aria-label="File to download" disabled></select>
+  <button id="downloadButton" type="button" disabled>Download</button>
+  <span id="uploadStatus"></span>
+</p>
+<p><button id="resetStorage" type="button">Reset files and settings</button>
+  discards everything saved in this browser and reloads with the built-in
+  copies.</p>
 <div id="webuiPanel">
   <label for="webuiSelect">WebUI:</label>
   <select id="webuiSelect">
@@ -448,6 +465,9 @@ function handleFsRequest(msg) {
     ok = false;
     result = String(err);
   }
+  if (msg.op !== 'list' && msg.op !== 'read') {
+    savePersistentFs();
+  }
   return { type: 'fluidnc-fs-response', id: msg.id, ok, result };
 }
 
@@ -622,17 +642,120 @@ M30
 </script>
 <script src="program.js"></script>
 <script>
-FluidNCModule().then((Module) => {
+// Persistence: native_localfs (config.yaml etc.), native_sd (the "SD card")
+// and native_nvs (capture/nvsfile.cpp's one-file-per-key NVS emulation) are
+// IDBFS mounts, so the in-memory copy is mirrored to IndexedDB and restored
+// before fluidnc_start(). Built-in seed files are staged only where the
+// restored copy has no file of that name, so a user's edits win but a seed
+// file added in a later deploy still shows up. IDBFS only syncs when asked
+// (FS.syncfs), and writes FluidNC makes itself ($CD=, $ settings, files
+// written from the terminal) never pass through this page, so besides
+// saving right after a WebUI file operation, a timer and pagehide save too.
+// The IndexedDB database names are the mount points -- IDBFS.getDB() keys
+// them that way -- which is what resetting deletes.
+const PERSIST_DIRS = ['/native_localfs', '/native_sd', '/native_nvs'];
+const PERSIST_INTERVAL_MS = 3000;
+let persistFS = null;  // Module.FS once the mounts are up; null = not persisting
+let persistSaving = false;
+let persistSaveAgain = false;
+
+function syncfs(FS, populate) {
+  return new Promise((resolve, reject) => FS.syncfs(populate, (err) => (err ? reject(err) : resolve())));
+}
+
+function deleteDatabase(name) {
+  return new Promise((resolve) => {
+    const req = indexedDB.deleteDatabase(name);
+    req.onsuccess = req.onerror = req.onblocked = () => resolve();
+  });
+}
+
+// Must run before fluidnc_start() -- FluidNC reads config.yaml and NVS
+// during setup(). /native_nvs already exists by then (FILE_NVS's static
+// constructor creates it), and mounting over an existing empty directory
+// is fine; the other two are normally created later by stageFile().
+async function restorePersistentFs(FS) {
+  try {
+    if (new URLSearchParams(location.search).has('reset')) {
+      history.replaceState(null, '', location.pathname);
+      await Promise.all(PERSIST_DIRS.map(deleteDatabase));
+    }
+    for (const dir of PERSIST_DIRS) {
+      if (!FS.analyzePath(dir).exists) {
+        FS.mkdir(dir);
+      }
+      FS.mount(FS.filesystems.IDBFS, {}, dir);
+    }
+    await syncfs(FS, true);
+    persistFS = FS;
+  } catch (err) {
+    // e.g. IndexedDB unavailable in a private window: carry on with
+    // whatever is in memory, which is the pre-persistence behavior.
+    console.warn('File persistence unavailable:', err);
+  }
+}
+
+async function savePersistentFs() {
+  if (!persistFS) {
+    return;
+  }
+  if (persistSaving) {
+    persistSaveAgain = true;
+    return;
+  }
+  persistSaving = true;
+  try {
+    do {
+      persistSaveAgain = false;
+      await syncfs(persistFS, false);
+    } while (persistSaveAgain && persistFS);
+  } catch (err) {
+    console.warn('Saving files failed:', err);
+  } finally {
+    persistSaving = false;
+  }
+}
+
+// The databases are deleted by the reloaded page, before anything opens
+// them, rather than here: this page holds them open, so a delete issued
+// now would just block, and a pagehide save could recreate them.
+document.getElementById('resetStorage').addEventListener('click', () => {
+  if (!confirm('Discard all files and settings saved in this browser and reload?')) {
+    return;
+  }
+  persistFS = null;
+  location.replace(location.pathname + '?reset');
+});
+
+setInterval(savePersistentFs, PERSIST_INTERVAL_MS);
+window.addEventListener('pagehide', savePersistentFs);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    savePersistentFs();
+  }
+});
+
+FluidNCModule().then(async (Module) => {
   const start = Module.cwrap('fluidnc_start', null, []);
   const sendText = Module.cwrap('fluidnc_send_text', null, ['string']);
   const sendShimText = Module.cwrap('fluidnc_shim_send', null, ['string']);
   sendShimTextRef = sendShimText;
-  // Files are session-writable (native_sd/native_localfs are never locked
-  // read-only here, unlike earlier drafts of this demo): MEMFS never
-  // persists past a page reload regardless, so there's no
-  // illusion-of-persistence problem with letting writes actually take
-  // effect for the life of the tab.
+  // Files are writable (native_sd/native_localfs are never locked
+  // read-only here, unlike earlier drafts of this demo), and persist --
+  // see restorePersistentFs() above.
   const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string', 'string']);
+  // Before fsOps is set, so iframe fs requests stay queued (see the
+  // message listener) until they can see the restored files.
+  await restorePersistentFs(Module.FS);
+  const seedIfMissing = (root, path, content) => {
+    if (!Module.FS.analyzePath(`/${root}/${path}`).exists) {
+      stageFile(root, path, content);
+    }
+  };
+  seedIfMissing('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
+  seedIfMissing('native_sd', 'square.nc', TEST_GCODE);
+  savePersistentFs();
+
   fsOps = {
     stageFile,
     fsList: Module.cwrap('fluidnc_fs_list', 'string', ['string', 'string']),
@@ -650,8 +773,93 @@ FluidNCModule().then((Module) => {
   }
   maybeStartNextShimSend();
 
-  stageFile('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
-  stageFile('native_sd', 'square.nc', TEST_GCODE);
+  // Upload from the demo page itself, so files can be added with no WebUI
+  // loaded (or with the Tablet UI). Written with FS.writeFile rather than
+  // stageFile(), whose C-string content argument would truncate a binary
+  // file at its first NUL. Only top-level names: the picker never yields
+  // a path, so there's nothing for safe_path() to guard against here.
+  const uploadButton = document.getElementById('uploadButton');
+  const uploadInput = document.getElementById('uploadInput');
+  const uploadRoot = document.getElementById('uploadRoot');
+  const uploadStatus = document.getElementById('uploadStatus');
+  uploadButton.addEventListener('click', () => uploadInput.click());
+  uploadInput.addEventListener('change', async () => {
+    const files = Array.from(uploadInput.files);
+    uploadInput.value = '';  // so picking the same file again still fires 'change'
+    if (files.length === 0) {
+      return;
+    }
+    const root = uploadRoot.value;
+    const done = [];
+    try {
+      if (!Module.FS.analyzePath(`/${root}`).exists) {
+        Module.FS.mkdir(`/${root}`);
+      }
+      for (const file of files) {
+        Module.FS.writeFile(`/${root}/${file.name}`, new Uint8Array(await file.arrayBuffer()));
+        done.push(file.name);
+      }
+    } catch (err) {
+      uploadStatus.textContent = `Upload failed after ${done.length} file(s): ${err}`;
+      savePersistentFs();
+      return;
+    }
+    savePersistentFs();
+    refreshDownloadList();
+    const where = uploadRoot.selectedOptions[0].textContent;
+    const yaml = root === 'native_localfs' && done.some((name) => /\.ya?ml$/i.test(name));
+    uploadStatus.textContent = `Uploaded ${done.join(', ')} to ${where}` + (yaml ? ' -- reload the page to apply a config change.' : '.');
+  });
+  uploadButton.disabled = false;
+
+  // Download: the file list is rebuilt whenever it's about to be looked at
+  // (volume change, focus/pointerdown on the list), since FluidNC and the
+  // WebUI can add or delete files at any time without this page knowing.
+  const downloadFile = document.getElementById('downloadFile');
+  const downloadButton = document.getElementById('downloadButton');
+  function listFiles(dir, prefix, out) {
+    for (const name of Module.FS.readdir(dir)) {
+      if (name === '.' || name === '..') {
+        continue;
+      }
+      const path = `${dir}/${name}`;
+      if (Module.FS.isDir(Module.FS.stat(path).mode)) {
+        listFiles(path, `${prefix}${name}/`, out);
+      } else {
+        out.push(`${prefix}${name}`);
+      }
+    }
+    return out;
+  }
+  function refreshDownloadList() {
+    const root = `/${uploadRoot.value}`;
+    const previous = downloadFile.value;
+    const files = Module.FS.analyzePath(root).exists ? listFiles(root, '', []).sort() : [];
+    downloadFile.replaceChildren(...files.map((name) => new Option(name, name)));
+    if (files.includes(previous)) {
+      downloadFile.value = previous;
+    }
+    downloadFile.disabled = downloadButton.disabled = files.length === 0;
+  }
+  uploadRoot.addEventListener('change', refreshDownloadList);
+  downloadFile.addEventListener('focus', refreshDownloadList);
+  downloadFile.addEventListener('pointerdown', refreshDownloadList);
+  downloadButton.addEventListener('click', () => {
+    const name = downloadFile.value;
+    try {
+      const data = Module.FS.readFile(`/${uploadRoot.value}/${name}`);
+      const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name.split('/').pop();
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (err) {
+      uploadStatus.textContent = `Download of ${name} failed: ${err}`;
+      refreshDownloadList();
+    }
+  });
+  refreshDownloadList();
 
   start();
 

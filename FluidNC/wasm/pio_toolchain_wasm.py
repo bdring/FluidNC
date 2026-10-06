@@ -57,7 +57,11 @@ link_flags = [
     "-sALLOW_MEMORY_GROWTH=1",
     "-sMODULARIZE=1",
     "-sEXPORT_NAME=FluidNCModule",
-    "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap",
+    # FS + -lidbfs.js: demo/index.html mounts IDBFS (IndexedDB-backed) on
+    # native_localfs/native_sd/native_nvs so files and NVS settings persist
+    # across page reloads -- see persistFs in demo/index.html.
+    "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,FS",
+    "-lidbfs.js",
     "-sEXIT_RUNTIME=0",
 ]
 
