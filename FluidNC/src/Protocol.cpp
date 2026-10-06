@@ -367,6 +367,20 @@ static void poll_once() {
                         case Error::NoData:
                             break;
                         case Error::Eof:
+                            if (Job::take_autorestore()) {
+                                // M73 was used in this job, so restore the
+                                // modal state it saved, as the job's own last
+                                // line and therefore at its call level.  The
+                                // channel stays at EOF, so the next pass,
+                                // once this line is acked, unnests the job.
+                                char m72[] = "M72";
+                                if (channel->try_acquire_processing_ref()) {
+                                    if (execute_line(m72, *channel, AuthenticationLevel::LEVEL_GUEST, false) != Error::Deferred) {
+                                        channel->release_processing_ref();  // not queued after all
+                                    }
+                                }
+                                break;
+                            }
                             notifyf("Job done", "%s job sent", channel->name());
                             log_debug(channel->name() << " job sent");
                             Job::unnest();
