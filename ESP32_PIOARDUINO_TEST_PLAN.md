@@ -1,6 +1,6 @@
 # Hardware test plan: classic esp32 on pioarduino 55.03.39
 
-Branch `DevelopToolchain`, commit `b71e496f`. This moves the `wifi`, `bt` and `noradio` envs from Arduino 2.0.17 (IDF 4.4.7, GCC 8.4) to Arduino 3.3.9 (IDF 5.5.4, GCC 14.2).
+This plan covers moving the classic esp32 `wifi`, `bt` and `noradio` envs from Arduino 2.0.17 (IDF 4.4.7, GCC 8.4) to Arduino 3.3.9 (IDF 5.5.4, GCC 14.2) on pioarduino 55.03.39.
 
 Everything below has only been built and link-checked so far. Nothing has run on hardware.
 
@@ -113,6 +113,11 @@ To check which bootloader a board has, look at the first boot-log line from the 
 - [ ] Rename and link paths (`vfs_fat_link` allocates two temporary FIL structs).
 - [ ] Heap check: the heap drop when opening a file should now be well under 4 KB per open file. Compare with the §0 baseline.
 - [ ] Remove and reinsert the card, then remount.
+- [ ] **Nested and concurrent directory listings** (IDF 5.5.4 `vfs_fat.c` caches each `readdir` entry for a following `stat`, but keys the cache by a per-volume `dir_path` that the most recent `opendir` overwrites; fixed upstream after v5.5.5, not yet in a release). Build an SD tree with the same file name in several directories but different sizes and dates (e.g. `/a/x.nc`, `/a/b/x.nc`, `/c/x.nc`), then check that sizes and dates are right:
+  - [ ] in a recursive listing: `$SD/List` (ESP210), which walks the tree with `recursive_directory_iterator`;
+  - [ ] in a WebDAV `PROPFIND` with `Depth: infinity` (or a client that walks the tree);
+  - [ ] in a WebUI SD listing taken while a WebDAV tree walk or a recursive listing is running.
+  A wrong size or date, or an entry that shouldn't exist, is this bug. The S3 envs have had it since they moved to pioarduino, so check one S3 board the same way for comparison.
 
 ## 5. Networking (`wifi` env)
 
