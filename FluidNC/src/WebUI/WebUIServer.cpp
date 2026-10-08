@@ -406,8 +406,8 @@ namespace WebUI {
             //do not forget the / at the end
             _webserver->on("/fwlink/", HTTP_ANY, handle_root);
         }
-        Mdns::add("_http", "_tcp", _port);
 #endif
+        Mdns::add("_http", "_tcp", _port);
 
         log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
@@ -423,9 +423,7 @@ namespace WebUI {
 
         //        SSDP.end();
 
-#ifdef HAVE_DNS
-        WMB Mdns::remove("_http", "_tcp");
-#endif
+        Mdns::remove("_http", "_tcp");
 
         if (_socket_server) {
             delete _socket_server;
