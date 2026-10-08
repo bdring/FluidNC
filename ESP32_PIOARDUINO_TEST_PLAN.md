@@ -51,6 +51,13 @@ To check which bootloader a board has, look at the first boot-log line from the 
 - [ ] **Interrupted bootloader write:** unplug USB during the first image (the bootloader). The board won't boot, but it still enters download mode (hold BOOT if needed); re-running `firmware-update` or `fresh-install` recovers it with settings and files intact.
 - [ ] Repeat once for `bt` and once for `noradio` (same bootloader image, different firmware).
 
+**Release-zip install scripts** (`install-wifi` / `install-bt`). These write bootloader + `boot_app0` + firmware + partitions without erasing, and unlike the web installer they force `--flash-mode dio --flash-freq 80m --flash-size detect`, so esptool rewrites the IDF 5 bootloader's header:
+- [ ] `win64\install-wifi.bat` on a board running 2.0.17: boots; the boot log shows the IDF 5 bootloader; settings and LittleFS are kept.
+- [ ] `posix/install-wifi.sh` (macOS or Linux), same checks.
+- [ ] `install-bt` on one platform: boots.
+- [ ] After a script install, the boot log's SPI mode and speed lines show DIO / 80 MHz, and a WebUI page load plus an SD job run cleanly (flash is working at the forced settings).
+- [ ] `install-fs` (LittleFS only) on top of a script install: WebUI loads.
+
 **IDF 4 bootloader + IDF 5 app** (WebUI OTA path):
 - [ ] **OTA from a 2.0.17 release** to this build through WebUI: boots. The boot log still shows the IDF 4 bootloader.
 - [ ] After that OTA: NVS settings are kept.

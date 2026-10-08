@@ -548,9 +548,10 @@ for platform in ['win64', 'posix']:
 
         pioPath = os.path.join('.pio', 'build')
 
-        # Put boot_app binary in the archive.  It is data, and the same for all MCUs and variants
-        tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
-        zipObj.write(os.path.join(tools, "partitions", bootapp), os.path.join(zipDirName, 'common', bootapp))
+        # Put boot_app binary in the archive.  It is data, and the same for all MCUs and variants.
+        # Use the copy the manifest step put in the esp32 wifi build directory (taken from that
+        # build's PLATFORMIO_CORE_DIR), so the zip and the manifest ship the same file.
+        zipObj.write(os.path.join(pioPath, 'wifi', bootapp), os.path.join(zipDirName, 'common', bootapp))
 
         for secFuses in ['SecurityFusesOK.bin', 'SecurityFusesOK0.bin']:
             zipObj.write(os.path.join(sharedPath, 'common', secFuses), os.path.join(zipDirName, 'common', secFuses))
