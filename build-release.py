@@ -435,17 +435,26 @@ def makeManifest():
     # (the web installer's efuse detection only runs on ESP32-S3 anyway, so
     # this is never actually consulted for filtering -- listed for
     # documentation accuracy).
+    # firmware-update also rewrites the bootloader and boot_app0 (otadata), but
+    # not the partition table or anything that holds NVS / filesystem data:
+    # - bootloader: keeps the bootloader's IDF version matched to the app's
+    #   (needed when the classic esp32 envs moved from IDF 4.4 to IDF 5.5).
+    #   Written over serial in ROM download mode, so an interrupted write is
+    #   recoverable by re-running the installer.
+    # - boot_app0: makes the bootloader boot app0 (0x10000), which is where
+    #   the new firmware is written.  Without it, a board that last took a
+    #   WebUI OTA into app1 would keep booting the old firmware.
     addVariant("wifi", "Supports WiFi and WebUI", "Installation type", compatible_psram=["none"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-firmware", mcu + "-wifi-4m-filesystem"])
-    addInstallable(firmware_update, False, [mcu + "-wifi-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-firmware"])
 
     addVariant("bt", "Supports Bluetooth serial", "Installation type", compatible_psram=["none"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-bt-firmware"])
-    addInstallable(firmware_update, False, [mcu + "-bt-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-bootloader", mcu + "-bootapp", mcu + "-bt-firmware"])
 
     addVariant("noradio", "Supports neither WiFi nor Bluetooth", "Installation type", compatible_psram=["none"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
-    addInstallable(firmware_update, False, [mcu + "-noradio-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
 
     mcu = "esp32s3"
     addMCU(mcu, "ESP32-S3-WROOM-1", "Firmware variant")
