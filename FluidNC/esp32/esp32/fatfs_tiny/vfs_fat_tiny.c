@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-// Recompile the ESP-IDF v4.4.7 FatFs VFS glue with FF_FS_TINY == 1, matching
+// Recompile the ESP-IDF v5.5.4 FatFs VFS glue with FF_FS_TINY == 1, matching
 // ff_tiny.c.  vfs_fat.c is where the per-open-file storage is actually
 // allocated:
 //
