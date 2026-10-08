@@ -244,6 +244,23 @@ bool fluidnc_fs_mkdir(const char* root, const char* relpath) {
 // download only ever gets called on paths the file listing already showed
 // exist, so that ambiguity (vs. a genuinely empty file) isn't worth a
 // separate exists check here.
+// Validates root/relpath exactly as every other entry point here does and
+// returns the full MEMFS path ("/native_sd/sub/f.nc"), or "" if it would
+// escape root. For demo/index.html's binary file transfers, which use
+// Emscripten's FS.writeFile/FS.readFile directly (byte arrays) because the
+// C-string content/return of fluidnc_stage_file/fluidnc_fs_read would
+// truncate at the first NUL byte.
+EMSCRIPTEN_KEEPALIVE
+const char* fluidnc_fs_resolve(const char* root, const char* relpath) {
+    stdfs::path p;
+    if (relpath == nullptr || relpath[0] == '\0' || !safe_path(root, relpath, p)) {
+        g_result_buffer.clear();
+    } else {
+        g_result_buffer = p.string();
+    }
+    return g_result_buffer.c_str();
+}
+
 EMSCRIPTEN_KEEPALIVE
 const char* fluidnc_fs_read(const char* root, const char* relpath) {
     stdfs::path p;

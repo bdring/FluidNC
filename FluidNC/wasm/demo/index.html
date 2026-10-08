@@ -452,11 +452,35 @@ function handleFsRequest(msg) {
       case 'mkdir':
         ok = fsOps.fsMkdir(msg.root, msg.path);
         break;
+      // `binary: true` reads, and writes carrying `bytes` (an ArrayBuffer)
+      // instead of `content` (a string), go through FS.readFile/writeFile so
+      // non-text files (images, .gz) survive intact; the string forms stay
+      // for existing text-only callers.
       case 'read':
-        result = fsOps.fsRead(msg.root, msg.path);
+        if (msg.binary) {
+          const path = fsOps.fsResolve(msg.root, msg.path);
+          if (!path || !fsOps.FS.analyzePath(path).exists) {
+            ok = false;
+            result = 'No such file';
+          } else {
+            result = fsOps.FS.readFile(path).buffer;
+          }
+        } else {
+          result = fsOps.fsRead(msg.root, msg.path);
+        }
         break;
       case 'write':
-        ok = fsOps.stageFile(msg.root, msg.path, msg.content);
+        if (msg.bytes instanceof ArrayBuffer) {
+          const path = fsOps.fsResolve(msg.root, msg.path);
+          if (!path) {
+            ok = false;
+          } else {
+            fsOps.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')));
+            fsOps.FS.writeFile(path, new Uint8Array(msg.bytes));
+          }
+        } else {
+          ok = fsOps.stageFile(msg.root, msg.path, msg.content);
+        }
         break;
       default:
         ok = false;
@@ -761,6 +785,8 @@ FluidNCModule().then(async (Module) => {
     fsDeleteDir: Module.cwrap('fluidnc_fs_deletedir', 'boolean', ['string', 'string']),
     fsMkdir: Module.cwrap('fluidnc_fs_mkdir', 'boolean', ['string', 'string']),
     fsRead: Module.cwrap('fluidnc_fs_read', 'string', ['string', 'string']),
+    fsResolve: Module.cwrap('fluidnc_fs_resolve', 'string', ['string', 'string']),
+    FS: Module.FS,
   };
   // Replay anything the top-level message listener queued while fsOps was
   // still null (see handleFsRequest/pendingFsMessages above), then let any
