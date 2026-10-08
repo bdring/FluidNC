@@ -521,8 +521,21 @@ window.addEventListener('message', (event) => {
       maybeStartNextShimSend();
     }
   } else if (msg.type === 'fluidnc-shim-command' && typeof msg.id === 'number' && typeof msg.cmd === 'string') {
-    shimSendQueue.push({ kind: 'command', id: msg.id, cmd: msg.cmd });
-    maybeStartNextShimSend();
+    if (isRealtimeByte(msg.cmd)) {
+      // A realtime command (feed hold, cycle start, reset, overrides, ...)
+      // must not wait behind whatever is in flight -- e.g. a $SD/Run,
+      // whose ok only arrives when the job ends. FluidNC acts on it as
+      // soon as the byte arrives and sends no ok for it, so it is sent
+      // bare (no newline) and answered at once, as FluidNC's web server
+      // does on real hardware.
+      if (sendShimTextRef) {
+        sendShimTextRef(msg.cmd);
+      }
+      postToWebui({ type: 'fluidnc-shim-command-response', id: msg.id, ok: true, response: '', ackLine: 'ok' });
+    } else {
+      shimSendQueue.push({ kind: 'command', id: msg.id, cmd: msg.cmd });
+      maybeStartNextShimSend();
+    }
   } else if (msg.type === 'fluidnc-fs-request') {
     if (!fsOps) {
       pendingFsMessages.push(msg);
