@@ -34,20 +34,12 @@ std::atomic<bool> fluidnc_started{ false };
 
 extern "C" {
 
-// wasm/ShimChannel.cpp's init hook: registers the shim channel with
-// allChannels. Called once, before the FreeRTOS task thread starts --
-// registration only touches AllChannels' semaphores/vector, which are
-// already valid at static-init time, so this doesn't need to wait for
-// setup().
-void wasm_shim_init();
-
 EMSCRIPTEN_KEEPALIVE
 void fluidnc_start() {
     bool expected = false;
     if (!fluidnc_started.compare_exchange_strong(expected, true)) {
         return;  // already started
     }
-    wasm_shim_init();
     std::thread([]() {
         setup();
         while (!should_exit()) {
@@ -62,7 +54,7 @@ void fluidnc_start() {
 // here (it would let Lineedit's realtimeOkay() veto be bypassed).
 void wasm_console_receive(const uint8_t* data, size_t len);
 
-// Bridge for JS to deliver raw input bytes exactly as typed/pasted (e.g.
+// Entry point for JS to deliver raw input bytes exactly as typed/pasted (e.g.
 // from an xterm.js onData callback) -- unlike a plain line-oriented input
 // box, no newline is appended here: Console's Lineedit does its own local
 // echo, intra-line editing, and realtime-character interception the same
@@ -73,22 +65,6 @@ void fluidnc_send_text(const char* text) {
         return;
     }
     wasm_console_receive(reinterpret_cast<const uint8_t*>(text), std::strlen(text));
-}
-
-// wasm/ShimChannel.cpp's receiver -- see fluidnc_shim_send() below.
-void wasm_shim_receive(const uint8_t* data, size_t len);
-
-// Bridge for a WebUI build (loaded into an iframe -- see demo/index.html)
-// to send a command to the shim channel. Unlike fluidnc_send_text(), the
-// caller is expected to already terminate lines with '\n' itself (it's
-// building protocol lines, not forwarding raw keystrokes), so nothing is
-// appended here either.
-EMSCRIPTEN_KEEPALIVE
-void fluidnc_shim_send(const char* text) {
-    if (text == nullptr) {
-        return;
-    }
-    wasm_shim_receive(reinterpret_cast<const uint8_t*>(text), std::strlen(text));
 }
 
 }  // extern "C"
