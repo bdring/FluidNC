@@ -560,7 +560,7 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file   = NULL;
         try {
-            file = new FileStream(fpath, "r", LocalFS);
+            file = new FileStream(fpath, "r");
         } catch (const ErrorException& err) {
             if (acceptGz) {
                 try {
@@ -1510,22 +1510,16 @@ namespace WebUI {
             // tight it can fail outright -- which would discard a file that had
             // in fact been written successfully.
             //
-            // The non-throwing constructor matters because this runs in an
-            // async web server callback, where an escaping exception would
-            // terminate the task and reboot the controller.
-            std::error_code ec;
-            FluidPath       filepath { pathname, LocalFS, ec };
+            // Copying the file's own FluidPath shares its mount state, so it
+            // holds that reference without re-resolving the path.  (Building
+            // a new FluidPath from the resolved string re-applied the volume
+            // prefix, which is harmless with ESP32's absolute "/littlefs" but
+            // doubled the relative "native_localfs" prefix on native ports.)
+            FluidPath filepath = _uploadFile->fpath();
 
             delete _uploadFile;
             _uploadFile = nullptr;
             log_debug("pathname " << pathname);
-
-            if (ec) {
-                _upload_status = UploadStatus::FAILED;
-                log_info("Upload failed - filesystem inaccessible after write");
-                pushError(request, ESP_ERROR_UPLOAD, "Upload failed, filesystem inaccessible");
-                return;
-            }
 
             HashFS::rehash_file(filepath);
 
