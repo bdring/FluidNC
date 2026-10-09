@@ -54,8 +54,9 @@
   <label for="webuiSelect">WebUI:</label>
   <select id="webuiSelect">
     <option value="">-- none --</option>
-    <option data-owner="figamore" data-repo="FigUI" data-tag="v1.2.7">FigUI (figamore)</option>
-    <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="">ESP3D-WEBUI (michmela44)</option>
+    <option data-owner="figamore" data-repo="FigUI" data-tag="">FigUI (figamore)</option>
+    <option data-owner="MitchBradley" data-repo="ESP3D-WEBUI" data-tag="">WebUI 2 (MitchBradley)</option>
+    <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="">WebUI 3 (michmela44)</option>
     <option data-local-file="true">Load local build file (.html/.html.gz)...</option>
   </select>
   <input type="file" id="webuiFileInput" accept=".html,.gz" style="display:none">
@@ -65,16 +66,16 @@
      operations (list/upload/download/delete/createdir) are all bridged to
      the running FluidNC instance via postMessage (see
      self.fluidncOnShimOutput/the 'fluidnc-shim-send' and 'fluidnc-fs-*'
-     listeners below, and WebUI-mm's targets/CNC/FluidNC/{commandTransport,
-     wsAdapter,fileTransport}.ts on the other end). Only WebUI variants
-     whose local build has this bridge wired in will actually work here --
-     currently that's a local, unpublished WebUI-mm checkout only, reachable
-     via "Load local build file..." (build it with `npm run build` in
-     WebUI-mm, then pick dist/index.html.gz here). The two GitHub-release
-     options load the real published builds, which don't know about this
-     bridge and will just show "Connecting..." forever. See webui-proxy.js's
-     comment for why the fetch to load a release build at all is needed,
-     and wasm/README.md's WebUI section. -->
+     listeners below; each WebUI has its own client for it: FigUI's
+     src/wasmBridge/, WebUI 2's www/js/wasmbridge.js, and WebUI 3's
+     targets/CNC/FluidNC/wasmBridge*.ts). Each GitHub entry in the menu
+     loads that project's latest release (data-tag="": pre-releases are
+     never "latest"), so it works once a release that includes the bridge
+     is published, and keeps up with later releases with no change here; a
+     release without it just shows "Connecting..." forever. "Load local
+     build file..." loads any build, e.g. one not yet released. See
+     webui-proxy.js's comment for why the fetch to load a release build at
+     all is needed, and wasm/README.md's WebUI section. -->
 <iframe id="webuiFrame" title="FluidNC WebUI"></iframe>
 <div id="terminal"></div>
 
