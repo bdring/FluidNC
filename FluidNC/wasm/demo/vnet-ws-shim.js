@@ -99,6 +99,18 @@
     return realOpen.apply(this, arguments);
   };
 
+  // vnet-sw.js, after the browser has restarted it, asks which demo page
+  // this frame belongs to.  Messages from the worker are held until
+  // startMessages() (or an onmessage handler) enables them.
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'vnet-which-host' && e.ports[0]) {
+        e.ports[0].postMessage({ token: vnet ? vnet.token() : null });
+      }
+    });
+    navigator.serviceWorker.startMessages();
+  }
+
   function reportLocation() {
     try {
       host.postMessage({ type: 'vnet-location' }, location.origin);

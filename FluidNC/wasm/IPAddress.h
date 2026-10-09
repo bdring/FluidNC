@@ -8,8 +8,8 @@
 // path) purely so Arduino.h resolves -- not a statement that it should be
 // re-enabled repo-wide.
 //
-// env:wasm_webui builds against Arduino-Emulator (like the posix envs),
-// whose real IPAddress is needed by ESPAsyncWebServer -- defer to it there.
+// env:wasm builds against Arduino-Emulator (like the posix envs), whose
+// real IPAddress is needed by ESPAsyncWebServer -- defer to it when present.
 
 #if __has_include(<api/IPAddress.h>)
 #    include <api/IPAddress.h>
