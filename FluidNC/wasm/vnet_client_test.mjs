@@ -126,7 +126,9 @@ check(r.status === 404 && r.body.length === Number(hdr(r, 'content-length')), '4
   const existing = listing.files.filter((f) => f.name === 'index.html' || f.name === 'index.html.gz').map((f) => f.name);
   check(existing.includes('index.html') && existing.includes('index.html.gz'), 'install: both index variants listed before install');
   for (const name of existing) {
-    await get('GET', '/files?path=/&action=delete&dontlist=yes&filename=' + encodeURIComponent(name));
+    const del = await get('GET', '/files?path=/&action=delete&dontlist=yes&filename=' + encodeURIComponent(name));
+    // The installer treats anything else as a failed delete.
+    check(JSON.parse(del.body.toString()).status === name + ' deleted', `install: delete of ${name} reports "${name} deleted"`);
   }
   const b = 'installboundary';
   const body = Buffer.concat([

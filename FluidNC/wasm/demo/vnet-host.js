@@ -304,13 +304,21 @@
         }
       }
 
+      // Only a close-delimited body ends at EOF.  A Content-Length or
+      // chunked body that is cut short is an error, not a short success.
       function onClosed() {
-        if (state === 'head') {
-          state = 'done';
-          sink.error('FluidNC closed the connection without a response');
-        } else {
-          finish();
+        if (state === 'done') {
+          return;
         }
+        if (state === 'body' && mode === 'close') {
+          finish();
+          return;
+        }
+        const message = state === 'head'
+          ? 'FluidNC closed the connection without a response'
+          : 'FluidNC closed the connection before the response was complete';
+        state = 'done';
+        sink.error(message);
       }
 
       connect({ data: onData, closed: onClosed }).then((cid) => {
@@ -516,6 +524,15 @@
       }
 
       connect({ data: onData, closed: () => shutdown(sentClose) }).then((cid) => {
+        if (state === 'closed') {
+          // Closed by the caller while connect() was still waiting for the
+          // server: don't open an upgrade nobody will ever use.
+          if (cid) {
+            conns.delete(cid);
+            vClose(cid);
+          }
+          return;
+        }
         if (!cid) {
           sink.error();
           shutdown(false);
@@ -582,6 +599,7 @@
 
   let deviceUrlPromise = null;
   let attachedClient = null;
+  let attachedToken = null;
   let deviceHrefResolved = null;  // absolute device URL, once the worker is active
 
   // Wires the client to the Service Worker and to shim WebSockets in the
@@ -593,11 +611,17 @@
     const client = createClient(Module);
     attachedClient = client;
     const token = base64(randomBytes(12)).replace(/[^A-Za-z0-9]/g, '');
+    attachedToken = token;
 
     // HTTP requests relayed by vnet-sw.js.  onmessage (not addEventListener)
     // so that message delivery from the worker starts immediately.
     navigator.serviceWorker.onmessage = (event) => {
       const m = event.data;
+      if (m && m.type === 'vnet-who-has' && event.ports[0]) {
+        // vnet-sw.js recovering, after a restart, which page owns a frame.
+        event.ports[0].postMessage({ mine: m.token === token });
+        return;
+      }
       if (!m || m.type !== 'vnet-http') {
         return;
       }
@@ -755,8 +779,13 @@
     return '/' + u.pathname.slice(scopePath().length) + search + u.hash;
   }
 
+  // This page's token, which ties its device frame to it (see vnet-sw.js).
+  function token() {
+    return attachedToken;
+  }
+
   const api = {
-    attach, deviceUrl, deviceHref, fetchDevice, createClient,
+    attach, deviceUrl, deviceHref, fetchDevice, createClient, token,
     refreshIdentity, deviceNames, isDeviceHost, scopePath, deviceHrefFor, devicePathOf,
   };
   global.FluidNCVnet = api;

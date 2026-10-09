@@ -28,12 +28,19 @@ const SCOPE_PATH = new URL(self.registration.scope).pathname;  // e.g. "/device/
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
-// Host pages announce themselves with a random token; the iframe is loaded
-// as device/?vnethost=<token>, which ties that iframe to its host even with
-// several demo tabs open.  These maps are lost if the browser stops this
-// worker, in which case findHost() falls back to any open demo page.
-const hostByToken = new Map();   // token -> host clientId
-const hostByClient = new Map();  // iframe clientId -> host clientId
+// Each demo page (the "host") owns one FluidNC instance and announces
+// itself with a random token; its iframe is loaded as
+// device/?vnethost=<token>.  Every request must reach the host that owns
+// the requesting frame -- with several demo tabs open, a request sent to
+// the wrong one would run commands and write files on another tab's
+// FluidNC.
+//
+// The maps below are only a cache: the browser may stop this worker when
+// idle, losing them.  findHost() then recovers by asking (frame -> token,
+// token -> host) and, if that fails, guesses only when exactly one demo
+// page is open; otherwise the request fails rather than risk the wrong one.
+const hostByToken = new Map();     // token -> host clientId
+const tokenByClient = new Map();   // device frame clientId -> token
 
 self.addEventListener('message', (event) => {
   const m = event.data;
@@ -42,16 +49,66 @@ self.addEventListener('message', (event) => {
   }
 });
 
-async function findHost(event, token) {
-  let hostId = (token && hostByToken.get(token)) || hostByClient.get(event.clientId);
-  if (hostId) {
-    const c = await self.clients.get(hostId);
-    if (c) {
-      return c;
+// Posts msg to a client with a reply port; resolves to the reply, or null
+// if none arrives in time.
+function ask(client, msg, timeoutMs = 1000) {
+  return new Promise((resolve) => {
+    const { port1, port2 } = new MessageChannel();
+    const timer = setTimeout(() => {
+      port1.close();
+      resolve(null);
+    }, timeoutMs);
+    port1.onmessage = (e) => {
+      clearTimeout(timer);
+      port1.close();
+      resolve(e.data);
+    };
+    client.postMessage(msg, [port2]);
+  });
+}
+
+async function hostPages() {
+  const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  return all.filter((c) => !new URL(c.url).pathname.startsWith(SCOPE_PATH));
+}
+
+async function findHost(event, urlToken) {
+  // 1. Which host does the requesting frame belong to?  A frame's own
+  // navigation carries the token; later requests from it are matched by
+  // its clientId, or, after a restart, by asking the frame itself (the
+  // injected vnet-ws-shim.js answers with its parent's token).
+  let token = urlToken || tokenByClient.get(event.clientId);
+  if (!token && event.clientId) {
+    const frame = await self.clients.get(event.clientId);
+    const reply = frame && (await ask(frame, { type: 'vnet-which-host' }));
+    token = reply && reply.token;
+  }
+  if (token) {
+    if (event.clientId) {
+      tokenByClient.set(event.clientId, token);
+    }
+    if (event.resultingClientId) {
+      tokenByClient.set(event.resultingClientId, token);
+    }
+
+    // 2. Which page owns that token?  Ask the pages after a restart.
+    const known = hostByToken.get(token);
+    const host = known && (await self.clients.get(known));
+    if (host) {
+      return host;
+    }
+    for (const page of await hostPages()) {
+      const reply = await ask(page, { type: 'vnet-who-has', token });
+      if (reply && reply.mine) {
+        hostByToken.set(token, page.id);
+        return page;
+      }
     }
   }
-  const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  return all.find((c) => !new URL(c.url).pathname.startsWith(SCOPE_PATH)) || null;
+
+  // 3. Unattributable: only safe when there is a single demo page.
+  const pages = await hostPages();
+  return pages.length === 1 ? pages[0] : null;
 }
 
 // Fetched per document load rather than cached here, so an edited shim
@@ -123,10 +180,7 @@ async function forward(event, url) {
 
   const host = await findHost(event, token);
   if (!host) {
-    return new Response('FluidNC demo page not found -- open the demo page first', { status: 503 });
-  }
-  if (req.mode === 'navigate' && event.resultingClientId) {
-    hostByClient.set(event.resultingClientId, host.id);
+    return new Response('Cannot tell which demo page this frame belongs to -- reload the demo page', { status: 503 });
   }
 
   const headers = [];

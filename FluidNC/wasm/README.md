@@ -198,4 +198,5 @@ Headless tests (Node, no browser):
 ```bash
 node FluidNC/wasm/vconn_smoke_test.mjs .pio/build/wasm/program.js
 node FluidNC/wasm/vnet_client_test.mjs .pio/build/wasm/program.js
+node FluidNC/wasm/vnet_unit_test.mjs
 ```

@@ -337,7 +337,11 @@ async function installWebui(gzBytes, label) {
     return false;
   }
   for (const f of existing) {
-    await FluidNCVnet.fetchDevice('GET', '/files?path=/&action=delete&dontlist=yes&filename=' + encodeURIComponent(f.name));
+    const del = await FluidNCVnet.fetchDevice('GET', '/files?path=/&action=delete&dontlist=yes&filename=' + encodeURIComponent(f.name));
+    const status = JSON.parse(new TextDecoder().decode(del.body)).status || '';
+    if (del.status !== 200 || status !== f.name + ' deleted') {
+      throw new Error('could not remove the old ' + f.name + ': ' + (status || 'HTTP ' + del.status));
+    }
   }
 
   // Field order matters: FluidNC reads the expected size ("<filename>S")
@@ -359,6 +363,11 @@ async function installWebui(gzBytes, label) {
   const installed = after.files.find((f) => f.name === 'index.html.gz');
   if (res.status !== 200 || after.status !== 'Ok' || !installed || Number(installed.size) !== gzBytes.length) {
     throw new Error('upload failed: ' + (after.status || res.status));
+  }
+  // FluidNC serves a plain index.html in preference to index.html.gz, so
+  // the install has only worked if none is left.
+  if (after.files.some((f) => f.name === 'index.html')) {
+    throw new Error('an old index.html is still present and would be served instead');
   }
   savePersistentFs();  // keep it across reloads without waiting for the next periodic save
   return true;
