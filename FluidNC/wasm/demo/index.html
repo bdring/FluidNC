@@ -57,6 +57,7 @@
     <option data-owner="figamore" data-repo="FigUI" data-tag="">FigUI (figamore)</option>
     <option data-owner="MitchBradley" data-repo="ESP3D-WEBUI" data-tag="">WebUI 2 (MitchBradley)</option>
     <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="">WebUI 3 (michmela44)</option>
+    <option data-localfs="true">From LocalFS (index.html / index.html.gz)</option>
     <option data-local-file="true">Load local build file (.html/.html.gz)...</option>
   </select>
   <input type="file" id="webuiFileInput" accept=".html,.gz" style="display:none">
@@ -217,12 +218,55 @@ webuiFileInput.addEventListener('change', async () => {
   }
 });
 
+// Reads the WebUI the way FluidNC's own web server finds it on a
+// controller (WebUIServer.cpp: handle_root -> myStreamFile("index.html")):
+// LocalFS index.html, else index.html.gz. Resolves to the HTML, or null if
+// neither exists. (Once the WASM build has the $HTTP/IndexFile setting,
+// the file it names would be tried first, as the firmware does.)
+async function readLocalFsIndex() {
+  const FS = fsOps.FS;
+  const plain = '/native_localfs/index.html';
+  if (FS.analyzePath(plain).exists) {
+    return new TextDecoder().decode(FS.readFile(plain));
+  }
+  const gz = plain + '.gz';
+  if (FS.analyzePath(gz).exists) {
+    const stream = new Blob([FS.readFile(gz)]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Response(stream).text();
+  }
+  return null;
+}
+
 webuiSelect.addEventListener('change', async () => {
   const opt = webuiSelect.selectedOptions[0];
   const owner = opt.dataset.owner;
   const repo = opt.dataset.repo;
   const tag = opt.dataset.tag;
   const localFile = opt.dataset.localFile;
+  const localFs = opt.dataset.localfs;
+
+  if (localFs) {
+    if (!fsOps) {
+      webuiStatus.textContent = 'FluidNC is still starting; try again in a moment.';
+      webuiSelect.value = '';
+      return;
+    }
+    webuiStatus.textContent = 'Loading index.html from LocalFS...';
+    try {
+      const html = await readLocalFsIndex();
+      if (html === null) {
+        webuiStatus.textContent = 'No index.html or index.html.gz on LocalFS. Upload one with "Upload files..." (Files on: LocalFS).';
+        webuiSelect.value = '';
+        return;
+      }
+      loadWebuiHtml(html);
+    } catch (err) {
+      console.error(err);
+      webuiStatus.textContent = 'Failed to load: ' + err.message;
+      webuiSelect.value = '';
+    }
+    return;
+  }
 
   if (!owner && !localFile) {
     webuiFrame.style.display = 'none';
