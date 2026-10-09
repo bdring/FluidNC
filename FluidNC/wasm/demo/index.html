@@ -517,7 +517,7 @@ function flushPendingRealtime() {
 let fsOps = null;
 const pendingFsMessages = [];
 
-function handleFsRequest(msg) {
+async function handleFsRequest(msg) {
   let result, ok = true;
   try {
     switch (msg.op) {
@@ -570,10 +570,21 @@ function handleFsRequest(msg) {
     ok = false;
     result = String(err);
   }
-  if (msg.op !== 'list' && msg.op !== 'read') {
-    savePersistentFs();
+  // A change is answered only once it is saved, so a WebUI that reports a
+  // write or delete as done can rely on it surviving the tab being closed.
+  // A failed save still answers ok: the operation itself succeeded, in
+  // memory, as the demo page's own upload reports it.
+  if (ok && msg.op !== 'list' && msg.op !== 'read' && !(await savePersistentFs()) && persistFS) {
+    console.warn(`File operation '${msg.op}' on ${msg.path} succeeded but could not be saved in this browser.`);
   }
   return { type: 'fluidnc-fs-response', id: msg.id, ok, result };
+}
+
+// Answers to the frame that asked, even if the WebUI has been switched
+// while a save was in progress (that answer then just goes unheard).
+function answerFsRequest(msg) {
+  const target = webuiFrame.contentWindow;
+  handleFsRequest(msg).then((response) => target.postMessage(response, '*'));
 }
 
 // Installed immediately (not inside FluidNCModule().then() below) so an
@@ -617,7 +628,7 @@ window.addEventListener('message', (event) => {
       pendingFsMessages.push(msg);
       return;
     }
-    webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
+    answerFsRequest(msg);
   }
 });
 
@@ -919,7 +930,7 @@ FluidNCModule().then(async (Module) => {
   // held realtime bytes first.
   while (pendingFsMessages.length) {
     const msg = pendingFsMessages.shift();
-    webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
+    answerFsRequest(msg);
   }
   flushPendingRealtime();
   maybeStartNextShimSend();
