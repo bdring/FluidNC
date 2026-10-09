@@ -790,15 +790,19 @@ async function resetPersistentFs() {
 // rather than giving up at once, covers a reload of the saving tab, whose
 // old page may not have released the lock yet when the new one asks.
 const PERSIST_LOCK_WAIT_MS = 1500;
+// Resolves 'held', 'busy' (another tab holds it) or 'unsupported'. Without
+// Web Locks there is no safe way to know this is the only tab, so that
+// tab doesn't save either -- in practice every browser that can run this
+// demo (it needs cross-origin isolation) has Web Locks.
 function acquirePersistLock() {
   if (!navigator.locks) {
-    return Promise.resolve(true);  // no Web Locks: the pre-lock behavior
+    return Promise.resolve('unsupported');
   }
   return new Promise((resolve) => {
     navigator.locks.request(PERSIST_LOCK, { signal: AbortSignal.timeout(PERSIST_LOCK_WAIT_MS) }, () => {
-      resolve(true);
+      resolve('held');
       return new Promise(() => {});  // held until the page goes away
-    }).catch(() => resolve(false));  // timed out: another tab holds it
+    }).catch(() => resolve('busy'));  // timed out: another tab holds it
   });
 }
 
@@ -818,12 +822,15 @@ async function restorePersistentFs(FS) {
       FS.mount(FS.filesystems.IDBFS, {}, dir);
     }
     await syncfs(FS, true);
-    if (await acquirePersistLock()) {
+    const lock = await acquirePersistLock();
+    if (lock === 'held') {
       persistFS = FS;
     } else {
-      document.getElementById('persistStatus').textContent =
-        'This demo is open in another tab, so files and settings changed here will not be saved. ' +
-        'To save changes, close the other tab and reload this one.';
+      document.getElementById('persistStatus').textContent = lock === 'busy'
+        ? 'This demo is open in another tab, so files and settings changed here will not be saved. ' +
+          'To save changes, close the other tab and reload this one.'
+        : 'This browser cannot coordinate saving between tabs (no Web Locks), so files and ' +
+          'settings changed here will not be saved.';
     }
   } catch (err) {
     // e.g. IndexedDB unavailable in a private window: carry on with

@@ -55,8 +55,8 @@ Then open `http://127.0.0.1:8767/index.html`.
 
 ### Seed files (native_localfs/native_sd)
 
-`config.yaml` and a sample job are staged into the running instance at
-boot from `demo/seed-localfs/` and `demo/seed-sd/` -- plain files,
+The initial LocalFS and SD card contents are staged into the running
+instance at boot from `demo/seed-localfs/` and `demo/seed-sd/` -- plain files,
 fetched client-side (see `seedFs()` in `index.html`) rather than
 embedded in the page, since Netlify (and `serve.py` locally) already
 serve everything under `demo/` as static files, same-origin `fetch()`
