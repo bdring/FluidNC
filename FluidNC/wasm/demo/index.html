@@ -45,11 +45,12 @@
   <input type="file" id="uploadInput" multiple style="display:none">
   <select id="downloadFile" aria-label="File to download" disabled></select>
   <button id="downloadButton" type="button" disabled>Download</button>
-  <span id="uploadStatus"></span>
+  <span id="uploadStatus" role="status"></span>
 </p>
 <p><button id="resetStorage" type="button">Reset files and settings</button>
   discards everything saved in this browser and reloads with the built-in
-  copies. <span id="resetStatus"></span></p>
+  copies. <span id="resetStatus" role="status"></span></p>
+<p id="persistStatus" role="status"></p>
 <div id="webuiPanel">
   <label for="webuiSelect">WebUI:</label>
   <select id="webuiSelect">
@@ -472,30 +473,39 @@ function isRealtimeByte(text) {
     code === 0x21 /* ! feed hold */ || code >= 0x80 /* extended-ASCII overrides */;
 }
 
-// Realtime bytes that arrive before sendShimTextRef is set (the WASM
-// module still starting) are held here and sent, in order, as soon as it
-// is -- ahead of the queued line sends, as FluidNC acts on realtime bytes
-// first. They can't wait in shimSendQueue: they never get an ok. A
-// 'fluidnc-shim-command' realtime byte (id set) is answered only once it
-// has actually been sent.
+// Realtime bytes that arrive while the WASM module is still starting are
+// held here and sent, in arrival order, by flushPendingRealtime() once
+// startup is done -- ahead of the queued line sends, as FluidNC acts on
+// realtime bytes first. They can't wait in shimSendQueue: they never get an
+// ok. A byte that arrives while any are still held joins the end of the
+// list, even if sendShimTextRef is already set, so it can't overtake them
+// (an early feed hold then cycle start must not arrive the other way
+// round). A 'fluidnc-shim-command' realtime byte (id set) is answered only
+// once it has actually been sent.
 const pendingRealtime = []; // { text, id }
+let realtimeReady = false;  // set by flushPendingRealtime()
 
-function sendRealtime(text, id) {
-  if (!sendShimTextRef) {
-    pendingRealtime.push({ text, id });
-    return;
-  }
+function deliverRealtime(text, id) {
   sendShimTextRef(text);
   if (id !== undefined) {
     postToWebui({ type: 'fluidnc-shim-command-response', id, ok: true, response: '', ackLine: 'ok' });
   }
 }
 
+function sendRealtime(text, id) {
+  if (!realtimeReady || pendingRealtime.length) {
+    pendingRealtime.push({ text, id });
+    return;
+  }
+  deliverRealtime(text, id);
+}
+
 function flushPendingRealtime() {
   while (pendingRealtime.length) {
     const { text, id } = pendingRealtime.shift();
-    sendRealtime(text, id);
+    deliverRealtime(text, id);
   }
+  realtimeReady = true;
 }
 
 // Filesystem-bridge cwrap functions, assigned once FluidNCModule() resolves
@@ -736,6 +746,7 @@ async function seedFs(FS, root, dir) {
 // them that way -- which is what resetting deletes.
 const PERSIST_DIRS = ['/native_localfs', '/native_sd', '/native_nvs'];
 const PERSIST_INTERVAL_MS = 3000;
+const PERSIST_LOCK = 'fluidnc-demo-persistence';
 let persistFS = null;  // Module.FS once the mounts are up; null = not persisting
 let persistSaveRun = null;  // the in-flight save loop's promise, if any
 let persistSaveAgain = false;
@@ -769,6 +780,28 @@ async function resetPersistentFs() {
     : `Reset failed (${failed[0].reason}); some saved files and settings were kept.`;
 }
 
+// Only one tab of this demo saves. Each tab saves its whole in-memory copy
+// to IndexedDB, one way (IDBFS doesn't merge), so a second saving tab
+// would put back its stale files over the first one's changes. The first
+// tab holds this Web Lock for as long as it is open; any other tab still
+// restores the saved files and runs, but never saves, and says so. An
+// already-open tab never takes over when the lock frees -- its copy may be
+// stale -- but a tab opened (or reloaded) after that does. The short wait,
+// rather than giving up at once, covers a reload of the saving tab, whose
+// old page may not have released the lock yet when the new one asks.
+const PERSIST_LOCK_WAIT_MS = 1500;
+function acquirePersistLock() {
+  if (!navigator.locks) {
+    return Promise.resolve(true);  // no Web Locks: the pre-lock behavior
+  }
+  return new Promise((resolve) => {
+    navigator.locks.request(PERSIST_LOCK, { signal: AbortSignal.timeout(PERSIST_LOCK_WAIT_MS) }, () => {
+      resolve(true);
+      return new Promise(() => {});  // held until the page goes away
+    }).catch(() => resolve(false));  // timed out: another tab holds it
+  });
+}
+
 // Must run before fluidnc_start() -- FluidNC reads config.yaml and NVS
 // during setup(). /native_nvs already exists by then (FILE_NVS's static
 // constructor creates it), and mounting over an existing empty directory
@@ -785,7 +818,13 @@ async function restorePersistentFs(FS) {
       FS.mount(FS.filesystems.IDBFS, {}, dir);
     }
     await syncfs(FS, true);
-    persistFS = FS;
+    if (await acquirePersistLock()) {
+      persistFS = FS;
+    } else {
+      document.getElementById('persistStatus').textContent =
+        'This demo is open in another tab, so files and settings changed here will not be saved. ' +
+        'To save changes, close the other tab and reload this one.';
+    }
   } catch (err) {
     // e.g. IndexedDB unavailable in a private window: carry on with
     // whatever is in memory, which is the pre-persistence behavior.
