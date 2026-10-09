@@ -428,6 +428,32 @@ function isRealtimeByte(text) {
     code === 0x21 /* ! feed hold */ || code >= 0x80 /* extended-ASCII overrides */;
 }
 
+// Realtime bytes that arrive before sendShimTextRef is set (the WASM
+// module still starting) are held here and sent, in order, as soon as it
+// is -- ahead of the queued line sends, as FluidNC acts on realtime bytes
+// first. They can't wait in shimSendQueue: they never get an ok. A
+// 'fluidnc-shim-command' realtime byte (id set) is answered only once it
+// has actually been sent.
+const pendingRealtime = []; // { text, id }
+
+function sendRealtime(text, id) {
+  if (!sendShimTextRef) {
+    pendingRealtime.push({ text, id });
+    return;
+  }
+  sendShimTextRef(text);
+  if (id !== undefined) {
+    postToWebui({ type: 'fluidnc-shim-command-response', id, ok: true, response: '', ackLine: 'ok' });
+  }
+}
+
+function flushPendingRealtime() {
+  while (pendingRealtime.length) {
+    const { text, id } = pendingRealtime.shift();
+    sendRealtime(text, id);
+  }
+}
+
 // Filesystem-bridge cwrap functions, assigned once FluidNCModule() resolves
 // (see below). Messages that arrive before then -- e.g. an iframe's
 // handshake landing while the WASM module is still compiling -- are queued
@@ -514,9 +540,7 @@ window.addEventListener('message', (event) => {
   }
   if (msg.type === 'fluidnc-shim-send' && typeof msg.text === 'string') {
     if (isRealtimeByte(msg.text)) {
-      if (sendShimTextRef) {
-        sendShimTextRef(msg.text);
-      }
+      sendRealtime(msg.text);
     } else {
       shimSendQueue.push({ kind: 'raw', text: msg.text });
       maybeStartNextShimSend();
@@ -527,12 +551,9 @@ window.addEventListener('message', (event) => {
       // must not wait behind whatever is in flight -- e.g. a $SD/Run,
       // whose ok only arrives when the job ends. FluidNC acts on it as
       // soon as the byte arrives and sends no ok for it, so it is sent
-      // bare (no newline) and answered at once, as FluidNC's web server
-      // does on real hardware.
-      if (sendShimTextRef) {
-        sendShimTextRef(msg.cmd);
-      }
-      postToWebui({ type: 'fluidnc-shim-command-response', id: msg.id, ok: true, response: '', ackLine: 'ok' });
+      // bare (no newline) and answered as soon as it is sent, as FluidNC's
+      // web server does on real hardware.
+      sendRealtime(msg.cmd, msg.id);
     } else {
       shimSendQueue.push({ kind: 'command', id: msg.id, cmd: msg.cmd });
       maybeStartNextShimSend();
@@ -614,8 +635,8 @@ self.fluidncOnShimOutput = (text) => {
   }
 };
 
-// Seed content for native_localfs/native_sd (config.yaml, a sample job)
-// lives as plain files under seed-localfs//seed-sd/, fetched at boot
+// Seed content for native_localfs and native_sd lives as plain files under
+// the seed-localfs/ and seed-sd/ directories, fetched at boot
 // (see seedFs() below) rather than embedded here -- same-origin fetch()
 // isn't affected by the COOP/COEP headers serve.py/_headers set (those
 // only restrict *cross-origin* loads lacking a CORP header), and Netlify/
@@ -804,11 +825,13 @@ FluidNCModule().then(async (Module) => {
   };
   // Replay anything the top-level message listener queued while fsOps was
   // still null (see handleFsRequest/pendingFsMessages above), then let any
-  // shim sends that queued before sendShimTextRef was set start flowing.
+  // shim sends that queued before sendShimTextRef was set start flowing --
+  // held realtime bytes first.
   while (pendingFsMessages.length) {
     const msg = pendingFsMessages.shift();
     webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
   }
+  flushPendingRealtime();
   maybeStartNextShimSend();
 
   // Upload from the demo page itself, so files can be added with no WebUI
