@@ -41,6 +41,7 @@
 #include <cstdio>
 #include <list>
 #include <algorithm>
+#include <atomic>
 #include <memory>
 
 #include "Mime.h"  // getContentType
@@ -883,10 +884,13 @@ namespace WebUI {
         FluidPath       fpath { dir, LocalFS, ec };
         if (!ec) {
             std::vector<std::string> names;
-            for (auto const& entry : stdfs::directory_iterator { fpath, ec }) {
-                auto name = entry.path().filename().string();
-                if (entry.is_directory() && validUiName(name) &&
-                    (stdfs::exists(entry.path() / "index.html", ec) || stdfs::exists(entry.path() / "index.html.gz", ec))) {
+            // The error_code forms throughout: a card pulled mid-listing
+            // must not throw out of this async_tcp callback.
+            for (stdfs::directory_iterator it { fpath, ec }, end; !ec && it != end; it.increment(ec)) {
+                std::error_code fec;
+                auto            name = it->path().filename().string();
+                if (it->is_directory(fec) && validUiName(name) &&
+                    (stdfs::exists(it->path() / "index.html", fec) || stdfs::exists(it->path() / "index.html.gz", fec))) {
                     names.push_back(name);
                 }
             }
@@ -943,6 +947,10 @@ namespace WebUI {
 
         std::string path = dir + "/" + u.name + "/" + (u.tail.empty() ? "index.html" : u.tail);
 
+        if (request->method() == HTTP_PUT && u.tail.empty()) {
+            request->send(405);  // PUT needs a file name; /ui/<name>/ is the page
+            return;
+        }
         if (request->method() == HTTP_PUT) {
             handle_ui_put(request, path);
             return;
@@ -954,12 +962,17 @@ namespace WebUI {
 
         if (u.tail.empty()) {
             // A page load.  Close the channels of the previous instance of
-            // this page.  An old WebUI uses the browser-wide session.
-            for (const char* cookie : { "uiSession", "sessionId" }) {
-                auto session = getCookie(request, cookie);
-                if (!session.empty()) {
-                    WSChannels::closeSessionChannels(session);
-                }
+            // this page: its uiSession, which is scoped to this WebUI's
+            // directory.  Only without one -- a first load, or a WebUI that
+            // uses absolute URLs -- does the page share the browser-wide
+            // sessionId; closing that otherwise would disconnect a root
+            // WebUI open in another tab.
+            auto session = getCookie(request, "uiSession");
+            if (session.empty()) {
+                session = getCookie(request, "sessionId");
+            }
+            if (!session.empty()) {
+                WSChannels::closeSessionChannels(session);
             }
             if (myStreamFile(request, path.c_str(), false, true, u.name.c_str())) {
                 return;
@@ -972,22 +985,32 @@ namespace WebUI {
 
     // State for a PUT under /ui, which is written to a temporary file that
     // replaces the target only when complete.  The request frees it.
+    // Plain data only: the request releases it with free().
     struct UiPut {
         FileStream* file;
-        uint16_t    status;  // Nonzero if the PUT failed
+        uint16_t    status;   // Nonzero if the PUT failed
+        uint32_t    seq;      // Makes this PUT's temporary file name unique
+        size_t      written;  // Bytes accepted by FileStream::write()
     };
 
     static std::string uiPutPath(AsyncWebServerRequest* request) {
         std::string url(request->url().c_str());
         UiUrl       u;
         auto        dir = uiDir();
-        if (dir.empty() || !splitUiUrl(url, u) || u.name.empty() || u.tail.empty()) {
+        if (dir.empty() || !splitUiUrl(url, u) || u.name.empty() || u.tail.empty() || u.tail == "command" ||
+            u.tail == "command_silent") {
             return "";
         }
         return dir + "/" + u.name + "/" + u.tail;
     }
 
-    static const char* partSuffix = ".part";
+    // Each PUT writes its own temporary file, so overlapping PUTs to the
+    // same target (e.g. a client retrying after a timeout) don't share one.
+    static std::atomic<uint32_t> uiPutSeq { 0 };
+
+    static std::string partPath(const std::string& path, uint32_t seq) {
+        return path + ".part" + std::to_string(seq);
+    }
 
     // A PUT under /ui/<name>/ creates the WebUI's directory, and any
     // subdirectories in the path, so that a new WebUI can be installed with
@@ -1025,8 +1048,9 @@ namespace WebUI {
                 put->status = 503;
                 return;
             }
+            put->seq = ++uiPutSeq;
             try {
-                FluidPath fpath { path + partSuffix, LocalFS };
+                FluidPath fpath { partPath(path, put->seq), LocalFS };
                 if (total) {
                     std::error_code ec;
                     auto            avail = stdfs::space(fpath, ec).available;
@@ -1055,14 +1079,21 @@ namespace WebUI {
                 }
             });
         }
-        if (put->file && put->file->write(data, len) != len) {
+        if (!put->file) {
+            return;
+        }
+        // Motion may start during a long upload; stop writing then
+        uint16_t failure = blockedInMotion() ? 503 : put->file->write(data, len) != len ? 507 : 0;
+        if (failure) {
             FluidPath fpath = put->file->fpath();
             delete put->file;
             put->file = nullptr;
             std::error_code ec;
             stdfs::remove(fpath, ec);
-            put->status = 507;
+            put->status = failure;
+            return;
         }
+        put->written += len;
     }
 
     void WebUI_Server::handle_ui_put(AsyncWebServerRequest* request, const std::string& path) {
@@ -1075,35 +1106,64 @@ namespace WebUI {
             request->send(503);
             return;
         }
+        size_t length = request->contentLength();
+        if (length && !(put && put->file)) {
+            // A body arrived but never reached handle_ui_body(): the server
+            // parsed it as form data (application/x-www-form-urlencoded, or
+            // key=value text/plain), or the PUT state could not be
+            // allocated.  Never treat that as an empty file.
+            const String& type = request->contentType();
+            bool form = type.equalsIgnoreCase("application/x-www-form-urlencoded") || type.startsWith("text/plain");
+            request->send(form ? 415 : 500);
+            return;
+        }
         try {
-            FluidPath fpath { path, LocalFS };
-            FluidPath part { path + partSuffix, LocalFS };
+            FluidPath   fpath { path, LocalFS };
+            std::string partName = partPath(path, put ? put->seq : ++uiPutSeq);
+            FluidPath   part { partName, LocalFS };
             if (put && put->file) {
-                delete put->file;  // Closes the file
+                delete put->file;  // Closes the file, flushing its buffer
                 put->file = nullptr;
-            } else if (!put || request->contentLength() == 0) {
+            } else {
                 // A PUT with no body creates or empties the file
                 if (!makeParentDirs(part)) {
                     request->send(500);
                     return;
                 }
                 FileStream(part, "w");
-            } else {
-                request->send(500);
-                return;
             }
             std::error_code ec;
+            // The final flush happens on close, where a failure goes
+            // unreported -- so check what actually reached the file.
+            size_t expected = put ? put->written : 0;
+            size_t actual   = stdfs::file_size(part, ec);
+            if (ec || actual != expected || (length && expected != length)) {
+                log_debug("PUT " << path << ": wrote " << actual << " of " << length << " bytes");
+                stdfs::remove(part, ec);
+                request->send(507);
+                return;
+            }
             if (stdfs::is_directory(fpath, ec)) {
                 stdfs::remove(part, ec);
                 request->send(409);
                 return;
             }
             bool existed = stdfs::exists(fpath, ec);
-            // FAT will not rename onto an existing file
-            if (existed) {
-                stdfs::remove(fpath, ec);
-            }
+            // LittleFS renames onto an existing file in one step.  FAT
+            // refuses to, so only then remove the target first.  Once it is
+            // gone, the temporary file is the only copy: keep it on failure.
             stdfs::rename(part, fpath, ec);
+            if (ec && existed) {
+                stdfs::remove(fpath, ec);
+                if (!ec) {
+                    stdfs::rename(part, fpath, ec);
+                    if (ec) {
+                        log_error("PUT " << path << ": cannot rename " << partName << " into place: " << ec.message());
+                        request->send(500);
+                        return;
+                    }
+                }
+            }
             if (ec) {
                 log_debug("Cannot rename " << part << " to " << fpath << ": " << ec.message());
                 stdfs::remove(part, ec);

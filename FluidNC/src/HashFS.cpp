@@ -123,9 +123,26 @@ bool HashFS::in_ui_dir(const std::filesystem::path& path) {
     return in_ui_dir_locked(path);
 }
 
+// Caller holds the lock.  Under HTTP/UIDir only each WebUI's index is
+// cached -- what a reload during motion and the / redirect need -- so a
+// WebUI's other files (possibly many) don't grow the cache without bound.
+// They are hashed on request, like files in LocalFS subdirectories.
+bool HashFS::ui_index_locked(const std::filesystem::path& path) {
+    if (!in_ui_dir_locked(path)) {
+        return false;
+    }
+    std::string rest  = path.string().substr(_uiDir.length() + 1);  // "<name>/<file>"
+    auto        slash = rest.find('/');
+    if (slash == 0 || slash == std::string::npos) {
+        return false;
+    }
+    std::string file = rest.substr(slash + 1);
+    return file == "index.html" || file == "index.html.gz";
+}
+
 // Caller holds the lock
 bool HashFS::cacheable_locked(const std::filesystem::path& path) {
-    return _enabled && (file_is_hashable(path) || in_ui_dir_locked(path));
+    return _enabled && (file_is_hashable(path) || ui_index_locked(path));
 }
 
 std::string HashFS::ui_dir() {
@@ -147,16 +164,19 @@ void HashFS::hash_ui_indexes() {
     if (ec) {
         return;
     }
-    auto iter = stdfs::directory_iterator { fpath, ec };
+    stdfs::directory_iterator it { fpath, ec }, end;
     if (ec) {
         log_debug("HashFS: cannot list " << dir);
         return;
     }
-    for (auto const& dir_entry : iter) {
-        if (dir_entry.is_directory()) {
+    // The error_code forms throughout: a card pulled mid-walk must not
+    // throw, since this can run in an async_tcp callback.
+    for (; !ec && it != end; it.increment(ec)) {
+        std::error_code fec;
+        if (it->is_directory(fec)) {
             for (const char* name : { "index.html", "index.html.gz" }) {
-                auto index = dir_entry.path() / name;
-                if (stdfs::exists(index, ec)) {
+                auto index = it->path() / name;
+                if (stdfs::exists(index, fec)) {
                     rehash_file(index, false);
                 }
             }
@@ -211,7 +231,10 @@ void HashFS::rehash_file(const std::filesystem::path& path, bool report) {
                 done = true;
                 break;
             }
-            generation = _generation;
+            // The caller has just changed this file: invalidate any hash()
+            // already computing it from the old contents, so that one can't
+            // be stored after this one.
+            generation = ++_generation;
         }
         std::string hash;
         bool        hashed = hashFile(path, hash) == Error::Ok;

@@ -35,6 +35,7 @@ private:
     static void        erase_locked(const std::filesystem::path& path);
     static std::string ui_dir();
     static bool        in_ui_dir_locked(const std::filesystem::path& path);
+    static bool        ui_index_locked(const std::filesystem::path& path);
     static bool        cacheable_locked(const std::filesystem::path& path);
     static void        hash_ui_indexes();
 };

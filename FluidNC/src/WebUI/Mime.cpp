@@ -15,7 +15,12 @@ struct mime_type {
     { ".pdf", "application/x-pdf" }, { ".zip", "application/x-zip" },
     { ".gz", "application/x-gzip" }, { ".txt", "text/plain" },
     { ".gc", "text/plain" },         { ".gcode", "text/plain" },
-    { ".nc", "text/plain" },         { "", "application/octet-stream" },
+    { ".nc", "text/plain" },         { ".svg", "image/svg+xml" },
+    { ".json", "application/json" }, { ".mjs", "application/javascript" },
+    { ".wasm", "application/wasm" }, { ".woff2", "font/woff2" },
+    { ".woff", "font/woff" },        { ".webmanifest", "application/manifest+json" },
+    { ".webp", "image/webp" },       { ".map", "application/json" },
+    { "", "application/octet-stream" },
 };
 
 const char* getContentType(const std::string_view filename) {
