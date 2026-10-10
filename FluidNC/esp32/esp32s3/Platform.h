@@ -52,7 +52,11 @@ const int BAUD_RATE = 115200;
 #    define USE_ARDUINO_I2C_DRIVER 1
 #endif
 
+#include "wdt.h"  // configure_task_watchdog
+
 inline void platform_preinit() {
+    configure_task_watchdog();
+
 #if ESP_IDF_VERSION_MAJOR >= 5
     // esp_littlefs logs its own ESP_LOGE for a condition FluidNC treats as
     // normal: localfs_mount()/localfs_format() intentionally probe a

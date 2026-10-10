@@ -51,6 +51,10 @@ private:
 
     void clearPeekCache() { _peek_byte = -1; _has_peek = false; }
 
+    // VID/PID of the most recently attached device, (vid << 16) | pid; 0 = none yet
+    static std::atomic<uint32_t> _attached_id;
+    static bool hasVcpDriver(uint16_t vid, uint16_t pid);
+
     static void daemonTask(void* arg);
     static void classTask(void* arg);
 

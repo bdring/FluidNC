@@ -37,6 +37,7 @@
 
 #include "HashFS.h"
 #include "Driver/watchdog.h"  // WatchdogSuspend
+#include "Driver/random.h"    // random_u32
 #include <cstdio>
 #include <list>
 #include <algorithm>
@@ -503,17 +504,16 @@ namespace WebUI {
         return getSessionCookie(request);
     }
 
+    // Session IDs must differ between clients, so draw them from the platform
+    // entropy source rather than from rand() reseeded with the wall-clock
+    // second, which gave every client that loaded a page in the same second
+    // the same cookie.
     static void get_random_string(char* str, unsigned int len) {
-        unsigned int i;
-
-        // reseed the random number generator
-        srand(time(NULL));
-
-        for (i = 0; i < len; i++) {
-            // Add random printable ASCII char
-            str[i] = (rand() % ('A' - 'Z')) + 'A';
+        static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        for (unsigned int i = 0; i < len; i++) {
+            str[i] = alphabet[random_u32() % (sizeof(alphabet) - 1)];
         }
-        str[i] = '\0';
+        str[len] = '\0';
     }
     // Send a file, either the specified path or path.gz
     bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
@@ -578,7 +578,7 @@ namespace WebUI {
         if (hash.length() && request->hasHeader("If-None-Match") &&
             std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
             if (setSession && getSessionCookie(request) == "") {
-                char session[9];
+                char session[17];
                 get_random_string(session, sizeof(session) - 1);
                 AsyncWebServerResponse* response = request->beginResponse(304);
                 response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
@@ -592,7 +592,7 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file   = NULL;
         try {
-            file = new FileStream(fpath, "r", LocalFS);
+            file = new FileStream(fpath, "r");
         } catch (const ErrorException& err) {
             if (acceptGz) {
                 try {
@@ -629,7 +629,7 @@ namespace WebUI {
         request->onDisconnect([request, file]() { delete file; });
 
         if (setSession && getSessionCookie(request) == "") {
-            char session[9];
+            char session[17];
             get_random_string(session, sizeof(session) - 1);
             response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
         }
@@ -1546,22 +1546,16 @@ namespace WebUI {
             // tight it can fail outright -- which would discard a file that had
             // in fact been written successfully.
             //
-            // The non-throwing constructor matters because this runs in an
-            // async web server callback, where an escaping exception would
-            // terminate the task and reboot the controller.
-            std::error_code ec;
-            FluidPath       filepath { pathname, LocalFS, ec };
+            // Copying the file's own FluidPath shares its mount state, so it
+            // holds that reference without re-resolving the path.  (Building
+            // a new FluidPath from the resolved string re-applied the volume
+            // prefix, which is harmless with ESP32's absolute "/littlefs" but
+            // doubled the relative "native_localfs" prefix on native ports.)
+            FluidPath filepath = _uploadFile->fpath();
 
             delete _uploadFile;
             _uploadFile = nullptr;
             log_debug("pathname " << pathname);
-
-            if (ec) {
-                _upload_status = UploadStatus::FAILED;
-                log_info("Upload failed - filesystem inaccessible after write");
-                pushError(request, ESP_ERROR_UPLOAD, "Upload failed, filesystem inaccessible");
-                return;
-            }
 
             HashFS::rehash_file(filepath);
 

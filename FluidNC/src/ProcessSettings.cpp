@@ -321,7 +321,11 @@ static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_leve
         return Error::CheckDoor;
     }
     Homing::set_all_axes_homed();
-    config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
+    // Release every motor, including the second motor of a ganged axis.  This
+    // deliberately bypasses Kinematics::releaseMotors(): that is a homing
+    // primitive whose overrides apply kinematics-specific rules (CoreXY frees
+    // only motor 0 of its Cartesian axes), and $X means release everything.
+    Stepping::unlimit_all();
     report_feedback_message(Message::AlarmUnlock);
     set_state(State::Idle);
 
@@ -1370,8 +1374,8 @@ Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_
     if (line[0] == '$' || line[0] == '[') {
         return run_command_inline(line, channel, auth_level);
     }
-    // Everything else is gcode. Block if in alarm or jog mode.
-    if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Jog)) {
+    // Everything else is gcode. Block if in an alarm state or jog mode.
+    if (state_is(State::Alarm) || state_is(State::Critical) || state_is(State::ConfigAlarm) || state_is(State::Jog)) {
         return Error::SystemGcLock;
     }
     Error result = gc_execute_line(line, channel);

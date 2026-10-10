@@ -77,17 +77,11 @@ namespace string_util {
     }
     bool from_decimal(std::string_view str, uint32_t& value) {
         value = 0;
-        if (str.length() == 0) {
+        if (str.empty()) {
             return false;
         }
-        while (str.length()) {
-            if (!isdigit(str[0])) {
-                return false;
-            }
-            value = value * 10 + str[0] - '0';
-            str   = str.substr(1);
-        }
-        return true;
+        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.length(), value);
+        return ec == std::errc() && ptr == str.data() + str.length();
     }
     bool from_decimal(std::string_view sv, int32_t& value) {
         auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.length(), value);
