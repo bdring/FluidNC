@@ -20,6 +20,7 @@
 #include "Machine/MachineConfig.h"  // config
 #include <string_view>
 #include <charconv>
+#include <limits>
 #if SUPPORT_PIN_EXTENDERS
 #    include "Pins/ExtPinDetail.h"
 #endif
@@ -54,8 +55,21 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
     std::string_view num_str;
     string_util::split_prefix(pin_str, num_str, ':');
 
+    if (string_util::equal_ignore_case(pin_type, "no_pin")) {
+        pinImplementation = &Pins::undefinedPin;
+        return nullptr;
+    }
+
+    if (string_util::equal_ignore_case(pin_type, "void")) {
+        // Note: having multiple void pins has its uses for debugging.
+        pinImplementation = new Pins::VoidPinDetail();
+        return nullptr;
+    }
+
     uint32_t pin_number;
-    string_util::from_decimal(num_str, pin_number);
+    if (!string_util::from_decimal(num_str, pin_number) || pin_number > std::numeric_limits<pinnum_t>::max()) {
+        return "Invalid pin number";
+    }
 
     if (verbose_debugging) {
         log_info("Parsed pin number: " << pin_number << ", options: " << pin_str);
@@ -103,17 +117,6 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         return nullptr;
     }
 #endif
-
-    if (string_util::equal_ignore_case(pin_type, "no_pin")) {
-        pinImplementation = &Pins::undefinedPin;
-        return nullptr;
-    }
-
-    if (string_util::equal_ignore_case(pin_type, "void")) {
-        // Note: having multiple void pins has its uses for debugging.
-        pinImplementation = new Pins::VoidPinDetail();
-        return nullptr;
-    }
 
 #if SUPPORT_PIN_EXTENDERS
     if (string_util::starts_with_ignore_case(pin_type, "pinext")) {
