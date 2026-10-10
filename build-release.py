@@ -275,6 +275,9 @@ if configItemsResult.returncode != 0:
     print("Error: failed to generate config_items.yaml", file=sys.stderr)
     sys.exit(1)
 addDoc('config-items', configItemsPath)
+# build_config_docs.py writes a JSON copy beside the YAML (same content, for
+# browser consumers with no YAML parser).
+addDoc('config-items-json', os.path.splitext(configItemsPath)[0] + '.json')
 
 flashsize = "4m"
 
