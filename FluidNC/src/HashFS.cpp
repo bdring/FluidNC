@@ -123,10 +123,14 @@ bool HashFS::in_ui_dir(const std::filesystem::path& path) {
     return in_ui_dir_locked(path);
 }
 
-// Caller holds the lock.  Under HTTP/UIDir only each WebUI's index is
-// cached -- what a reload during motion and the / redirect need -- so a
-// WebUI's other files (possibly many) don't grow the cache without bound.
-// They are hashed on request, like files in LocalFS subdirectories.
+// Caller holds the lock.  Under HTTP/UIDir each WebUI's index is always
+// cached -- the / redirect and a reload during motion need it.  A WebUI's
+// other files are cached too, so that its assets can also be revalidated
+// (304) during motion and aren't read twice per request, but only up to
+// maxUiFiles of them in all, so that many or uniquely named files can't
+// grow the cache without bound.
+static constexpr size_t maxUiFiles = 64;
+
 bool HashFS::ui_index_locked(const std::filesystem::path& path) {
     if (!in_ui_dir_locked(path)) {
         return false;
@@ -142,7 +146,26 @@ bool HashFS::ui_index_locked(const std::filesystem::path& path) {
 
 // Caller holds the lock
 bool HashFS::cacheable_locked(const std::filesystem::path& path) {
-    return _enabled && (file_is_hashable(path) || ui_index_locked(path));
+    if (!_enabled) {
+        return false;
+    }
+    if (file_is_hashable(path) || ui_index_locked(path)) {
+        return true;
+    }
+    if (!in_ui_dir_locked(path)) {
+        return false;
+    }
+    if (localFsHashes.count(key(path))) {
+        return true;  // already counted
+    }
+    std::string prefix = _uiDir + "/";
+    size_t      count  = 0;
+    for (auto it = localFsHashes.lower_bound(prefix); it != localFsHashes.end() && it->first.rfind(prefix, 0) == 0; ++it) {
+        if (!ui_index_locked(it->first)) {
+            ++count;
+        }
+    }
+    return count < maxUiFiles;
 }
 
 std::string HashFS::ui_dir() {
@@ -231,10 +254,7 @@ void HashFS::rehash_file(const std::filesystem::path& path, bool report) {
                 done = true;
                 break;
             }
-            // The caller has just changed this file: invalidate any hash()
-            // already computing it from the old contents, so that one can't
-            // be stored after this one.
-            generation = ++_generation;
+            generation = _generation;
         }
         std::string hash;
         bool        hashed = hashFile(path, hash) == Error::Ok;
@@ -335,8 +355,11 @@ std::string HashFS::hash(const std::filesystem::path& path, bool useCacheOnly /*
             // First request for a file under HTTP/UIDir, or an index
             // missed because the card was absent at startup.
             Lock lock;
+            // Never overwrite: an entry that appeared meanwhile came from
+            // rehash_file(), whose caller has just changed the file, so it
+            // is newer than what was read here.
             if (generation == _generation && cacheable_locked(path)) {
-                localFsHashes[key(path)] = theHash;
+                localFsHashes.try_emplace(key(path), theHash);
             }
         }
         return theHash;

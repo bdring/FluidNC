@@ -42,6 +42,7 @@
 #include <list>
 #include <algorithm>
 #include <atomic>
+#include <set>
 #include <memory>
 
 #include "Mime.h"  // getContentType
@@ -446,6 +447,8 @@ namespace WebUI {
         _headerFilter->keep("Cookie");
         _headerFilter->keep("If-None-Match");
         _headerFilter->keep("User-Agent");
+        // A chunked PUT under /ui has a body even with no Content-Length
+        _headerFilter->keep("Transfer-Encoding");
 
         //For websockets we need to keep these headers, otherwise this wouldn't work!
         _headerFilter->keep("Upgrade");
@@ -963,10 +966,12 @@ namespace WebUI {
         if (u.tail.empty()) {
             // A page load.  Close the channels of the previous instance of
             // this page: its uiSession, which is scoped to this WebUI's
-            // directory.  Only without one -- a first load, or a WebUI that
-            // uses absolute URLs -- does the page share the browser-wide
-            // sessionId; closing that otherwise would disconnect a root
-            // WebUI open in another tab.
+            // directory.  Only on the very first load, before it has a
+            // uiSession, fall back to the browser-wide sessionId (which
+            // does close a root WebUI's channels in another tab, once).
+            // Closing sessionId on every load would disconnect that tab each
+            // time.  A WebUI that uses absolute URLs keeps using sessionId;
+            // its stale channel is closed when its new WebSocket connects.
             auto session = getCookie(request, "uiSession");
             if (session.empty()) {
                 session = getCookie(request, "sessionId");
@@ -1010,6 +1015,37 @@ namespace WebUI {
 
     static std::string partPath(const std::string& path, uint32_t seq) {
         return path + ".part" + std::to_string(seq);
+    }
+
+    // Temporary files of PUTs in progress.  All PUT handling runs on the
+    // async_tcp task, so this needs no lock.
+    static std::set<std::string> activeParts;
+
+    // A reboot, power loss or failed rename mid-PUT can leave a target's
+    // "<name>.part<n>" files behind.  Remove the ones no PUT is using when a
+    // new PUT of that target starts (never during motion: callers have
+    // already checked).
+    static void removeStaleParts(const FluidPath& target) {
+        std::error_code ec;
+        std::string     stem = target.filename().string() + ".part";
+        for (stdfs::directory_iterator it { target.parent_path(), ec }, end; !ec && it != end; it.increment(ec)) {
+            std::string name = it->path().filename().string();
+            if (name.rfind(stem, 0) == 0 && name.find_first_not_of("0123456789", stem.length()) == std::string::npos &&
+                name.length() > stem.length() && !activeParts.count(it->path().string())) {
+                std::error_code rec;
+                stdfs::remove(it->path(), rec);
+            }
+        }
+    }
+
+    // Closes and deletes a PUT's temporary file
+    static void discardPart(UiPut* put) {
+        FluidPath fpath = put->file->fpath();
+        delete put->file;
+        put->file = nullptr;
+        activeParts.erase(fpath.string());
+        std::error_code ec;
+        stdfs::remove(fpath, ec);
     }
 
     // A PUT under /ui/<name>/ creates the WebUI's directory, and any
@@ -1063,7 +1099,9 @@ namespace WebUI {
                     put->status = 500;
                     return;
                 }
+                removeStaleParts(FluidPath { path, LocalFS });
                 put->file = new FileStream(fpath, "w");
+                activeParts.insert(put->file->fpath().string());
             } catch (...) {
                 put->status = 500;
                 return;
@@ -1071,11 +1109,7 @@ namespace WebUI {
             // Clean up if the client disconnects before the PUT completes
             request->onDisconnect([put]() {
                 if (put->file) {
-                    FluidPath fpath = put->file->fpath();
-                    delete put->file;
-                    put->file = nullptr;
-                    std::error_code ec;
-                    stdfs::remove(fpath, ec);
+                    discardPart(put);
                 }
             });
         }
@@ -1085,11 +1119,7 @@ namespace WebUI {
         // Motion may start during a long upload; stop writing then
         uint16_t failure = blockedInMotion() ? 503 : put->file->write(data, len) != len ? 507 : 0;
         if (failure) {
-            FluidPath fpath = put->file->fpath();
-            delete put->file;
-            put->file = nullptr;
-            std::error_code ec;
-            stdfs::remove(fpath, ec);
+            discardPart(put);
             put->status = failure;
             return;
         }
@@ -1107,7 +1137,9 @@ namespace WebUI {
             return;
         }
         size_t length = request->contentLength();
-        if (length && !(put && put->file)) {
+        // A chunked body has no Content-Length but is still a body
+        bool hasBody = length || request->hasHeader("Transfer-Encoding");
+        if (hasBody && !(put && put->file)) {
             // A body arrived but never reached handle_ui_body(): the server
             // parsed it as form data (application/x-www-form-urlencoded, or
             // key=value text/plain), or the PUT state could not be
@@ -1122,6 +1154,7 @@ namespace WebUI {
             std::string partName = partPath(path, put ? put->seq : ++uiPutSeq);
             FluidPath   part { partName, LocalFS };
             if (put && put->file) {
+                activeParts.erase(put->file->fpath().string());
                 delete put->file;  // Closes the file, flushing its buffer
                 put->file = nullptr;
             } else {
@@ -1130,6 +1163,7 @@ namespace WebUI {
                     request->send(500);
                     return;
                 }
+                removeStaleParts(fpath);
                 FileStream(part, "w");
             }
             std::error_code ec;
