@@ -754,7 +754,7 @@ static Error dump_config(const char* value, AuthenticationLevel auth_level, Chan
         try {
             //            ss = new FileStream(std::string(value), "", "w");
             ss = new FileStream(value, "w", LocalFS);
-        } catch (Error err) { return err; }
+        } catch (const ErrorException& e) { return e.error(); }
     } else {
         ss = &out;
     }
@@ -1334,7 +1334,17 @@ static Error run_command_inline(const char* line, Channel& channel, Authenticati
     if (gc_state.skip_blocks) {
         return Error::Ok;
     }
-    return settings_execute_line(line, channel, auth_level);
+    // A command that throws must answer with an error, not take the task
+    // down.  $CD=/sd/x with no card throws ErrorException from FileStream,
+    // and $GI=<reserved pin> throws AssertionFailed from Pin::create; either
+    // one escaping to loop() ends command processing, and a second one
+    // stalls the controller for good.
+    try {
+        return settings_execute_line(line, channel, auth_level);
+    } catch (const ErrorException& e) { return e.error(); } catch (const std::exception& ex) {
+        log_error_to(channel, "Command failed: " << ex.what());
+        return Error::InvalidStatement;
+    }
 }
 
 Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level, bool on_protocol_task) {
