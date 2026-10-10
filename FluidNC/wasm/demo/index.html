@@ -19,7 +19,8 @@
      computed from the actual font metrics: "about 4 lines" is the ask,
      not an exact fit. */
   #terminal.terminal-compact { height: 8em; }
-  #webuiPanel { margin-top: 1rem; }
+  #webuiPanel { margin-top: 1rem; display: flex; gap: 0.3rem; align-items: center; }
+  #urlBar { flex: 1; max-width: 40em; font-family: monospace; padding: 0.2rem 0.4rem; }
   #webuiFrame { display: none; width: 100%; height: 60vh; border: 1px solid #ccc; margin-top: 0.5rem; box-sizing: border-box; }
   #webuiStatus { margin-left: 0.5rem; color: #666; }
 </style>
@@ -29,35 +30,58 @@
 <p>This is FluidNC running in a browser.  It is compiled to Web
   Assembly code from the real FluidNC source.  It cannot access actual
   machine hardware, but it can process GCode and simulate motion.  It
-  has a minimal config.yaml and a sample SD card, writable for the life
-  of the tab but never persisted past a page reload.  Input
-  editing works the same a FluidNC running on an ESP32.
+  has a minimal config.yaml and a sample SD card.  Files you change or
+  upload, and settings you change, are saved in this browser and
+  override the built-in copies on the next visit; reload the page to
+  apply a changed config.yaml.  Input editing works the same as on a FluidNC
+  running on an ESP32.
 </p>
-<div id="webuiPanel">
-  <label for="webuiSelect">WebUI:</label>
-  <select id="webuiSelect">
-    <option value="">-- none --</option>
-    <option data-owner="figamore" data-repo="FigUI" data-tag="v1.2.7">FigUI (figamore)</option>
-    <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="">ESP3D-WEBUI (michmela44)</option>
-    <option data-local-file="true">Load local build file (.html/.html.gz)...</option>
+<p>
+  <label for="uploadRoot">Files on</label>
+  <select id="uploadRoot">
+    <option value="native_localfs">LocalFS</option>
+    <option value="native_sd">SD card</option>
+  </select>
+  <button id="uploadButton" type="button" disabled>Upload files...</button>
+  <input type="file" id="uploadInput" multiple style="display:none">
+  <select id="downloadFile" aria-label="File to download" disabled></select>
+  <button id="downloadButton" type="button" disabled>Download</button>
+  <span id="uploadStatus" role="status"></span>
+</p>
+<p>
+  <label for="installSelect">Install WebUI:</label>
+  <select id="installSelect" disabled>
+    <option value="">-- choose --</option>
+    <option data-owner="figamore" data-repo="FigUI" data-tag="">FigUI (figamore)</option>
+    <option data-owner="MitchBradley" data-repo="ESP3D-WEBUI" data-tag="">WebUI 2 (MitchBradley)</option>
+    <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="">WebUI 3 (michmela44)</option>
+    <option data-local-file="true">From a local build file (.html/.html.gz)...</option>
   </select>
   <input type="file" id="webuiFileInput" accept=".html,.gz" style="display:none">
+  <button id="resetStorage" type="button">Reset files and settings</button>
+  discards everything saved in this browser and reloads with the built-in
+  copies. <span id="resetStatus" role="status"></span></p>
+<form id="webuiPanel" autocomplete="off">
+  <button id="navBack" type="button" title="Back" disabled>&#9664;</button>
+  <button id="navForward" type="button" title="Forward" disabled>&#9654;</button>
+  <button id="navReload" type="button" title="Reload" disabled>&#10227;</button>
+  <input id="urlBar" type="text" value="fluidnc.local" spellcheck="false" aria-label="Address" disabled>
+  <button id="browseButton" type="submit" disabled>Go</button>
   <span id="webuiStatus"></span>
-</div>
-<!-- Commands, the WebSocket-equivalent status/response stream, and file
-     operations (list/upload/download/delete/createdir) are all bridged to
-     the running FluidNC instance via postMessage (see
-     self.fluidncOnShimOutput/the 'fluidnc-shim-send' and 'fluidnc-fs-*'
-     listeners below, and WebUI-mm's targets/CNC/FluidNC/{commandTransport,
-     wsAdapter,fileTransport}.ts on the other end). Only WebUI variants
-     whose local build has this bridge wired in will actually work here --
-     currently that's a local, unpublished WebUI-mm checkout only, reachable
-     via "Load local build file..." (build it with `npm run build` in
-     WebUI-mm, then pick dist/index.html.gz here). The two GitHub-release
-     options load the real published builds, which don't know about this
-     bridge and will just show "Connecting..." forever. See webui-proxy.js's
-     comment for why the fetch to load a release build at all is needed,
-     and wasm/README.md's WebUI section. -->
+</form>
+<p id="persistStatus" role="status"></p>
+<!-- The WebUI runs the way it does on a controller: the address bar
+     (fluidnc.local, or any path on it) loads that path into the iframe,
+     where FluidNC's own web server (built into the wasm module; reached
+     through vnet-sw.js, vnet-ws-shim.js and vnet-host.js) serves it -- index.html or index.html.gz from LocalFS, or
+     its built-in file manager when there is none.  The WebUI then talks to
+     FluidNC over ordinary HTTP and WebSocket, with no demo-specific code.
+
+     "Install WebUI" is the equivalent of uploading a WebUI to a board: it
+     fetches a build (a project's latest GitHub release via webui-proxy.js,
+     or a local file), and uploads it to LocalFS as index.html.gz through
+     FluidNC's own /files upload route.  Installed files persist in this
+     browser like any other LocalFS file. -->
 <iframe id="webuiFrame" title="FluidNC WebUI"></iframe>
 <div id="terminal"></div>
 
@@ -138,102 +162,246 @@ function scheduleFit() {
 }
 window.addEventListener('resize', scheduleFit);
 
-// Loads a WebUI build (chosen from the dropdown) into the iframe, either
-// fetched from GitHub via webui-proxy.js (see wasm/README.md -- only works
-// when this page is served from the Netlify site the function is deployed
-// alongside, not under local serve.py/python3 -m http.server) or read from
-// a local file the user picks (see webuiFileInput's listener below). Either
-// way the result is a single HTML string, which loadWebuiHtml() marks with
-// the bridge marker and hands to the iframe the same way.
-const webuiSelect = document.getElementById('webuiSelect');
 const webuiFrame = document.getElementById('webuiFrame');
 const webuiStatus = document.getElementById('webuiStatus');
+const browseButton = document.getElementById('browseButton');
+const installSelect = document.getElementById('installSelect');
 const webuiFileInput = document.getElementById('webuiFileInput');
 const terminalEl = document.getElementById('terminal');
 
-// Marker so WebUI-mm's targets/CNC/FluidNC/{commandTransport,wsAdapter,
-// fileTransport}.ts can tell at runtime that they're loaded inside this
-// demo (vs. talking to real hardware) and switch to the postMessage-based
-// bridge instead of real HTTP/WebSocket calls. The closing tag below is
-// split with a backslash so the HTML parser doesn't end our own enclosing
-// script element early -- and for the same reason, this comment spells the
-// tag as "close script" rather than writing it out literally.
-function loadWebuiHtml(html) {
-  const marker = '<script>window.__FLUIDNC_WASM_BRIDGE__ = true;<\/script>';
-  // Insert the marker after a leading doctype, if any, rather than always
-  // prepending it: a bare WebUI build normally starts with
-  // "<!doctype html>", and pushing that out of first position drops the
-  // document into quirks mode in the iframe.
-  const doctypeMatch = html.match(/^\s*<!doctype[^>]*>/i);
-  const combined = doctypeMatch ? doctypeMatch[0] + marker + html.slice(doctypeMatch[0].length) : marker + html;
-  webuiFrame.src = URL.createObjectURL(new Blob([combined], { type: 'text/html' }));
+// A small browser pointed at the virtual network.  The address bar takes
+// what you would type on a real setup -- fluidnc.local, the IP address, and
+// any path after it -- and shows where the frame actually is as you click
+// around.  Only names the device answers to resolve (<$Hostname>.local and
+// its IP, per FluidNC's own [ESP800]); other names, https:, and ports other
+// than 80 fail the way a browser would report it.
+const urlBar = document.getElementById('urlBar');
+const navBack = document.getElementById('navBack');
+const navForward = document.getElementById('navForward');
+const navReload = document.getElementById('navReload');
+let displayHost = 'fluidnc.local';  // the device name as last typed
+let errorShown = null;              // address text while an error page is showing
+const navStack = [];                // addresses visited, for Back/Forward
+let navIndex = -1;
+let navFromHistory = false;
+
+function escapeHtml(t) {
+  return String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+}
+
+function showFrame() {
   webuiFrame.style.display = 'block';
   terminalEl.classList.add('terminal-compact');
   fitTerminal();
-  webuiStatus.textContent = '';
 }
 
-webuiFileInput.addEventListener('change', async () => {
-  const file = webuiFileInput.files[0];
-  webuiFileInput.value = ''; // allow re-picking the same file later
-  if (!file) {
-    webuiSelect.value = '';
+function showError(address, title, detail, code) {
+  const names = FluidNCVnet.deviceNames().map((n) => 'http://' + n).join(' and ');
+  errorShown = address;
+  webuiFrame.removeAttribute('src');
+  webuiFrame.srcdoc = `<!doctype html><html><body style="font-family:sans-serif;color:#333;margin:2rem">
+    <h2>${escapeHtml(title)}</h2><p>${escapeHtml(detail)}</p><p style="color:#888">${escapeHtml(code)}</p>
+    <p style="color:#888;margin-top:2rem">In this demo, FluidNC answers at ${escapeHtml(names)}.</p></body></html>`;
+  showFrame();
+}
+
+async function go(text) {
+  text = (text || '').trim() || displayHost;
+  webuiStatus.textContent = '';
+  let u;
+  try {
+    u = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : 'http://' + text);
+  } catch (err) {
+    showError(text, "This site can't be reached", 'The address is not valid.', 'ERR_INVALID_URL');
     return;
   }
-  webuiStatus.textContent = 'Loading ' + file.name + '...';
-  try {
-    // .gz files (e.g. WebUI-mm's own `npm run build` output,
-    // dist/index.html.gz) need decompressing first; DecompressionStream is
-    // a standard browser API, no library needed. Detected by extension
-    // rather than sniffing magic bytes -- good enough for a file the user
-    // just chose deliberately.
-    const isGzip = /\.gz$/i.test(file.name);
-    const html = isGzip
-      ? await new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text()
-      : await file.text();
-    loadWebuiHtml(html);
-  } catch (err) {
-    console.error(err);
-    webuiStatus.textContent = 'Failed to load: ' + err.message;
-    webuiSelect.value = '';
+  await FluidNCVnet.refreshIdentity();
+  if (!FluidNCVnet.isDeviceHost(u.hostname)) {
+    showError(text, "This site can't be reached", `${u.hostname}'s server IP address could not be found.`, 'ERR_NAME_NOT_RESOLVED');
+    return;
+  }
+  if (u.protocol !== 'http:' || (u.port && u.port !== '80')) {
+    showError(text, "This site can't be reached", `${u.host} refused to connect.` + (u.protocol === 'https:' ? ' FluidNC serves plain http only.' : ''), 'ERR_CONNECTION_REFUSED');
+    return;
+  }
+  displayHost = u.hostname.toLowerCase();
+  errorShown = null;
+  await FluidNCVnet.deviceUrl();  // the Service Worker must be active
+  webuiFrame.removeAttribute('srcdoc');
+  webuiFrame.src = 'about:blank';  // force a fresh load even of the same URL
+  webuiFrame.src = FluidNCVnet.deviceHrefFor(u.pathname + u.search + u.hash);
+  showFrame();
+}
+
+// Keeps the address bar and Back/Forward in step with wherever the frame
+// is: after each load, and when the page changes its URL without loading
+// (reported by vnet-ws-shim.js).
+function frameNavigated() {
+  let address = errorShown;
+  if (address === null) {
+    let path = null;
+    try {
+      path = FluidNCVnet.devicePathOf(webuiFrame.contentWindow.location.href);
+    } catch (e) {}
+    if (path === null) {
+      return;  // about:blank, or not (yet) a device page
+    }
+    address = displayHost + (path === '/' ? '' : path);
+  }
+  urlBar.value = address;
+  if (navFromHistory) {
+    navFromHistory = false;
+  } else if (navStack[navIndex] !== address) {
+    navStack.splice(navIndex + 1);
+    navStack.push(address);
+    navIndex = navStack.length - 1;
+  }
+  navBack.disabled = navIndex <= 0;
+  navForward.disabled = navIndex >= navStack.length - 1;
+}
+webuiFrame.addEventListener('load', frameNavigated);
+window.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'vnet-location' && event.source === webuiFrame.contentWindow) {
+    frameNavigated();
   }
 });
 
-webuiSelect.addEventListener('change', async () => {
-  const opt = webuiSelect.selectedOptions[0];
-  const owner = opt.dataset.owner;
-  const repo = opt.dataset.repo;
-  const tag = opt.dataset.tag;
-  const localFile = opt.dataset.localFile;
-
-  if (!owner && !localFile) {
-    webuiFrame.style.display = 'none';
-    webuiFrame.src = 'about:blank';
-    terminalEl.classList.remove('terminal-compact');
-    fitTerminal();
+function goHistory(delta) {
+  const i = navIndex + delta;
+  if (i < 0 || i >= navStack.length) {
     return;
   }
+  navIndex = i;
+  navFromHistory = true;
+  go(navStack[i]);
+}
 
-  if (localFile) {
+document.getElementById('webuiPanel').addEventListener('submit', (e) => {
+  e.preventDefault();
+  go(urlBar.value);
+});
+navBack.addEventListener('click', () => goHistory(-1));
+navForward.addEventListener('click', () => goHistory(1));
+navReload.addEventListener('click', () => {
+  if (errorShown !== null || !webuiFrame.getAttribute('src')) {
+    go(urlBar.value);
+  } else {
+    webuiFrame.contentWindow.location.reload();
+  }
+});
+
+async function gzip(bytes) {
+  return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+}
+
+// Installs a WebUI the way a user would on a controller: through FluidNC's
+// own web server, so its file hash cache (ETags) and upload checks behave
+// exactly as on hardware.  index.html is removed too, because FluidNC
+// serves it in preference to index.html.gz.
+async function installWebui(gzBytes, label) {
+  const root = await FluidNCVnet.fetchDevice('GET', '/files?path=/');
+  const listing = JSON.parse(new TextDecoder().decode(root.body));
+  const existing = listing.files.filter((f) => f.name === 'index.html' || f.name === 'index.html.gz');
+  if (existing.length && !confirm('Replace the WebUI installed on LocalFS (' + existing.map((f) => f.name).join(', ') + ') with ' + label + '?')) {
+    return false;
+  }
+  for (const f of existing) {
+    const del = await FluidNCVnet.fetchDevice('GET', '/files?path=/&action=delete&dontlist=yes&filename=' + encodeURIComponent(f.name));
+    const status = JSON.parse(new TextDecoder().decode(del.body)).status || '';
+    if (del.status !== 200 || status !== f.name + ' deleted') {
+      throw new Error('could not remove the old ' + f.name + ': ' + (status || 'HTTP ' + del.status));
+    }
+  }
+
+  // Field order matters: FluidNC reads the expected size ("<filename>S")
+  // when the file part begins, so it has to come first.
+  const boundary = 'fluidncdemo' + Math.random().toString(36).slice(2);
+  const enc = new TextEncoder();
+  const body = new Uint8Array(await new Blob([
+    `--${boundary}\r\nContent-Disposition: form-data; name="path"\r\n\r\n/\r\n`,
+    `--${boundary}\r\nContent-Disposition: form-data; name="/index.html.gzS"\r\n\r\n${gzBytes.length}\r\n`,
+    `--${boundary}\r\nContent-Disposition: form-data; name="myfile[]"; filename="/index.html.gz"\r\nContent-Type: application/octet-stream\r\n\r\n`,
+    gzBytes,
+    `\r\n--${boundary}--\r\n`,
+  ]).arrayBuffer());
+  const res = await FluidNCVnet.fetchDevice('POST', '/files', {
+    headers: [['Content-Type', 'multipart/form-data; boundary=' + boundary]],
+    body: body.buffer,
+  });
+  const after = JSON.parse(new TextDecoder().decode(res.body));
+  const installed = after.files.find((f) => f.name === 'index.html.gz');
+  if (res.status !== 200 || after.status !== 'Ok' || !installed || Number(installed.size) !== gzBytes.length) {
+    throw new Error('upload failed: ' + (after.status || res.status));
+  }
+  // FluidNC serves a plain index.html in preference to index.html.gz, so
+  // the install has only worked if none is left.
+  if (after.files.some((f) => f.name === 'index.html')) {
+    throw new Error('an old index.html is still present and would be served instead');
+  }
+  savePersistentFs();  // keep it across reloads without waiting for the next periodic save
+  return true;
+}
+
+// Like uploading to a controller, installing does not switch to the new
+// WebUI by itself: the user browses to FluidNC (or reloads it) to run it.
+async function installFrom(getGzBytes, label) {
+  webuiStatus.textContent = 'Installing ' + label + '...';
+  try {
+    if (await installWebui(await getGzBytes(), label)) {
+      webuiStatus.textContent = 'Installed ' + label + '. Go to ' + displayHost + ' to run it.';
+    } else {
+      webuiStatus.textContent = '';
+    }
+  } catch (err) {
+    console.error(err);
+    webuiStatus.textContent = 'Install failed: ' + err.message;
+  } finally {
+    installSelect.value = '';
+  }
+}
+
+webuiFileInput.addEventListener('change', () => {
+  const file = webuiFileInput.files[0];
+  webuiFileInput.value = '';  // allow re-picking the same file later
+  if (!file) {
+    installSelect.value = '';
+    return;
+  }
+  // Detected by extension rather than sniffing magic bytes -- good enough
+  // for a file the user just chose deliberately.
+  installFrom(async () => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    return /\.gz$/i.test(file.name) ? bytes : gzip(bytes);
+  }, file.name);
+});
+
+installSelect.addEventListener('change', () => {
+  const opt = installSelect.selectedOptions[0];
+  if (opt.dataset.localFile) {
     webuiFileInput.click();
     return;
   }
-
-  webuiStatus.textContent = 'Loading ' + opt.textContent + '...';
-  let url = '/.netlify/functions/webui-proxy?owner=' + encodeURIComponent(owner) + '&repo=' + encodeURIComponent(repo);
-  if (tag) {
-    url += '&tag=' + encodeURIComponent(tag);
+  if (!opt.dataset.owner) {
+    return;
   }
-  try {
+  // webui-proxy (functions/webui-proxy.js on Netlify, or serve.py locally)
+  // returns the release's index.html.gz unchanged, so it is installed
+  // byte-for-byte as released.
+  let url = '/.netlify/functions/webui-proxy?owner=' + encodeURIComponent(opt.dataset.owner) + '&repo=' + encodeURIComponent(opt.dataset.repo);
+  if (opt.dataset.tag) {
+    url += '&tag=' + encodeURIComponent(opt.dataset.tag);
+  }
+  installFrom(async () => {
     const res = await fetch(url);
     if (!res.ok) {
       throw new Error(res.status + ' ' + res.statusText + ': ' + (await res.text()));
     }
-    loadWebuiHtml(await res.text());
-  } catch (err) {
-    console.error(err);
-    webuiStatus.textContent = 'Failed to load: ' + err.message;
-  }
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) {
+      throw new Error('the release download is not gzip data');
+    }
+    return bytes;
+  }, opt.textContent);
 });
 
 function log(line) {
@@ -336,324 +504,367 @@ function colorizeOutput(text) {
 }
 self.fluidncOnOutput = (text) => colorizeOutput(text);
 
-// Forwards ShimChannel's output (wasm/ShimChannel.cpp) to whatever WebUI
-// build is currently loaded in the iframe, so it can be routed into
-// WebUI-mm's WasmBridgeWsAdapter (a plain postMessage relay -- see
-// wasm/README.md's section on the WebUI bridge). Harmless no-op when no
-// WebUI is loaded (webuiFrame.contentWindow is then either null or
-// about:blank's, and postMessage on it just goes nowhere).
+// Seed content for native_localfs and native_sd lives as plain files under
+// the seed-localfs/ and seed-sd/ directories, fetched at boot
+// (see seedFs() below) rather than embedded here -- same-origin fetch()
+// isn't affected by the COOP/COEP headers serve.py/_headers set (those
+// only restrict *cross-origin* loads lacking a CORP header), and Netlify/
+// serve.py both already serve everything under demo/ as plain static
+// files, so no build step is needed to get the content into the page.
+// Adding a seed file is just adding it under the right seed-*/ directory
+// and listing it in that directory's manifest.json (a static host can't
+// be asked to list a directory's contents itself).
 //
-// Buffers raw shim text into complete lines and reassembles any
-// [JSON:...]-encapsulated chunks (see FluidNC's JSONencoder -- when
-// constructed with a tag, JSONencoder::flush() wraps each ~100-char chunk
-// of output in a "[JSON:" ... "]" line, since a serial-shaped channel like
-// ShimChannel has no message framing of its own to keep a JSON payload
-// line from colliding with the ok/error line that terminates a command)
-// here rather than leaving it to each WebUI bridge -- WebUI-mm's
-// wasmBridgeTransport.ts, FigUI's shimTransport.ts, and ESP3D-WEBUI's
-// wasmbridge.js all used to reimplement this same ~100-line buffer/regex
-// dance independently. Every WebUI bridge now just listens for
-// 'fluidnc-shim-line' and gets plain, already-unwrapped lines -- the same
-// shape a real WSChannel connection would produce.
-const JSON_CHUNK_RE = /^\[JSON:([\s\S]*)\]$/;
-let shimLineBuffer = '';
-let shimJsonAccum = null;
-
-function postToWebui(msg) {
-  if (webuiFrame && webuiFrame.contentWindow) {
-    webuiFrame.contentWindow.postMessage(msg, '*');
-  }
-}
-
-// Queue of everything waiting to go out over the shim -- both raw
-// 'fluidnc-shim-send' text (e.g. G-code/realtime bytes a WebSocket-shaped
-// facade sends directly) and 'fluidnc-shim-command' requests (see the
-// message listener below) -- plus the one currently awaiting its
-// ok/error terminator, if any. Both kinds share this one gate because
-// they share one physical ShimChannel: an earlier version of this only
-// serialized commands against each other (closing the cross-attribution
-// gap FigUI's bridge used to work around per-bridge with a Promise chain
-// -- commandBridge.ts's old `chain` variable), on the theory that a raw
-// send's own ok/error isn't tracked here anyway, so letting it through
-// immediately couldn't matter. In practice it can: ESP3D-WEBUI sends a
-// raw "$G" the moment its WebSocket facade opens, which can land in
-// ShimChannel's queue *while* the connect handshake's ESP800 request is
-// still in flight, and FluidNC's output for it can arrive split across
-// more than one self.fluidncOnShimOutput() call -- enough of a gap for a
-// second queued command (ESP400 next in this app's boot sequence) to
-// become "current" in between, so $G's own "ok" gets misattributed to
-// ESP400 and ESP400's real response never gets read. A real WSChannel
-// connection never has this problem (genuinely independent connections,
-// independent response streams); this bridge only has the one channel,
-// so treating every send -- raw or command -- as mutually exclusive is
-// what actually matches real hardware's observed behavior (never two
-// unacknowledged things in flight at once), even though it costs a WS
-// send the ability to jump ahead of a pending command the way it could
-// on real hardware's separate connection.
-const shimSendQueue = []; // { kind: 'raw', text } | { kind: 'command', id, cmd }
-let currentShimSend = null; // { kind, id, responseLines, jsonText }
-let sendShimTextRef = null;
-
-// Realtime command bytes (RealtimeCmd.h): picked off the input stream by
-// FluidNC itself rather than queued/parsed as a line, so -- unlike every
-// other raw send -- they never produce an ok/error terminator line.
-// Gating them through currentShimSend the same as ordinary sends would
-// wedge it permanently on the first feed hold/status/reset, blocking every
-// later command; real hardware doesn't queue these behind anything else
-// either, so they bypass shimSendQueue/currentShimSend entirely below.
-function isRealtimeByte(text) {
-  if (text.length !== 1) {
-    return false;
-  }
-  const code = text.charCodeAt(0);
-  return code === 0x18 /* Ctrl-X reset */ || code === 0x3f /* ? status */ || code === 0x7e /* ~ cycle start */ ||
-    code === 0x21 /* ! feed hold */ || code >= 0x80 /* extended-ASCII overrides */;
-}
-
-// Filesystem-bridge cwrap functions, assigned once FluidNCModule() resolves
-// (see below). Messages that arrive before then -- e.g. an iframe's
-// handshake landing while the WASM module is still compiling -- are queued
-// here and replayed once fsOps is set, rather than being handled (or, if
-// the message listener were installed only inside the .then() below,
-// silently dropped because no listener existed yet to see them at all).
-let fsOps = null;
-const pendingFsMessages = [];
-
-function handleFsRequest(msg) {
-  let result, ok = true;
+// Only files missing from the restored (persisted) filesystem are staged,
+// so a user's copy wins -- see restorePersistentFs(). Fetched as bytes and
+// written with FS.writeFile before FluidNC starts (it isn't serving yet, so
+// this is the one place files bypass its web server). A failed fetch is
+// logged and skipped rather than blocking startup.
+async function seedFs(FS, root, dir) {
+  let manifest;
   try {
-    switch (msg.op) {
-      case 'list':
-        result = JSON.parse(fsOps.fsList(msg.root, msg.path));
-        break;
-      case 'delete':
-        ok = fsOps.fsDelete(msg.root, msg.path);
-        break;
-      case 'deletedir':
-        ok = fsOps.fsDeleteDir(msg.root, msg.path);
-        break;
-      case 'mkdir':
-        ok = fsOps.fsMkdir(msg.root, msg.path);
-        break;
-      case 'read':
-        result = fsOps.fsRead(msg.root, msg.path);
-        break;
-      case 'write':
-        ok = fsOps.stageFile(msg.root, msg.path, msg.content);
-        break;
-      default:
-        ok = false;
+    manifest = await (await fetch(`${dir}/manifest.json`)).json();
+  } catch (err) {
+    console.error(`seedFs: no manifest for ${dir}:`, err);
+    return;
+  }
+  for (const path of manifest) {
+    const full = `/${root}/${path}`;
+    if (FS.analyzePath(full).exists) {
+      continue;
+    }
+    try {
+      const res = await fetch(`${dir}/${path}`);
+      if (!res.ok) {
+        throw new Error(`${res.status} ${res.statusText}`);
+      }
+      FS.mkdirTree(full.slice(0, full.lastIndexOf('/')));
+      FS.writeFile(full, new Uint8Array(await res.arrayBuffer()));
+    } catch (err) {
+      console.error(`seedFs: failed to stage ${full}:`, err);
+    }
+  }
+}
+</script>
+<script src="vnet-host.js"></script>
+<script src="program.js"></script>
+<script>
+// Persistence: native_localfs (config.yaml etc.), native_sd (the "SD card")
+// and native_nvs (capture/nvsfile.cpp's one-file-per-key NVS emulation) are
+// IDBFS mounts, so the in-memory copy is mirrored to IndexedDB and restored
+// before fluidnc_start(). Built-in seed files are staged only where the
+// restored copy has no file of that name, so a user's edits win but a seed
+// file added in a later deploy still shows up. IDBFS only syncs when asked
+// (FS.syncfs), and writes FluidNC makes itself ($CD=, $ settings, files
+// written from the terminal) never pass through this page, so besides
+// saving right after a WebUI file operation, a timer and pagehide save too.
+// The IndexedDB database names are the mount points -- IDBFS.getDB() keys
+// them that way -- which is what resetting deletes.
+const PERSIST_DIRS = ['/native_localfs', '/native_sd', '/native_nvs'];
+const PERSIST_INTERVAL_MS = 3000;
+const PERSIST_LOCK = 'fluidnc-demo-persistence';
+let persistFS = null;  // Module.FS once the mounts are up; null = not persisting
+let persistSaveRun = null;  // the in-flight save loop's promise, if any
+let persistSaveAgain = false;
+
+function syncfs(FS, populate) {
+  return new Promise((resolve, reject) => FS.syncfs(populate, (err) => (err ? reject(err) : resolve())));
+}
+
+// Resolves only once the database is really gone. 'blocked' means another
+// tab of this demo still has it open: the delete stays pending until that
+// tab closes (and this page's own open would queue behind it), so say so
+// and keep waiting rather than carrying on with the old data.
+function deleteDatabase(name) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(name);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => {
+      document.getElementById('resetStatus').textContent =
+        'Reset is waiting: close any other tabs showing this demo.';
+    };
+  });
+}
+
+async function resetPersistentFs() {
+  const results = await Promise.allSettled(PERSIST_DIRS.map(deleteDatabase));
+  history.replaceState(null, '', location.pathname);
+  const failed = results.filter((r) => r.status === 'rejected');
+  document.getElementById('resetStatus').textContent = failed.length === 0
+    ? 'Reset done.'
+    : `Reset failed (${failed[0].reason}); some saved files and settings were kept.`;
+}
+
+// Only one tab of this demo saves. Each tab saves its whole in-memory copy
+// to IndexedDB, one way (IDBFS doesn't merge), so a second saving tab
+// would put back its stale files over the first one's changes. The first
+// tab holds this Web Lock for as long as it is open; any other tab still
+// restores the saved files and runs, but never saves, and says so. An
+// already-open tab never takes over when the lock frees -- its copy may be
+// stale -- but a tab opened (or reloaded) after that does. The short wait,
+// rather than giving up at once, covers a reload of the saving tab, whose
+// old page may not have released the lock yet when the new one asks.
+const PERSIST_LOCK_WAIT_MS = 1500;
+// Resolves 'held', 'busy' (another tab holds it) or 'unsupported'. Without
+// Web Locks there is no safe way to know this is the only tab, so that
+// tab doesn't save either -- in practice every browser that can run this
+// demo (it needs cross-origin isolation) has Web Locks.
+function acquirePersistLock() {
+  if (!navigator.locks) {
+    return Promise.resolve('unsupported');
+  }
+  return new Promise((resolve) => {
+    navigator.locks.request(PERSIST_LOCK, { signal: AbortSignal.timeout(PERSIST_LOCK_WAIT_MS) }, () => {
+      resolve('held');
+      return new Promise(() => {});  // held until the page goes away
+    }).catch(() => resolve('busy'));  // timed out: another tab holds it
+  });
+}
+
+// Must run before fluidnc_start() -- FluidNC reads config.yaml and NVS
+// during setup(). /native_nvs already exists by then (FILE_NVS's static
+// constructor creates it), and mounting over an existing empty directory
+// is fine; the other two are created here.
+async function restorePersistentFs(FS) {
+  try {
+    if (new URLSearchParams(location.search).has('reset')) {
+      await resetPersistentFs();
+    }
+    for (const dir of PERSIST_DIRS) {
+      if (!FS.analyzePath(dir).exists) {
+        FS.mkdir(dir);
+      }
+      FS.mount(FS.filesystems.IDBFS, {}, dir);
+    }
+    await syncfs(FS, true);
+    const lock = await acquirePersistLock();
+    if (lock === 'held') {
+      persistFS = FS;
+    } else {
+      document.getElementById('persistStatus').textContent = lock === 'busy'
+        ? 'This demo is open in another tab, so files and settings changed here will not be saved. ' +
+          'To save changes, close the other tab and reload this one.'
+        : 'This browser cannot coordinate saving between tabs (no Web Locks), so files and ' +
+          'settings changed here will not be saved.';
     }
   } catch (err) {
-    ok = false;
-    result = String(err);
+    // e.g. IndexedDB unavailable in a private window: carry on with
+    // whatever is in memory, which is the pre-persistence behavior.
+    console.warn('File persistence unavailable:', err);
   }
-  return { type: 'fluidnc-fs-response', id: msg.id, ok, result };
 }
 
-// Installed immediately (not inside FluidNCModule().then() below) so an
-// iframe handshake or fs request that arrives while the module is still
-// compiling is captured and queued instead of silently missed -- see
-// handleFsRequest/fsOps above and the flush after FluidNCModule() resolves.
-// Only messages from the currently-loaded iframe are honored (event.source
-// check) -- postMessage's targetOrigin is '*' on both ends since the iframe
-// is loaded from a blob: URL with no fixed origin to pin to, so this is the
-// only available authenticity check.
-window.addEventListener('message', (event) => {
-  if (!webuiFrame || event.source !== webuiFrame.contentWindow) {
+// Resolves true once everything written before the call is in IndexedDB,
+// false if saving failed or persistence is unavailable. A call made while a
+// save is running joins it: the loop runs one more pass for it before the
+// shared promise settles.
+function savePersistentFs() {
+  if (!persistFS) {
+    return Promise.resolve(false);
+  }
+  if (persistSaveRun) {
+    persistSaveAgain = true;
+    return persistSaveRun;
+  }
+  persistSaveRun = (async () => {
+    try {
+      do {
+        persistSaveAgain = false;
+        await syncfs(persistFS, false);
+      } while (persistSaveAgain && persistFS);
+      return true;
+    } catch (err) {
+      console.warn('Saving files failed:', err);
+      return false;
+    } finally {
+      persistSaveRun = null;
+    }
+  })();
+  return persistSaveRun;
+}
+
+// The databases are deleted by the reloaded page, before anything opens
+// them, rather than here: this page holds them open, so a delete issued
+// now would just block, and a pagehide save could recreate them.
+document.getElementById('resetStorage').addEventListener('click', () => {
+  if (!confirm('Discard all files and settings saved in this browser and reload?')) {
     return;
   }
-  const msg = event.data;
-  if (!msg) {
-    return;
-  }
-  if (msg.type === 'fluidnc-shim-send' && typeof msg.text === 'string') {
-    if (isRealtimeByte(msg.text)) {
-      if (sendShimTextRef) {
-        sendShimTextRef(msg.text);
-      }
-    } else {
-      shimSendQueue.push({ kind: 'raw', text: msg.text });
-      maybeStartNextShimSend();
-    }
-  } else if (msg.type === 'fluidnc-shim-command' && typeof msg.id === 'number' && typeof msg.cmd === 'string') {
-    shimSendQueue.push({ kind: 'command', id: msg.id, cmd: msg.cmd });
-    maybeStartNextShimSend();
-  } else if (msg.type === 'fluidnc-fs-request') {
-    if (!fsOps) {
-      pendingFsMessages.push(msg);
-      return;
-    }
-    webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
+  persistFS = null;
+  location.replace(location.pathname + '?reset');
+});
+
+setInterval(savePersistentFs, PERSIST_INTERVAL_MS);
+window.addEventListener('pagehide', savePersistentFs);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    savePersistentFs();
   }
 });
 
-function maybeStartNextShimSend() {
-  if (currentShimSend || shimSendQueue.length === 0 || !sendShimTextRef) {
-    return;
-  }
-  const next = shimSendQueue.shift();
-  currentShimSend = { kind: next.kind, id: next.id, responseLines: [], jsonText: '' };
-  sendShimTextRef(next.kind === 'raw' ? next.text : `${next.cmd}\n`);
-}
-
-// The single point every reassembled shim line passes through: broadcasts
-// it to the loaded WebUI exactly as before, and -- if something is
-// currently in flight -- also feeds it, settling it (and, for a command,
-// posting its response) once the ok/error terminator line arrives, then
-// starting the next queued send. Lines are still broadcast either way, so
-// nothing changes for a WebUI bridge that only ever listens to the
-// broadcast stream itself (e.g. a WebSocket-shaped facade tracking its
-// own G-code acks) -- this is purely additive.
-function deliverShimLine(line, isJson) {
-  postToWebui({ type: 'fluidnc-shim-line', line, isJson });
-  if (!currentShimSend) {
-    return;
-  }
-  if (!isJson && (line.indexOf('ok') === 0 || line.indexOf('error') === 0)) {
-    const sent = currentShimSend;
-    currentShimSend = null;
-    if (sent.kind === 'command') {
-      postToWebui({
-        type: 'fluidnc-shim-command-response',
-        id: sent.id,
-        ok: line.indexOf('ok') === 0,
-        response: sent.jsonText || sent.responseLines.join('\n'),
-        ackLine: line,
-      });
+FluidNCModule().then(async (Module) => {
+  if (FluidNCVnet.attach(Module)) {
+    for (const el of [urlBar, browseButton, navReload, installSelect]) {
+      el.disabled = false;
     }
-    maybeStartNextShimSend();
-    return;
-  }
-  if (isJson) {
-    currentShimSend.jsonText += line;
+    // A link like demo/?browse=fluidnc.local/files%3Fpath=/ opens the
+    // device browser at that address.
+    const browse = new URLSearchParams(location.search).get('browse');
+    if (browse) {
+      urlBar.value = browse;
+      go(browse);
+    }
   } else {
-    currentShimSend.responseLines.push(line);
+    webuiStatus.textContent = 'This build of the wasm module has no web server.';
   }
-}
 
-function dispatchShimLine(line) {
-  const chunk = JSON_CHUNK_RE.exec(line);
-  if (chunk) {
-    shimJsonAccum = (shimJsonAccum === null ? '' : shimJsonAccum) + chunk[1];
-    return;
-  }
-  if (shimJsonAccum !== null) {
-    deliverShimLine(shimJsonAccum, true);
-    shimJsonAccum = null;
-  }
-  deliverShimLine(line, false);
-}
-
-self.fluidncOnShimOutput = (text) => {
-  shimLineBuffer += text.replace(/\r/g, '');
-  let endLineIndex = shimLineBuffer.indexOf('\n');
-  while (endLineIndex >= 0) {
-    const line = shimLineBuffer.slice(0, endLineIndex);
-    shimLineBuffer = shimLineBuffer.slice(endLineIndex + 1);
-    if (line) dispatchShimLine(line);
-    endLineIndex = shimLineBuffer.indexOf('\n');
-  }
-};
-
-const TEST_CONFIG_YAML = `
-name: "WASM test machine"
-board: "None"
-
-stepping:
-  engine: timed
-  idle_ms: 255
-  dir_delay_us: 10
-  pulse_us: 1
-  disable_delay_us: 0
-
-axes:
-  x:
-    steps_per_mm: 800
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 100
-    max_travel_mm: 300
-    motor0:
-      standard_stepper:
-        step_pin: gpio.10
-        direction_pin: gpio.11
-
-  y:
-    steps_per_mm: 800
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 100
-    max_travel_mm: 300
-    motor0:
-      standard_stepper:
-        step_pin: gpio.13
-        direction_pin: gpio.14
-
-  z:
-    steps_per_mm: 800
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 100
-    max_travel_mm: 300
-    motor0:
-      standard_stepper:
-        step_pin: gpio.16
-        direction_pin: gpio.17
-
-spi:
-  miso_pin: gpio.19
-  mosi_pin: gpio.21
-  sck_pin: gpio.18
-
-sdcard:
-  cs_pin: gpio.5
-
-start:
-  must_home: false
-`;
-
-const TEST_GCODE = `; sample job for $SD/List and $SD/Run
-G21 G90
-G0 X0 Y0
-G1 X10 Y0 F500
-G1 X10 Y10
-G1 X0 Y10
-G1 X0 Y0
-M30
-`;
-</script>
-<script src="program.js"></script>
-<script>
-FluidNCModule().then((Module) => {
   const start = Module.cwrap('fluidnc_start', null, []);
   const sendText = Module.cwrap('fluidnc_send_text', null, ['string']);
-  const sendShimText = Module.cwrap('fluidnc_shim_send', null, ['string']);
-  sendShimTextRef = sendShimText;
-  // Files are session-writable (native_sd/native_localfs are never locked
-  // read-only here, unlike earlier drafts of this demo): MEMFS never
-  // persists past a page reload regardless, so there's no
-  // illusion-of-persistence problem with letting writes actually take
-  // effect for the life of the tab.
-  const stageFile = Module.cwrap('fluidnc_stage_file', 'boolean', ['string', 'string', 'string']);
-  fsOps = {
-    stageFile,
-    fsList: Module.cwrap('fluidnc_fs_list', 'string', ['string', 'string']),
-    fsDelete: Module.cwrap('fluidnc_fs_delete', 'boolean', ['string', 'string']),
-    fsDeleteDir: Module.cwrap('fluidnc_fs_deletedir', 'boolean', ['string', 'string']),
-    fsMkdir: Module.cwrap('fluidnc_fs_mkdir', 'boolean', ['string', 'string']),
-    fsRead: Module.cwrap('fluidnc_fs_read', 'string', ['string', 'string']),
-  };
-  // Replay anything the top-level message listener queued while fsOps was
-  // still null (see handleFsRequest/pendingFsMessages above), then let any
-  // shim sends that queued before sendShimTextRef was set start flowing.
-  while (pendingFsMessages.length) {
-    const msg = pendingFsMessages.shift();
-    webuiFrame.contentWindow.postMessage(handleFsRequest(msg), '*');
-  }
-  maybeStartNextShimSend();
+  // Files persist -- see restorePersistentFs() above.  Restored and seeded
+  // before FluidNC starts, so it sees them at boot as it would on a board.
+  await restorePersistentFs(Module.FS);
+  await seedFs(Module.FS, 'native_localfs', 'seed-localfs');
+  await seedFs(Module.FS, 'native_sd', 'seed-sd');
+  savePersistentFs();
 
-  stageFile('native_localfs', 'config.yaml', TEST_CONFIG_YAML);
-  stageFile('native_sd', 'square.nc', TEST_GCODE);
+  // Upload and download from the demo page itself, so files can be moved
+  // with no WebUI loaded.  Like everything else here, they go through
+  // FluidNC's own web server, the way a browser would use a real board:
+  // uploads to /files (LocalFS) or /upload (SD) -- so FluidNC checks the
+  // size and keeps its file hash cache current -- listings from their JSON,
+  // and downloads through WebDAV (/flash/..., /sd/...).
+  const uploadButton = document.getElementById('uploadButton');
+  const uploadInput = document.getElementById('uploadInput');
+  const uploadRoot = document.getElementById('uploadRoot');
+  const uploadStatus = document.getElementById('uploadStatus');
+  const volume = (root) => (root === 'native_sd'
+    ? { upload: '/upload', dav: '/sd' }
+    : { upload: '/files', dav: '/flash' });
+  const textOf = (res) => new TextDecoder().decode(res.body);
+
+  async function uploadOne(root, file) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const boundary = 'fluidncdemo' + Math.random().toString(36).slice(2);
+    const name = '/' + file.name;
+    // The expected size ("<filename>S") must come before the file part.
+    const body = await new Blob([
+      `--${boundary}\r\nContent-Disposition: form-data; name="path"\r\n\r\n/\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="${name}S"\r\n\r\n${bytes.length}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="myfile[]"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`,
+      bytes,
+      `\r\n--${boundary}--\r\n`,
+    ]).arrayBuffer();
+    const res = await FluidNCVnet.fetchDevice('POST', volume(root).upload, {
+      headers: [['Content-Type', 'multipart/form-data; boundary=' + boundary]],
+      body,
+    });
+    const listing = JSON.parse(textOf(res));
+    const f = listing.files.find((e) => e.name === file.name);
+    if (res.status !== 200 || listing.status !== 'Ok' || !f || Number(f.size) !== bytes.length) {
+      throw new Error(listing.status || 'HTTP ' + res.status);
+    }
+  }
+
+  uploadButton.addEventListener('click', () => uploadInput.click());
+  uploadInput.addEventListener('change', async () => {
+    const files = Array.from(uploadInput.files);
+    uploadInput.value = '';  // so picking the same file again still fires 'change'
+    if (files.length === 0) {
+      return;
+    }
+    const root = uploadRoot.value;
+    // Label from the root captured here, not the selector, which the user
+    // may change while the files upload.
+    const where = uploadRoot.querySelector(`option[value="${root}"]`).textContent;
+    const done = [];
+    try {
+      for (const file of files) {
+        uploadStatus.textContent = `Uploading ${file.name} to ${where}...`;
+        await uploadOne(root, file);
+        done.push(file.name);
+      }
+    } catch (err) {
+      uploadStatus.textContent = `Upload failed after ${done.length} file(s): ${err.message}`;
+      savePersistentFs();
+      refreshDownloadList();
+      return;
+    }
+    refreshDownloadList();
+    uploadStatus.textContent = `Uploaded ${done.join(', ')} to ${where}; saving...`;
+    // Only after the save completes: a reload before then could lose it.
+    if (!(await savePersistentFs())) {
+      uploadStatus.textContent = `Uploaded ${done.join(', ')} to ${where}, but it could not be saved in this browser and will be lost on reload.`;
+      return;
+    }
+    const yaml = root === 'native_localfs' && done.some((name) => /\.ya?ml$/i.test(name));
+    uploadStatus.textContent = `Uploaded ${done.join(', ')} to ${where}` + (yaml ? ' -- reload the page to apply a config change.' : '.');
+  });
+
+  // Download: the file list is rebuilt whenever it's about to be looked at
+  // (volume change, focus/pointerdown on the list), since FluidNC and the
+  // WebUI can add or delete files at any time without this page knowing.
+  const downloadFile = document.getElementById('downloadFile');
+  const downloadButton = document.getElementById('downloadButton');
+  async function listFiles(root, dir, out) {
+    const res = await FluidNCVnet.fetchDevice('GET', `${volume(root).upload}?path=${encodeURIComponent(dir || '/')}`);
+    for (const f of JSON.parse(textOf(res)).files || []) {
+      const rel = dir + f.name;
+      if (Number(f.size) < 0) {
+        await listFiles(root, rel + '/', out);  // a directory
+      } else {
+        out.push(rel);
+      }
+    }
+    return out;
+  }
+  let listing = Promise.resolve();
+  function refreshDownloadList() {
+    const root = uploadRoot.value;
+    listing = listing.then(async () => {
+      const previous = downloadFile.value;
+      let files = [];
+      try {
+        files = (await listFiles(root, '', [])).sort();
+      } catch (err) {
+        console.warn('Listing files failed:', err);
+      }
+      if (root !== uploadRoot.value) {
+        return;  // the volume changed meanwhile; a newer refresh is queued
+      }
+      downloadFile.replaceChildren(...files.map((name) => new Option(name, name)));
+      if (files.includes(previous)) {
+        downloadFile.value = previous;
+      }
+      downloadFile.disabled = downloadButton.disabled = files.length === 0;
+    });
+  }
+  uploadRoot.addEventListener('change', refreshDownloadList);
+  downloadFile.addEventListener('focus', refreshDownloadList);
+  downloadFile.addEventListener('pointerdown', refreshDownloadList);
+  downloadButton.addEventListener('click', async () => {
+    const name = downloadFile.value;
+    try {
+      const path = volume(uploadRoot.value).dav + '/' + name.split('/').map(encodeURIComponent).join('/');
+      const res = await FluidNCVnet.fetchDevice('GET', path);
+      if (res.status !== 200) {
+        throw new Error('HTTP ' + res.status);
+      }
+      const url = URL.createObjectURL(new Blob([res.body], { type: 'application/octet-stream' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name.split('/').pop();
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (err) {
+      uploadStatus.textContent = `Download of ${name} failed: ${err.message}`;
+      refreshDownloadList();
+    }
+  });
 
   start();
+  uploadButton.disabled = false;
+  refreshDownloadList();  // waits for the web server to come up
 
   // No local echo, on purpose: FluidNC boots mimicking classic Grbl, which
   // doesn't echo either -- conventional Grbl senders are a line-collecting

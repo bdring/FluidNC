@@ -53,6 +53,25 @@ python3 serve.py 8767
 
 Then open `http://127.0.0.1:8767/index.html`.
 
+### Seed files (native_localfs/native_sd)
+
+The initial LocalFS and SD card contents are staged into the running
+instance at boot from `demo/seed-localfs/` and `demo/seed-sd/` -- plain files,
+fetched client-side (see `seedFs()` in `index.html`) rather than
+embedded in the page, since Netlify (and `serve.py` locally) already
+serve everything under `demo/` as static files, same-origin `fetch()`
+isn't affected by the COOP/COEP headers above, and a static host can't
+be asked to list a directory's contents -- each `seed-*/manifest.json`
+does that instead. To add a seed file, drop it under the right
+directory and add its relative path to that directory's
+`manifest.json`.
+
+Seed files fill in only what is missing: the demo persists
+native_localfs, native_sd and native_nvs in the browser's IndexedDB, so a
+file the user has edited or uploaded overrides the seed copy, while a
+seed file added in a later deploy still appears. The demo page's "Reset
+files and settings" button discards the saved copies.
+
 ## 4. Deploy to Netlify
 
 One-time: install the Netlify CLI and log in (opens a browser to
@@ -101,18 +120,15 @@ similar hosts that support a `_headers`-style file work out of the box.
 ## 5. `functions/webui-proxy.js`
 
 Fetches a WebUI build (`index.html.gz`) from a GitHub release server-side
-and returns it decompressed as `text/html`, so it can be loaded into an
-iframe from the browser.
+and returns it unchanged as `application/gzip`, for the demo's "Install
+WebUI" menu to upload to FluidNC's LocalFS byte-for-byte as released.
+`demo/serve.py` implements the same endpoint, so the menu works locally too.
 
-This exists because GitHub's release-asset CDN sends neither an
-`Access-Control-Allow-Origin` header nor a `Content-Encoding` header on
-these assets: a browser `fetch()` can't read the response cross-origin,
-and even navigating an iframe straight to the URL just triggers a file
-download (`Content-Disposition: attachment`) instead of rendering, since
-the browser has no reason to gunzip an `application/octet-stream`
-response. None of that can be worked around client-side -- it has to be
-fetched server-side (CORS is a browser-only restriction) and re-served
-with the right headers.
+This exists because GitHub's release-asset CDN sends no
+`Access-Control-Allow-Origin` header on these assets, so a browser
+`fetch()` can't read the response cross-origin.  That can't be worked
+around client-side -- it has to be fetched server-side (CORS is a
+browser-only restriction) and re-served from the demo's own origin.
 
 ```
 GET /.netlify/functions/webui-proxy?owner=<github-owner>&repo=<github-repo>[&tag=<release-tag>]
@@ -128,8 +144,70 @@ URLs.
 Example:
 
 ```bash
-curl "https://fluidnc-demo.netlify.app/.netlify/functions/webui-proxy?owner=figamore&repo=FigUI&tag=v1.2.7"
+curl -o index.html.gz "https://fluidnc-demo.netlify.app/.netlify/functions/webui-proxy?owner=figamore&repo=FigUI&tag=v1.2.7"
 ```
 
 It deploys as part of the same `netlify deploy --functions=functions`
 command in step 4 above -- no separate deploy step.
+
+## 6. The web server and the demo's virtual network
+
+The wasm module includes FluidNC's own `WebUI/` web server (HTTP routes,
+WebSocket, WebDAV), on top of `BrowserAsyncTCP/` -- the AsyncTCP API
+carried over numbered "virtual connections" that JS drives with
+`fluidnc_vconn_open/send/close` and reads back through
+`self.fluidncOnVconnData/Close`.  Everything the demo does with files and
+WebUIs goes through that server, the way a browser uses a real board; the
+only other ways into the module are the terminal (`fluidnc_send_text`) and
+seeding/persisting the emulated filesystems before FluidNC starts
+(`Module.FS`).
+
+The demo runs a WebUI the way a controller does.  Its address bar, preset
+to `fluidnc.local`, browses that server in the iframe, so any WebUI works
+unmodified, exactly as on hardware; with no WebUI installed you get
+FluidNC's built-in file manager.  Paths work as on a real board
+(`fluidnc.local/?forcefallback=yes`, `fluidnc.local/files?path=/`, ...);
+the device answers at `<$Hostname>.local` and `192.168.0.1` (VirtualNet's
+address), and other names, `https:` and other ports fail as a browser
+would report it.  `demo/?browse=<address>` opens the demo at an address.
+
+"Install WebUI" fetches a build -- a project's latest GitHub release
+through `webui-proxy` (see section 5; `serve.py` provides it locally), or
+a local file -- and uploads it to LocalFS as `index.html.gz` through
+FluidNC's own `/files` route, replacing any `index.html`/`index.html.gz`
+already there.  The pieces:
+
+- `demo/vnet-sw.js`: a Service Worker for the whole site that routes each
+  request by who made it.  Requests from the device iframe go to FluidNC
+  with exactly the paths they have -- the WebUI sees `/`, `/ui/<name>/`,
+  `/command`, `/sd/...` as on a controller -- while the demo page and its
+  workers use the network.  It decodes gzip (a browser does not decode a
+  Response a worker builds), adds the COEP header the isolated page
+  requires of a nested document, and inlines `vnet-ws-shim.js` into HTML
+  documents.  Because it covers the whole site, the demo must be served
+  from the root of its origin.
+- `demo/vnet-ws-shim.js`: replaces `window.WebSocket` inside the iframe,
+  because Service Workers cannot see WebSockets; each socket becomes a
+  MessagePort to the demo page.
+- `demo/vnet-host.js`: on the demo page, the HTTP/1.1 and WebSocket client
+  that speaks to FluidNC over virtual connections, including a
+  path-scoped cookie jar (browsers drop `Set-Cookie` from worker-built
+  responses).
+
+The virtual network's traffic is logged to the DevTools console, one line
+per HTTP exchange and per WebSocket open/close (`[vnet] PUT /ui/webui2/
+preferences2.json -> 201 Created (2.1 KB up, 512 B down, 14 ms)`).
+`FluidNCVnet.logFrames = true` in the console adds every WebSocket
+message; `FluidNCVnet.log = false` silences it.
+
+Known limits: Telnet is not carried; the WebUI must run inside the demo
+page's iframe, not in a tab of its own; requests from a Web Worker a WebUI
+starts can't be attributed to its frame and go to the network.
+
+Headless tests (Node, no browser):
+
+```bash
+node FluidNC/wasm/vconn_smoke_test.mjs .pio/build/wasm/program.js
+node FluidNC/wasm/vnet_client_test.mjs .pio/build/wasm/program.js
+node FluidNC/wasm/vnet_unit_test.mjs
+```
