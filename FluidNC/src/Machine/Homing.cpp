@@ -159,7 +159,9 @@ namespace Machine {
             // a switch that has since released. Refresh it before deciding
             // whether an initial pull-off is actually required.
             config->_kinematics->rearmLimits(_phaseAxes, _phaseMotors);
-            mc_dwell(10);
+            if (!mc_dwell(10) || _phase != Phase::PrePulloff) {
+                return;
+            }
             if (!(limited() & _phaseMotors)) {
                 // No initial pulloff needed
                 nextPhase();
