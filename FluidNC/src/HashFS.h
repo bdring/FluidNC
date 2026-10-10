@@ -19,20 +19,22 @@ public:
     // A snapshot of all cached hashes, for listing
     static std::map<std::string, std::string> hashes();
 
-    // Canonical path of HTTP/IndexFile, without any .gz suffix.  It and
-    // its .gz form are hashed in advance.  Empty for none.
-    static void set_index_file(const std::string& path);
-    static bool is_index_file(const std::filesystem::path& path);
+    // Canonical path of HTTP/UIDir, whose subdirectories each hold a
+    // WebUI.  Each one's index.html[.gz] is hashed in advance, and other
+    // files beneath it when first requested.  Empty for none.
+    static void set_ui_dir(const std::string& path);
+    static bool in_ui_dir(const std::filesystem::path& path);
 
 private:
     static std::map<std::string, std::string> localFsHashes;
-    static std::string                        _indexFile;
+    static std::string                        _uiDir;
     static bool                               _enabled;
     static uint32_t                           _generation;
 
     static std::string key(const std::filesystem::path& path);
     static void        erase_locked(const std::filesystem::path& path);
-    static std::string index_file();
+    static std::string ui_dir();
+    static bool        in_ui_dir_locked(const std::filesystem::path& path);
     static bool        cacheable_locked(const std::filesystem::path& path);
-    static void        hash_index_file();
+    static void        hash_ui_indexes();
 };

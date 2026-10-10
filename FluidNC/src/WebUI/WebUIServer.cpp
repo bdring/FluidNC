@@ -287,22 +287,124 @@ namespace WebUI {
 
     EnumSetting *  http_enable, *http_block_during_motion;
     IntSetting*    http_port;
-    StringSetting* http_index_file;
+    StringSetting* http_ui_dir;
+    StringSetting* http_default_ui;
 
-    // Canonical form of HTTP/IndexFile without any .gz suffix, which
-    // myStreamFile() adds as needed, or empty if it is not set.  Looked up
+    // Canonical form of HTTP/UIDir, or empty if it is not set.  Looked up
     // per request so that a change takes effect without a restart.
-    static std::string indexFile() {
-        std::string_view value = http_index_file->get();
+    static std::string uiDir() {
+        std::string_view value = http_ui_dir->get();
         std::string      path;
         if (!value.empty()) {
-            if (value.size() > 3 && value.substr(value.size() - 3) == ".gz") {
-                value.remove_suffix(3);
-            }
             path = FluidPath::canonPath(value, LocalFS);
         }
-        HashFS::set_index_file(path);
+        HashFS::set_ui_dir(path);
         return path;
+    }
+
+    // WebUI names become URL path components and cookie paths, so they are
+    // restricted to characters that need no escaping in either.
+    static bool validUiName(std::string_view name) {
+        if (name.empty() || name == "." || name == "..") {
+            return false;
+        }
+        for (char c : name) {
+            if (!isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_' && c != '.') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // A request URL under /ui, split into the WebUI name and the path
+    // beneath that WebUI's directory.
+    struct UiUrl {
+        std::string name;   // Empty for /ui or /ui/
+        std::string tail;   // Empty for /ui/<name> or /ui/<name>/
+        bool        slash;  // /ui/<name>/ rather than /ui/<name>
+    };
+
+    // False if the URL is malformed.  Empty, "." and ".." components are
+    // rejected, so the path cannot escape HTTP/UIDir.
+    static bool splitUiUrl(std::string_view url, UiUrl& u) {
+        u = {};
+        url.remove_prefix(3);  // "/ui"
+        if (url.empty() || url == "/") {
+            return true;
+        }
+        url.remove_prefix(1);
+        bool first = true;
+        while (!url.empty()) {
+            auto             pos  = url.find('/');
+            std::string_view comp = url.substr(0, pos);
+            if (comp.empty() || comp == "." || comp == "..") {
+                return false;
+            }
+            if (first) {
+                if (!validUiName(comp)) {
+                    return false;
+                }
+                u.name = comp;
+                first  = false;
+            } else {
+                if (!u.tail.empty()) {
+                    u.tail += '/';
+                }
+                u.tail += comp;
+            }
+            if (pos == std::string_view::npos) {
+                break;
+            }
+            url.remove_prefix(pos + 1);
+            if (url.empty() && u.tail.empty()) {
+                u.slash = true;
+            }
+        }
+        return true;
+    }
+
+    // True for /ui/<name>/, the URL of a WebUI page, which is also the
+    // URL of its WebSocket - just as / is for a WebUI served at the root.
+    static bool isUiPageUrl(std::string_view url) {
+        UiUrl u;
+        return url.rfind("/ui/", 0) == 0 && splitUiUrl(url, u) && !u.name.empty() && u.slash;
+    }
+
+    // Accepts WebSocket connections at /ui/<name>/ and hands them to the
+    // main WebSocket server.  The browser sends that WebUI's uiSession
+    // cookie with them, which isolates its channels from other WebUIs.
+    class UiWebSocketHandler : public AsyncWebHandler {
+        AsyncWebSocket* _ws;
+
+    public:
+        explicit UiWebSocketHandler(AsyncWebSocket* ws) : _ws(ws) {}
+        bool canHandle(AsyncWebServerRequest* request) const override {
+            return request->isWebSocketUpgrade() && isUiPageUrl(request->url().c_str());
+        }
+        void handleRequest(AsyncWebServerRequest* request) override { _ws->handleRequest(request); }
+    };
+
+    // The value of the named cookie, or empty
+    static std::string getCookie(AsyncWebServerRequest* request, std::string_view name) {
+        if (!request->hasHeader("Cookie")) {
+            return "";
+        }
+        std::string_view cookies = request->getHeader("Cookie")->value().c_str();
+        while (!cookies.empty()) {
+            auto             pos    = cookies.find(';');
+            std::string_view cookie = cookies.substr(0, pos);
+            while (!cookie.empty() && cookie[0] == ' ') {
+                cookie.remove_prefix(1);
+            }
+            if (cookie.size() > name.size() && cookie[name.size()] == '=' && cookie.substr(0, name.size()) == name) {
+                return std::string(cookie.substr(name.size() + 1));
+            }
+            if (pos == std::string_view::npos) {
+                break;
+            }
+            cookies.remove_prefix(pos + 1);
+        }
+        return "";
     }
 
     WebUI_Server::~WebUI_Server() {
@@ -319,9 +421,11 @@ namespace WebUI {
                                                    "HTTP/BlockDuringMotion",
                                                    DEFAULT_HTTP_BLOCKED_DURING_MOTION,
                                                    &onoffOptions);
-        // A WebUI file, on any filesystem, served in preference to LocalFS
-        // index.html - e.g. /sd/webui/index.html for a build too big for FLASH
-        http_index_file = new StringSetting("HTTP index file", WEBSET, WA, NULL, "HTTP/IndexFile", "", 0, 0);
+        // A directory, on any filesystem, whose subdirectories each hold a
+        // WebUI, served at /ui/<subdirectory>/ - e.g. builds too big for FLASH
+        http_ui_dir = new StringSetting("HTTP WebUI directory", WEBSET, WA, NULL, "HTTP/UIDir", "/sd/ui", 0, 0);
+        // The subdirectory of HTTP/UIDir that / redirects to, if it exists
+        http_default_ui = new StringSetting("HTTP default WebUI", WEBSET, WA, NULL, "HTTP/DefaultUI", "", 0, 0);
 
         _setupdone = false;
 
@@ -378,6 +482,7 @@ namespace WebUI {
             });
 
         _webserver->addHandler(_socket_server);
+        _webserver->addHandler(new UiWebSocketHandler(_socket_server));
 
         //events functions
         //_web_events->onConnect(handle_onevent_connect);
@@ -387,6 +492,9 @@ namespace WebUI {
         //Web server handlers
         //trick to catch command line on "/" before file being processed
         _webserver->on("/", HTTP_ANY, handle_root);
+
+        // WebUIs in HTTP/UIDir
+        _webserver->on("/ui", HTTP_ANY, handle_ui, nullptr, handle_ui_body);
 
         //Page not found handler
         _webserver->onNotFound(handle_not_found);
@@ -433,7 +541,7 @@ namespace WebUI {
         //start webserver
         _webserver->begin();
 
-        indexFile();  // Tell HashFS about the index file
+        uiDir();  // Tell HashFS about the WebUI directory
         HashFS::enable(true);
         HashFS::hash_all();
 
@@ -480,21 +588,13 @@ namespace WebUI {
 #endif
     }
 
+    // A WebUI under /ui that uses relative URLs for its WebSocket and
+    // commands gets a uiSession cookie scoped to its own directory, so its
+    // channels are separate from those of other WebUIs in the same browser.
+    // Otherwise, the browser-wide sessionId cookie identifies the session.
     std::string WebUI_Server::getSessionCookie(AsyncWebServerRequest* request) {
-        if (request->hasHeader("Cookie")) {
-            std::string cookies = request->getHeader("Cookie")->value().c_str();
-
-            int pos = cookies.find("sessionId=");
-            if (pos != std::string::npos) {
-                int pos2 = cookies.find(";", pos);
-                auto start = pos + strlen("sessionId=");
-                if (pos2 == std::string::npos) {
-                    return cookies.substr(start);
-                }
-                return cookies.substr(start, pos2 - start);
-            }
-        }
-        return "";
+        auto session = getCookie(request, "uiSession");
+        return session.empty() ? getCookie(request, "sessionId") : session;
     }
 
     std::string WebUI_Server::getWebSocketSession(AsyncWebServerRequest* request, AsyncWebSocketClient* client) {
@@ -515,8 +615,24 @@ namespace WebUI {
         }
         str[len] = '\0';
     }
+
+    // Set the browser-wide session cookie if it is missing, and for a WebUI
+    // under /ui, that WebUI's own session cookie.  The explicit Path keeps
+    // sessionId from defaulting to the directory of a /ui page.
+    static void addSessionCookies(AsyncWebServerRequest* request, AsyncWebServerResponse* response, const char* uiName) {
+        char session[17];
+        if (getCookie(request, "sessionId").empty()) {
+            get_random_string(session, sizeof(session) - 1);
+            response->addHeader("Set-Cookie", ("sessionId=" + std::string(session) + "; Path=/").c_str(), false);
+        }
+        if (uiName && getCookie(request, "uiSession").empty()) {
+            get_random_string(session, sizeof(session) - 1);
+            response->addHeader("Set-Cookie", ("uiSession=" + std::string(session) + "; Path=/ui/" + uiName + "/").c_str(), false);
+        }
+    }
+
     // Send a file, either the specified path or path.gz
-    bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
+    bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession, const char* uiName) {
         bool acceptGz = false;
         if (request->hasHeader("Accept-Encoding")) {
             auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
@@ -551,13 +667,6 @@ namespace WebUI {
                 return true;
             }
 
-            // HTTP/IndexFile is hashed in advance, so with no hash it is
-            // either missing or was not hashed yet.  Let the caller fall back
-            // to LocalFS index.html, which might yet answer with a 304.
-            if (!hash.length() && HashFS::is_index_file(cpath)) {
-                return false;
-            }
-
             WebUI_Server::handleReloadBlocked(request);
             return true;
         }
@@ -577,15 +686,11 @@ namespace WebUI {
         }
         if (hash.length() && request->hasHeader("If-None-Match") &&
             std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
-            if (setSession && getSessionCookie(request) == "") {
-                char session[17];
-                get_random_string(session, sizeof(session) - 1);
-                AsyncWebServerResponse* response = request->beginResponse(304);
-                response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
-                request->send(response);
-            } else {
-                request->send(304);
+            AsyncWebServerResponse* response = request->beginResponse(304);
+            if (setSession) {
+                addSessionCookies(request, response, uiName);
             }
+            request->send(response);
             return true;
         }
 
@@ -628,10 +733,8 @@ namespace WebUI {
 
         request->onDisconnect([request, file]() { delete file; });
 
-        if (setSession && getSessionCookie(request) == "") {
-            char session[17];
-            get_random_string(session, sizeof(session) - 1);
-            response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
+        if (setSession) {
+            addSessionCookies(request, response, uiName);
         }
         if (download) {
             response->addHeader("Content-Disposition", "attachment");
@@ -691,15 +794,19 @@ namespace WebUI {
         const char* fetch_mode = request->hasHeader("Sec-Fetch-Mode") ? request->getHeader("Sec-Fetch-Mode")->value().c_str() : "";
         const char* fetch_dest = request->hasHeader("Sec-Fetch-Dest") ? request->getHeader("Sec-Fetch-Dest")->value().c_str() : "";
         const char* fetch_site = request->hasHeader("Sec-Fetch-Site") ? request->getHeader("Sec-Fetch-Site")->value().c_str() : "";
+        bool forceFallback = request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes";
+        if (!forceFallback) {
+            std::string name(http_default_ui->get());
+            if (uiIndexExists(name)) {
+                request->redirect(("/ui/" + name + "/").c_str());
+                return;
+            }
+        }
         auto session = getSessionCookie(request);
         if (!session.empty()) {
             WSChannels::closeSessionChannels(session);
         }
-        if (!(request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes")) {
-            auto index = indexFile();
-            if (!index.empty() && myStreamFile(request, index.c_str(), false, true)) {
-                return;
-            }
+        if (!forceFallback) {
             if (myStreamFile(request, "index.html", false, true)) {
                 return;
             }
@@ -709,6 +816,283 @@ namespace WebUI {
         AsyncWebServerResponse* response = request->beginResponse(200, "text/html", (const uint8_t*)PAGE_NOFILES, PAGE_NOFILES_SIZE);
         response->addHeader("Content-Encoding", "gzip");
         request->send(response);
+    }
+
+    static bool blockedInMotion() {
+        return http_block_during_motion->get() && inMotionState();
+    }
+
+    // True if the named WebUI in HTTP/UIDir has an index.html[.gz].  During
+    // motion only the hash cache is consulted, so the files are not read.
+    bool WebUI_Server::uiIndexExists(const std::string& name) {
+        if (!validUiName(name)) {
+            return false;
+        }
+        auto dir = uiDir();
+        if (dir.empty()) {
+            return false;
+        }
+        std::string index = dir + "/" + name + "/index.html";
+        if (blockedInMotion()) {
+            return !HashFS::hash(index, true).empty() || !HashFS::hash(index + ".gz", true).empty();
+        }
+        std::error_code ec;
+        FluidPath       fpath { index, LocalFS, ec };  // Keeps an SD volume mounted
+        if (ec) {
+            return false;
+        }
+        return !HashFS::hash(fpath).empty() || !HashFS::hash(index + ".gz").empty();
+    }
+
+    static std::string html_escape(std::string_view s) {
+        std::string out;
+        for (char c : s) {
+            switch (c) {
+                case '&':
+                    out += "&amp;";
+                    break;
+                case '<':
+                    out += "&lt;";
+                    break;
+                case '>':
+                    out += "&gt;";
+                    break;
+                case '"':
+                    out += "&quot;";
+                    break;
+                default:
+                    out += c;
+            }
+        }
+        return out;
+    }
+
+    // A page listing the WebUIs in HTTP/UIDir
+    void WebUI_Server::handle_ui_list(AsyncWebServerRequest* request, const std::string& dir) {
+        if (blockedInMotion()) {
+            handleReloadBlocked(request);
+            return;
+        }
+        std::string defaultUi(http_default_ui->get());
+        std::string page = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                           "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+                           "<title>WebUIs</title></head><body><h3>WebUIs in " +
+                           html_escape(dir) + "</h3><ul>";
+        int             count = 0;
+        std::error_code ec;
+        FluidPath       fpath { dir, LocalFS, ec };
+        if (!ec) {
+            std::vector<std::string> names;
+            for (auto const& entry : stdfs::directory_iterator { fpath, ec }) {
+                auto name = entry.path().filename().string();
+                if (entry.is_directory() && validUiName(name) &&
+                    (stdfs::exists(entry.path() / "index.html", ec) || stdfs::exists(entry.path() / "index.html.gz", ec))) {
+                    names.push_back(name);
+                }
+            }
+            std::sort(names.begin(), names.end());
+            for (auto const& name : names) {
+                page += "<li><a href='/ui/" + name + "/'>" + name + "</a>";
+                if (name == defaultUi) {
+                    page += " (default)";
+                }
+                page += "</li>";
+                ++count;
+            }
+        }
+        if (!count) {
+            page += "<li>None found</li>";
+        }
+        page += "</ul><a href='/?forcefallback=yes'>File manager</a></body></html>";
+        request->send(200, "text/html", page.c_str());
+    }
+
+    // Requests under /ui:
+    //   /ui/                      a list of the WebUIs in HTTP/UIDir
+    //   /ui/<name>/               that WebUI's index.html, and its WebSocket
+    //   /ui/<name>/command[_silent]  commands in that WebUI's session
+    //   /ui/<name>/<path>         GET or PUT a file in that WebUI's directory
+    // A WebUI that uses relative URLs thus gets its own session and keeps
+    // its state files in its own directory.  One that uses absolute URLs
+    // still works, sharing the browser-wide session and LocalFS state files.
+    void WebUI_Server::handle_ui(AsyncWebServerRequest* request) {
+        std::string url(request->url().c_str());
+        UiUrl       u;
+        auto        dir = uiDir();
+        if (dir.empty() || !splitUiUrl(url, u)) {
+            send404Page(request);
+            return;
+        }
+        if (u.name.empty()) {
+            handle_ui_list(request, dir);
+            return;
+        }
+        if (u.tail.empty() && !u.slash) {
+            // Relative URLs in the page must resolve beneath its directory
+            request->redirect((url + "/").c_str());
+            return;
+        }
+        if (u.tail == "command") {
+            handle_web_command(request);
+            return;
+        }
+        if (u.tail == "command_silent") {
+            handle_web_command_silent(request);
+            return;
+        }
+
+        std::string path = dir + "/" + u.name + "/" + (u.tail.empty() ? "index.html" : u.tail);
+
+        if (request->method() == HTTP_PUT) {
+            handle_ui_put(request, path);
+            return;
+        }
+        if (request->method() != HTTP_GET && request->method() != HTTP_HEAD) {
+            request->send(405);
+            return;
+        }
+
+        if (u.tail.empty()) {
+            // A page load.  Close the channels of the previous instance of
+            // this page.  An old WebUI uses the browser-wide session.
+            for (const char* cookie : { "uiSession", "sessionId" }) {
+                auto session = getCookie(request, cookie);
+                if (!session.empty()) {
+                    WSChannels::closeSessionChannels(session);
+                }
+            }
+            if (myStreamFile(request, path.c_str(), false, true, u.name.c_str())) {
+                return;
+            }
+        } else if (myStreamFile(request, path.c_str())) {
+            return;
+        }
+        send404Page(request);
+    }
+
+    // State for a PUT under /ui, which is written to a temporary file that
+    // replaces the target only when complete.  The request frees it.
+    struct UiPut {
+        FileStream* file;
+        uint16_t    status;  // Nonzero if the PUT failed
+    };
+
+    static std::string uiPutPath(AsyncWebServerRequest* request) {
+        std::string url(request->url().c_str());
+        UiUrl       u;
+        auto        dir = uiDir();
+        if (dir.empty() || !splitUiUrl(url, u) || u.name.empty() || u.tail.empty()) {
+            return "";
+        }
+        return dir + "/" + u.name + "/" + u.tail;
+    }
+
+    static const char* partSuffix = ".part";
+
+    void WebUI_Server::handle_ui_body(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+        if (request->method() != HTTP_PUT) {
+            return;
+        }
+        auto put = static_cast<UiPut*>(request->_tempObject);
+        if (!put) {
+            put = static_cast<UiPut*>(calloc(1, sizeof(UiPut)));
+            if (!put) {
+                return;  // handle_ui_put() reports the failure
+            }
+            request->_tempObject = put;
+
+            auto path = uiPutPath(request);
+            if (path.empty()) {
+                put->status = 404;
+                return;
+            }
+            // Writing to SD while a job reads from it could starve the job
+            if (blockedInMotion()) {
+                put->status = 503;
+                return;
+            }
+            try {
+                FluidPath fpath { path + partSuffix, LocalFS };
+                if (total) {
+                    std::error_code ec;
+                    auto            avail = stdfs::space(fpath, ec).available;
+                    if (!ec && total + 4096 > avail) {
+                        put->status = 507;  // Insufficient storage
+                        return;
+                    }
+                }
+                put->file = new FileStream(fpath, "w");
+            } catch (...) {
+                put->status = 500;
+                return;
+            }
+            // Clean up if the client disconnects before the PUT completes
+            request->onDisconnect([put]() {
+                if (put->file) {
+                    FluidPath fpath = put->file->fpath();
+                    delete put->file;
+                    put->file = nullptr;
+                    std::error_code ec;
+                    stdfs::remove(fpath, ec);
+                }
+            });
+        }
+        if (put->file && put->file->write(data, len) != len) {
+            FluidPath fpath = put->file->fpath();
+            delete put->file;
+            put->file = nullptr;
+            std::error_code ec;
+            stdfs::remove(fpath, ec);
+            put->status = 507;
+        }
+    }
+
+    void WebUI_Server::handle_ui_put(AsyncWebServerRequest* request, const std::string& path) {
+        auto put = static_cast<UiPut*>(request->_tempObject);
+        if (put && put->status) {
+            request->send(put->status);
+            return;
+        }
+        if (blockedInMotion()) {
+            request->send(503);
+            return;
+        }
+        try {
+            FluidPath fpath { path, LocalFS };
+            FluidPath part { path + partSuffix, LocalFS };
+            if (put && put->file) {
+                delete put->file;  // Closes the file
+                put->file = nullptr;
+            } else if (!put || request->contentLength() == 0) {
+                // A PUT with no body creates or empties the file
+                FileStream(part, "w");
+            } else {
+                request->send(500);
+                return;
+            }
+            std::error_code ec;
+            if (stdfs::is_directory(fpath, ec)) {
+                stdfs::remove(part, ec);
+                request->send(409);
+                return;
+            }
+            bool existed = stdfs::exists(fpath, ec);
+            // FAT will not rename onto an existing file
+            if (existed) {
+                stdfs::remove(fpath, ec);
+            }
+            stdfs::rename(part, fpath, ec);
+            if (ec) {
+                log_debug("Cannot rename " << part << " to " << fpath << ": " << ec.message());
+                stdfs::remove(part, ec);
+                request->send(500);
+                return;
+            }
+            HashFS::rehash_file(fpath, false);
+            request->send(existed ? 204 : 201);
+        } catch (...) {
+            request->send(500);
+        }
     }
 
     void WebUI_Server::handle_trace(AsyncWebServerRequest* request) {

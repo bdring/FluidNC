@@ -6,11 +6,11 @@
 #include <freertos/semphr.h>
 
 std::map<std::string, std::string> HashFS::localFsHashes;
-std::string                        HashFS::_indexFile;
+std::string                        HashFS::_uiDir;
 bool                               HashFS::_enabled = false;
 uint32_t                           HashFS::_generation = 0;
 
-// The map and _indexFile are used by the web server task and by file
+// The map and _uiDir are used by the web server task and by file
 // commands on the protocol task.  The lock is held only for those, never
 // across file I/O - hashing a large file on SD takes a while.  Since a
 // hash is computed unlocked, every invalidation bumps _generation, and a
@@ -65,9 +65,9 @@ void HashFS::report_change() {
 }
 
 // Top-level LocalFS files are keyed by bare filename, which is what
-// showLocalFSHashes and the WebUI have always seen.  HTTP/IndexFile,
-// which can be in a subdirectory or on SD, is keyed by full path so it
-// cannot collide with the LocalFS index.html it stands in for.
+// showLocalFSHashes and the WebUI have always seen.  Files under
+// HTTP/UIDir, which can be on SD, are keyed by full path so they cannot
+// collide with a top-level LocalFS name.
 std::string HashFS::key(const std::filesystem::path& path) {
     return file_is_hashable(path) ? path.filename().string() : path.string();
 }
@@ -111,67 +111,79 @@ bool HashFS::file_is_hashable(const std::filesystem::path& path) {
 }
 
 // Caller holds the lock
-bool HashFS::cacheable_locked(const std::filesystem::path& path) {
-    if (!_enabled) {
+bool HashFS::in_ui_dir_locked(const std::filesystem::path& path) {
+    if (_uiDir.empty()) {
         return false;
     }
-    if (file_is_hashable(path)) {
-        return true;
-    }
-    auto s = path.string();
-    return !_indexFile.empty() && (s == _indexFile || s == _indexFile + ".gz");
+    return path.string().rfind(_uiDir + "/", 0) == 0;
 }
 
-std::string HashFS::index_file() {
+bool HashFS::in_ui_dir(const std::filesystem::path& path) {
     Lock lock;
-    return _indexFile;
+    return in_ui_dir_locked(path);
 }
 
-// HTTP/IndexFile is hashed ahead of time, like top-level LocalFS files,
-// so that WebUI can answer If-None-Match - including during motion -
-// without reading it.  It is stored without any .gz suffix, and either
-// form of the file might be the one served.
-bool HashFS::is_index_file(const std::filesystem::path& path) {
-    auto index = index_file();
-    if (index.empty()) {
-        return false;
-    }
-    auto s = path.string();
-    return s == index || s == index + ".gz";
+// Caller holds the lock
+bool HashFS::cacheable_locked(const std::filesystem::path& path) {
+    return _enabled && (file_is_hashable(path) || in_ui_dir_locked(path));
 }
 
-void HashFS::hash_index_file() {
-    auto index = index_file();
-    if (index.empty()) {
+std::string HashFS::ui_dir() {
+    Lock lock;
+    return _uiDir;
+}
+
+// Each WebUI's index.html[.gz] is hashed ahead of time, like top-level
+// LocalFS files, so that a reload can be answered with a 304 - including
+// during motion - without reading the file.
+void HashFS::hash_ui_indexes() {
+    auto dir = ui_dir();
+    if (dir.empty()) {
         return;
     }
     // The FluidPath keeps an SD volume mounted while hashing
     std::error_code ec;
-    FluidPath       fpath { index, LocalFS, ec };
-    if (!ec) {
-        rehash_file(fpath, false);
-        fpath += ".gz";
-        rehash_file(fpath, false);
+    FluidPath       fpath { dir, LocalFS, ec };
+    if (ec) {
+        return;
+    }
+    auto iter = stdfs::directory_iterator { fpath, ec };
+    if (ec) {
+        log_debug("HashFS: cannot list " << dir);
+        return;
+    }
+    for (auto const& dir_entry : iter) {
+        if (dir_entry.is_directory()) {
+            for (const char* name : { "index.html", "index.html.gz" }) {
+                auto index = dir_entry.path() / name;
+                if (stdfs::exists(index, ec)) {
+                    rehash_file(index, false);
+                }
+            }
+        }
     }
 }
 
-void HashFS::set_index_file(const std::string& path) {
-    Lock lock;
-    if (path == _indexFile) {
-        return;
-    }
-    ++_generation;
-    // Forget the old index file's hashes, so they are neither listed nor
-    // reused if it is selected again after changing.  If it was a top-level
-    // LocalFS file, its entry is an ordinary LocalFS hash and stays.
-    if (!_indexFile.empty()) {
-        std::filesystem::path old(_indexFile);
-        if (!file_is_hashable(old)) {
-            localFsHashes.erase(_indexFile);
-            localFsHashes.erase(_indexFile + ".gz");
+void HashFS::set_ui_dir(const std::string& path) {
+    {
+        Lock lock;
+        if (path == _uiDir) {
+            return;
         }
+        ++_generation;
+        // Forget the old directory's hashes, so they are neither listed nor
+        // reused if it is selected again later.
+        if (!_uiDir.empty()) {
+            std::string prefix = _uiDir + "/";
+            for (auto it = localFsHashes.lower_bound(prefix); it != localFsHashes.end() && it->first.rfind(prefix, 0) == 0;) {
+                it = localFsHashes.erase(it);
+            }
+        }
+        _uiDir = path;
     }
-    _indexFile = path;
+    // The indexes are hashed by hash_all() at startup.  After a change,
+    // each is hashed on its first request - not here, since this can be
+    // called during motion, when the files must not be read.
 }
 
 // The hashes are only used by the HTTP server, so there is no point
@@ -227,8 +239,11 @@ void HashFS::rename_file(const std::filesystem::path& ipath, const std::filesyst
     std::error_code ec;
     if (stdfs::is_directory(opath, ec)) {
         delete_file(opath, false);
-        if (index_file().rfind(opath.string() + "/", 0) == 0) {
-            hash_index_file();
+        // The renamed directory might be, contain, or be inside HTTP/UIDir
+        auto dir = ui_dir() + "/";
+        auto o   = opath.string() + "/";
+        if (dir != "/" && (dir.rfind(o, 0) == 0 || o.rfind(dir, 0) == 0)) {
+            hash_ui_indexes();
         }
         if (report) {
             report_change();
@@ -269,7 +284,7 @@ void HashFS::hash_all() {
         }
     }
 
-    hash_index_file();
+    hash_ui_indexes();
 }
 
 std::map<std::string, std::string> HashFS::hashes() {
@@ -294,8 +309,8 @@ std::string HashFS::hash(const std::filesystem::path& path, bool useCacheOnly /*
     if ((!on || !file_is_hashable(path)) && !useCacheOnly) {
         std::string theHash;
         if (hashFile(path, theHash) == Error::Ok && on) {
-            // Missed in advance because the setting just changed or the
-            // card was absent at startup.
+            // First request for a file under HTTP/UIDir, or an index
+            // missed because the card was absent at startup.
             Lock lock;
             if (generation == _generation && cacheable_locked(path)) {
                 localFsHashes[key(path)] = theHash;
