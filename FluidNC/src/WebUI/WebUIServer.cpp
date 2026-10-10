@@ -989,6 +989,20 @@ namespace WebUI {
 
     static const char* partSuffix = ".part";
 
+    // A PUT under /ui/<name>/ creates the WebUI's directory, and any
+    // subdirectories in the path, so that a new WebUI can be installed with
+    // a single request.  uiPutPath() has already confined the path to
+    // HTTP/UIDir, so only directories there can be created.
+    static bool makeParentDirs(const FluidPath& fpath) {
+        std::error_code ec;
+        stdfs::create_directories(fpath.parent_path(), ec);
+        if (ec) {
+            log_debug("Cannot create " << fpath.parent_path() << ": " << ec.message());
+            return false;
+        }
+        return true;
+    }
+
     void WebUI_Server::handle_ui_body(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
         if (request->method() != HTTP_PUT) {
             return;
@@ -1020,6 +1034,10 @@ namespace WebUI {
                         put->status = 507;  // Insufficient storage
                         return;
                     }
+                }
+                if (!makeParentDirs(fpath)) {
+                    put->status = 500;
+                    return;
                 }
                 put->file = new FileStream(fpath, "w");
             } catch (...) {
@@ -1065,6 +1083,10 @@ namespace WebUI {
                 put->file = nullptr;
             } else if (!put || request->contentLength() == 0) {
                 // A PUT with no body creates or empties the file
+                if (!makeParentDirs(part)) {
+                    request->send(500);
+                    return;
+                }
                 FileStream(part, "w");
             } else {
                 request->send(500);
