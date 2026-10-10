@@ -119,6 +119,21 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
         filename.remove_suffix(1);
     }
 
+    // A path that already begins with a volume's prefix has been resolved
+    // before; return it unchanged, so that resolving is idempotent.  On ESP32
+    // the prefixes ("/littlefs", "/sd") are absolute and the volume-name
+    // check below already maps them to themselves, but on native ports they
+    // are relative ("native_localfs", "native_sd"), and re-resolving one
+    // used to prepend the default volume's prefix a second time.
+    for (const Volume* v : { &LocalFS, &SD }) {
+        const std::string& prefix = v->prefix;
+        if (!prefix.empty() && filename.substr(0, prefix.length()) == prefix &&
+            (filename.length() == prefix.length() || filename[prefix.length()] == '/')) {
+            ret = filename;
+            return ret;
+        }
+    }
+
     if (filename[0] == '/') {
         auto        pos = filename.find('/', 1);
         std::string fsname;
