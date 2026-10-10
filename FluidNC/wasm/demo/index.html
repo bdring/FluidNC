@@ -2,36 +2,6 @@
 <html>
 <head>
 <meta charset="utf-8">
-<script>
-// Frame guard for the device browser (vnet-host.js).  The
-// Service Worker only serves the WebUI iframe while it stays under device/;
-// a link or redirect to a bare "/" -- e.g. the built-in file manager's
-// "Go to ESP3D interface" -- leaves that scope and lands here, so this page
-// would load inside its own iframe.  Send the iframe back to the same path
-// under device/ instead, before anything below starts a second FluidNC.
-(function () {
-  try {
-    const parentVnet = window.parent !== window && window.parent.FluidNCVnet;
-    const href = parentVnet && parentVnet.deviceHref();
-    if (!href) {
-      return;
-    }
-    const target = new URL(href);
-    const base = new URL('.', window.parent.location.href).pathname;  // the demo's directory
-    let rest = location.pathname.startsWith(base) ? location.pathname.slice(base.length) : '';
-    if (rest === 'index.html') {
-      rest = '';  // the demo's own page stands for the server root
-    }
-    target.pathname += rest;
-    new URLSearchParams(location.search).forEach((v, k) => target.searchParams.append(k, v));
-    target.hash = location.hash;
-    window.stop();
-    location.replace(target.href);
-  } catch (e) {
-    // Not framed by the demo (or a cross-origin parent): load normally.
-  }
-})();
-</script>
 <title>FluidNC Demonstration</title>
 <link rel="stylesheet" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
 <style>
@@ -101,10 +71,9 @@
 </form>
 <p id="persistStatus" role="status"></p>
 <!-- The WebUI runs the way it does on a controller: the address bar
-     (fluidnc.local, or any path on it) loads device/... into the iframe,
-     and FluidNC's own web server (built into
-     the wasm module; reached through vnet-sw.js, vnet-ws-shim.js and
-     vnet-host.js) serves it -- index.html or index.html.gz from LocalFS, or
+     (fluidnc.local, or any path on it) loads that path into the iframe,
+     where FluidNC's own web server (built into the wasm module; reached
+     through vnet-sw.js, vnet-ws-shim.js and vnet-host.js) serves it -- index.html or index.html.gz from LocalFS, or
      its built-in file manager when there is none.  The WebUI then talks to
      FluidNC over ordinary HTTP and WebSocket, with no demo-specific code.
 

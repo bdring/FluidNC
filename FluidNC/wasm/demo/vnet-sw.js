@@ -1,17 +1,22 @@
-// Service Worker for the wasm demo's "device" iframe: makes the FluidNC web
-// server running inside the wasm build look like a real HTTP server.
+// Service Worker for the wasm demo: makes the FluidNC web server running
+// inside the wasm build look like a real HTTP server to the WebUI in the
+// demo's device iframe.
 //
-// It is registered by vnet-host.js with scope "device/".  The WebUI loaded in
-// the iframe at device/ is therefore controlled by this worker, and so is
-// every same-origin request that WebUI makes -- including absolute ones like
-// /command, /files, /upload and /sd/..., which lie outside the scope: scope
-// decides which *pages* are controlled, not which URLs are intercepted.
+// It is registered by vnet-host.js for the whole site (scope "/"), and it
+// routes each request by who made it, not by URL:
 //
-// For each such request this worker posts {method, path, headers, body} to
-// the host page (the demo page that owns the wasm instance), together with a
-// MessagePort on which the host streams back {head}, {data}..., {end}.  The
-// host does all the HTTP work over the fluidnc_vconn_* exports; see
-// vnet-host.js.  This worker only adapts to and from the Fetch API, plus:
+// - The device frame -- the iframe the demo shows FluidNC in, and any frame
+//   a WebUI opens inside it -- talks to FluidNC.  Its requests reach FluidNC
+//   with exactly the paths they have, so the WebUI sees the same URLs as on
+//   a controller (/, /ui/<name>/, /command, /files, /sd/..., ...).
+// - Everything else -- the demo page itself, its workers, any top-level tab
+//   -- is an ordinary page on the demo's web server and goes to the network.
+//
+// For each device request this worker posts {method, path, headers, body}
+// to the host page (the demo page that owns the wasm instance), together
+// with a MessagePort on which the host streams back {head}, {data}...,
+// {end}.  The host does all the HTTP work over the fluidnc_vconn_* exports;
+// see vnet-host.js.  This worker only adapts to and from the Fetch API, plus:
 //
 // - gzip: FluidNC serves index.html.gz with Content-Encoding: gzip, and a
 //   browser does not decode a Response the worker constructs itself, so it is
@@ -23,14 +28,12 @@
 //
 // Requests to other origins (CDNs etc.) are not touched.
 
-const SCOPE_PATH = new URL(self.registration.scope).pathname;  // e.g. "/device/"
-
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 // Each demo page (the "host") owns one FluidNC instance and announces
-// itself with a random token; its iframe is loaded as
-// device/?vnethost=<token>.  Every request must reach the host that owns
+// itself with a random token; its iframe is first loaded as
+// /?vnethost=<token>.  Every request must reach the host that owns
 // the requesting frame -- with several demo tabs open, a request sent to
 // the wrong one would run commands and write files on another tab's
 // FluidNC.
@@ -69,7 +72,7 @@ function ask(client, msg, timeoutMs = 1000) {
 
 async function hostPages() {
   const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  return all.filter((c) => !new URL(c.url).pathname.startsWith(SCOPE_PATH));
+  return all.filter((c) => c.frameType === 'top-level');
 }
 
 async function findHost(event, urlToken) {
@@ -114,7 +117,7 @@ async function findHost(event, urlToken) {
 // Fetched per document load rather than cached here, so an edited shim
 // takes effect without waiting for this worker to be replaced.
 async function getShim() {
-  const res = await fetch(new URL('vnet-ws-shim.js', self.registration.scope.replace(/device\/$/, '')), { cache: 'no-cache' });
+  const res = await fetch(new URL('vnet-ws-shim.js', self.registration.scope), { cache: 'no-cache' });
   return res.ok ? res.text() : '';
 }
 
@@ -156,27 +159,42 @@ function injectScript(source) {
   });
 }
 
+// Does this request come from the device frame (-> FluidNC) or from the
+// demo itself (-> the network)?
+async function fromDeviceFrame(event) {
+  const req = event.request;
+  if (req.mode === 'navigate') {
+    // Loading a frame is the device; loading a tab is a real page.
+    return req.destination === 'iframe' || req.destination === 'frame';
+  }
+  if (!event.clientId) {
+    return false;
+  }
+  // Subresources: a nested window is a device frame.  Top-level windows
+  // (the demo page) and workers (the wasm module's threads, which can't be
+  // attributed to a frame) use the network.
+  const client = await self.clients.get(event.clientId);
+  return !!client && client.type === 'window' && client.frameType === 'nested';
+}
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) {
     return;  // let the browser handle other origins
   }
-  event.respondWith(forward(event, url));
+  event.respondWith(
+    fromDeviceFrame(event).then((device) => (device ? forward(event, url) : fetch(event.request))),
+  );
 });
 
 async function forward(event, url) {
   const req = event.request;
 
-  // device/... maps to the server root; absolute paths pass through as-is.
-  // The token is removed from the raw query, which is otherwise forwarded
-  // exactly as the page wrote it.
+  // The path goes to FluidNC as the page wrote it, except for the host
+  // token, which is removed from the raw query.
   const token = url.searchParams.get('vnethost');
   const search = url.search.replace(/([?&])vnethost=[^&]*(&|$)/, (m, lead, tail) => (tail ? lead : '')).replace(/^\?$/, '');
-  let path = url.pathname;
-  if (path.startsWith(SCOPE_PATH)) {
-    path = '/' + path.slice(SCOPE_PATH.length);
-  }
-  path += search;
+  const path = url.pathname + search;
 
   const host = await findHost(event, token);
   if (!host) {
@@ -231,11 +249,6 @@ async function forward(event, url) {
               .pipeThrough(injectScript(shim))
               .pipeThrough(new TextEncoderStream());
             h.delete('content-length');
-          }
-          // A redirect to "/" inside the iframe must stay inside the scope.
-          const loc = h.get('location');
-          if (req.mode === 'navigate' && loc && loc.startsWith('/') && !loc.startsWith(SCOPE_PATH)) {
-            h.set('location', SCOPE_PATH + loc.slice(1));
           }
           h.set('Cross-Origin-Embedder-Policy', 'require-corp');
           h.set('Cross-Origin-Resource-Policy', 'same-origin');
