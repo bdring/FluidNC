@@ -112,6 +112,46 @@ check(r.outcome === 'error' && /without a response/.test(r.message), 'close befo
   check(events.length === 1 && events[0].startsWith('close'), 'WebSocket closed during connect: caller sees exactly one close');
 }
 
+{
+  // Cookie paths, as #1885's per-WebUI sessions use them: sessionId for "/",
+  // uiSession for "/ui/<name>/" only.
+  const M = fakeModule();
+  const c = createClient(M);
+  async function exchange(target, setCookies = []) {
+    const before = M.opened.length;
+    const done = new Promise((resolve) => c.http({ method: 'GET', path: target }, { head() {}, data() {}, end: resolve, error: resolve }));
+    await tick();
+    const id = M.opened[before];
+    const sent = M.sent.get(id) || '';
+    const hdrs = setCookies.map((v) => 'Set-Cookie: ' + v + '\r\n').join('');
+    M.reply(id, 'HTTP/1.1 200 OK\r\n' + hdrs + 'Content-Length: 0\r\n\r\n');
+    await done;
+    const m = /\r\nCookie: ([^\r]*)\r\n/.exec(sent);
+    return m ? m[1] : '';
+  }
+  await exchange('/', ['sessionId=S; Path=/']);
+  await exchange('/ui/alpha/', ['uiSession=A; Path=/ui/alpha/']);
+  check((await exchange('/ui/alpha/command?plain=x')) === 'uiSession=A; sessionId=S', 'cookies: /ui/alpha/... gets its uiSession (most specific first) and sessionId');
+  check((await exchange('/ui/beta/')) === 'sessionId=S', "cookies: another WebUI doesn't get alpha's uiSession");
+  check((await exchange('/command')) === 'sessionId=S', 'cookies: top-level requests get only sessionId');
+  check((await exchange('/ui/alphabet/')) === 'sessionId=S', 'cookies: /ui/alpha/ does not match /ui/alphabet/');
+  await exchange('/ui/beta/', ['uiSession=B; Path=/ui/beta/']);
+  check((await exchange('/ui/beta/x')) === 'uiSession=B; sessionId=S', 'cookies: each WebUI keeps its own uiSession');
+  check((await exchange('/ui/alpha/')) === 'uiSession=A; sessionId=S', "cookies: setting beta's leaves alpha's alone");
+  await exchange('/ui/gamma/index.html', ['g=1']);
+  check((await exchange('/ui/gamma/x')).includes('g=1') && !(await exchange('/ui/x')).includes('g=1'), 'cookies: no Path attribute defaults to the request directory');
+  await exchange('/ui/alpha/', ['uiSession=; Path=/ui/alpha/; Max-Age=0']);
+  check((await exchange('/ui/alpha/')) === 'sessionId=S', 'cookies: Max-Age=0 removes a cookie');
+
+  // A WebSocket upgrade carries the cookies for its own path.
+  await exchange('/ui/alpha/', ['uiSession=A2; Path=/ui/alpha/']);
+  const before = M.opened.length;
+  c.websocket('/ui/alpha/', [], { open() {}, text() {}, binary() {}, error() {}, close() {} });
+  await tick();
+  const upgrade = M.sent.get(M.opened[before]) || '';
+  check(/\r\nCookie: uiSession=A2; sessionId=S\r\n/.test(upgrade), 'cookies: a WebSocket upgrade to /ui/alpha/ carries its uiSession');
+}
+
 // ---- vnet-sw.js findHost() after a worker restart ----
 
 function fakeClient(id, url, onMessage) {

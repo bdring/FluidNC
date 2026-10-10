@@ -209,12 +209,16 @@ private:
                     js_vconn_close(ev.id);
                     return;
                 }
+                // Addresses are kept in network byte order, as lwIP keeps
+                // them and IPAddress(uint32_t) expects (IPADDR_LOOPBACK is
+                // host order, which prints as 1.0.0.127).
+                static const uint32_t loopback = uint32_t(IPAddress(127, 0, 0, 1));
                 auto c             = new AsyncClient();
                 c->_id             = ev.id;
                 c->_tcp_state      = ESTABLISHED;
-                c->_remote_addr    = IPADDR_LOOPBACK;
+                c->_remote_addr    = loopback;
                 c->_remote_port    = uint16_t(ev.id);  // distinct per connection, like an ephemeral port
-                c->_local_addr     = IPADDR_LOOPBACK;
+                c->_local_addr     = loopback;
                 c->_local_port     = ev.port;
                 c->_rx_last_packet = millis();
                 {

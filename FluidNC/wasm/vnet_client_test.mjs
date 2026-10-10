@@ -78,7 +78,7 @@ let r = await get('GET', '/');
 check(r.status === 200, 'GET / status 200');
 check(/gzip/.test(hdr(r, 'content-encoding') || ''), 'GET / is gzip-encoded');
 check(zlib.gunzipSync(r.body).toString() === INDEX, 'GET / body gunzips to index.html');
-check(client.cookies.has('sessionId'), 'sessionId cookie stored in jar');
+check(client.cookieList().some((c) => c.name === 'sessionId' && c.path === '/'), 'sessionId cookie stored in jar for path /');
 check(!hdr(r, 'set-cookie'), 'Set-Cookie stripped from forwarded headers');
 
 // 2. Chunked response: [ESP800]

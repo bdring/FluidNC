@@ -101,7 +101,12 @@
     const vOpen = Module.cwrap('fluidnc_vconn_open', 'number', ['number']);
     const vClose = Module.cwrap('fluidnc_vconn_close', null, ['number']);
     const conns = new Map();  // id -> { data(Uint8Array), closed() }
-    const cookies = new Map();
+    // Cookie jar, scoped by path as a browser does it (RFC 6265 path
+    // rules; domain, Secure and the like don't apply to a single device).
+    // Path matters: FluidNC sets sessionId for "/" and, for a WebUI under
+    // HTTP/UIDir, a uiSession cookie for "/ui/<name>/" that must reach only
+    // that WebUI.
+    const cookies = new Map();  // "<path>\t<name>" -> { name, value, path }
 
     global.fluidncOnVconnData = (id, bytes) => {
       const c = conns.get(id);
@@ -143,17 +148,62 @@
       }
     }
 
-    function cookieHeader() {
-      return [...cookies].map(([k, v]) => k + '=' + v).join('; ');
+    function requestPath(target) {
+      const q = target.search(/[?#]/);
+      return q < 0 ? target : target.slice(0, q);
     }
-    function storeCookies(headers) {
+    // RFC 6265 5.1.4: the cookie path is the request path itself or a
+    // directory above it.
+    function pathMatches(path, cookiePath) {
+      return path === cookiePath ||
+        (path.startsWith(cookiePath) && (cookiePath.endsWith('/') || path[cookiePath.length] === '/'));
+    }
+    // RFC 6265 5.1.4: without a Path attribute, a cookie belongs to the
+    // directory of the request that set it.
+    function defaultPath(path) {
+      const slash = path.lastIndexOf('/');
+      return slash <= 0 ? '/' : path.slice(0, slash);
+    }
+    function cookieHeader(target) {
+      const path = requestPath(target);
+      return [...cookies.values()]
+        .filter((c) => pathMatches(path, c.path))
+        .sort((a, b) => b.path.length - a.path.length)  // most specific first
+        .map((c) => c.name + '=' + c.value)
+        .join('; ');
+    }
+    function storeCookies(headers, target) {
       for (const [k, v] of headers) {
-        if (k.toLowerCase() === 'set-cookie') {
-          const pair = v.split(';')[0];
-          const eq = pair.indexOf('=');
-          if (eq > 0) {
-            cookies.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+        if (k.toLowerCase() !== 'set-cookie') {
+          continue;
+        }
+        const [pair, ...attrs] = v.split(';');
+        const eq = pair.indexOf('=');
+        if (eq <= 0) {
+          continue;
+        }
+        const name = pair.slice(0, eq).trim();
+        const value = pair.slice(eq + 1).trim();
+        let path = null;
+        let expired = false;
+        for (const attr of attrs) {
+          const aeq = attr.indexOf('=');
+          const key = (aeq < 0 ? attr : attr.slice(0, aeq)).trim().toLowerCase();
+          const val = aeq < 0 ? '' : attr.slice(aeq + 1).trim();
+          if (key === 'path' && val.startsWith('/')) {
+            path = val;
+          } else if (key === 'max-age' && Number(val) <= 0) {
+            expired = true;
+          } else if (key === 'expires' && Date.parse(val) <= Date.now()) {
+            expired = true;
           }
+        }
+        path = path || defaultPath(requestPath(target));
+        const key = path + '\t' + name;
+        if (expired) {
+          cookies.delete(key);
+        } else {
+          cookies.set(key, { name, value, path });
         }
       }
     }
@@ -165,7 +215,7 @@
           s += k + ': ' + v + '\r\n';
         }
       }
-      const ck = cookieHeader();
+      const ck = cookieHeader(path);
       if (ck) {
         s += 'Cookie: ' + ck + '\r\n';
       }
@@ -222,7 +272,7 @@
             sink.error('Malformed response from FluidNC');
             return;
           }
-          storeCookies(head.headers);
+          storeCookies(head.headers, path);
           const te = getHeader(head.headers, 'transfer-encoding');
           const cl = getHeader(head.headers, 'content-length');
           if (te && /chunked/i.test(te)) {
@@ -511,7 +561,7 @@
             shutdown(false);
             return;
           }
-          storeCookies(head.headers);
+          storeCookies(head.headers, path);
           state = 'open';
           sink.open(getHeader(head.headers, 'sec-websocket-protocol') || '');
           for (const f of pendingOut.splice(0)) {
@@ -578,7 +628,12 @@
       };
     }
 
-    return { http, websocket, cookies };
+    // The jar's contents, for tests and debugging.
+    function cookieList() {
+      return [...cookies.values()].map((c) => ({ ...c }));
+    }
+
+    return { http, websocket, cookieList };
   }
 
   // ---- Browser wiring ----
