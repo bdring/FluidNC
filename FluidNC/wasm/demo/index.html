@@ -68,12 +68,18 @@
   <span id="uploadStatus" role="status"></span>
 </p>
 <p>
-  <label for="installSelect">Install WebUI:</label>
+  <label for="installTarget">Install WebUI to</label>
+  <select id="installTarget" disabled>
+    <option value="localfs">LocalFS index.html.gz</option>
+    <option value="uidir">/ui/&lt;name&gt; (HTTP/UIDir)</option>
+  </select>
+  <input id="uiName" type="text" size="9" placeholder="name" spellcheck="false" aria-label="WebUI name" style="display:none">
+  <label for="installSelect">from</label>
   <select id="installSelect" disabled>
     <option value="">-- choose --</option>
-    <option data-owner="figamore" data-repo="FigUI" data-tag="">FigUI (figamore)</option>
-    <option data-owner="MitchBradley" data-repo="ESP3D-WEBUI" data-tag="">WebUI 2 (MitchBradley)</option>
-    <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="">WebUI 3 (michmela44)</option>
+    <option data-owner="figamore" data-repo="FigUI" data-tag="" data-ui-name="figui">FigUI (figamore)</option>
+    <option data-owner="MitchBradley" data-repo="ESP3D-WEBUI" data-tag="" data-ui-name="webui2">WebUI 2 (MitchBradley)</option>
+    <option data-owner="michmela44" data-repo="ESP3D-WEBUI" data-tag="" data-ui-name="webui3">WebUI 3 (michmela44)</option>
     <option data-local-file="true">From a local build file (.html/.html.gz)...</option>
   </select>
   <input type="file" id="webuiFileInput" accept=".html,.gz" style="display:none">
@@ -184,6 +190,11 @@ const webuiFrame = document.getElementById('webuiFrame');
 const webuiStatus = document.getElementById('webuiStatus');
 const browseButton = document.getElementById('browseButton');
 const installSelect = document.getElementById('installSelect');
+const installTarget = document.getElementById('installTarget');
+const uiNameInput = document.getElementById('uiName');
+installTarget.addEventListener('change', () => {
+  uiNameInput.style.display = installTarget.value === 'uidir' ? '' : 'none';
+});
 const webuiFileInput = document.getElementById('webuiFileInput');
 const terminalEl = document.getElementById('terminal');
 
@@ -362,11 +373,64 @@ async function installWebui(gzBytes, label) {
 
 // Like uploading to a controller, installing does not switch to the new
 // WebUI by itself: the user browses to FluidNC (or reloads it) to run it.
-async function installFrom(getGzBytes, label) {
-  webuiStatus.textContent = 'Installing ' + label + '...';
+// Installs a WebUI into its own subdirectory of $HTTP/UIDir, served at
+// /ui/<name>/ -- again only through FluidNC's HTTP interface, as a browser
+// on the LAN would: PUT /ui/<name>/index.html.gz, which creates the
+// directory, after a WebDAV DELETE of any old index.html there.
+async function davPathForUiDir() {
+  const res = await FluidNCVnet.fetchDevice('GET', '/command?plain=' + encodeURIComponent('$HTTP/UIDir'));
+  const line = new TextDecoder().decode(res.body).trim();
+  const value = line.slice(line.indexOf('=') + 1).trim();
+  if (!value) {
+    throw new Error('$HTTP/UIDir is not set');
+  }
+  // WebDAV serves SD at /sd and LocalFS at /flash.
+  const m = /^\/(sd|localfs|littlefs|spiffs)(\/.*)?$/i.exec(value);
+  if (m) {
+    return (m[1].toLowerCase() === 'sd' ? '/sd' : '/flash') + (m[2] || '').replace(/\/+$/, '');
+  }
+  return '/flash/' + value.replace(/^\/+|\/+$/g, '');
+}
+
+async function installWebuiToUiDir(gzBytes, label, name) {
+  if (!/^[A-Za-z0-9._-]+$/.test(name) || name === '.' || name === '..') {
+    throw new Error('a WebUI name may contain only letters, digits, ".", "_" and "-"');
+  }
+  const exists = (await FluidNCVnet.fetchDevice('GET', '/ui/' + name + '/')).status === 200;
+  if (exists && !confirm('Replace the WebUI at /ui/' + name + '/ with ' + label + '?')) {
+    return false;
+  }
+  const dir = (await davPathForUiDir()) + '/' + name;
+  // A plain index.html would be served in preference to the .gz.
+  const del = await FluidNCVnet.fetchDevice('DELETE', dir + '/index.html');
+  if (del.status >= 300 && del.status !== 404) {
+    throw new Error('cannot remove the old index.html (HTTP ' + del.status + ')');
+  }
+  const put = await FluidNCVnet.fetchDevice('PUT', '/ui/' + name + '/index.html.gz', {
+    headers: [['Content-Type', 'application/octet-stream']],
+    body: new Uint8Array(gzBytes).buffer,  // an exact-size copy, whatever gzBytes views
+  });
+  if (put.status !== 201 && put.status !== 204) {
+    throw new Error('upload failed (HTTP ' + put.status + ')');
+  }
+  if ((await FluidNCVnet.fetchDevice('GET', '/ui/' + name + '/')).status !== 200) {
+    throw new Error('/ui/' + name + '/ is not being served after the upload');
+  }
+  savePersistentFs();
+  return true;
+}
+
+async function installFrom(getGzBytes, label, suggestedName) {
+  const name = (uiNameInput.value.trim() || suggestedName || '').toLowerCase();
+  // /ui/localfs/ is FluidNC's name for the WebUI in the LocalFS root
+  const toUiDir = installTarget.value === 'uidir' && name !== 'localfs';
+  webuiStatus.textContent = 'Installing ' + label + (toUiDir ? ' as /ui/' + name + '/' : '') + '...';
   try {
-    if (await installWebui(await getGzBytes(), label)) {
-      webuiStatus.textContent = 'Installed ' + label + '. Go to ' + displayHost + ' to run it.';
+    const gzBytes = await getGzBytes();
+    const done = toUiDir ? await installWebuiToUiDir(gzBytes, label, name) : await installWebui(gzBytes, label);
+    if (done) {
+      const where = displayHost + (toUiDir ? '/ui/' + name + '/' : '');
+      webuiStatus.textContent = 'Installed ' + label + '. Go to ' + where + ' to run it.';
     } else {
       webuiStatus.textContent = '';
     }
@@ -390,7 +454,7 @@ webuiFileInput.addEventListener('change', () => {
   installFrom(async () => {
     const bytes = new Uint8Array(await file.arrayBuffer());
     return /\.gz$/i.test(file.name) ? bytes : gzip(bytes);
-  }, file.name);
+  }, file.name, file.name.replace(/\.html?(\.gz)?$/i, '').replace(/\.gz$/i, '').replace(/[^A-Za-z0-9._-]+/g, '-'));
 });
 
 installSelect.addEventListener('change', () => {
@@ -419,7 +483,7 @@ installSelect.addEventListener('change', () => {
       throw new Error('the release download is not gzip data');
     }
     return bytes;
-  }, opt.textContent);
+  }, opt.textContent, opt.dataset.uiName);
 });
 
 function log(line) {
@@ -723,7 +787,7 @@ document.addEventListener('visibilitychange', () => {
 
 FluidNCModule().then(async (Module) => {
   if (FluidNCVnet.attach(Module)) {
-    for (const el of [urlBar, browseButton, navReload, installSelect]) {
+    for (const el of [urlBar, browseButton, navReload, installSelect, installTarget, uiNameInput]) {
       el.disabled = false;
     }
     // A link like demo/?browse=fluidnc.local/files%3Fpath=/ opens the

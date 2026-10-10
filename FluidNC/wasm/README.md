@@ -173,9 +173,12 @@ would report it.  `demo/?browse=<address>` opens the demo at an address.
 
 "Install WebUI" fetches a build -- a project's latest GitHub release
 through `webui-proxy` (see section 5; `serve.py` provides it locally), or
-a local file -- and uploads it to LocalFS as `index.html.gz` through
-FluidNC's own `/files` route, replacing any `index.html`/`index.html.gz`
-already there.  The pieces:
+a local file -- and uploads it through FluidNC's own HTTP interface,
+either to LocalFS as `index.html.gz` (the `/files` route), replacing any
+`index.html`/`index.html.gz` already there, or as a WebUI of its own in
+`$HTTP/UIDir`, served at `/ui/<name>/` (a PUT to
+`/ui/<name>/index.html.gz`).  Several WebUIs can be installed that way and
+chosen with the address bar.  The pieces:
 
 - `demo/vnet-sw.js`: a Service Worker for the whole site that routes each
   request by who made it.  Requests from the device iframe go to FluidNC
