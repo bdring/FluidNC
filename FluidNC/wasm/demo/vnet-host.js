@@ -97,7 +97,100 @@
   // Headers from FluidNC's response that describe the wire, not the content.
   const SKIP_RESPONSE_HEADERS = new Set(['transfer-encoding', 'connection', 'keep-alive', 'set-cookie']);
 
-  function createClient(Module) {
+  function fmtBytes(n) {
+    return n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB';
+  }
+
+  // Traffic log wrappers (see createClient's options): one line per HTTP
+  // exchange, and per WebSocket open and close -- plus, optionally, one per
+  // WebSocket message.  Counted before passing on, since the sink may
+  // transfer (detach) the buffer.
+  function logHttp(log, { method, path, body, label }, sink) {
+    const t0 = Date.now();
+    const up = body ? body.byteLength : 0;
+    let status = 0;
+    let statusText = '';
+    let down = 0;
+    const line = (outcome) =>
+      (label ? label + ' ' : '') + method + ' ' + path + ' \u2192 ' + outcome + ' (' +
+      (up ? fmtBytes(up) + ' up, ' : '') + fmtBytes(down) + ' down, ' + (Date.now() - t0) + ' ms)';
+    return {
+      head(s, st, h) {
+        status = s;
+        statusText = st;
+        sink.head(s, st, h);
+      },
+      data(b) {
+        down += b.length;
+        sink.data(b);
+      },
+      end() {
+        log(line(status + (statusText ? ' ' + statusText : '')));
+        sink.end();
+      },
+      error(m) {
+        log(line((status ? status + ', then ' : '') + 'error: ' + m), 'error');
+        sink.error(m);
+      },
+    };
+  }
+
+  function logWebSocket(log, logFrames, path, sink) {
+    const t0 = Date.now();
+    let inMsgs = 0;
+    let inBytes = 0;
+    let outMsgs = 0;
+    let outBytes = 0;
+    const preview = (t) => JSON.stringify(t.length > 160 ? t.slice(0, 160) + '\u2026' : t);
+    return {
+      sink: {
+        open(protocol) {
+          log('WS ' + path + ' open' + (protocol ? ' (' + protocol + ')' : ''));
+          sink.open(protocol);
+        },
+        text(t) {
+          inMsgs++;
+          inBytes += t.length;
+          if (logFrames()) {
+            log('WS ' + path + ' \u2190 text ' + preview(t));
+          }
+          sink.text(t);
+        },
+        binary(ab) {
+          inMsgs++;
+          inBytes += ab.byteLength;
+          if (logFrames()) {
+            log('WS ' + path + ' \u2190 ' + preview(latin1(new Uint8Array(ab))));
+          }
+          sink.binary(ab);
+        },
+        error() {
+          log('WS ' + path + ' error', 'error');
+          sink.error();
+        },
+        close(code, reason, clean) {
+          log('WS ' + path + ' closed ' + code + (reason ? ' ' + reason : '') + (clean ? '' : ' (not clean)') + ' after ' +
+            ((Date.now() - t0) / 1000).toFixed(1) + ' s: ' + inMsgs + ' in (' + fmtBytes(inBytes) + '), ' +
+            outMsgs + ' out (' + fmtBytes(outBytes) + ')');
+          sink.close(code, reason, clean);
+        },
+      },
+      sent(kind, bytes) {
+        outMsgs++;
+        outBytes += bytes.length;
+        if (logFrames()) {
+          log('WS ' + path + ' \u2192 ' + (kind === 'text' ? 'text ' : '') + preview(latin1(bytes)));
+        }
+      },
+    };
+  }
+
+  // options.log(message, level): if given, a traffic log (see logHttp and
+  // logWebSocket); options.logFrames(): whether to log each WebSocket
+  // message too.
+  function createClient(Module, options = {}) {
+    const log = options.log || null;
+    const logFrames = options.logFrames || (() => false);
     const vOpen = Module.cwrap('fluidnc_vconn_open', 'number', ['number']);
     const vClose = Module.cwrap('fluidnc_vconn_close', null, ['number']);
     const conns = new Map();  // id -> { data(Uint8Array), closed() }
@@ -229,7 +322,9 @@
     //
     // sink: { head(status, statusText, headers), data(Uint8Array), end(), error(message) }
     // Returns a cancel function.
-    function http({ method, path, headers = [], body = null }, sink) {
+    function http(request, outerSink) {
+      const { method, path, headers = [], body = null } = request;
+      const sink = log ? logHttp(log, request, outerSink) : outerSink;
       let id = 0;
       let cancelled = false;
       let buf = new Uint8Array(0);
@@ -407,7 +502,9 @@
     //
     // sink: { open(protocol), text(string), binary(ArrayBuffer), close(code, reason, clean), error() }
     // Returns { sendText(s), sendBinary(ArrayBuffer), close(code, reason) }.
-    function websocket(path, protocols, sink) {
+    function websocket(path, protocols, outerSink) {
+      const traffic = log ? logWebSocket(log, logFrames, path, outerSink) : null;
+      const sink = traffic ? traffic.sink : outerSink;
       let id = 0;
       let state = 'connecting';  // connecting -> open -> closing -> closed
       let buf = new Uint8Array(0);
@@ -603,10 +700,18 @@
 
       return {
         sendText(s) {
-          write(0x1, utf8.encode(s));
+          const bytes = utf8.encode(s);
+          if (traffic) {
+            traffic.sent('text', bytes);
+          }
+          write(0x1, bytes);
         },
         sendBinary(ab) {
-          write(0x2, new Uint8Array(ab));
+          const bytes = new Uint8Array(ab);
+          if (traffic) {
+            traffic.sent('binary', bytes);
+          }
+          write(0x2, bytes);
         },
         close(code = 1000, reason = '') {
           if (state === 'closed' || sentClose) {
@@ -655,7 +760,6 @@
   let deviceUrlPromise = null;
   let attachedClient = null;
   let attachedToken = null;
-  let deviceHrefResolved = null;  // absolute device URL, once the worker is active
 
   // Wires the client to the Service Worker and to shim WebSockets in the
   // device iframe.  Returns false if this wasm build has no web server.
@@ -663,7 +767,16 @@
     if (typeof Module._fluidnc_vconn_open !== 'function') {
       return false;
     }
-    const client = createClient(Module);
+    // Traffic log to the DevTools console; FluidNCVnet.log = false silences
+    // it, FluidNCVnet.logFrames = true adds each WebSocket message.
+    const client = createClient(Module, {
+      log: (message, level) => {
+        if (api.log) {
+          (level === 'error' ? console.warn : console.log)('%c[vnet]%c ' + message, 'color:#0a7;font-weight:bold', '');
+        }
+      },
+      logFrames: () => api.logFrames,
+    });
     attachedClient = client;
     const token = base64(randomBytes(12)).replace(/[^A-Za-z0-9]/g, '');
     attachedToken = token;
@@ -729,13 +842,21 @@
       };
     });
 
+    // The worker routes by requesting frame, so it covers the whole site:
+    // the device frame then sees the same paths as on a controller.  That
+    // needs the demo at the root of its origin.  Earlier versions
+    // registered a worker for "device/" only; drop that one.
     deviceUrlPromise = navigator.serviceWorker
-      .register('vnet-sw.js', { scope: 'device/' })
+      .getRegistrations()
+      .then((regs) => Promise.all(regs.filter((r) => /\/device\/$/.test(new URL(r.scope).pathname)).map((r) => r.unregister())))
+      .then(() => navigator.serviceWorker.register('vnet-sw.js', { scope: '/' }))
+      .catch((err) => {
+        throw new Error('cannot start the virtual network (the demo must be served from the root of its site): ' + err.message);
+      })
       .then(waitActive)
       .then((sw) => {
         sw.postMessage({ type: 'vnet-host', token });
-        deviceHrefResolved = new URL('device/?vnethost=' + token, location.href).href;
-        return 'device/?vnethost=' + token;
+        return deviceHrefFor('/');
       });
     return true;
   }
@@ -743,13 +864,6 @@
   // URL to load in the iframe once the Service Worker is active.
   function deviceUrl() {
     return deviceUrlPromise || Promise.reject(new Error('virtual network not attached'));
-  }
-
-  // The same, synchronously: null until the worker is active.  Used by the
-  // demo page's frame guard (see the top of index.html), which must decide
-  // before any other script runs.
-  function deviceHref() {
-    return deviceHrefResolved;
   }
 
   // An HTTP request from this page straight to FluidNC's web server, the
@@ -761,7 +875,7 @@
     }
     return new Promise((resolve, reject) => {
       const res = { status: 0, statusText: '', headers: [], parts: [] };
-      attachedClient.http({ method, path, headers, body }, {
+      attachedClient.http({ method, path, headers, body, label: '(demo)' }, {
         head: (status, statusText, h) => Object.assign(res, { status, statusText, headers: h }),
         data: (bytes) => res.parts.push(bytes),
         end: () => {
@@ -806,32 +920,26 @@
     return deviceNames().includes(String(host).toLowerCase());
   }
 
-  // Path of the Service Worker's scope, e.g. "/device/".
-  function scopePath() {
-    return new URL('device/', location.href).pathname;
-  }
-
-  // Iframe URL for a device path like "/files?path=/#x".
+  // Iframe URL for a device path like "/files?path=/#x": the same path on
+  // this origin (the device frame sees the device's own URLs), plus the
+  // host token.  The query is kept as typed, not re-encoded.
   function deviceHrefFor(pathQueryHash) {
-    // The query is kept as typed (not re-encoded), plus the host token.
     const want = new URL(pathQueryHash, 'http://device');
-    const u = new URL(deviceHrefResolved || new URL('device/', location.href).href);
-    const token = u.searchParams.get('vnethost');
-    u.pathname = scopePath() + want.pathname.replace(/^\//, '');
-    u.search = token ? want.search + (want.search ? '&' : '?') + 'vnethost=' + token : want.search;
+    const u = new URL(want.pathname, location.origin);
+    u.search = attachedToken ? want.search + (want.search ? '&' : '?') + 'vnethost=' + attachedToken : want.search;
     u.hash = want.hash;
     return u.href;
   }
 
-  // The device path ("/x?y#z") an iframe location stands for, or null if
-  // the location is not under the device scope.
+  // The device path ("/x?y#z") a device-frame location stands for, or null
+  // for a location that isn't one (about:blank, an error page).
   function devicePathOf(loc) {
     const u = new URL(loc);
-    if (u.origin !== location.origin || !u.pathname.startsWith(scopePath())) {
+    if (u.origin !== location.origin) {
       return null;
     }
     const search = u.search.replace(/([?&])vnethost=[^&]*(&|$)/, (m, lead, tail) => (tail ? lead : '')).replace(/^\?$/, '');
-    return '/' + u.pathname.slice(scopePath().length) + search + u.hash;
+    return u.pathname + search + u.hash;
   }
 
   // This page's token, which ties its device frame to it (see vnet-sw.js).
@@ -840,8 +948,10 @@
   }
 
   const api = {
-    attach, deviceUrl, deviceHref, fetchDevice, createClient, token,
-    refreshIdentity, deviceNames, isDeviceHost, scopePath, deviceHrefFor, devicePathOf,
+    attach, deviceUrl, fetchDevice, createClient, token,
+    refreshIdentity, deviceNames, isDeviceHost, deviceHrefFor, devicePathOf,
+    log: true,         // traffic log in the DevTools console
+    logFrames: false,  // ... including each WebSocket message
   };
   global.FluidNCVnet = api;
   if (typeof module !== 'undefined' && module.exports) {

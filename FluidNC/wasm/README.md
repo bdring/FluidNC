@@ -169,29 +169,40 @@ FluidNC's built-in file manager.  Paths work as on a real board
 (`fluidnc.local/?forcefallback=yes`, `fluidnc.local/files?path=/`, ...);
 the device answers at `<$Hostname>.local` and `192.168.0.1` (VirtualNet's
 address), and other names, `https:` and other ports fail as a browser
-would report it.  `demo/?browse=<address>` opens the demo at an address.  "Install WebUI" fetches a build -- a project's latest GitHub
-release through `webui-proxy.js` (Netlify only), or a local file -- and
-uploads it to LocalFS as `index.html.gz` through FluidNC's own `/files`
-route, replacing any `index.html`/`index.html.gz` already there.  The
-pieces:
+would report it.  `demo/?browse=<address>` opens the demo at an address.
 
-- `demo/vnet-sw.js`: a Service Worker (scope `device/`) that turns every
-  same-origin request from the iframe -- `/`, `/command`, `/files`,
-  `/upload`, `/sd/...` -- into a message to the demo page, and streams the
-  response back.  It decodes gzip (a browser does not decode a Response a
-  worker builds), adds the COEP header the isolated page requires of a
-  nested document, and inlines `vnet-ws-shim.js` into HTML documents.
+"Install WebUI" fetches a build -- a project's latest GitHub release
+through `webui-proxy` (see section 5; `serve.py` provides it locally), or
+a local file -- and uploads it to LocalFS as `index.html.gz` through
+FluidNC's own `/files` route, replacing any `index.html`/`index.html.gz`
+already there.  The pieces:
+
+- `demo/vnet-sw.js`: a Service Worker for the whole site that routes each
+  request by who made it.  Requests from the device iframe go to FluidNC
+  with exactly the paths they have -- the WebUI sees `/`, `/ui/<name>/`,
+  `/command`, `/sd/...` as on a controller -- while the demo page and its
+  workers use the network.  It decodes gzip (a browser does not decode a
+  Response a worker builds), adds the COEP header the isolated page
+  requires of a nested document, and inlines `vnet-ws-shim.js` into HTML
+  documents.  Because it covers the whole site, the demo must be served
+  from the root of its origin.
 - `demo/vnet-ws-shim.js`: replaces `window.WebSocket` inside the iframe,
   because Service Workers cannot see WebSockets; each socket becomes a
   MessagePort to the demo page.
 - `demo/vnet-host.js`: on the demo page, the HTTP/1.1 and WebSocket client
-  that speaks to FluidNC over virtual connections, including the cookie
-  jar (browsers drop `Set-Cookie` from worker-built responses).
+  that speaks to FluidNC over virtual connections, including a
+  path-scoped cookie jar (browsers drop `Set-Cookie` from worker-built
+  responses).
 
-Known limits: a navigation to a bare `/` from inside the iframe (e.g. the
-404 page's auto-redirect) leaves the worker's scope and loads the demo page
-itself; Telnet is not carried; the WebUI must run inside the demo page's
-iframe, not in a tab of its own.
+The virtual network's traffic is logged to the DevTools console, one line
+per HTTP exchange and per WebSocket open/close (`[vnet] PUT /ui/webui2/
+preferences2.json -> 201 Created (2.1 KB up, 512 B down, 14 ms)`).
+`FluidNCVnet.logFrames = true` in the console adds every WebSocket
+message; `FluidNCVnet.log = false` silences it.
+
+Known limits: Telnet is not carried; the WebUI must run inside the demo
+page's iframe, not in a tab of its own; requests from a Web Worker a WebUI
+starts can't be attributed to its frame and go to the network.
 
 Headless tests (Node, no browser):
 

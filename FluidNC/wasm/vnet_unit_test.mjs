@@ -154,10 +154,12 @@ check(r.outcome === 'error' && /without a response/.test(r.message), 'close befo
 
 // ---- vnet-sw.js findHost() after a worker restart ----
 
-function fakeClient(id, url, onMessage) {
+function fakeClient(id, url, onMessage, frameType = 'top-level', type = 'window') {
   return {
     id,
     url,
+    frameType,
+    type,
     postMessage(msg, ports) {
       const reply = onMessage && onMessage(msg);
       if (reply !== undefined && ports && ports[0]) {
@@ -170,7 +172,7 @@ function fakeClient(id, url, onMessage) {
 function loadWorker(clients) {
   const ctx = {
     self: {
-      registration: { scope: 'http://demo/device/' },
+      registration: { scope: 'http://demo/' },
       location: { origin: 'http://demo' },
       addEventListener() {},
       clients: {
@@ -188,8 +190,8 @@ function loadWorker(clients) {
 
 const hostA = fakeClient('A', 'http://demo/index.html', (m) => (m.type === 'vnet-who-has' ? { mine: m.token === 'tokA' } : undefined));
 const hostB = fakeClient('B', 'http://demo/index.html', (m) => (m.type === 'vnet-who-has' ? { mine: m.token === 'tokB' } : undefined));
-const frameB = fakeClient('F', 'http://demo/device/', (m) => (m.type === 'vnet-which-host' ? { token: 'tokB' } : undefined));
-const silentFrame = fakeClient('S', 'http://demo/device/', () => undefined);
+const frameB = fakeClient('F', 'http://demo/ui/webui2/', (m) => (m.type === 'vnet-which-host' ? { token: 'tokB' } : undefined), 'nested');
+const silentFrame = fakeClient('S', 'http://demo/', () => undefined, 'nested');
 
 let w = loadWorker([hostA, hostB, frameB]);
 let h = await w.findHost({ clientId: 'F' }, null);
@@ -206,6 +208,46 @@ check(h && h.id === 'A', 'restart, one demo tab: unattributable request goes to 
 w = loadWorker([hostA, hostB]);
 h = await w.findHost({ clientId: '', resultingClientId: 'N' }, 'tokA');
 check(h && h.id === 'A', 'navigation carrying its token reaches the owning tab');
+
+// Routing: by who asks, not by URL.
+{
+  const worker = fakeClient('W', 'http://demo/program.js', undefined, 'none', 'worker');
+  const w2 = loadWorker([hostA, frameB, worker]);
+  const ev = (mode, destination, clientId) => ({ request: { mode, destination }, clientId });
+  check(await w2.fromDeviceFrame(ev('navigate', 'iframe', '')) === true, 'routing: a frame navigation goes to FluidNC');
+  check(await w2.fromDeviceFrame(ev('navigate', 'document', '')) === false, 'routing: a tab navigation goes to the network');
+  check(await w2.fromDeviceFrame(ev('cors', 'empty', 'F')) === true, "routing: the device frame's requests go to FluidNC");
+  check(await w2.fromDeviceFrame(ev('no-cors', 'script', 'A')) === false, "routing: the demo page's requests go to the network");
+  check(await w2.fromDeviceFrame(ev('same-origin', 'script', 'W')) === false, "routing: a worker's requests go to the network");
+  check(await w2.fromDeviceFrame(ev('cors', 'empty', '')) === false, 'routing: a request with no client goes to the network');
+}
+
+// Traffic log.
+{
+  const M = fakeModule();
+  const lines = [];
+  const c = createClient(M, { log: (m, level) => lines.push((level || 'info') + ' ' + m), logFrames: () => true });
+  const done = new Promise((resolve) => c.http({ method: 'PUT', path: '/ui/webui2/preferences2.json', body: new ArrayBuffer(2048) },
+    { head() {}, data() {}, end: resolve, error: resolve }));
+  await tick();
+  M.reply(M.opened[0], 'HTTP/1.1 201 Created\r\nContent-Length: 0\r\n\r\n');
+  await done;
+  check(/^info PUT \/ui\/webui2\/preferences2\.json \u2192 201 Created \(2\.0 KB up, 0 B down, \d+ ms\)$/.test(lines[0] || ''),
+    'log: one line per HTTP exchange with path, status and sizes');
+
+  const ws = c.websocket('/ui/webui2/', ['arduino'], { open() {}, text() {}, binary() {}, error() {}, close() {} });
+  await tick();
+  const id = M.opened[1];
+  M.reply(id, 'HTTP/1.1 101 Switching Protocols\r\nSec-WebSocket-Protocol: arduino\r\n\r\n');
+  M.reply(id, '\x81\x0bcurrentID:1');
+  ws.sendText('?');
+  M.hangUp(id);
+  await tick();
+  check(lines.some((l) => l === 'info WS /ui/webui2/ open (arduino)'), 'log: WebSocket open');
+  check(lines.some((l) => /WS \/ui\/webui2\/ \u2190 text "currentID:1"/.test(l)), 'log: incoming WebSocket message, with logFrames');
+  check(lines.some((l) => /WS \/ui\/webui2\/ \u2192 text "\?"/.test(l)), 'log: outgoing WebSocket message, with logFrames');
+  check(lines.some((l) => /WS \/ui\/webui2\/ closed 1006 \(not clean\) after [\d.]+ s: 1 in \(11 B\), 1 out \(1 B\)/.test(l)), 'log: WebSocket close with counts');
+}
 
 console.log(failures ? `\n${failures} check(s) FAILED` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

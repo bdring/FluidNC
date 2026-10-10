@@ -14,11 +14,10 @@
 // gets a real WebSocket.
 //
 // It also makes the iframe behave like a browser pointed at the device:
-// same-device links stay in the demo's browser pane (including
-// target=_blank ones, and absolute "/..." links, which would otherwise
-// leave the Service Worker's scope), and URL changes that do not reload the
-// page (history.pushState, #hash) are reported so the demo's URL bar can
-// follow them.
+// links to the device stay in the demo's browser pane (including
+// target=_blank ones and ones naming the device as fluidnc.local or by IP),
+// and URL changes that do not reload the page (history.pushState, #hash)
+// are reported so the demo's URL bar can follow them.
 
 (function () {
   if (window.__fluidncVnetShim) {
@@ -49,18 +48,10 @@
     }
   }
 
-  // Where a same-device URL should load in this frame: under the Service
-  // Worker's scope, with the path the device would see.
-  function inScope(u) {
-    const scope = vnet ? vnet.scopePath() : '/device/';
-    if (u.host === location.host && u.pathname.startsWith(scope)) {
-      return u.href;
-    }
-    const target = new URL(location.href);
-    target.pathname = scope + u.pathname.replace(/^\//, '');
-    target.search = u.search;
-    target.hash = u.hash;
-    return target.href;
+  // Where a device URL loads in this frame: the same path on this origin,
+  // which the Service Worker serves from FluidNC.
+  function inFrame(u) {
+    return location.origin + u.pathname + u.search + u.hash;
   }
 
   // Links: run last (bubbling, at window) so the page's own handlers --
@@ -79,12 +70,11 @@
     }
     const target = (a.target || '').toLowerCase();
     const sameFrame = target === '' || target === '_self';
-    const inScopeAlready = u.host === location.host && u.pathname.startsWith(vnet ? vnet.scopePath() : '/device/');
-    if (sameFrame && inScopeAlready) {
-      return;  // an ordinary in-scope link; let the browser follow it
+    if (sameFrame && u.host === location.host) {
+      return;  // an ordinary link; let the browser follow it
     }
     e.preventDefault();
-    location.href = inScope(u);
+    location.href = inFrame(u);
   });
 
   const realOpen = window.open;
@@ -92,7 +82,7 @@
     if (url) {
       const u = new URL(url, location.href);
       if (/^https?:$/.test(u.protocol) && isDevice(u)) {
-        location.href = inScope(u);
+        location.href = inFrame(u);
         return window;
       }
     }
