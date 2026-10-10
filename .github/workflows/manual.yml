@@ -26,12 +26,11 @@ jobs:
       with:
         path: |
           ~/.platformio
-          ~/.platformio-esp32s3
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        # pioarduino's esp_install tool (used for *_s3 release targets)
+        # pioarduino's esp_install tool (used for all esp32 release targets)
         # requires Python 3.10-3.14; see ci.yml for the same fix.
         python-version: "3.11"
     - name: Install PlatformIO

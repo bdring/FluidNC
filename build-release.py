@@ -21,24 +21,6 @@ def buildEmbeddedPage():
     print('Building embedded web page')
     return subprocess.run(["python", "build.py"], cwd="embedded").returncode
 
-# esp32 (classic) and esp32s3 platforms disagree about which version of
-# framework-arduinoespressif32 they want, but PlatformIO installs that
-# package into a single shared, unversioned directory under the core dir.
-# Building one family after the other in the same core dir leaves the
-# package mismatched for whichever family didn't build last, which
-# PlatformIO doesn't always recover from cleanly (e.g. crashing with
-# "FRAMEWORK_DIR" resolving to None deep inside SCons). Giving the s3
-# family its own core dir keeps its packages from colliding with the
-# classic esp32 family's.
-s3CoreDir = os.path.join(os.path.expanduser('~'), '.platformio-esp32s3')
-
-def environFor(mcu):
-    if mcu == 'esp32s3':
-        e = dict(environ)
-        e['PLATFORMIO_CORE_DIR'] = s3CoreDir
-        return e
-    return environ
-
 def buildEnv(pioEnv, verbose=True, extraArgs=None, env=None):
     cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv]
     if extraArgs:
@@ -291,7 +273,7 @@ bootloader = 'bootloader.bin'
 for version in versions:
     mcu = version["mcu"]
     suffix = version["env_suffix"]
-    buildEnviron = environFor(mcu)
+    buildEnviron = environ
     for buildName in version["builds"]:
         envName = buildName + suffix
         if buildEnv(envName, verbose=verbose, env=buildEnviron) != 0:
@@ -345,7 +327,7 @@ for version in versions:
 # -4m-partitions/-wifi-4m-filesystem images already added above instead of
 # rebuilding a filesystem or copying its own bootapp/bootloader.
 octalPsramEnv = 'wifi_s3_octalPSRAM'
-octalPsramBuildEnviron = environFor('esp32s3')
+octalPsramBuildEnviron = environ
 if buildEnv(octalPsramEnv, verbose=verbose, env=octalPsramBuildEnviron) != 0:
     sys.exit(1)
 octalPsramBuildDir = os.path.join('.pio', 'build', octalPsramEnv)
@@ -438,17 +420,26 @@ def makeManifest():
     # (the web installer's efuse detection only runs on ESP32-S3 anyway, so
     # this is never actually consulted for filtering -- listed for
     # documentation accuracy).
+    # firmware-update also rewrites the bootloader and boot_app0 (otadata), but
+    # not the partition table or anything that holds NVS / filesystem data:
+    # - bootloader: keeps the bootloader's IDF version matched to the app's
+    #   (needed when the classic esp32 envs moved from IDF 4.4 to IDF 5.5).
+    #   Written over serial in ROM download mode, so an interrupted write is
+    #   recoverable by re-running the installer.
+    # - boot_app0: makes the bootloader boot app0 (0x10000), which is where
+    #   the new firmware is written.  Without it, a board that last took a
+    #   WebUI OTA into app1 would keep booting the old firmware.
     addVariant("wifi", "Supports WiFi and WebUI", "Installation type", compatible_psram=["none"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-firmware", mcu + "-wifi-4m-filesystem"])
-    addInstallable(firmware_update, False, [mcu + "-wifi-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-firmware"])
 
     addVariant("bt", "Supports Bluetooth serial", "Installation type", compatible_psram=["none"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-bt-firmware"])
-    addInstallable(firmware_update, False, [mcu + "-bt-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-bootloader", mcu + "-bootapp", mcu + "-bt-firmware"])
 
     addVariant("noradio", "Supports neither WiFi nor Bluetooth", "Installation type", compatible_psram=["none"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
-    addInstallable(firmware_update, False, [mcu + "-noradio-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
 
     mcu = "esp32s3"
     addMCU(mcu, "ESP32-S3-WROOM-1", "Firmware variant")
@@ -542,9 +533,10 @@ for platform in ['win64', 'posix']:
 
         pioPath = os.path.join('.pio', 'build')
 
-        # Put boot_app binary in the archive.  It is data, and the same for all MCUs and variants
-        tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
-        zipObj.write(os.path.join(tools, "partitions", bootapp), os.path.join(zipDirName, 'common', bootapp))
+        # Put boot_app binary in the archive.  It is data, and the same for all MCUs and variants.
+        # Use the copy the manifest step put in the esp32 wifi build directory (taken from that
+        # build's PLATFORMIO_CORE_DIR), so the zip and the manifest ship the same file.
+        zipObj.write(os.path.join(pioPath, 'wifi', bootapp), os.path.join(zipDirName, 'common', bootapp))
 
         for secFuses in ['SecurityFusesOK.bin', 'SecurityFusesOK0.bin']:
             zipObj.write(os.path.join(sharedPath, 'common', secFuses), os.path.join(zipDirName, 'common', secFuses))
