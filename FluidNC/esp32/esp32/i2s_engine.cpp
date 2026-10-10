@@ -163,17 +163,27 @@ void i2s_out_delay() {
 
 void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
     uint32_t bit = 1 << pin;
-    uint32_t port_data = i2s_out_port_data;
+    // Atomic read-modify-write.  This runs in the step ISR (direction pins)
+    // and in tasks on either core (enable, coolant, user outputs), and a plain
+    // load/modify/store let one side's bit change be overwritten by the
+    // other's stale copy: a reverted direction bit is a wrong-way move.
     if (val) {
-        port_data |= bit;
+        __atomic_fetch_or(&i2s_out_port_data, bit, __ATOMIC_SEQ_CST);
     } else {
-        port_data &= ~bit;
+        __atomic_fetch_and(&i2s_out_port_data, ~bit, __ATOMIC_SEQ_CST);
     }
-    i2s_out_port_data = port_data;
 
     if (!timer_running) {
-        // Direct write to the I2S FIFO in case the pulse timer is not running
-        I2S0.fifo_wr = i2s_out_port_data;
+        // With the pulse timer stopped nothing else pushes the word to the
+        // FIFO, so push it here.  Two tasks can race on this path: each pushes
+        // the word as of its own load, and the loser's stale push could land
+        // last.  Push again until the word we pushed is still the current one,
+        // so the final push always carries the final word.
+        uint32_t pushed;
+        do {
+            pushed       = i2s_out_port_data;
+            I2S0.fifo_wr = pushed;
+        } while (pushed != i2s_out_port_data);
     }
 }
 
