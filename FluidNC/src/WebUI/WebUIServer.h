@@ -114,7 +114,14 @@ namespace WebUI {
         static void handleUpdate(AsyncWebServerRequest* request);
         static void WebUpdateUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final);
 
-        static bool myStreamFile(AsyncWebServerRequest* request, const char* path, bool download = false, bool setSession = false);
+        static bool myStreamFile(
+            AsyncWebServerRequest* request, const char* path, bool download = false, bool setSession = false, const char* uiName = nullptr);
+
+        static bool uiIndexExists(const std::string& name);
+        static void handle_ui(AsyncWebServerRequest* request);
+        static void handle_ui_list(AsyncWebServerRequest* request, const std::string& dir);
+        static void handle_ui_body(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total);
+        static void handle_ui_put(AsyncWebServerRequest* request, const std::string& path);
 
         static void pushError(AsyncWebServerRequest* request, uint16_t code, const char* st, int32_t web_error = 500, uint16_t timeout = 1000);
         static void cancelUpload(AsyncWebServerRequest* request);
