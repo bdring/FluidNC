@@ -61,6 +61,14 @@ gc_modal_t modal_defaults = {
 };
 // clang-format on
 
+// M70-M73 modal state save/restore, after LinuxCNC:
+// https://linuxcnc.org/docs/html/gcode/m-code.html#mcode:m70
+// Each call level has its own saved state.  A call level here is a job -
+// an $SD/Run file or a macro - and the saved state lives in its JobSource,
+// discarded when the job ends.  Outside any job (MDI), base_saved_modal
+// holds it until it is overwritten, invalidated, or the parser is reset.
+static std::optional<ModalSnapshot> base_saved_modal;
+
 void gc_init() {
     // Reset parser state:
 
@@ -71,6 +79,7 @@ void gc_init() {
     gc_state.modal.override = config->_start->_deactivateParking ? Override::Disabled : Override::ParkingMotion;
     gc_state.current_tool   = -1;
     coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
+    base_saved_modal.reset();
     flowcontrol_init();
 }
 
@@ -263,6 +272,119 @@ void gc_wco_changed() {
     allChannels.notifyWco();
 }
 
+static std::optional<ModalSnapshot> get_saved_modal() {
+    std::optional<ModalSnapshot> saved;
+    if (!Job::get_saved_modal(saved)) {
+        saved = base_saved_modal;
+    }
+    return saved;
+}
+
+static void set_saved_modal(const std::optional<ModalSnapshot>& saved) {
+    if (!Job::set_saved_modal(saved)) {
+        base_saved_modal = saved;
+    }
+}
+
+// Applies saved modal state with the same side effects that the
+// corresponding G/M codes have.  Motion mode is not restored.
+static void restore_modal_state(const ModalSnapshot& saved) {
+    const auto& m     = saved.modal;
+    bool        check = state_is(State::CheckMode);
+
+    gc_state.modal.feed_rate    = m.feed_rate;
+    gc_state.feed_rate          = saved.feed_rate;
+    gc_state.modal.units        = m.units;
+    gc_state.modal.plane_select = m.plane_select;
+    gc_state.modal.distance     = m.distance;
+
+    // Spindle state and speed, as for M3/M4/M5 and S.  In laser mode, as with
+    // a standalone S word, the laser stays off unless in a G1/G2/G3 motion mode.
+    bool spindle_changed = gc_state.modal.spindle != m.spindle;
+    bool speed_changed   = gc_state.spindle_speed != saved.spindle_speed;
+    if (spindle_changed || (speed_changed && m.spindle != SpindleState::Disable)) {
+        if (!check) {
+            bool feed_motion = gc_state.modal.motion == Motion::Linear || gc_state.modal.motion == Motion::CwArc ||
+                               gc_state.modal.motion == Motion::CcwArc;
+            bool laser_off   = spindle->isRateAdjusted() && !feed_motion;
+            protocol_buffer_synchronize();
+            spindle->setState(m.spindle, laser_off ? 0 : (uint32_t)saved.spindle_speed);
+        }
+        gc_ovr_changed();
+    }
+    gc_state.modal.spindle = m.spindle;
+    gc_state.spindle_speed = saved.spindle_speed;
+
+    // Coolant, as for M7/M8/M9.  Unlike GCode, both mist and flood can be
+    // set in one step.
+    if (gc_state.modal.coolant.Mist != m.coolant.Mist || gc_state.modal.coolant.Flood != m.coolant.Flood) {
+        gc_state.modal.coolant = m.coolant;
+        if (!check) {
+            protocol_buffer_synchronize();
+            config->_coolant->set_state(gc_state.modal.coolant);
+            gc_ovr_changed();
+        }
+    }
+
+    // Parking override control, as for M56
+    if (config->_enableParkingOverrideControl && gc_state.modal.override != m.override) {
+        gc_state.modal.override = m.override;
+        mc_override_ctrl_update(gc_state.modal.override);
+    }
+
+    // Tool length offset, as for G43.1/G49
+    bool tlo_changed = gc_state.modal.tool_length != m.tool_length;
+    for (size_t idx = 0; idx < Axes::_numberAxis; idx++) {
+        if (gc_state.tool_length_offset[idx] != saved.tool_length_offset[idx]) {
+            tlo_changed = true;
+        }
+    }
+    if (tlo_changed) {
+        gc_state.modal.tool_length = m.tool_length;
+        copyAxes(gc_state.tool_length_offset, saved.tool_length_offset);
+        coords[CoordIndex::TLO]->set(gc_state.tool_length_offset);
+        gc_wco_changed();
+    }
+
+    // Work coordinate system, as for G54-G59.3
+    if (gc_state.modal.coord_select != m.coord_select) {
+        gc_state.modal.coord_select = m.coord_select;
+        coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
+        gc_wco_changed();
+    }
+}
+
+static Error gc_modal_state(ModalStateOp op) {
+    switch (op) {
+        case ModalStateOp::Save:
+        case ModalStateOp::AutoRestore: {
+            ModalSnapshot saved;
+            saved.modal         = gc_state.modal;
+            saved.feed_rate     = gc_state.feed_rate;
+            saved.spindle_speed = gc_state.spindle_speed;
+            copyAxes(saved.tool_length_offset, gc_state.tool_length_offset);
+            // M73 outside any job behaves like M70; there is no subroutine
+            // return to restore it at.
+            saved.autorestore = op == ModalStateOp::AutoRestore && Job::active();
+            set_saved_modal(saved);
+            return Error::Ok;
+        }
+        case ModalStateOp::Invalidate:
+            set_saved_modal(std::nullopt);
+            return Error::Ok;
+        case ModalStateOp::Restore: {
+            auto saved = get_saved_modal();
+            if (!saved) {
+                return Error::GcodeNoSavedModalState;
+            }
+            restore_modal_state(*saved);
+            return Error::Ok;
+        }
+        default:
+            return Error::Ok;
+    }
+}
+
 // Executes one line of NUL-terminated G-Code.
 // The line may contain whitespace and comments, which are first removed,
 // and lower case characters, which are converted to upper case.
@@ -334,6 +456,7 @@ Error gc_execute_line(const char* input_line, Channel& channel) {
     bool laserIsMotion        = false;
     bool nonmodalG38          = false;  // Used for G38.6-9
     bool isWaitOnInputDigital = false;
+    ModalStateOp modal_state_op = ModalStateOp::None;
     std::vector<float> clustered_spindle_speeds;
 
     auto    n_axis = Axes::_numberAxis;
@@ -793,6 +916,13 @@ Error gc_execute_line(const char* input_line, Channel& channel) {
                         gc_block.modal.io_control = IoControl::SetAnalogImmediate;
                         mg_word_bit               = ModalGroup::MM5;
                         break;
+                    case 70:
+                    case 71:
+                    case 72:
+                    case 73:
+                        modal_state_op = ModalStateOp(int_value);
+                        mg_word_bit    = ModalGroup::MM11;
+                        break;
                     default:
                         return Error::GcodeUnsupportedCommand;  // [Unsupported M command]
                 }
@@ -988,6 +1118,30 @@ Error gc_execute_line(const char* input_line, Channel& channel) {
         }
     }
     // Parsing complete!
+
+    // M70-M73 must be alone in the block, apart from an N word.  That
+    // sidesteps the order-of-execution question of whether a save or restore
+    // sees the block's other modal changes.
+    if (modal_state_op != ModalStateOp::None) {
+        if (jogMotion) {
+            return Error::InvalidJogCommand;
+        }
+        if (command_words != bitnum_to_mask(ModalGroup::MM11)) {
+            return Error::GcodeModalGroupViolation;
+        }
+        if (value_words & ~bitnum_to_mask(GCodeWord::N)) {
+            return Error::GcodeUnusedWords;
+        }
+        if (gc_block.values.n > MaxLineNumber) {
+            return Error::GcodeInvalidLineNumber;
+        }
+        gc_state.line_number = gc_block.values.n;
+        Error err            = gc_modal_state(modal_state_op);
+        if (err != Error::Ok) {
+            return err;
+        }
+        return perform_assignments() ? Error::Ok : Error::ParameterAssignmentFailed;
+    }
     /* -------------------------------------------------------------------------------------
        STEP 3: Error-check all commands and values passed in this block. This step ensures all of
        the commands are valid for execution and follows the NIST standard as closely as possible.
@@ -2027,6 +2181,8 @@ Error gc_execute_line(const char* input_line, Channel& channel) {
 
             if (Channel* jc = Job::channel()) {
                 jc->end();
+                // Per LinuxCNC, ending the program does not restore M73 state.
+                Job::take_autorestore();
             }
             // Upon program complete, only a subset of g-codes reset to certain defaults, according to
             // LinuxCNC's program end descriptions and testing. Only modal groups [G-code 1,2,3,5,7,12]
