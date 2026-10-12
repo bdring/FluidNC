@@ -16,7 +16,13 @@
 #define MAX_N_UARTS SOC_UART_NUM
 #define MAX_N_I2C SOC_I2C_NUM
 #define MAX_N_USB_HOST 0
-#define MAX_N_DACS SOC_DAC_PERIPH_NUM
+// IDF 5 replaced SOC_DAC_PERIPH_NUM with SOC_DAC_CHAN_NUM; an undefined
+// name would silently count as 0 and compile the DAC spindle out
+#ifdef SOC_DAC_CHAN_NUM
+#    define MAX_N_DACS SOC_DAC_CHAN_NUM
+#else
+#    define MAX_N_DACS 0  // No DAC, e.g. ESP32-S3
+#endif
 #define MAX_N_RMT SOC_RMT_GROUPS
 
 // The number that we support, regardless of how many the chip has

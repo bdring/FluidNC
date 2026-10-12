@@ -18,6 +18,8 @@
 
 #    include <cstdint>
 
+struct dac_oneshot_s;  // ESP-IDF's DAC driver handle
+
 namespace Spindles {
     // This uses one of the DAC pins to output a voltage
     class Dac : public OnOff {
@@ -46,10 +48,12 @@ namespace Spindles {
             OnOff::group(handler);
         }
 
-        ~Dac() {}
+        ~Dac();
 
     private:
-        bool _gpio_ok;  // DAC is on a valid pin
+        bool                  _gpio_ok    = false;  // DAC is set up on a valid pin
+        int                   _dac_chan   = 0;      // dac_channel_t
+        struct dac_oneshot_s* _dac_handle = nullptr;
 
     protected:
         void set_output(uint32_t duty);  // sets DAC instead of PWM
