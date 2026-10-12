@@ -7,6 +7,14 @@
 // stub, kept in FluidNC/wasm/ (ahead of capture/arduino on the include
 // path) purely so Arduino.h resolves -- not a statement that it should be
 // re-enabled repo-wide.
+//
+// env:wasm builds against Arduino-Emulator (like the posix envs), whose
+// real IPAddress is needed by ESPAsyncWebServer -- defer to it when present.
+
+#if __has_include(<api/IPAddress.h>)
+#    include <api/IPAddress.h>
+using arduino::IPAddress;
+#else
 
 #include <cstdint>
 #include <cstring>
@@ -56,3 +64,4 @@ public:
 };
 
 const IPAddress INADDR_NONE(0, 0, 0, 0);
+#endif
