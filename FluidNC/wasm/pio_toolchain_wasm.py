@@ -57,7 +57,11 @@ link_flags = [
     "-sALLOW_MEMORY_GROWTH=1",
     "-sMODULARIZE=1",
     "-sEXPORT_NAME=FluidNCModule",
-    "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap",
+    # FS + -lidbfs.js: demo/index.html mounts IDBFS (IndexedDB-backed) on
+    # native_localfs/native_sd/native_nvs so files and NVS settings persist
+    # across page reloads -- see restorePersistentFs() in demo/index.html.
+    "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,FS",
+    "-lidbfs.js",
     "-sEXIT_RUNTIME=0",
 ]
 
@@ -66,6 +70,13 @@ for e in [env, projenv]:
         continue
     e.Replace(**toolchain)
     e.Append(CCFLAGS=pthread_flags, LINKFLAGS=pthread_flags + link_flags)
+
+# Library builders (lib_deps, e.g. ESPAsyncWebServer) clone
+# env before this post-script runs, so the swap above doesn't reach them and
+# they would silently compile with the host compiler.  Swap each one too.
+for lb in env.GetLibBuilders():
+    lb.env.Replace(**toolchain)
+    lb.env.Append(CCFLAGS=pthread_flags)
 
 # PROGSUFFIX gets reset to "" downstream by the native platform's own
 # builder setup (unix binaries have no suffix), so the link step still

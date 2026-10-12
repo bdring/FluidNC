@@ -130,7 +130,7 @@ Ground truth: `Pin::parse()` in `Pin.cpp` is the single dispatch point for every
 ```
 pin           := pin_type [ "." pin_number ] [ ":" attribute ]*
 pin_type      := "gpio" | "i2so" | "uart_channel" digit | "no_pin" | "void" | "pinext" digit
-pin_number    := non-negative integer   (no board-legality check performed by this spec)
+pin_number    := decimal integer in 0-127 (board-specific legality is checked by firmware)
 attribute     := ("high" | "low")       (active state; default high)
                | ("pu" | "pd")          (pull-up / pull-down; input pins only; default floating)
                | ("ds" digit)           (drive strength, digit 0-3; gpio output pins only; default 2)
@@ -138,6 +138,7 @@ special_value := "NO_PIN"               (canonical "no pin", stands alone with n
 ```
 
 - Attributes are colon-prefixed, chain in **any order**: `gpio.16:low:pu`.
+- A numeric pin type requires a complete decimal number. Malformed, negative, or overflowing numbers are rejected rather than truncated to another pin. `NO_PIN` and `void` do not require a number.
 - Pin-type matching is case-insensitive (`GPIO.16` == `gpio.16`); prefer lowercase.
 - `NO_PIN` is the universal "no pin assigned" sentinel and the default for essentially every pin field. Written bare — not `gpio.NO_PIN`.
 

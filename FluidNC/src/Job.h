@@ -29,6 +29,10 @@ private:
     // #1862). Job::abort()'s own status always takes priority over this.
     Error _ack_error = Error::Ok;
 
+    // Modal state saved by M70/M73 at this job's call level.  Like a local
+    // parameter, it is discarded when the job ends.
+    std::optional<ModalSnapshot> _saved_modal;
+
 public:
     JobSource(Channel* channel) : _channel(channel) {}
     void     set_pending_ack(Channel* channel) { _ack_channel = channel; }
@@ -48,6 +52,8 @@ public:
         return true;
     }
     bool param_exists(const std::string& name) { return _local_params.count(name) != 0; }
+
+    std::optional<ModalSnapshot>& saved_modal() { return _saved_modal; }
 
     // Expose local parameters for enumeration
     const std::map<std::string, float>& local_params() const { return _local_params; }
@@ -159,9 +165,19 @@ public:
     // #1861). Returns true if it aborted a job.
     static bool consume_unwind_cause();
 
-    static bool     get_param(const std::string& name, float& value);
-    static bool     set_param(const std::string& name, float value);
-    static bool     param_exists(const std::string& name);
+    static bool get_param(const std::string& name, float& value);
+    static bool set_param(const std::string& name, float value);
+    static bool param_exists(const std::string& name);
+    // Modal state saved by M70/M73 at the top job's call level.  Both return
+    // false when no job is active, in which case the caller uses the base
+    // (interactive) call level's slot instead.
+    static bool get_saved_modal(std::optional<ModalSnapshot>& saved);
+    static bool set_saved_modal(const std::optional<ModalSnapshot>& saved);
+    // If the top job saved its modal state with M73 and has not yet restored
+    // it, clears the M73 flag and returns true, so the caller can run M72 as
+    // the job's final line before unnesting it.
+    static bool take_autorestore();
+
     static Channel* channel();         // top-of-stack channel, or nullptr when idle
     static Channel* leader_channel();  // job leader, or nullptr when idle
 

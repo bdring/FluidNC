@@ -155,6 +155,13 @@ namespace Machine {
         }
 
         if (_phase == Phase::PrePulloff) {
+            // A previous approach (including an aborted one) may have disarmed
+            // a switch that has since released. Refresh it before deciding
+            // whether an initial pull-off is actually required.
+            config->_kinematics->rearmLimits(_phaseAxes, _phaseMotors);
+            if (!mc_dwell(10) || _phase != Phase::PrePulloff) {
+                return;
+            }
             if (!(limited() & _phaseMotors)) {
                 // No initial pulloff needed
                 nextPhase();
@@ -257,6 +264,7 @@ namespace Machine {
         Stepper::reset();      // Stop moving
         send_alarm(alarm);
         Axes::set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
+        config->_kinematics->rearmLimits(_cycleAxes, _cycleMotors);
         Axes::set_disable(Stepping::_idleMsecs != 255, false);
     }
 

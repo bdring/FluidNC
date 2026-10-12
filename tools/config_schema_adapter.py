@@ -13,9 +13,10 @@ The output is consumed by fluidnc_validate_core.py, which runs it through
 jsonschema's Draft202012Validator exactly as it did the old hand file. It is
 NOT written to disk as a build artifact -- it is built in memory at load time.
 
-Two things config_items.yaml legitimately cannot express, kept here as small
+Three things config_items.yaml legitimately cannot express, kept here as small
 hand-owned constants (they are runtime parse-grammar, not @config metadata):
 
+  * the non-negative int8_t range of numeric pin identifiers
   * the pin-string attribute suffix `(:high|:low|:pu|:pd|:ds0-3)*`
   * the `no_pin` / `void` index-less sentinels, and `gpio` as the one builtin
     pin namespace (every other namespace comes from a @pin_namespace
@@ -32,6 +33,9 @@ AXIS_LETTERS = ["x", "y", "z", "a", "b", "c", "u", "v", "w"]
 # Pin attribute suffix, mirror of Pins::PinOptionsParser. Case-insensitive to
 # match the real parser (opt.is() is strncasecmp-based).
 _PIN_ATTR_SUFFIX = r"(?::(?i:high|low|pu|pd|ds[0-3]))*"
+
+# Numeric pin identifiers must fit the non-negative range of pinnum_t (int8_t).
+_PIN_NUMBER = r"0*(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-7])"
 
 # Primitive value $defs whose patterns mirror runtime parse grammar, not
 # anything expressible as an @config range. Copied verbatim from the retired
@@ -76,8 +80,8 @@ _TOP_LEVEL_ITEMS = "(top-level machine items)"
 
 
 def _pin_any(pin_namespaces):
-    alts = [r"no_pin", r"void", r"gpio\.[0-9]+"]
-    alts += [pin_namespaces[k]["pattern"] for k in sorted(pin_namespaces)]
+    alts = [r"no_pin", r"void", r"gpio\." + _PIN_NUMBER]
+    alts += [pin_namespaces[k]["pattern"].replace(r"[0-9]+", _PIN_NUMBER) for k in sorted(pin_namespaces)]
     return {
         "type": "string",
         "pattern": r"^(?i:" + "|".join(alts) + r")" + _PIN_ATTR_SUFFIX + r"$",

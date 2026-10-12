@@ -176,10 +176,10 @@ TEST(StringUtil, FromDecimalUint32Valid) {
     uint32_t value;
     EXPECT_TRUE(string_util::from_decimal("0", value));
     EXPECT_EQ(value, 0);
-    
+
     EXPECT_TRUE(string_util::from_decimal("123", value));
     EXPECT_EQ(value, 123);
-    
+
     EXPECT_TRUE(string_util::from_decimal("4294967295", value));  // uint32_t max
     EXPECT_EQ(value, 4294967295U);
 }
@@ -187,14 +187,17 @@ TEST(StringUtil, FromDecimalUint32Valid) {
 TEST(StringUtil, FromDecimalUint32Invalid) {
     uint32_t value = 0xFF;
     EXPECT_FALSE(string_util::from_decimal("abc", value));
+    EXPECT_FALSE(string_util::from_decimal("4x", value));
+    EXPECT_FALSE(string_util::from_decimal("-1", value));
+    EXPECT_FALSE(string_util::from_decimal("+1", value));
     EXPECT_FALSE(string_util::from_decimal("", value));
 }
 
 TEST(StringUtil, FromDecimalUint32Overflow) {
     uint32_t value;
-    // Note: The uint32_t implementation doesn't check for overflow properly
-    // it will wrap around
-    EXPECT_TRUE(string_util::from_decimal("4294967296", value));
+    EXPECT_FALSE(string_util::from_decimal("4294967296", value));
+    EXPECT_FALSE(string_util::from_decimal("4294967300", value));
+    EXPECT_FALSE(string_util::from_decimal("18446744073709551616", value));
 }
 
 // ============================================================================

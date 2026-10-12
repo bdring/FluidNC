@@ -1,0 +1,283 @@
+{
+ "settings": {
+  "language": "default",
+  "theme": "default",
+  "autoload": true,
+  "mobileview": false,
+  "audio": false,
+  "hapticfeedback": false,
+  "audiofeedback": false,
+  "showmachinesettings": true,
+  "disconnectonotherlogin": true,
+  "enableautorepeat": false,
+  "enableshortcuts": false,
+  "autorepeatdelay": "500",
+  "emergencystop": "#SAFETYDOOR#",
+  "fixedpanels": true,
+  "panelsorder": [
+   {
+    "id": "Status",
+    "name": "status"
+   },
+   {
+    "id": "Terminal",
+    "name": "terminal"
+   },
+   {
+    "id": "Jog",
+    "name": "jog",
+    "value": "jog"
+   },
+   {
+    "id": "Probe",
+    "name": "probe"
+   },
+   {
+    "id": "Files",
+    "name": "files"
+   },
+   {
+    "id": "Laser",
+    "name": "laser"
+   },
+   {
+    "id": "Spindle",
+    "name": "spindle"
+   },
+   {
+    "id": "Overrrides",
+    "name": "overrides"
+   },
+   {
+    "id": "Notifications",
+    "name": "notification"
+   },
+   {
+    "id": "Macros",
+    "name": "macros"
+   },
+   {
+    "id": "Extracontents",
+    "name": "extracontents"
+   }
+  ],
+  "enablepolling": true,
+  "pollingcmds": [
+   {
+    "id": "samplepolling",
+    "name": "1.5s",
+    "cmds": "?",
+    "refreshtime": "1500"
+   }
+  ],
+  "showterminalpanel": true,
+  "openterminalonstart": true,
+  "verbose": true,
+  "autoscroll": true,
+  "MaxTerminalMessages": 400,
+  "showfilespanel": true,
+  "openfilesonstart": true,
+  "filesfilter": "g;G;gco;GCO;gcode;GCODE;nc;txt;cnc;ngc",
+  "flashfs": true,
+  "sort_flashfs_files": true,
+  "directsd": true,
+  "sort_sd_files": true,
+  "default_filesystem": "DIRECTSD",
+  "showjogpanel": true,
+  "openjogonstart": true,
+  "homesingleaxis": true,
+  "homecmd": "$H#",
+  "zerocmd": "G10 L20 P0 #",
+  "jogstopcmd": "#JOGCANCEL#",
+  "showx": true,
+  "showy": true,
+  "showz": true,
+  "showa": false,
+  "showb": false,
+  "showc": false,
+  "showu": false,
+  "showv": false,
+  "showw": false,
+  "xyfeedrate": "1000",
+  "zfeedrate": "1000",
+  "afeedrate": "1000",
+  "bfeedrate": "1000",
+  "cfeedrate": "1000",
+  "ufeedrate": "1000",
+  "vfeedrate": "1000",
+  "wfeedrate": "1000",
+  "jogdistancedefault": "100",
+  "zjogdistancedefault": "10",
+  "keymap": [
+   {
+    "id": "btn+X",
+    "name": "btn+X",
+    "key": "ArrowRight"
+   },
+   {
+    "id": "btn-X",
+    "name": "btn-X",
+    "key": "ArrowLeft"
+   },
+   {
+    "id": "btnHX",
+    "name": "btnHX",
+    "key": "X"
+   },
+   {
+    "id": "btnZX",
+    "name": "btnZX",
+    "key": "1"
+   },
+   {
+    "id": "btn+Y",
+    "name": "btn+Y",
+    "key": "ArrowUp"
+   },
+   {
+    "id": "btn-Y",
+    "name": "btn-Y",
+    "key": "ArrowDown"
+   },
+   {
+    "id": "btnHY",
+    "name": "btnHY",
+    "key": "Y"
+   },
+   {
+    "id": "btnZY",
+    "name": "btnZY",
+    "key": "2"
+   },
+   {
+    "id": "btn+Z",
+    "name": "btn+Z",
+    "key": "PageUp"
+   },
+   {
+    "id": "btn-Z",
+    "name": "btn-Z",
+    "key": "PageDown"
+   },
+   {
+    "id": "btnHZ",
+    "name": "btnHZ",
+    "key": "Z"
+   },
+   {
+    "id": "btnZZ",
+    "name": "btnZZ",
+    "key": "3"
+   },
+   {
+    "id": "btn+axis",
+    "name": "btn+axis",
+    "key": "/"
+   },
+   {
+    "id": "btn-axis",
+    "name": "btn-axis",
+    "key": "*"
+   },
+   {
+    "id": "btnHaxis",
+    "name": "btnHaxis",
+    "key": "A"
+   },
+   {
+    "id": "btnZaxis",
+    "name": "btnZaxis",
+    "key": "4"
+   },
+   {
+    "id": "btnHAll",
+    "name": "btnHAll",
+    "key": "Home"
+   },
+   {
+    "id": "btnZAll",
+    "name": "btnZAll",
+    "key": "0"
+   },
+   {
+    "id": "btnaxisSel+",
+    "name": "btnaxisSel+",
+    "key": "Control+0"
+   },
+   {
+    "id": "btnaxisSel-",
+    "name": "btnaxisSel-",
+    "key": "Control+0"
+   },
+   {
+    "id": "btndistSel+",
+    "name": "btndistSel+",
+    "key": "+"
+   },
+   {
+    "id": "btndistSel-",
+    "name": "btndistSel-",
+    "key": "-"
+   },
+   {
+    "id": "btnStop",
+    "name": "btnStop",
+    "key": "Control+s"
+   },
+   {
+    "id": "btnEStop",
+    "name": "btnEStop",
+    "key": "Delete"
+   }
+  ],
+  "shownotificationspanel": true,
+  "opennotificationsonstart": false,
+  "notifautoscroll": true,
+  "showmacrospanel": true,
+  "openmacrosonstart": true,
+  "macros": [
+   {
+    "id": "0pj3974z2",
+    "name": "WU3M5",
+    "icon": "Meh",
+    "action": "/macro5.gc",
+    "type": "FS",
+    "key": ""
+   },
+   {
+    "id": "w7ebxkc71",
+    "name": "WU3Macro",
+    "icon": "Meh",
+    "action": "G21",
+    "type": "CMD",
+    "key": ""
+   }
+  ],
+  "showextracontents": false,
+  "openextrapanelsonstart": false,
+  "extracontents": [],
+  "showstatuspanel": true,
+  "openstatusonstart": true,
+  "showprobepanel": true,
+  "openprobeonstart": true,
+  "probefeedrate": 20,
+  "maxprobe": 15,
+  "probethickness": "1",
+  "proberetract": "5",
+  "probepostcommand": "G10 L20 P0 #selected_axis##probe_thickness#;$J=G91 G21 F1000 #selected_axis##probe_retract#",
+  "showlaserpanel": true,
+  "openlaseronstart": true,
+  "lasertest": 10,
+  "lasertestprecent": 20,
+  "lasermax": 1000,
+  "showspindlepanel": true,
+  "openspindleonstart": true,
+  "spindlespeed": 1000,
+  "showM4ctrls": true,
+  "showCoolantctrls": true,
+  "showMistctrls": true,
+  "showM7ctrls": false,
+  "showoverridespanel": true,
+  "openoverridesonstart": true
+ }
+}

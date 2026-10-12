@@ -102,6 +102,9 @@ namespace MotorDrivers {
         switch (_mode) {
             case TrinamicMode ::StealthChop:
                 log_debug(axisName() << " StealthChop");
+                // StallGuard uses StealthChop too, so changing the chopper
+                // mode alone does not turn its DIAG detection window off.
+                tmc2209->TCOOLTHRS(0);
                 tmc2209->en_spreadCycle(false);
                 tmc2209->pwm_autoscale(true);
                 break;

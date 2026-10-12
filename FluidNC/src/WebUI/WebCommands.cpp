@@ -65,8 +65,8 @@ namespace WebUI {
         // Used by js/statusdlg.js
         static Error showSysStatsJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
 
-            // Tagged so a raw serial-shaped channel (UART, or this wasm
-            // port's ShimChannel) wraps the output in [JSON:...] lines,
+            // Tagged so a raw serial-shaped channel (UART) wraps the
+            // output in [JSON:...] lines,
             // distinguishing JSON payload lines from the ok/error line that
             // terminates the command -- see UartChannel::out_acked(). Over
             // WSChannel/WebClient (real WebSocket/HTTP), the tag is a no-op:
