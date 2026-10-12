@@ -13,8 +13,8 @@ uint32_t                           HashFS::_generation = 0;
 // The map and _uiDir are used by the web server task and by file
 // commands on the protocol task.  The lock is held only for those, never
 // across file I/O - hashing a large file on SD takes a while.  Since a
-// hash is computed unlocked, every invalidation bumps _generation, and a
-// hash is only stored if no invalidation happened while it was computed.
+// hash is computed unlocked, every invalidation or store bumps _generation,
+// and a hash is only stored if neither happened while it was computed.
 namespace {
     SemaphoreHandle_t hash_mutex = xSemaphoreCreateMutex();
 
@@ -34,11 +34,12 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
     try {
         FileStream inFile { ipath.string(), "r" };
         uint8_t    buf[512];
-        size_t     len;
+        int        len;
 
         SHA256_CTX ctx;
         sha256_init(&ctx);
 
+        // read() returns -1 on an error, which must not become a huge size_t
         while ((len = inFile.read(buf, 512)) > 0) {
             sha256_update(&ctx, buf, len);
             feed_watchdog();
@@ -74,14 +75,20 @@ std::string HashFS::key(const std::filesystem::path& path) {
 
 // Caller holds the lock
 void HashFS::erase_locked(const std::filesystem::path& path) {
-    ++_generation;
+    // Only paths that can be cached count as invalidations, so that other
+    // SD activity does not abort hashes in progress.
+    bool cached = file_is_hashable(path) || in_ui_dir_locked(path);
     localFsHashes.erase(key(path));
 
     // The path might be a directory that was removed or renamed, so drop
     // any full-path entries beneath it.
     std::string prefix = path.string() + "/";
     for (auto it = localFsHashes.lower_bound(prefix); it != localFsHashes.end() && it->first.rfind(prefix, 0) == 0;) {
-        it = localFsHashes.erase(it);
+        it     = localFsHashes.erase(it);
+        cached = true;
+    }
+    if (cached) {
+        ++_generation;
     }
 }
 
@@ -262,6 +269,10 @@ void HashFS::rehash_file(const std::filesystem::path& path, bool report) {
         Lock lock;
         if (generation == _generation) {
             if (hashed) {
+                // A store counts as an invalidation too: another hash of
+                // this file that started earlier, possibly while it was
+                // still being written, must not overwrite this one.
+                ++_generation;
                 localFsHashes[key(path)] = hash;
             } else {
                 erase_locked(path);
@@ -358,8 +369,8 @@ std::string HashFS::hash(const std::filesystem::path& path, bool useCacheOnly /*
             // Never overwrite: an entry that appeared meanwhile came from
             // rehash_file(), whose caller has just changed the file, so it
             // is newer than what was read here.
-            if (generation == _generation && cacheable_locked(path)) {
-                localFsHashes.try_emplace(key(path), theHash);
+            if (generation == _generation && cacheable_locked(path) && localFsHashes.try_emplace(key(path), theHash).second) {
+                ++_generation;
             }
         }
         return theHash;
