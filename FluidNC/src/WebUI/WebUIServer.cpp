@@ -910,7 +910,7 @@ namespace WebUI {
         if (!count) {
             page += "<li>None found</li>";
         }
-        page += "</ul><a href='/?forcefallback=yes'>File manager</a></body></html>";
+        page += "</ul><a href='/?forcefallback=yes'>WebUI Uploader</a></body></html>";
         request->send(200, "text/html", page.c_str());
     }
 
