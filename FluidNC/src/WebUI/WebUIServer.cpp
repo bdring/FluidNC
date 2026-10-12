@@ -413,6 +413,7 @@ namespace WebUI {
         //start webserver
         _webserver->begin();
 
+        HashFS::enable(true);
         HashFS::hash_all();
 
         _setupdone = true;
@@ -420,6 +421,7 @@ namespace WebUI {
 
     void WebUI_Server::deinit() {
         _setupdone = false;
+        HashFS::enable(false);
 
         //        SSDP.end();
 
@@ -492,12 +494,6 @@ namespace WebUI {
     }
     // Send a file, either the specified path or path.gz
     bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
-        std::error_code ec;
-        FluidPath       fpath { path, LocalFS, ec };
-        if (ec) {
-            return false;
-        }
-
         bool acceptGz = false;
         if (request->hasHeader("Accept-Encoding")) {
             auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
@@ -516,10 +512,12 @@ namespace WebUI {
         // This can make it hard to debug ISR IRAM problems, because the easiest
         // way to trigger such problems is to refresh WebUI during motion.
         if (http_block_during_motion->get() && inMotionState()) {
-            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH
-            hash = HashFS::hash(fpath, true);
+            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH.
+            // Use the canonical name rather than a FluidPath, whose constructor would mount an SD card.
+            std::filesystem::path cpath { FluidPath::canonPath(path, LocalFS) };
+            hash = HashFS::hash(cpath, true);
             if (!hash.length() && acceptGz) {
-                std::filesystem::path gzpath(fpath);
+                std::filesystem::path gzpath(cpath);
                 gzpath += ".gz";
                 hash = HashFS::hash(gzpath, true);
             }
@@ -532,6 +530,12 @@ namespace WebUI {
 
             WebUI_Server::handleReloadBlocked(request);
             return true;
+        }
+
+        std::error_code ec;
+        FluidPath       fpath { path, LocalFS, ec };
+        if (ec) {
+            return false;
         }
 
         // Check for browser cache match
@@ -1321,7 +1325,8 @@ namespace WebUI {
                     sstatus += filename + " " + ec.message();
                 }
             } else if (action == "createdir") {
-                if (stdfs::create_directory(fpath / filename, ec)) {
+                // Parents too, so that a nested directory can be created in one step
+                if (stdfs::create_directories(fpath / filename, ec)) {
                     sstatus = filename + " created";
                     HashFS::report_change();
                 } else {
