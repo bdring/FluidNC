@@ -579,7 +579,7 @@ static Error copyDir(const Volume& ifs, const std::string_view iDir, const Volum
     return err;
 }
 static Error showLocalFSHashes(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    for (const auto& [name, hash] : HashFS::localFsHashes) {
+    for (const auto& [name, hash] : HashFS::hashes()) {
         log_info_to(out, name << ": " << hash);
     }
     return Error::Ok;
