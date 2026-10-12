@@ -1859,7 +1859,9 @@ namespace WebUI {
                     sstatus += filename + " " + ec.message();
                 }
             } else if (action == "createdir") {
-                if (stdfs::create_directory(fpath / filename, ec)) {
+                // Parents too, so that a WebUI can be added before
+                // HTTP/UIDir itself exists
+                if (stdfs::create_directories(fpath / filename, ec)) {
                     sstatus = filename + " created";
                     HashFS::report_change();
                 } else {
