@@ -13,7 +13,7 @@
      below) recalculates cols/rows to match this box's actual size, both on
      load and on window resize, so widening the window reveals more columns
      instead of requiring a page reload. */
-  #terminal { border: 1px solid #ccc; padding: 0.5rem; margin-top: 1rem; height: 60vh; box-sizing: border-box; overflow: hidden; }
+  #terminal { border: 2px solid #222; padding: 0.5rem; margin-top: 1rem; height: 60vh; box-sizing: border-box; overflow: hidden; }
   /* Shrunk to make room once a WebUI iframe is showing -- see
      terminalEl.classList.add('terminal-compact') below. Approximate, not
      computed from the actual font metrics: "about 4 lines" is the ask,
@@ -21,8 +21,27 @@
   #terminal.terminal-compact { height: 8em; }
   #webuiPanel { margin-top: 1rem; display: flex; gap: 0.3rem; align-items: center; }
   #urlBar { flex: 1; max-width: 40em; font-family: monospace; padding: 0.2rem 0.4rem; }
-  #webuiFrame { display: none; width: 100%; height: 60vh; border: 1px solid #ccc; margin-top: 0.5rem; box-sizing: border-box; }
+  #webuiFrame { display: none; width: 100%; height: 60vh; border: 2px solid #222; margin-top: 0.5rem; box-sizing: border-box; }
   #webuiStatus { margin-left: 0.5rem; color: #666; }
+  /* The controls above the terminal and the WebUI frame */
+  p label, p select, p button, p input, #webuiPanel button, #urlBar {
+    font: 1.05rem system-ui, sans-serif; vertical-align: middle;
+  }
+  p select, p button, p input, #webuiPanel button, #urlBar {
+    padding: 0.35rem 0.7rem; border: 1px solid #b8c2cc; border-radius: 6px;
+    background: #fff; color: #222;
+  }
+  #urlBar { font-family: monospace; }
+  p button, #webuiPanel button { background: #1f6feb; border-color: #1a5fcc; color: #fff; cursor: pointer; }
+  p button:hover:not(:disabled), #webuiPanel button:hover:not(:disabled) { background: #1a5fcc; }
+  #navBack, #navForward, #navReload { background: #eef1f4; border-color: #b8c2cc; color: #222; min-width: 2.4rem; }
+  #navBack:hover:not(:disabled), #navForward:hover:not(:disabled), #navReload:hover:not(:disabled) { background: #dde3e9; }
+  #resetStorage { background: #fff; border-color: #c62828; color: #c62828; }
+  #resetStorage:hover { background: #fdecea; }
+  p select:disabled, p button:disabled, p input:disabled, #webuiPanel button:disabled, #urlBar:disabled { opacity: 0.5; cursor: default; }
+  p select:focus-visible, p button:focus-visible, p input:focus-visible, #webuiPanel button:focus-visible, #urlBar:focus-visible {
+    outline: 2px solid #1f6feb; outline-offset: 1px;
+  }
 </style>
 </head>
 <body>
@@ -58,9 +77,8 @@
     <option data-local-file="true">From a local build file (.html/.html.gz)...</option>
   </select>
   <input type="file" id="webuiFileInput" accept=".html,.gz" style="display:none">
-  <button id="resetStorage" type="button">Reset files and settings</button>
-  discards everything saved in this browser and reloads with the built-in
-  copies. <span id="resetStatus" role="status"></span></p>
+  <button id="resetStorage" type="button" title="Discards everything saved in this browser and reloads with the built-in copies">Reset files and settings</button>
+  <span id="resetStatus" role="status"></span></p>
 <form id="webuiPanel" autocomplete="off">
   <button id="navBack" type="button" title="Back" disabled>&#9664;</button>
   <button id="navForward" type="button" title="Forward" disabled>&#9654;</button>
