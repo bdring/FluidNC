@@ -11,6 +11,8 @@
 #include "Authentication.h"  // AuthenticationLevel
 
 #include <freertos/task.h>
+#include <string>
+#include <string_view>
 
 class AsyncWebSocket;
 class AsyncWebSocketClient;
@@ -31,6 +33,7 @@ namespace WebUI {
     std::string webServerIp();
 
     extern EnumSetting* http_enable;
+    extern EnumSetting* http_block_during_motion;
     extern IntSetting*  http_port;
 
 #ifdef ENABLE_AUTHENTICATION
@@ -44,6 +47,9 @@ namespace WebUI {
     };
 #endif
 
+    // The value of the named cookie in the request, or empty
+    std::string getCookie(AsyncWebServerRequest* request, std::string_view name);
+
     std::string getSession(AsyncClient* client);
     std::string getSession(AsyncWebSocketClient* client);
 
@@ -51,6 +57,8 @@ namespace WebUI {
     enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
 
     class WebUI_Server : public Module {
+        friend class UiDir;  // Serves files and commands for /ui
+
     public:
         WebUI_Server(const char* name) : Module(name) {}
 
@@ -117,11 +125,7 @@ namespace WebUI {
         static bool myStreamFile(
             AsyncWebServerRequest* request, const char* path, bool download = false, bool setSession = false, const char* uiName = nullptr);
 
-        static bool uiIndexExists(const std::string& name);
-        static void handle_ui(AsyncWebServerRequest* request);
-        static void handle_ui_list(AsyncWebServerRequest* request, const std::string& dir);
-        static void handle_ui_body(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total);
-        static void handle_ui_put(AsyncWebServerRequest* request, const std::string& path);
+
 
         static void pushError(AsyncWebServerRequest* request, uint16_t code, const char* st, int32_t web_error = 500, uint16_t timeout = 1000);
         static void cancelUpload(AsyncWebServerRequest* request);
