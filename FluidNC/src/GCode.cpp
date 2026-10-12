@@ -1031,7 +1031,10 @@ Error gc_execute_line(const char* input_line, Channel& channel) {
                             if (!parse_spindle_speed_cluster(line, pos, value, clustered_spindle_speeds)) {
                                 return Error::BadNumberFormat;
                             }
-                            gc_block.values.s = clustered_spindle_speeds.back();
+                            // The S word supplies the modal power; colon-separated
+                            // values apply only to this move. LightBurn can omit S
+                            // on subsequent moves based on this first value.
+                            gc_block.values.s = clustered_spindle_speeds.front();
                         } else {
                             gc_block.values.s = value;
                         }
