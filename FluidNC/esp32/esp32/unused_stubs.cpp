@@ -8,7 +8,11 @@ void esp_system_include_coredump_init(void) {}
 void esp_core_dump_write(void* info) {}
 
 // Wi-Fi provisioning: Arduino WiFiGeneric calls network_prov_mgr_deinit() on teardown;
-// FluidNC never initializes the provisioning manager, so deinit is a no-op anyway.
+// FluidNC never initializes the provisioning manager, so a no-op is enough.  This does
+// not keep the provisioning manager out of the link - WiFiGeneric's use of
+// NETWORK_PROV_EVENT pulls in its manager.c member anyway, and -z muldefs keeps this
+// definition over the one there - but the code the real deinit calls is then dropped,
+// leaving about 260 bytes of that member.
 void network_prov_mgr_deinit(void) {}
 }
 
