@@ -462,7 +462,9 @@ def makeManifest():
     # called out in the description text instead of encoded as data.
     addVariant("wifi", "Supports WiFi and WebUI", "Installation type", compatible_psram=["none", "quad", "octal"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-firmware", mcu + "-wifi-4m-filesystem"])
-    addInstallable(firmware_update, False, [mcu + "-wifi-firmware"])
+    # firmware-update rewrites boot_app0 for the same reason as on esp32
+    # above; the bootloader's IDF version already matches, so it is left alone
+    addInstallable(firmware_update, False, [mcu + "-bootapp", mcu + "-wifi-firmware"])
 
     # Shares the plain "wifi" build's bootloader, partition table, and
     # filesystem image -- only the firmware differs.
@@ -474,14 +476,14 @@ def makeManifest():
         compatible_psram=["octal"]
     )
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-wifi-octalpsram-firmware", mcu + "-wifi-4m-filesystem"])
-    addInstallable(firmware_update, False, [mcu + "-wifi-octalpsram-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-bootapp", mcu + "-wifi-octalpsram-firmware"])
 
     # noradio_s3 extends common_esp32s3 with no memory_type override, so it
     # gets the same Quad-PSRAM core as "wifi" above -- same universal
     # compatibility.
     addVariant("noradio", "Does not support WiFi", "Installation type", compatible_psram=["none", "quad", "octal"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
-    addInstallable(firmware_update, False, [mcu + "-noradio-firmware"])
+    addInstallable(firmware_update, False, [mcu + "-bootapp", mcu + "-noradio-firmware"])
 
     addFile("WebUI-2", "/localfs/index.html.gz", "index-webui-2.html.gz", os.path.join("release", "current", "data"), "data")
     addFile("WebUI-3", "/localfs/index.html.gz", "index-webui-3.html.gz", os.path.join("release", "current", "data"), "data")
