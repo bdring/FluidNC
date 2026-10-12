@@ -162,7 +162,8 @@ return names.sort(compareStrings);
 
 // Buttons for the root WebUI and each one in $HTTP/UIDir
 function showlinks(){
-var content = rootindex ? "<a href='/' class='btn btn-primary'>Default</a> " : "";
+// The LocalFS WebUI is /ui/localfs/, since / may redirect to $HTTP/DefaultUI
+var content = rootindex ? "<a href='/ui/localfs/' class='btn btn-primary'>localfs</a> " : "";
 for (var i = 0; i < uis.length; i++) {
     content += "<a href='/ui/" + uis[i] + "/' class='btn btn-primary'>" + uis[i] + "</a> ";
 }

@@ -13,6 +13,7 @@
 #include <freertos/task.h>
 #include <string>
 #include <string_view>
+#include <functional>
 
 class AsyncWebSocket;
 class AsyncWebSocketClient;
@@ -122,8 +123,13 @@ namespace WebUI {
         static void handleUpdate(AsyncWebServerRequest* request);
         static void WebUpdateUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final);
 
-        static bool myStreamFile(
-            AsyncWebServerRequest* request, const char* path, bool download = false, bool setSession = false, const char* uiName = nullptr);
+        // onDone, if given, runs when the request's connection closes
+        static bool myStreamFile(AsyncWebServerRequest* request,
+                                 const char*            path,
+                                 bool                   download   = false,
+                                 bool                   setSession = false,
+                                 const char*            uiName     = nullptr,
+                                 std::function<void()>  onDone     = nullptr);
 
 
 

@@ -17,6 +17,7 @@
 #include <ESPAsyncWebServer.h>
 #include <algorithm>
 #include <atomic>
+#include <deque>
 #include <set>
 #include <vector>
 
@@ -56,6 +57,20 @@ namespace WebUI {
             }
         }
         return true;
+    }
+
+    // The WebUI in the LocalFS root - the one / has always served - is also
+    // /ui/localfs/, so it stays reachable when HTTP/DefaultUI sends /
+    // elsewhere.  It hides any subdirectory of HTTP/UIDir with that name.
+    static const std::string localfsUi = "localfs";
+
+    // The directory of the named WebUI, or empty if there is none
+    static std::string uiPath(const std::string& name) {
+        if (name == localfsUi) {
+            return FluidPath::canonPath("", LocalFS);
+        }
+        auto dir = uiDir();
+        return dir.empty() ? "" : dir + "/" + name;
     }
 
     // A request URL under /ui, split into the WebUI name and the path
@@ -148,17 +163,17 @@ namespace WebUI {
         return http_block_during_motion->get() && inMotionState();
     }
 
-    // True if the named WebUI in HTTP/UIDir has an index.html[.gz].  During
+    // True if the named WebUI has an index.html[.gz].  During
     // motion only the hash cache is consulted, so the files are not read.
     bool UiDir::indexExists(const std::string& name) {
         if (!validUiName(name)) {
             return false;
         }
-        auto dir = uiDir();
-        if (dir.empty()) {
+        auto base = uiPath(name);
+        if (base.empty()) {
             return false;
         }
-        std::string index = dir + "/" + name + "/index.html";
+        std::string index = base + "/index.html";
         if (blockedInMotion()) {
             return !HashFS::hash(index, true).empty() || !HashFS::hash(index + ".gz", true).empty();
         }
@@ -202,19 +217,27 @@ namespace WebUI {
         std::string defaultUi(http_default_ui->get());
         std::string page = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
                            "<meta name='viewport' content='width=device-width, initial-scale=1'>"
-                           "<title>WebUIs</title></head><body><h3>WebUIs in " +
-                           html_escape(dir) + "</h3><ul>";
-        int             count = 0;
+                           "<title>WebUIs</title></head><body><h3>WebUIs" +
+                           (dir.empty() ? std::string() : " in " + html_escape(dir)) + "</h3><ul>";
+        int count = 0;
+        if (indexExists(localfsUi)) {
+            page += "<li><a href='/ui/" + localfsUi + "/'>" + localfsUi + "</a> (the local file system)";
+            if (localfsUi == defaultUi) {
+                page += " (default)";
+            }
+            page += "</li>";
+            ++count;
+        }
         std::error_code ec;
         FluidPath       fpath { dir, LocalFS, ec };
-        if (!ec) {
+        if (!dir.empty() && !ec) {
             std::vector<std::string> names;
             // The error_code forms throughout: a card pulled mid-listing
             // must not throw out of this async_tcp callback.
             for (stdfs::directory_iterator it { fpath, ec }, end; !ec && it != end; it.increment(ec)) {
                 std::error_code fec;
                 auto            name = it->path().filename().string();
-                if (it->is_directory(fec) && validUiName(name) &&
+                if (it->is_directory(fec) && validUiName(name) && name != localfsUi &&
                     (stdfs::exists(it->path() / "index.html", fec) || stdfs::exists(it->path() / "index.html.gz", fec))) {
                     names.push_back(name);
                 }
@@ -247,13 +270,17 @@ namespace WebUI {
     void UiDir::handle(AsyncWebServerRequest* request) {
         std::string url(request->url().c_str());
         UiUrl       u;
-        auto        dir = uiDir();
-        if (dir.empty() || !splitUiUrl(url, u)) {
+        if (!splitUiUrl(url, u)) {
             WebUI_Server::send404Page(request);
             return;
         }
         if (u.name.empty()) {
-            handleList(request, dir);
+            handleList(request, uiDir());
+            return;
+        }
+        auto base = uiPath(u.name);
+        if (base.empty()) {
+            WebUI_Server::send404Page(request);
             return;
         }
         if (u.tail.empty() && !u.slash) {
@@ -270,7 +297,7 @@ namespace WebUI {
             return;
         }
 
-        std::string path = dir + "/" + u.name + "/" + (u.tail.empty() ? "index.html" : u.tail);
+        std::string path = base + "/" + (u.tail.empty() ? "index.html" : u.tail);
 
         if (request->method() == HTTP_PUT && u.tail.empty()) {
             request->send(405);  // PUT needs a file name; /ui/<name>/ is the page
@@ -284,6 +311,18 @@ namespace WebUI {
             request->send(405);
             return;
         }
+
+        // One file at a time - see serveWaiting().  Until this request's
+        // connection closes, later ones wait their turn.
+        if (serving) {
+            waiting.push_back(request->pause());
+            return;
+        }
+        serving   = true;
+        auto done = [] {
+            serving = false;
+            serveWaiting();
+        };
 
         if (u.tail.empty()) {
             // A page load.  Close the channels of the previous instance of
@@ -301,13 +340,32 @@ namespace WebUI {
             if (!session.empty()) {
                 WSChannels::closeSessionChannels(session);
             }
-            if (WebUI_Server::myStreamFile(request, path.c_str(), false, true, u.name.c_str())) {
+            if (WebUI_Server::myStreamFile(request, path.c_str(), false, true, u.name.c_str(), done)) {
                 return;
             }
-        } else if (WebUI_Server::myStreamFile(request, path.c_str())) {
+        } else if (WebUI_Server::myStreamFile(request, path.c_str(), false, false, nullptr, done)) {
             return;
         }
         WebUI_Server::send404Page(request);
+    }
+
+    // SD is mounted with room for only two open files, and a job or a PUT may
+    // be using one.  A browser loading a WebUI asks for several files at once,
+    // so they are served one at a time: while one is being sent, later
+    // requests are paused, and resumed in order when its connection closes.
+    // The number waiting is bounded by the TCP connections.  Every handler and
+    // disconnect callback runs on the async_tcp task, so this needs no lock.
+    bool                                 UiDir::serving = false;
+    std::deque<AsyncWebServerRequestPtr> UiDir::waiting;
+
+    void UiDir::serveWaiting() {
+        while (!serving && !waiting.empty()) {
+            auto next = waiting.front().lock();  // Empty if that client has gone
+            waiting.pop_front();
+            if (next) {
+                handle(next.get());
+            }
+        }
     }
 
     // State for a PUT under /ui, which is written to a temporary file that
@@ -323,12 +381,11 @@ namespace WebUI {
     static std::string uiPutPath(AsyncWebServerRequest* request) {
         std::string url(request->url().c_str());
         UiUrl       u;
-        auto        dir = uiDir();
-        if (dir.empty() || !splitUiUrl(url, u) || u.name.empty() || u.tail.empty() || u.tail == "command" ||
-            u.tail == "command_silent") {
+        if (!splitUiUrl(url, u) || u.name.empty() || u.tail.empty() || u.tail == "command" || u.tail == "command_silent") {
             return "";
         }
-        return dir + "/" + u.name + "/" + u.tail;
+        auto base = uiPath(u.name);
+        return base.empty() ? "" : base + "/" + u.tail;
     }
 
     // Each PUT writes its own temporary file, so overlapping PUTs to the

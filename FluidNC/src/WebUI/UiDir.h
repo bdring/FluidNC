@@ -6,10 +6,13 @@
 #include <string>
 #include <cstdint>
 #include <cstddef>
+#include <deque>
+#include <memory>
 
 class AsyncWebServer;
 class AsyncWebSocket;
 class AsyncWebServerRequest;
+using AsyncWebServerRequestPtr = std::weak_ptr<AsyncWebServerRequest>;
 
 namespace WebUI {
     // Serves several WebUIs at once, each from a subdirectory of HTTP/UIDir
@@ -18,6 +21,7 @@ namespace WebUI {
     //   /ui/<name>/                  that WebUI's index.html, and its WebSocket
     //   /ui/<name>/command[_silent]  commands in that WebUI's session
     //   /ui/<name>/<path>            GET or PUT a file in that WebUI's directory
+    // /ui/localfs/ is the WebUI in the LocalFS root, which / serves by default.
     // HTTP/DefaultUI names the one that / redirects to.
     class UiDir {
     public:
@@ -34,5 +38,10 @@ namespace WebUI {
         static void handleList(AsyncWebServerRequest* request, const std::string& dir);
         static void handleBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total);
         static void handlePut(AsyncWebServerRequest* request, const std::string& path);
+
+        // Files are served one at a time; these wait for their turn
+        static bool                                 serving;
+        static std::deque<AsyncWebServerRequestPtr> waiting;
+        static void                                 serveWaiting();
     };
 }

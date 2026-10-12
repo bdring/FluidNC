@@ -534,7 +534,17 @@ namespace WebUI {
     }
 
     // Send a file, either the specified path or path.gz
-    bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession, const char* uiName) {
+    bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request,
+                                    const char*            path,
+                                    bool                   download,
+                                    bool                   setSession,
+                                    const char*            uiName,
+                                    std::function<void()>  onDone) {
+        if (onDone) {
+            // Whatever is sent - a file, a 304, a refusal - or the caller's
+            // reply if this returns false.  A file response replaces it below.
+            request->onDisconnect(onDone);
+        }
         bool acceptGz = false;
         if (request->hasHeader("Accept-Encoding")) {
             auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
@@ -633,7 +643,12 @@ namespace WebUI {
                 return actual;  // Return actual bytes read, not requested bytes
             });
 
-        request->onDisconnect([request, file]() { delete file; });
+        request->onDisconnect([file, onDone]() {
+            delete file;
+            if (onDone) {
+                onDone();
+            }
+        });
 
         if (setSession) {
             addSessionCookies(request, response, uiName);
