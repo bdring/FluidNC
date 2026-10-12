@@ -189,6 +189,7 @@ xmlhttp.onreadystatechange = function() {
     if (!m) return;
     uiep = m[1].toLowerCase() == "sd" ? "/upload" : "/files";
     uiroot = (m[2] || "").replace(/\/*$/, "/");
+    document.getElementById('uivol').style.display = "";
     var list = new XMLHttpRequest();
     list.onreadystatechange = function() {
         if (list.readyState == 4 && list.status == 200) {

@@ -259,6 +259,35 @@ namespace WebUI {
         request->send(200, "text/html", page.c_str());
     }
 
+    static std::string urlEncode(const String& s) {
+        static const char hex[] = "0123456789ABCDEF";
+        std::string       out;
+        for (char c : s) {
+            if (isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.' || c == '~') {
+                out += c;
+            } else {
+                out += '%';
+                out += hex[(c >> 4) & 0xf];
+                out += hex[c & 0xf];
+            }
+        }
+        return out;
+    }
+
+    // The request's URL query, e.g. "?forcefallback=yes", or empty
+    static std::string queryString(AsyncWebServerRequest* request) {
+        std::string q;
+        for (size_t i = 0; i < request->params(); ++i) {
+            const AsyncWebParameter* p = request->getParam(i);
+            if (p->isPost() || p->isFile()) {
+                continue;
+            }
+            q += q.empty() ? '?' : '&';
+            q += urlEncode(p->name()) + "=" + urlEncode(p->value());
+        }
+        return q;
+    }
+
     // Requests under /ui:
     //   /ui/                      a list of the WebUIs in HTTP/UIDir
     //   /ui/<name>/               that WebUI's index.html, and its WebSocket
@@ -274,8 +303,13 @@ namespace WebUI {
             WebUI_Server::send404Page(request);
             return;
         }
+        bool isGet = request->method() == HTTP_GET || request->method() == HTTP_HEAD;
         if (u.name.empty()) {
-            handleList(request, uiDir());
+            if (isGet) {
+                handleList(request, uiDir());
+            } else {
+                request->send(405);  // The list is read-only
+            }
             return;
         }
         auto base = uiPath(u.name);
@@ -284,8 +318,12 @@ namespace WebUI {
             return;
         }
         if (u.tail.empty() && !u.slash) {
-            // Relative URLs in the page must resolve beneath its directory
-            request->redirect((url + "/").c_str());
+            if (isGet) {
+                // Relative URLs in the page must resolve beneath its directory
+                request->redirect((url + "/" + queryString(request)).c_str());
+            } else {
+                request->send(405);  // Not a file, and PUT needs a file name
+            }
             return;
         }
         if (u.tail == "command") {

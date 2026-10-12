@@ -1,4 +1,6 @@
 #include "HashFS.h"
+#include <algorithm>
+#include <cctype>
 #include "FileStream.h"
 #include "SHA256.h"
 #include "Driver/watchdog.h"
@@ -69,8 +71,18 @@ void HashFS::report_change() {
 // showLocalFSHashes and the WebUI have always seen.  Files under
 // HTTP/UIDir, which can be on SD, are keyed by full path so they cannot
 // collide with a top-level LocalFS name.
+//
+// FAT, on SD, ignores case, so /sd/ui/ABC/app.js and /sd/ui/abc/app.js are
+// one file and must be one key.  SD paths are compared in lower case.
+static std::string norm(std::string s) {
+    if (s == "/sd" || s.rfind("/sd/", 0) == 0) {
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+    }
+    return s;
+}
+
 std::string HashFS::key(const std::filesystem::path& path) {
-    return file_is_hashable(path) ? path.filename().string() : path.string();
+    return file_is_hashable(path) ? path.filename().string() : norm(path.string());
 }
 
 // Caller holds the lock
@@ -82,7 +94,7 @@ void HashFS::erase_locked(const std::filesystem::path& path) {
 
     // The path might be a directory that was removed or renamed, so drop
     // any full-path entries beneath it.
-    std::string prefix = path.string() + "/";
+    std::string prefix = norm(path.string()) + "/";
     for (auto it = localFsHashes.lower_bound(prefix); it != localFsHashes.end() && it->first.rfind(prefix, 0) == 0;) {
         it     = localFsHashes.erase(it);
         cached = true;
@@ -122,7 +134,7 @@ bool HashFS::in_ui_dir_locked(const std::filesystem::path& path) {
     if (_uiDir.empty()) {
         return false;
     }
-    return path.string().rfind(_uiDir + "/", 0) == 0;
+    return norm(path.string()).rfind(_uiDir + "/", 0) == 0;
 }
 
 bool HashFS::in_ui_dir(const std::filesystem::path& path) {
@@ -142,7 +154,7 @@ bool HashFS::ui_index_locked(const std::filesystem::path& path) {
     if (!in_ui_dir_locked(path)) {
         return false;
     }
-    std::string rest  = path.string().substr(_uiDir.length() + 1);  // "<name>/<file>"
+    std::string rest  = norm(path.string()).substr(_uiDir.length() + 1);  // "<name>/<file>"
     auto        slash = rest.find('/');
     if (slash == 0 || slash == std::string::npos) {
         return false;
@@ -217,7 +229,7 @@ void HashFS::hash_ui_indexes() {
 void HashFS::set_ui_dir(const std::string& path) {
     {
         Lock lock;
-        if (path == _uiDir) {
+        if (norm(path) == _uiDir) {
             return;
         }
         ++_generation;
@@ -229,7 +241,7 @@ void HashFS::set_ui_dir(const std::string& path) {
                 it = localFsHashes.erase(it);
             }
         }
-        _uiDir = path;
+        _uiDir = norm(path);
     }
     // The indexes are hashed by hash_all() at startup.  After a change,
     // each is hashed on its first request - not here, since this can be
@@ -295,7 +307,7 @@ void HashFS::rename_file(const std::filesystem::path& ipath, const std::filesyst
         delete_file(opath, false);
         // The renamed directory might be, contain, or be inside HTTP/UIDir
         auto dir = ui_dir() + "/";
-        auto o   = opath.string() + "/";
+        auto o   = norm(opath.string()) + "/";
         if (dir != "/" && (dir.rfind(o, 0) == 0 || o.rfind(dir, 0) == 0)) {
             hash_ui_indexes();
         }
