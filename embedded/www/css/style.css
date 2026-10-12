@@ -103,3 +103,5 @@ background-image:none;border:1px solid transparent;white-space:nowrap;padding:6p
     width: 100%;
     }
 }
+#loc{font-size:1.7em;}
+#loc input{width:0.8em;height:0.8em;}

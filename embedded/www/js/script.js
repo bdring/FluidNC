@@ -1,4 +1,12 @@
 var currentpath = "/";
+// "WebUIs" view: the subdirectories of $HTTP/UIDir, served at /ui/<name>/
+var ep = "/files";     // file endpoint: /files (LocalFS) or /upload (SD)
+var uiep = "";         // endpoint and directory of $HTTP/UIDir
+var uiroot = "";
+var vol = "";         // view: "" LocalFS, "sd" SD card, "ui" WebUIs
+var inui = false;      // browsing the WebUIs
+var uis = [];          // installed WebUI names
+var rootindex = false; // LocalFS has an index.html[.gz]
 var authentication = false;
 var websocket_port = 0;
 var websocket_IP = "";
@@ -16,7 +24,7 @@ function navbar(){
     var tlist = currentpath.split("/");
     var path="/";
     var nb = 1;
-    content+="<td class='btnimg'  onclick=\"currentpath='/'; SendCommand('list','all');\">/</td>";
+    content+="<td class='btnimg'  onclick=\"setvol(vol);\">/</td>";
     while (nb < (tlist.length-1))
         {
             path+=tlist[nb] + "/";
@@ -68,7 +76,7 @@ content +="&nbsp;&nbsp;|&nbsp;&nbsp;Occupation: ";
 content +="<meter min='0' max='100' high='90' value='"+jsonresponse.occupation +"'></meter>&nbsp;"+jsonresponse.occupation +"%";
 document.getElementById('status').innerHTML=content;
 content ="";
-if (currentpath!="/")
+if (currentpath!=(inui ? uiroot : "/"))
     {
      var pos = currentpath.lastIndexOf("/",currentpath.length-2);
      var previouspath = currentpath.slice(0,pos+1);
@@ -77,7 +85,7 @@ if (currentpath!="/")
 jsonresponse.files.sort(function(a, b) {
     return compareStrings(a.name, b.name);
 });
-if (currentpath=="/") {
+if (currentpath=="/" && !vol) {
     display_message = true;
 }
 var display_time =false;
@@ -88,7 +96,7 @@ if (String(jsonresponse.files[i1].size) != "-1")
     content +="<TR>";
     content +="<td><svg height='24' width='24' viewBox='0 0 24 24' >    <path d='M1,2 L1,21 L2,22 L16,22 L17,21 L17,6 L12,6 L12,1  L2,1 z' stroke='black' fill='white' /><line x1='12' y1='1' x2='17' y2='6' stroke='black' stroke-width='1'/>";
     content +="</svg></td>";
-    content +="<TD class='btnimg' style=\"padding:0px;\"><a href=\""+jsonresponse.path+jsonresponse.files[i1].name+"\" target=_blank><div class=\"blacklink\">";
+    content +="<TD class='btnimg' style=\"padding:0px;\"><a href=\""+fileurl(jsonresponse.files[i1].name)+"\" target=_blank><div class=\"blacklink\">";
     content +=jsonresponse.files[i1].name;
     if ((jsonresponse.files[i1].name == "index.html.gz")||(jsonresponse.files[i1].name == "index.html")){
         display_message = false;
@@ -130,14 +138,71 @@ if(display_time){
 } else {
     document.getElementById('FS_time').innerHTML = "Time";
 }
- if (display_message) {
-    
-    document.getElementById('MSG').innerHTML = "File index.html.gz is missing, please upload it";
- } else {
-     document.getElementById('MSG').innerHTML = "<a href='/' class= 'btn btn-primary'>Go to ESP3D interface</a>";
+ if (inui && currentpath == uiroot) {
+    uis = dirnames(jsonresponse);
+ } else if (!vol && currentpath == "/") {
+    rootindex = !display_message;
  }
+ showlinks();
  document.getElementById('file_list').innerHTML=content;
  document.getElementById('path').innerHTML=navbar();}
+
+// Where a listed file is served: under /ui/ for the WebUIs, else from LocalFS
+function fileurl(name){
+return inui ? "/ui/" + currentpath.slice(uiroot.length) + name : (vol ? "/sd" : "") + currentpath + name;
+}
+
+function dirnames(jsonresponse){
+var names = [];
+for (var i = 0; jsonresponse.files && i < jsonresponse.files.length; i++) {
+    if (String(jsonresponse.files[i].size) == "-1") names.push(jsonresponse.files[i].name);
+}
+return names.sort(compareStrings);
+}
+
+// Buttons for the root WebUI and each one in $HTTP/UIDir
+function showlinks(){
+// The LocalFS WebUI is /ui/localfs/, since / may redirect to $HTTP/DefaultUI
+var content = rootindex ? "<a href='/ui/localfs/' class='btn btn-primary'>localfs</a> " : "";
+for (var i = 0; i < uis.length; i++) {
+    content += "<a href='/ui/" + uis[i] + "/' class='btn btn-primary'>" + uis[i] + "</a> ";
+}
+document.getElementById('MSG').innerHTML = "<div style='text-align:left'>Go to WebUI: " + (content || "No WebUI index.html.gz files are present") + "</div>";
+}
+
+// Switch the file panel between LocalFS and the WebUIs
+function setvol(v){
+vol = v;
+inui = v == "ui";
+ep = v == "sd" ? "/upload" : inui ? uiep : "/files";
+currentpath = inui ? uiroot : "/";
+SendCommand('list','all');
+}
+
+// Reads $HTTP/UIDir (e.g. /sd/ui) to offer the WebUIs view; firmware
+// without it leaves the view hidden
+function InitUIDir(){
+var xmlhttp = new XMLHttpRequest();
+xmlhttp.onreadystatechange = function() {
+    if (xmlhttp.readyState != 4 || xmlhttp.status != 200) return;
+    var m = /UIDir=\/(sd|localfs|littlefs|spiffs)(\/[^\s]*)?/i.exec(xmlhttp.responseText);
+    if (!m) return;
+    uiep = m[1].toLowerCase() == "sd" ? "/upload" : "/files";
+    uiroot = (m[2] || "").replace(/\/*$/, "/");
+    document.getElementById('uivol').style.display = "";
+    var list = new XMLHttpRequest();
+    list.onreadystatechange = function() {
+        if (list.readyState == 4 && list.status == 200) {
+            uis = dirnames(JSON.parse(list.responseText));
+            showlinks();
+        }
+    };
+    list.open("GET", uiep + "?path=" + encodeURI(uiroot), true);
+    list.send();
+};
+xmlhttp.open("GET", "/command?plain=" + encodeURIComponent("$HTTP/UIDir"), true);
+xmlhttp.send();
+}
 
 function Delete(filename){
 if (confirm("Confirm deletion of file: " + filename))SendCommand("delete",filename);
@@ -156,7 +221,7 @@ if (filename != null) {
 
 function SendCommand(action,filename){
 var xmlhttp = new XMLHttpRequest();
-var url = "/files?action="+action;
+var url = ep+"?action="+action;
 document.getElementById('MSG').innerHTML = "Connecting...";
 url += "&filename="+encodeURI(filename);
 url += "&path="+encodeURI(currentpath);
@@ -164,6 +229,7 @@ xmlhttp.onreadystatechange = function() {
     if (xmlhttp.readyState == 4 ) {
         if(xmlhttp.status == 200) {
         var jsonresponse = JSON.parse(xmlhttp.responseText);
+        jsonresponse.files = jsonresponse.files || []; // missing directory
         dispatchfilestatus(jsonresponse);
         } else {
             if(xmlhttp.status == 401) { 
@@ -186,14 +252,12 @@ document.getElementById('upload-button').value = "Uploading...";
 document.getElementById('prg').style.visibility = "visible";
 var formData = new FormData();
 formData.append('path', currentpath);
-for (var i3 = 0; i3 < files.length; i3++) {
-var file = files[i3];
-var arg = currentpath + file.name + "S";
- //append file size first to check upload is complete
- formData.append(arg, file.size);
- formData.append('myfiles[]', file, currentpath+file.name);}
+var file = files[0];
+//append file size first to check upload is complete
+formData.append(currentpath + file.name + "S", file.size);
+formData.append('myfiles[]', file, currentpath+file.name);
 xmlhttpupload = new XMLHttpRequest();
-xmlhttpupload.open('POST', '/files', true);
+xmlhttpupload.open('POST', ep, true);
 //progress upload event
 xmlhttpupload.upload.addEventListener("progress", updateProgress, false);
 //progress function
@@ -304,6 +368,7 @@ xmlhttp.onreadystatechange = function() {
             }
             if (nbitem == 4) {
                 SendCommand('list','all');
+                InitUIDir();
                 FWOk();
             } else {
                 error = true;

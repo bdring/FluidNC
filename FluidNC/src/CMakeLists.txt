@@ -149,6 +149,7 @@ idf_component_register(SRCS BTConfig.cpp
 							WebUI/WebClient.cpp
 							WebUI/WebCommands.cpp
 							WebUI/WebUIServer.cpp
+							WebUI/UiDir.cpp
 							WebUI/WifiConfig.cpp
 							WebUI/WSChannel.cpp
 							WebUI/ASyncTCP_Shim.cpp

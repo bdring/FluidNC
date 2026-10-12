@@ -19,7 +19,7 @@ footer = ""
 
 def bin2header(data, var_name='var'):
     out = []
-    out.append('const char {var_name}[] = {{'.format(var_name=var_name))
+    out.append('const uint8_t {var_name}[] = {{'.format(var_name=var_name))
     l = [ data[i:i+16] for i in range(0, len(data), 16) ]
     for i, x in enumerate(l):
         line = ', '.join([   '0x{val:02X}'.format(val=c) for c in x ])
