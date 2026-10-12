@@ -73,11 +73,9 @@ inline void platform_preinit() {
     // exactly the bug found and fixed on ESP32-S3 (see
     // esp32/esp32s3/Platform.h): as of Arduino-ESP32 core 3.x / ESP-IDF 5.x,
     // subscribing the loop task this early tripped a real TWDT timeout --
-    // and killed the board -- during blocking network bring-up. This code
-    // path is currently unreachable on plain ESP32 (which is pinned to
-    // ESP-IDF 4.4, taking the branch above), but is fixed preemptively so it
-    // doesn't silently reintroduce that crash if plain ESP32 is ever moved
-    // to ESP-IDF 5.x, matching what already happened for S3.
+    // and killed the board -- during blocking network bring-up. Plain ESP32
+    // now builds with ESP-IDF 5.x too (pioarduino), so it takes this branch
+    // as well.
     if (esp_task_wdt_status(NULL) == ESP_OK) {
         esp_err_t err = esp_task_wdt_delete(NULL);  // NULL means current task
         if (err != ESP_OK) {

@@ -180,7 +180,7 @@ namespace WebUI {
             }
 #    else
             wifi_sta_list_t station;
-            size_t          num_stations;
+            size_t          num_stations = 0;
 #        if ESP_IDF_VERSION_MAJOR < 5
             esp_netif_sta_list_t netif_sta_list;
             esp_wifi_ap_get_sta_list(&station);
