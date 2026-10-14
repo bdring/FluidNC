@@ -518,7 +518,7 @@ static Error makeDirectory(const Volume& fs, const char* parameter, Channel& out
         }
     } catch (std::filesystem::filesystem_error const& ex) {
         log_error_to(out, ex.what());
-        return Error::FsFailedMount;
+        return Error::FsFailedCreateFile;
     }
     return Error::Ok;
 }
