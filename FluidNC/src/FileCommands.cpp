@@ -501,6 +501,34 @@ static Error renameLocalObject(const char* parameter, AuthenticationLevel auth_l
     return renameObject(LocalFS, parameter, auth_level, out);
 }
 
+// Creates the directory and any missing parents.  An existing directory
+// is not an error, so clients can call this unconditionally before
+// uploading into a path.
+static Error makeDirectory(const Volume& fs, const char* parameter, Channel& out) {
+    if (!parameter || *parameter == '\0') {
+        return Error::InvalidValue;
+    }
+    try {
+        FluidPath       fpath { parameter, fs };
+        std::error_code ec;
+        stdfs::create_directories(fpath, ec);
+        if (ec || !stdfs::is_directory(fpath)) {
+            log_error_to(out, "Cannot create directory " << fpath.string());
+            return Error::FsFailedCreateFile;
+        }
+    } catch (std::filesystem::filesystem_error const& ex) {
+        log_error_to(out, ex.what());
+        return Error::FsFailedMount;
+    }
+    return Error::Ok;
+}
+static Error makeSDDirectory(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    return makeDirectory(SD, parameter, out);
+}
+static Error makeLocalDirectory(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    return makeDirectory(LocalFS, parameter, out);
+}
+
 static Error copyFile(const Volume& ifs, const char* ipath, const Volume& ofs, const char* opath, Channel& out) {  // No ESP command
     std::filesystem::path filepath;
     bool                  readFailed = false;
@@ -634,7 +662,13 @@ static Error xmodem_receive(const char* value, AuthenticationLevel auth_level, C
     }
     FileStream* outfile;
     try {
-        outfile = new FileStream(value, "w");
+        // Create missing parent directories so a client can upload
+        // straight into e.g. /localfs/ui/<name>/ without a separate
+        // mkdir.  A failure here shows up as the open failing below.
+        FluidPath       fpath { value, LocalFS };
+        std::error_code ec;
+        stdfs::create_directories(fpath.parent_path(), ec);
+        outfile = new FileStream(fpath, "w");
     } catch (...) {
         out.write(0x18);  // Cancel xmodem transfer with CAN
         log_info("Cannot open " << value);
@@ -709,6 +743,7 @@ void make_file_commands() {
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON, allowConfigStates);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile, allowConfigStates);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Rename", renameLocalObject, allowConfigStates);
+    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Mkdir", makeLocalDirectory, allowConfigStates);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Backup", backupLocalFS);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Restore", restoreLocalFS);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
@@ -721,6 +756,7 @@ void make_file_commands() {
     new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile, nullptr);
     new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
     new WebCommand("path", WEBCMD, WU, NULL, "SD/Rename", renameSDObject);
+    new WebCommand("path", WEBCMD, WU, NULL, "SD/Mkdir", makeSDDirectory);
     new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);
     new WebCommand("path", WEBCMD, WU, NULL, "SD/ListJSON", listSDFilesJSON);
     new WebCommand(NULL, WEBCMD, WU, "ESP200", "SD/Status", showSDStatus);
