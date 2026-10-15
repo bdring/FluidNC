@@ -328,6 +328,21 @@ static bool parseLineSpec(std::string_view spec, Channel& out, bool& relative, i
     return true;
 }
 
+// A path given without a volume prefix is resolved against the volume of the
+// currently active job, if any (so a breakpoint on a $LocalFS/Run file needn't
+// spell out the LocalFS path), else against SD.
+static const Volume& breakpointDefaultVolume() {
+    Channel* jc = Job::channel();
+    if (jc) {
+        const std::string& name   = jc->name();
+        const std::string& prefix = LocalFS.prefix;
+        if (!prefix.empty() && name.compare(0, prefix.length(), prefix) == 0 && (name.length() == prefix.length() || name[prefix.length()] == '/')) {
+            return LocalFS;
+        }
+    }
+    return SD;
+}
+
 // $Breakpoint/Set=[+-]line,path arms a persistent, debugger-style breakpoint
 // (Job::set_breakpoint(), see Job.h) -- checked live against whichever job is
 // currently running, so this takes effect immediately even on a file that's
@@ -373,7 +388,7 @@ static Error breakpointSet(const char* value, AuthenticationLevel auth_level, Ch
         }
         path = jc->name();
     } else {
-        path = FluidPath::canonPath(args, SD);
+        path = FluidPath::canonPath(args, breakpointDefaultVolume());
     }
 
     int32_t target = parsed;
@@ -432,7 +447,7 @@ static Error breakpointClear(const char* value, AuthenticationLevel auth_level, 
         log_error_to(out, "Invalid line number");
         return Error::InvalidValue;
     }
-    std::string path = FluidPath::canonPath(args, SD);
+    std::string path = FluidPath::canonPath(args, breakpointDefaultVolume());
     if (!Job::clear_breakpoint(path, line)) {
         log_error_to(out, "No such breakpoint");
         return Error::InvalidValue;

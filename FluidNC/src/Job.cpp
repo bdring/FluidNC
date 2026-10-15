@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Job.h"
+#include <atomic>
 #include "Logging.h"
 #include "Serial.h"    // allChannels
 #include "Protocol.h"  // unwind_cause
@@ -264,14 +265,21 @@ Channel* Job::channel() {
 // scope before the enclosing namespace, so "breakpoints" there would resolve
 // to the static method, not this variable.
 static std::set<std::pair<std::string, int32_t>> s_breakpoints;
+// Mirror of s_breakpoints.size(), written only under s_job_mutex, so that
+// at_stop_line() -- called for every dispatched line -- can skip taking the
+// mutex entirely in the common case of no breakpoints.
+static std::atomic<size_t> s_breakpoint_count { 0 };
 
 void Job::set_breakpoint(const std::string& path, int32_t line) {
     JobLock lock;
     s_breakpoints.insert({ path, line });
+    s_breakpoint_count = s_breakpoints.size();
 }
 bool Job::clear_breakpoint(const std::string& path, int32_t line) {
     JobLock lock;
-    return s_breakpoints.erase({ path, line }) != 0;
+    bool erased = s_breakpoints.erase({ path, line }) != 0;
+    s_breakpoint_count = s_breakpoints.size();
+    return erased;
 }
 bool Job::clear_breakpoint(size_t index) {
     JobLock lock;
@@ -281,16 +289,21 @@ bool Job::clear_breakpoint(size_t index) {
     auto it = s_breakpoints.begin();
     std::advance(it, index - 1);
     s_breakpoints.erase(it);
+    s_breakpoint_count = s_breakpoints.size();
     return true;
 }
 void Job::clear_all_breakpoints() {
     JobLock lock;
     s_breakpoints.clear();
+    s_breakpoint_count = 0;
 }
 const std::set<std::pair<std::string, int32_t>>& Job::breakpoints() {
     return s_breakpoints;
 }
 bool Job::at_stop_line() {
+    if (s_breakpoint_count == 0) {
+        return false;
+    }
     JobLock lock;
     if (!active_nl()) {
         return false;

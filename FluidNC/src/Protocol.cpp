@@ -183,6 +183,9 @@ struct LineItem {
     char     line[Channel::maxLine];
 };
 static constexpr UBaseType_t CMD_QUEUE_DEPTH = 1;
+// Job::rewind_current_line() assumes at most one line is in flight ahead of
+// the job's line counter.
+static_assert(CMD_QUEUE_DEPTH == 1, "rewind_current_line() assumes a single in-flight line");
 QueueHandle_t                cmd_queue        = nullptr;
 
 bool cmd_queue_defer(const char* line, Channel& channel) {
