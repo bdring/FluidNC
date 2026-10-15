@@ -170,11 +170,13 @@ public:
     static bool get_param(const std::string& name, float& value);
     static bool set_param(const std::string& name, float value);
     static bool param_exists(const std::string& name);
+
     // Modal state saved by M70/M73 at the top job's call level.  Both return
     // false when no job is active, in which case the caller uses the base
     // (interactive) call level's slot instead.
     static bool get_saved_modal(std::optional<ModalSnapshot>& saved);
     static bool set_saved_modal(const std::optional<ModalSnapshot>& saved);
+
     // If the top job saved its modal state with M73 and has not yet restored
     // it, clears the M73 flag and returns true, so the caller can run M72 as
     // the job's final line before unnesting it.
