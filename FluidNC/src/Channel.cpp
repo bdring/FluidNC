@@ -239,15 +239,16 @@ bool Channel::lineComplete(char* line, char ch) {
     return false;
 }
 
-uint32_t Channel::setReportInterval(uint32_t ms) {
-    uint32_t actual = ms;
+int32_t Channel::setReportInterval(int32_t ms) {
+    _report_when_idle = ms < 0;
+    uint32_t actual   = ms < 0 ? uint32_t(-int64_t(ms)) : uint32_t(ms);
     if (actual) {
-        actual = std::max(actual, uint32_t(50));
+        actual = std::clamp(actual, uint32_t(50), uint32_t(INT32_MAX));
     }
     _reportInterval = actual;
     _nextReportTime = int32_t(xTaskGetTickCount());
     _lastTool       = 255;  // Force GCodeState report
-    return actual;
+    return getReportInterval();
 }
 static bool motionState() {
     return state_is(State::Cycle) || state_is(State::Homing) || state_is(State::Jog);

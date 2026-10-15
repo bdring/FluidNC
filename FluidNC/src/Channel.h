@@ -86,7 +86,8 @@ protected:
     // Enqueue one non-realtime input byte, applying the whole-line drop policy.
     void queue_push(uint8_t byte);
 
-    // Send interval reports while idle too, not only while in motion.
+    // Send interval reports while idle too, not only while in motion;
+    // set by a negative report interval.
     bool _report_when_idle = false;
 
     uint32_t _reportInterval = 0;
@@ -245,8 +246,12 @@ public:
 
     void print_msg(MsgLevel level, const std::string& msg) { print_msg(level, msg.c_str()); }
 
-    uint32_t     setReportInterval(uint32_t ms);
-    uint32_t     getReportInterval() { return _reportInterval; }
+    // A positive interval sends a status report at that interval while the
+    // machine is moving, and whenever something reported changes.  A negative
+    // one also sends them at that interval while idle.  0 turns them off.
+    // Returns the interval in effect, with the same sign.
+    int32_t      setReportInterval(int32_t ms);
+    int32_t      getReportInterval() { return _report_when_idle ? -int32_t(_reportInterval) : int32_t(_reportInterval); }
     virtual void autoReport();
     void         autoReportGCodeState();
 

@@ -31,8 +31,7 @@ void UartChannel::init(Uart* uart) {
         log_error(name() << ": cannot initialize with unconfigured UART");
         return;
     }
-    _uart             = uart;
-    _report_when_idle = true;
+    _uart = uart;
     allChannels.registration(this);
     if (_report_interval_ms) {
         log_info(name() << " created at report interval: " << _report_interval_ms);
