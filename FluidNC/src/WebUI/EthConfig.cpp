@@ -181,6 +181,11 @@ namespace WebUI {
             }
 
             ETH.setHostname(_hostname->get());
+            // Arduino-ESP32 3.x keeps one process-wide default hostname in
+            // NetworkManager.  WiFi.getHostname() returns it, and mDNS and OTA
+            // read it from there.  Only the WiFi module ever set it, so with
+            // Ethernet selected they advertised "esp32s3-XXXXXX".
+            Network.setHostname(_hostname->get());
 
             if (_eth_ip_mode->get() == NET_STATIC_MODE) {
                 uint32_t ip      = (uint32_t)_eth_ip->get();
@@ -260,5 +265,12 @@ namespace WebUI {
     };
 
     ModuleFactory::InstanceBuilder<EthConfig> __attribute__((init_priority(106))) eth_module("ethernet", true);
+}
+
+// True when Ethernet is the selected network type and the PHY came up.
+// Referenced weakly from esp32/Mdns.cpp and esp32/OTA.cpp, which are also
+// built into variants where this file (and ETH) are absent.
+bool fluidnc_ethernet_active() {
+    return WebUI::networkType() == WebUI::NetworkTypeEthernet && config->_ethernet && config->_ethernet->config_ok;
 }
 #endif

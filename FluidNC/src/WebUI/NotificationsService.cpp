@@ -14,6 +14,7 @@
 
 #include "Settings.h"
 #include "NotificationsService.h"
+#include "NetSettings.h"
 
 #include "Machine/MachineConfig.h"
 
@@ -536,7 +537,9 @@ namespace WebUI {
                 break;
         }
         bool res = true;
-        if (WiFi.getMode() != WIFI_STA) {
+        // Must be a client on a real network: WiFi STA or wired Ethernet.
+        // AP-only WiFi has no route out for notifications.
+        if (networkType() == NetworkTypeEthernet ? !networkEnabled() : WiFi.getMode() != WIFI_STA) {
             res = false;
         }
         if (!res) {

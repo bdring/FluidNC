@@ -11,12 +11,15 @@
 #include <ArduinoOTA.h>
 #endif
 
+// Defined in WebUI/EthConfig.cpp when Ethernet support is compiled in.
+extern bool fluidnc_ethernet_active() __attribute__((weak));
+
 class OTA : public Module {
 public:
     OTA(const char* name) : Module(name) {}
 
     void init() override {
-        if (WiFi.getMode() == WIFI_OFF) {
+        if (WiFi.getMode() == WIFI_OFF && !(fluidnc_ethernet_active && fluidnc_ethernet_active())) {
             return;
         }
 

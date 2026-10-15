@@ -44,7 +44,20 @@ namespace WebUI {
 
     static const char* NULL_IP = "0.0.0.0";
 
+#if MAX_N_ETH
+    std::string ethIp();  // EthConfig.cpp
+#endif
+
     std::string webServerIp() {
+#if MAX_N_ETH
+        // With Ethernet selected WiFi is off, so webAddressIp() returns
+        // 0.0.0.0.  That address is sent as ESP800's WebSocketIP (clients then
+        // open ws://0.0.0.0), in ESP111 and in the $WEB_ADDRESS$ redirect
+        // pages, so the WebUI loads but never connects.
+        if (networkType() == NetworkTypeEthernet) {
+            return ethIp();
+        }
+#endif
         return wifiImpl().webAddressIp();
     }
 
