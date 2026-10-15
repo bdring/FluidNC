@@ -368,6 +368,20 @@ static void poll_once() {
                         case Error::NoData:
                             break;
                         case Error::Eof:
+                            if (Job::take_autorestore()) {
+                                // M73 was used in this job, so restore the
+                                // modal state it saved, as the job's own last
+                                // line and therefore at its call level.  The
+                                // channel stays at EOF, so the next pass,
+                                // once this line is acked, unnests the job.
+                                char m72[] = "M72";
+                                if (channel->try_acquire_processing_ref()) {
+                                    if (execute_line(m72, *channel, AuthenticationLevel::LEVEL_GUEST, false) != Error::Deferred) {
+                                        channel->release_processing_ref();  // not queued after all
+                                    }
+                                }
+                                break;
+                            }
                             notifyf("Job done", "%s job sent", channel->name());
                             log_debug(channel->name() << " job sent");
                             Job::unnest();
@@ -1513,7 +1527,11 @@ void protocol_do_rt_reset() {
     if (state_is(State::Homing)) {
         Machine::Homing::fail(ExecAlarm::HomingFailReset);
     } else if (state_is(State::Cycle) || state_is(State::Jog) || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
-        Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
+        // Stepper::reset() puts the step ISR to sleep and empties the segment
+        // buffer.  stop_stepping() only ended the current pulse: the ISR kept
+        // draining up to _segments more segments (about 10 ms each) while
+        // alarm_msg() slept, so the machine kept moving after the reset.
+        Stepper::reset();  // Stop stepping immediately, possibly losing position
         protocol_do_alarm((void*)ExecAlarm::AbortCycle);
     } else if (state_is(State::Critical)) {
         if (Homing::unhomed_axes()) {

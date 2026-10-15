@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "ModbusVFD.h"
+#include "ModbusScale.h"
 
 #include "Spindles/VFDSpindle.h"
 
@@ -11,47 +12,9 @@
 namespace Spindles {
     namespace VFD {
         void ModbusVFD::scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM) {
-            int32_t divider = 1;
-            if (scale_str.empty()) {
-                return;
+            if (!modbus_scale(n, scale_str, maxRPM)) {
+                log_error(spindle->name() << ": bad scale " << scale_str);
             }
-            if (scale_str[0] == '%') {
-                scale_str.remove_prefix(1);
-                n *= 100;
-                divider *= maxRPM;
-            }
-            if (scale_str[0] == '*') {
-                std::string_view numerator_str;
-                scale_str = scale_str.substr(1);
-                string_util::split_prefix(scale_str, numerator_str, '/');
-                uint32_t numerator;
-                if (string_util::from_decimal(numerator_str, numerator)) {
-                    n *= numerator;
-                } else {
-                    log_error(spindle->name() << ": bad decimal number " << numerator_str);
-                    return;
-                }
-                if (!scale_str.empty()) {
-                    uint32_t denominator;
-                    if (string_util::from_decimal(scale_str, denominator)) {
-                        divider *= denominator;
-                    } else {
-                        log_error(spindle->name() << ": bad decimal number " << scale_str);
-                        return;
-                    }
-                }
-            } else if (scale_str[0] == '/') {
-                std::string_view denominator_str(scale_str.substr(1));
-                uint32_t         denominator;
-                if (string_util::from_decimal(denominator_str, denominator)) {
-                    divider *= denominator;
-                } else {
-                    log_error(spindle->name() << ": bad decimal number " << scale_str);
-                    return;
-                }
-            }
-
-            n /= divider;
         }
 
         bool ModbusVFD::set_data(

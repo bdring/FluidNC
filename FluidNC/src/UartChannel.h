@@ -16,6 +16,10 @@ private:
     int32_t  _report_interval_ms = 0;
     uint32_t _last_greeting_ms   = 0;
 
+    // Repeats of the startup greeting sent from handle(), which is bounded; see
+    // greeting_repeat_limit.
+    uint32_t _greetings_repeated = 0;
+
     // Set once a complete line or an expander ID arrives.  A received byte is
     // not enough: line noise at power-up produces those.
     bool _peer_spoke = false;

@@ -39,7 +39,10 @@ namespace Machine {
         static const int AllCycles     = 0;   // Must be zero.
         static const int set_mpos_only = -1;  // If homing cycle is this value then don't move, just set mpos
 
-        static bool approach() { return _phase == FastApproach || _phase == SlowApproach; }
+        // True only while a homing cycle is actually driving toward a switch.
+        // The state check matters because _phase can outlive the cycle, and
+        // LimitPin::trigger() must not apply homing rules in Idle or Jog.
+        static bool approach() { return state_is(State::Homing) && (_phase == FastApproach || _phase == SlowApproach); }
 
         static void fail(ExecAlarm alarm);
         static void cycleStop();

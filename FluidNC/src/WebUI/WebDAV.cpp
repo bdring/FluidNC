@@ -358,7 +358,9 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
         if (state->outFile) {
             // The file was already opened and written in handleBody so
             // we are done.  We will handle PUT without body data below.
+            FluidPath fpath = state->outFile->fpath();  // Keeps the volume mounted for the rehash
             delete state->outFile;
+            HashFS::rehash_file(fpath, false);
             request->send(201);  // Created
         }
         // If state was non-null but state->outFile was null, handleBody
@@ -414,11 +416,12 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
             // A later PUT request with a body might populate it.
             // MacOS tends to create an empty file first, then
             // lock it and write to it.
-            FileStream file(fpath, "w", LocalFS);
+            FileStream file(fpath, "w");
         } catch (const ErrorException& err) {
             log_debug(fpath << " cannot be opened");
             return request->send(403);
         }
+        HashFS::rehash_file(fpath, false);
         return request->send(201);
     }
 
@@ -490,7 +493,7 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
             // to open for appending instead of recreating the
             // file if it already exists.
             try {
-                state->outFile = new FileStream(fpath, "w", LocalFS);
+                state->outFile = new FileStream(fpath, "w");
             } catch (const ErrorException& err) {
                 log_debug(fpath << " cannot be opened");
                 return request->send(500);
@@ -509,6 +512,7 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
 
                 if (!ec) {
                     stdfs::remove(fpath, ec);
+                    HashFS::delete_file(fpath, false);
                 }
 
                 return request->send(507);  // Insufficient storage
@@ -601,21 +605,33 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
 }
 
 void WebDAV::handleGet(const FluidPath& fpath, DavResource resource, AsyncWebServerRequest* request) {
+    // A collection has no content to GET.  Answer before opening it: some
+    // platforms (e.g. POSIX) let fopen() open a directory, and FileStream
+    // would then throw a non-ErrorException from file_size(), escaping
+    // this async callback.
+    if (resource == DavResource::DIR) {
+        request->send(404);
+        return;
+    }
+
     FileStream* file = nullptr;
 
     bool isGzip = false;
     if (resource == DavResource::NONE) {
         if (acceptsEncoding(request, T_gzip)) {
-            stdfs::path gzpath(fpath);
+            // A copy keeps fpath's volume; FileStream(path, mode, volume)
+            // would re-resolve the already-resolved path, which only works
+            // when the volume prefix is absolute (as on ESP32).
+            FluidPath gzpath(fpath);
             gzpath += ".gz";
             try {
-                file   = new FileStream(gzpath, "r", LocalFS);
+                file   = new FileStream(gzpath, "r");
                 isGzip = true;
             } catch (const ErrorException& err) {}
         }
     } else {
         try {
-            file = new FileStream(fpath, "r", LocalFS);
+            file = new FileStream(fpath, "r");
         } catch (const ErrorException& err) {}
     }
 
@@ -659,7 +675,7 @@ void WebDAV::handlePut(
     }
 
     try {
-        FileStream file(fpath, index ? "a" : "w", LocalFS);
+        FileStream file(fpath, index ? "a" : "w");
         file.write(data, len);
         file.flush();
     } catch (const ErrorException& err) { log_debug(fpath << " cannot be opened"); }
@@ -737,7 +753,7 @@ void WebDAV::handleMove(const FluidPath& fpath, DavResource resource, AsyncWebSe
         if (ec) {
             response = request->beginResponse(500, "text/plain", "Unable to move");
         } else {
-            //        HashFS::rename_file(fpath, newname);
+            HashFS::rename_file(fpath, newpath, false);
             response = request->beginResponse(201);
             // XXX webdav go server adds text/plain "Created" response
         }
@@ -759,6 +775,9 @@ void WebDAV::handleDelete(const FluidPath& fpath, DavResource resource, AsyncWeb
         okay = stdfs::remove_all(fpath, ec) != 0;
     }
 
+    if (okay) {
+        HashFS::delete_file(fpath, false);
+    }
     return request->send(okay ? 204 : 413);
 }
 

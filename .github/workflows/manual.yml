@@ -37,7 +37,15 @@ jobs:
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
-        pip install --upgrade platformio intelhex
+        pip install --upgrade platformio intelhex pyyaml
+    - name: config_items.yaml/.json are committed up to date
+      # The release ships a freshly generated config_items.yaml/.json, and
+      # consumers (e.g. FigUI) fetch the committed copies by tag from
+      # raw.githubusercontent.com, so refuse to release a commit whose
+      # committed copies don't match its source.
+      run: |
+        python tools/build_config_docs.py --fail-on-drift
+        git diff --exit-code -- FluidNC/docs/config_items.yaml FluidNC/docs/config_items.json
     - name: Set release version
       run: |
         git config user.email "wmb@firmworks.com"

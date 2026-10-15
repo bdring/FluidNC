@@ -472,7 +472,11 @@ static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_leve
         return Error::CheckDoor;
     }
     Homing::set_all_axes_homed();
-    config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
+    // Release every motor, including the second motor of a ganged axis.  This
+    // deliberately bypasses Kinematics::releaseMotors(): that is a homing
+    // primitive whose overrides apply kinematics-specific rules (CoreXY frees
+    // only motor 0 of its Cartesian axes), and $X means release everything.
+    Stepping::unlimit_all();
     report_feedback_message(Message::AlarmUnlock);
     set_state(State::Idle);
 
@@ -901,7 +905,7 @@ static Error dump_config(const char* value, AuthenticationLevel auth_level, Chan
         try {
             //            ss = new FileStream(std::string(value), "", "w");
             ss = new FileStream(value, "w", LocalFS);
-        } catch (Error err) { return err; }
+        } catch (const ErrorException& e) { return e.error(); }
     } else {
         ss = &out;
     }
@@ -1484,7 +1488,17 @@ static Error run_command_inline(const char* line, Channel& channel, Authenticati
     if (gc_state.skip_blocks) {
         return Error::Ok;
     }
-    return settings_execute_line(line, channel, auth_level);
+    // A command that throws must answer with an error, not take the task
+    // down.  $CD=/sd/x with no card throws ErrorException from FileStream,
+    // and $GI=<reserved pin> throws AssertionFailed from Pin::create; either
+    // one escaping to loop() ends command processing, and a second one
+    // stalls the controller for good.
+    try {
+        return settings_execute_line(line, channel, auth_level);
+    } catch (const ErrorException& e) { return e.error(); } catch (const std::exception& ex) {
+        log_error_to(channel, "Command failed: " << ex.what());
+        return Error::InvalidStatement;
+    }
 }
 
 Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level, bool on_protocol_task) {
@@ -1524,8 +1538,8 @@ Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_
     if (line[0] == '$' || line[0] == '[') {
         return run_command_inline(line, channel, auth_level);
     }
-    // Everything else is gcode. Block if in alarm or jog mode.
-    if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Jog)) {
+    // Everything else is gcode. Block if in an alarm state or jog mode.
+    if (state_is(State::Alarm) || state_is(State::Critical) || state_is(State::ConfigAlarm) || state_is(State::Jog)) {
         return Error::SystemGcLock;
     }
     Error result = gc_execute_line(line, channel);

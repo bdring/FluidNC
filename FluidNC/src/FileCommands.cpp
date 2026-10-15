@@ -515,23 +515,28 @@ static Error renameLocalObject(const char* parameter, AuthenticationLevel auth_l
 
 static Error copyFile(const Volume& ifs, const char* ipath, const Volume& ofs, const char* opath, Channel& out) {  // No ESP command
     std::filesystem::path filepath;
+    bool                  readFailed = false;
     try {
         FileStream outFile { opath, "w", ofs };
         FileStream inFile { ipath, "r", ifs };
         uint8_t    buf[512];
-        size_t     len;
+        int        len;  // read() returns -1 on an error, which must not become a huge size_t
         while ((len = inFile.read(buf, 512)) > 0) {
             feed_watchdog();
             outFile.write(buf, len);
         }
         filepath = outFile.fpath();
+        if (len < 0) {
+            log_error_to(out, "Cannot read file " << ipath);
+            readFailed = true;
+        }
     } catch (const ErrorException& err) {
         log_error_to(out, "Cannot create file " << opath);
         return err.error();
     }
     // Rehash after outFile goes out of scope
     HashFS::rehash_file(filepath);
-    return Error::Ok;
+    return readFailed ? Error::FsFailedRead : Error::Ok;
 }
 static Error copyDir(const Volume& ifs, const std::string_view iDir, const Volume& ofs, const std::string_view oDir, Channel& out) {  // No ESP command
     std::error_code ec;
@@ -591,7 +596,7 @@ static Error copyDir(const Volume& ifs, const std::string_view iDir, const Volum
     return err;
 }
 static Error showLocalFSHashes(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    for (const auto& [name, hash] : HashFS::localFsHashes) {
+    for (const auto& [name, hash] : HashFS::hashes()) {
         log_info_to(out, name << ": " << hash);
     }
     return Error::Ok;
