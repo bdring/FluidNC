@@ -1854,13 +1854,11 @@ Error gc_execute_line(const char* input_line, Channel& channel) {
     gc_state.line_number = gc_block.values.n;
     // $File/LineNumbers reports progress through the running file rather than
     // the GCode N word, which most senders omit or use for other purposes.
-    // Job::channel() is null when this line did not come from a file/macro job
-    // (e.g. jogging or a manual console command), so fall back to the N word.
-    if (file_line_numbers->get() && Job::channel()) {
-        pl_data->line_number = (int32_t)Job::channel()->lineNumber();
-    } else {
-        pl_data->line_number = gc_state.line_number;  // Record data for planner use.
-    }
+    // While a macro runs on top of a file, this is the file's line (the one
+    // that invoked the macro). With no file-backed job active (jogging, a
+    // console command, a bare macro), fall back to the N word.
+    int32_t file_line = file_line_numbers->get() ? Job::progress_line() : -1;
+    pl_data->line_number = file_line >= 0 ? file_line : gc_state.line_number;  // Record data for planner use.
     pl_data->has_line_number = bitnum_is_true(value_words, GCodeWord::N);
 
     // [1. Comments feedback ]:  NOT SUPPORTED

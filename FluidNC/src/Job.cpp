@@ -334,6 +334,15 @@ void Job::set_ack_error(Channel* ack_channel, Error err) {
         }
     }
 }
+int32_t Job::progress_line() {
+    JobLock lock;
+    for (auto it = job.rbegin(); it != job.rend(); ++it) {
+        if ((*it)->channel()->reports_progress()) {
+            return (int32_t)(*it)->lineNumber();
+        }
+    }
+    return -1;
+}
 Channel* Job::leader_channel() {
     JobLock lock;
     if (leader && leader->is_closing()) {

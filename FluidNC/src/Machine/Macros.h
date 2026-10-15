@@ -75,6 +75,7 @@ namespace Machine {
 
     public:
         Error pollLine(char* line) override;
+        bool  reports_progress() const override { return false; }
 
         MacroChannel(Macro* macro);
 

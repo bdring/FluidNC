@@ -169,6 +169,9 @@ public:
     int8_t _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
     virtual void  init() {}
+    // False for string-backed macro channels, whose line numbers say nothing
+    // about progress through the user's file (see Job::progress_line()).
+    virtual bool reports_progress() const { return true; }
     virtual void  handle() {}
     virtual Error pollLine(char* line);
     virtual void  ack(Error status);

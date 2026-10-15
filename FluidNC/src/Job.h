@@ -183,6 +183,10 @@ public:
     static bool take_autorestore();
 
     static Channel* channel();         // top-of-stack channel, or nullptr when idle
+    // Line number of the innermost active job that is not a macro, i.e. how far
+    // the user's file has gotten even while a tool-change or restart macro
+    // runs on top of it. Returns -1 if no such job is active.
+    static int32_t progress_line();
     static Channel* leader_channel();  // job leader, or nullptr when idle
 
     // Persistent, debugger-style breakpoints: canonical path
