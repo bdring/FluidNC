@@ -92,6 +92,18 @@ namespace Kinematics {
         }
     }
 
+    void CoreXY::rearmLimits(AxisMask axisMask, MotorMask motorMask) {
+        constexpr AxisMask xy = (1 << X_AXIS) | (1 << Y_AXIS);
+        if (axisMask & xy) {
+            // Either Cartesian axis moves both motors. A DIAG edge from the
+            // other axis can therefore have been disarmed during this approach.
+            // Rearm both so a released input clears its latched limit state.
+            axisMask |= xy;
+            motorMask |= Axes::axes_to_motors(xy);
+        }
+        Cartesian::rearmLimits(axisMask, motorMask);
+    }
+
     /*
       cartesian_to_motors() converts from cartesian coordinates to motor space.
 

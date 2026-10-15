@@ -4,6 +4,7 @@
 #include "TelnetClient.h"
 #include "TelnetServer.h"
 #include "NetSettings.h"
+#include "Driver/fluidnc_mdns.h"
 
 #include "Report.h"  // report_init_message()
 
@@ -40,9 +41,7 @@ namespace WebUI {
         _wifiServer->begin();
         _setupdone = true;
 
-#ifdef HAVE_DNS
         Mdns::add("_telnet", "_tcp", _port);
-#endif
     }
 
     void TelnetServer::deinit() {
@@ -52,9 +51,7 @@ namespace WebUI {
             _wifiServer = NULL;
         }
 
-#ifdef HAVE_DNS
         Mdns::remove("_telnet", "_tcp");
-#endif
     }
 
     void TelnetServer::poll() {

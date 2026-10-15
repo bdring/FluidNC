@@ -7,6 +7,8 @@ of (file, class[, method]) contributors whose fields flatten into it, mirroring
 C++ inheritance (base class first) and the groupCommon()-style helper split a
 few spindle types use. Emits FluidNC/docs/config_items.yaml by default, or
 wherever --output points (build-release.py points it at the release folder).
+A JSON copy (same basename, .json suffix) is written beside it -- see
+write_json_copy().
 
 This is the "single artifact" the annotation effort (see ItemDocs.md) was
 building toward: one machine-readable file a config wizard can load for
@@ -564,6 +566,22 @@ def list_mode_section(rel_file, kind_for=None):
     return entries, errors, []
 
 
+def write_json_copy(yaml_path):
+    """Write yaml_path's parsed content as JSON beside it (same basename,
+    .json suffix), for browser consumers (e.g. FigUI) that have no YAML
+    parser. It is produced by loading the YAML we just wrote, rather than
+    serializing the in-memory entries, so it is by construction exactly what
+    yaml.safe_load() sees -- the same document config_schema_adapter.py and
+    the validator consume, with YAML's own scalar typing and alias expansion."""
+    import json
+    import yaml
+
+    data = yaml.safe_load(yaml_path.read_text())
+    json_path = yaml_path.with_suffix(".json")
+    json_path.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
+    print(f"Wrote {json_path}")
+
+
 def main():
     import argparse
 
@@ -571,7 +589,8 @@ def main():
     ap.add_argument(
         "-o", "--output", type=Path, default=Path("FluidNC/docs/config_items.yaml"),
         help="Output path (default: FluidNC/docs/config_items.yaml). "
-        "build-release.py points this at release/current/docs/config_items.yaml.",
+        "build-release.py points this at release/current/docs/config_items.yaml. "
+        "A .json copy is always written beside it.",
     )
     ap.add_argument(
         "--fail-on-drift", action="store_true",
@@ -773,6 +792,7 @@ def main():
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(out_lines))
     print(f"Wrote {out_path} ({sum(1 for l in out_lines if l.strip())} non-blank lines)")
+    write_json_copy(out_path)
 
 
 if __name__ == "__main__":

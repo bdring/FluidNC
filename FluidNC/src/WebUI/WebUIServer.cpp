@@ -37,6 +37,7 @@
 
 #include "HashFS.h"
 #include "Driver/watchdog.h"  // WatchdogSuspend
+#include "Driver/random.h"    // random_u32
 #include <cstdio>
 #include <list>
 #include <algorithm>
@@ -46,6 +47,7 @@
 
 #include <AsyncTCP.h>
 #include "WebDAV.h"
+#include "UiDir.h"
 
 // Upper bound on concurrent WebSocket clients. Each client carries a WSChannel
 // (line-assembly std::string) plus an AsyncWebSocket send queue of up to
@@ -284,8 +286,31 @@ namespace WebUI {
     uint32_t    WebUI_Server::_uploadGeneration = 0;
     std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
 
-    EnumSetting *http_enable, *http_block_during_motion;
-    IntSetting*  http_port;
+    EnumSetting *  http_enable, *http_block_during_motion;
+    IntSetting*    http_port;
+
+    // The value of the named cookie, or empty
+    std::string getCookie(AsyncWebServerRequest* request, std::string_view name) {
+        if (!request->hasHeader("Cookie")) {
+            return "";
+        }
+        std::string_view cookies = request->getHeader("Cookie")->value().c_str();
+        while (!cookies.empty()) {
+            auto             pos    = cookies.find(';');
+            std::string_view cookie = cookies.substr(0, pos);
+            while (!cookie.empty() && cookie[0] == ' ') {
+                cookie.remove_prefix(1);
+            }
+            if (cookie.size() > name.size() && cookie[name.size()] == '=' && cookie.substr(0, name.size()) == name) {
+                return std::string(cookie.substr(name.size() + 1));
+            }
+            if (pos == std::string_view::npos) {
+                break;
+            }
+            cookies.remove_prefix(pos + 1);
+        }
+        return "";
+    }
 
     WebUI_Server::~WebUI_Server() {
         deinit();
@@ -301,6 +326,7 @@ namespace WebUI {
                                                    "HTTP/BlockDuringMotion",
                                                    DEFAULT_HTTP_BLOCKED_DURING_MOTION,
                                                    &onoffOptions);
+        UiDir::init();
 
         _setupdone = false;
 
@@ -320,6 +346,8 @@ namespace WebUI {
         _headerFilter->keep("Cookie");
         _headerFilter->keep("If-None-Match");
         _headerFilter->keep("User-Agent");
+        // A chunked PUT under /ui has a body even with no Content-Length
+        _headerFilter->keep("Transfer-Encoding");
 
         //For websockets we need to keep these headers, otherwise this wouldn't work!
         _headerFilter->keep("Upgrade");
@@ -367,6 +395,9 @@ namespace WebUI {
         //trick to catch command line on "/" before file being processed
         _webserver->on("/", HTTP_ANY, handle_root);
 
+        // WebUIs in HTTP/UIDir
+        UiDir::addHandlers(_webserver, _socket_server);
+
         //Page not found handler
         _webserver->onNotFound(handle_not_found);
 
@@ -405,13 +436,15 @@ namespace WebUI {
             //do not forget the / at the end
             _webserver->on("/fwlink/", HTTP_ANY, handle_root);
         }
-        Mdns::add("_http", "_tcp", _port);
 #endif
+        Mdns::add("_http", "_tcp", _port);
 
         log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
 
+        UiDir::announce();  // Tell HashFS about the WebUI directory
+        HashFS::enable(true);
         HashFS::hash_all();
 
         _setupdone = true;
@@ -419,12 +452,11 @@ namespace WebUI {
 
     void WebUI_Server::deinit() {
         _setupdone = false;
+        HashFS::enable(false);
 
         //        SSDP.end();
 
-#ifdef HAVE_DNS
-        WMB Mdns::remove("_http", "_tcp");
-#endif
+        Mdns::remove("_http", "_tcp");
 
         if (_socket_server) {
             delete _socket_server;
@@ -456,21 +488,13 @@ namespace WebUI {
 #endif
     }
 
+    // A WebUI under /ui that uses relative URLs for its WebSocket and
+    // commands gets a uiSession cookie scoped to its own directory, so its
+    // channels are separate from those of other WebUIs in the same browser.
+    // Otherwise, the browser-wide sessionId cookie identifies the session.
     std::string WebUI_Server::getSessionCookie(AsyncWebServerRequest* request) {
-        if (request->hasHeader("Cookie")) {
-            std::string cookies = request->getHeader("Cookie")->value().c_str();
-
-            int pos = cookies.find("sessionId=");
-            if (pos != std::string::npos) {
-                int pos2 = cookies.find(";", pos);
-                auto start = pos + strlen("sessionId=");
-                if (pos2 == std::string::npos) {
-                    return cookies.substr(start);
-                }
-                return cookies.substr(start, pos2 - start);
-            }
-        }
-        return "";
+        auto session = getCookie(request, "uiSession");
+        return session.empty() ? getCookie(request, "sessionId") : session;
     }
 
     std::string WebUI_Server::getWebSocketSession(AsyncWebServerRequest* request, AsyncWebSocketClient* client) {
@@ -480,26 +504,45 @@ namespace WebUI {
         return getSessionCookie(request);
     }
 
+    // Session IDs must differ between clients, so draw them from the platform
+    // entropy source rather than from rand() reseeded with the wall-clock
+    // second, which gave every client that loaded a page in the same second
+    // the same cookie.
     static void get_random_string(char* str, unsigned int len) {
-        unsigned int i;
-
-        // reseed the random number generator
-        srand(time(NULL));
-
-        for (i = 0; i < len; i++) {
-            // Add random printable ASCII char
-            str[i] = (rand() % ('A' - 'Z')) + 'A';
+        static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        for (unsigned int i = 0; i < len; i++) {
+            str[i] = alphabet[random_u32() % (sizeof(alphabet) - 1)];
         }
-        str[i] = '\0';
+        str[len] = '\0';
     }
-    // Send a file, either the specified path or path.gz
-    bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request, const char* path, bool download, bool setSession) {
-        std::error_code ec;
-        FluidPath       fpath { path, LocalFS, ec };
-        if (ec) {
-            return false;
-        }
 
+    // Set the browser-wide session cookie if it is missing, and for a WebUI
+    // under /ui, that WebUI's own session cookie.  The explicit Path keeps
+    // sessionId from defaulting to the directory of a /ui page.
+    static void addSessionCookies(AsyncWebServerRequest* request, AsyncWebServerResponse* response, const char* uiName) {
+        char session[17];
+        if (getCookie(request, "sessionId").empty()) {
+            get_random_string(session, sizeof(session) - 1);
+            response->addHeader("Set-Cookie", ("sessionId=" + std::string(session) + "; Path=/").c_str(), false);
+        }
+        if (uiName && getCookie(request, "uiSession").empty()) {
+            get_random_string(session, sizeof(session) - 1);
+            response->addHeader("Set-Cookie", ("uiSession=" + std::string(session) + "; Path=/ui/" + uiName + "/").c_str(), false);
+        }
+    }
+
+    // Send a file, either the specified path or path.gz
+    bool WebUI_Server::myStreamFile(AsyncWebServerRequest* request,
+                                    const char*            path,
+                                    bool                   download,
+                                    bool                   setSession,
+                                    const char*            uiName,
+                                    std::function<void()>  onDone) {
+        if (onDone) {
+            // Whatever is sent - a file, a 304, a refusal - or the caller's
+            // reply if this returns false.  A file response replaces it below.
+            request->onDisconnect(onDone);
+        }
         bool acceptGz = false;
         if (request->hasHeader("Accept-Encoding")) {
             auto encodings = std::string(request->getHeader("Accept-Encoding")->value().c_str());
@@ -518,10 +561,12 @@ namespace WebUI {
         // This can make it hard to debug ISR IRAM problems, because the easiest
         // way to trigger such problems is to refresh WebUI during motion.
         if (http_block_during_motion->get() && inMotionState()) {
-            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH
-            hash = HashFS::hash(fpath, true);
+            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH.
+            // Use the canonical name rather than a FluidPath, whose constructor would mount an SD card.
+            std::filesystem::path cpath { FluidPath::canonPath(path, LocalFS) };
+            hash = HashFS::hash(cpath, true);
             if (!hash.length() && acceptGz) {
-                std::filesystem::path gzpath(fpath);
+                std::filesystem::path gzpath(cpath);
                 gzpath += ".gz";
                 hash = HashFS::hash(gzpath, true);
             }
@@ -536,6 +581,12 @@ namespace WebUI {
             return true;
         }
 
+        std::error_code ec;
+        FluidPath       fpath { path, LocalFS, ec };
+        if (ec) {
+            return false;
+        }
+
         // Check for browser cache match
         hash = HashFS::hash(fpath);
         if (!hash.length() && acceptGz) {
@@ -545,22 +596,18 @@ namespace WebUI {
         }
         if (hash.length() && request->hasHeader("If-None-Match") &&
             std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
-            if (setSession && getSessionCookie(request) == "") {
-                char session[9];
-                get_random_string(session, sizeof(session) - 1);
-                AsyncWebServerResponse* response = request->beginResponse(304);
-                response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
-                request->send(response);
-            } else {
-                request->send(304);
+            AsyncWebServerResponse* response = request->beginResponse(304);
+            if (setSession) {
+                addSessionCookies(request, response, uiName);
             }
+            request->send(response);
             return true;
         }
 
         bool        isGzip = false;
         FileStream* file   = NULL;
         try {
-            file = new FileStream(fpath, "r", LocalFS);
+            file = new FileStream(fpath, "r");
         } catch (const ErrorException& err) {
             if (acceptGz) {
                 try {
@@ -594,12 +641,15 @@ namespace WebUI {
                 return actual;  // Return actual bytes read, not requested bytes
             });
 
-        request->onDisconnect([request, file]() { delete file; });
+        request->onDisconnect([file, onDone]() {
+            delete file;
+            if (onDone) {
+                onDone();
+            }
+        });
 
-        if (setSession && getSessionCookie(request) == "") {
-            char session[9];
-            get_random_string(session, sizeof(session) - 1);
-            response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
+        if (setSession) {
+            addSessionCookies(request, response, uiName);
         }
         if (download) {
             response->addHeader("Content-Disposition", "attachment");
@@ -659,11 +709,15 @@ namespace WebUI {
         const char* fetch_mode = request->hasHeader("Sec-Fetch-Mode") ? request->getHeader("Sec-Fetch-Mode")->value().c_str() : "";
         const char* fetch_dest = request->hasHeader("Sec-Fetch-Dest") ? request->getHeader("Sec-Fetch-Dest")->value().c_str() : "";
         const char* fetch_site = request->hasHeader("Sec-Fetch-Site") ? request->getHeader("Sec-Fetch-Site")->value().c_str() : "";
+        bool forceFallback = request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes";
+        if (!forceFallback && UiDir::redirectToDefault(request)) {
+            return;
+        }
         auto session = getSessionCookie(request);
         if (!session.empty()) {
             WSChannels::closeSessionChannels(session);
         }
-        if (!(request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes")) {
+        if (!forceFallback) {
             if (myStreamFile(request, "index.html", false, true)) {
                 return;
             }
@@ -1316,14 +1370,16 @@ namespace WebUI {
                 }
                 if (count > 0) {
                     sstatus = filename + " deleted";
-                    HashFS::report_change();
+                    HashFS::delete_file(dirpath);
                 } else {
                     log_debug("remove_all returned " << count);
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
                 }
             } else if (action == "createdir") {
-                if (stdfs::create_directory(fpath / filename, ec)) {
+                // Parents too, so that a WebUI can be added before
+                // HTTP/UIDir itself exists
+                if (stdfs::create_directories(fpath / filename, ec)) {
                     sstatus = filename + " created";
                     HashFS::report_change();
                 } else {
@@ -1510,22 +1566,16 @@ namespace WebUI {
             // tight it can fail outright -- which would discard a file that had
             // in fact been written successfully.
             //
-            // The non-throwing constructor matters because this runs in an
-            // async web server callback, where an escaping exception would
-            // terminate the task and reboot the controller.
-            std::error_code ec;
-            FluidPath       filepath { pathname, LocalFS, ec };
+            // Copying the file's own FluidPath shares its mount state, so it
+            // holds that reference without re-resolving the path.  (Building
+            // a new FluidPath from the resolved string re-applied the volume
+            // prefix, which is harmless with ESP32's absolute "/littlefs" but
+            // doubled the relative "native_localfs" prefix on native ports.)
+            FluidPath filepath = _uploadFile->fpath();
 
             delete _uploadFile;
             _uploadFile = nullptr;
             log_debug("pathname " << pathname);
-
-            if (ec) {
-                _upload_status = UploadStatus::FAILED;
-                log_info("Upload failed - filesystem inaccessible after write");
-                pushError(request, ESP_ERROR_UPLOAD, "Upload failed, filesystem inaccessible");
-                return;
-            }
 
             HashFS::rehash_file(filepath);
 

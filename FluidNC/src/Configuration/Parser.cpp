@@ -85,7 +85,7 @@ namespace Configuration {
         if (string_util::from_float(token, float_value)) {
             return float_value;
         }
-        parseError("Expected a float value like 123.456");
+        parseError("Expected a float value");
         return NAN;
     }
 

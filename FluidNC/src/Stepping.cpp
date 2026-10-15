@@ -128,6 +128,13 @@ void Stepping::unlimit(axis_t axis, motor_t motor) {
         m->limited = false;
     }
 }
+void Stepping::unlimit_all() {
+    for (axis_t axis = X_AXIS; axis < Axes::_numberAxis; axis++) {
+        for (motor_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
+            unlimit(axis, motor);
+        }
+    }
+}
 
 void IRAM_ATTR Stepping::step(AxisMask step_mask, AxisMask dir_mask) {
     // Set the direction pins, but optimize for the common

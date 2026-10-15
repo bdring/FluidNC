@@ -240,7 +240,7 @@ namespace Kinematics {
 
                     auto nudge_max = axisSetting->_motors[0]->_pulloff;
                     if (abs(jog_dist) > nudge_max) {
-                        target[axis] = (jog_dist >= 0) ? current_position[axis] + nudge_max : current_position[axis] + nudge_max;
+                        target[axis] = (jog_dist >= 0) ? current_position[axis] + nudge_max : current_position[axis] - nudge_max;
                         log_debug("Jog amount limited when outside soft limits")
                     }
                     continue;

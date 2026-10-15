@@ -765,7 +765,8 @@ namespace WebUI {
             if (api.length()) {
                 log_msg_to(channel, api);
             }
-            if (!sti.length() && !api.length()) {
+            // When Ethernet is the selected network, Wi-Fi is intentionally off
+            if (!sti.length() && !api.length() && networkType() == NetworkTypeWiFi) {
                 log_msg_to(channel, "No Wifi");
             }
         }

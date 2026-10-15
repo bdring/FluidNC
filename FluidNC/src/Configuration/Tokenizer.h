@@ -23,6 +23,7 @@ namespace Configuration {
     public:
         uint32_t         _linenum;
         std::string_view _line;
+        std::string_view _rawline;  // current line as read, before indentation/comment stripping
 
         // Results:
         struct TokenData {

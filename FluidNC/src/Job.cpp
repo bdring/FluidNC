@@ -224,6 +224,34 @@ bool Job::param_exists(const std::string& name) {
     JobLock lock;
     return active_nl() && job.back()->param_exists(name);
 }
+bool Job::get_saved_modal(std::optional<ModalSnapshot>& saved) {
+    JobLock lock;
+    if (!active_nl()) {
+        return false;
+    }
+    saved = job.back()->saved_modal();
+    return true;
+}
+bool Job::set_saved_modal(const std::optional<ModalSnapshot>& saved) {
+    JobLock lock;
+    if (!active_nl()) {
+        return false;
+    }
+    job.back()->saved_modal() = saved;
+    return true;
+}
+bool Job::take_autorestore() {
+    JobLock lock;
+    if (!active_nl()) {
+        return false;
+    }
+    auto& saved = job.back()->saved_modal();
+    if (!saved || !saved->autorestore) {
+        return false;
+    }
+    saved->autorestore = false;
+    return true;
+}
 Channel* Job::channel() {
     JobLock lock;
     return job.empty() ? nullptr : job.back()->channel();

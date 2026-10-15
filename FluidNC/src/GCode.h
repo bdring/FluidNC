@@ -48,6 +48,7 @@ enum class ModalGroup : uint8_t {
     MM8  = 15,  // [M7,M8,M9] Coolant control
     MM9  = 16,  // [M56] Override control
     MM10 = 17,  // [M100-M199] User Defined
+    MM11 = 18,  // [M70,M71,M72,M73] Save/restore modal state
 };
 
 // Command actions for within execution-type modal groups (motion, stopping, non-modal). Used
@@ -155,6 +156,16 @@ struct CoolantState {
 
 // Modal Group M8: Coolant control
 // Modal Group M9: Override control
+
+// M70-M73: Save/restore modal state.  Not a modal setting; these are
+// actions, so they are tracked per-block rather than in gc_modal_t.
+enum class ModalStateOp : uint8_t {
+    None        = 0,
+    Save        = 70,  // M70
+    Invalidate  = 71,  // M71
+    Restore     = 72,  // M72
+    AutoRestore = 73,  // M73
+};
 
 // Modal Group M5: User I/O control
 enum class IoControl : gcodenum_t {
@@ -315,6 +326,17 @@ struct parser_state_t {
 };
 
 extern parser_state_t gc_state;
+
+// Modal state saved by M70 or M73 and restored by M72 (or automatically, for
+// M73, when the job that saved it ends).  Motion mode is deliberately not
+// restored, per LinuxCNC.  Lengths are in mm, as in gc_state.
+struct ModalSnapshot {
+    gc_modal_t modal;
+    float      feed_rate;
+    float      spindle_speed;
+    float      tool_length_offset[MAX_N_AXIS];
+    bool       autorestore;  // Saved by M73
+};
 
 struct parser_block_t {
     NonModal     non_modal_command;
