@@ -47,6 +47,7 @@ private:
     void handleDelete(const FluidPath& path, DavResource resource, AsyncWebServerRequest* request);
     void handleHead(DavResource resource, AsyncWebServerRequest* request);
     void handleNotFound(AsyncWebServerRequest* request);
+    void handleUnavailable(const stdfs::path& path, const std::error_code& ec, AsyncWebServerRequest* request);
 
     std::string urlToUri(std::string url);
 
