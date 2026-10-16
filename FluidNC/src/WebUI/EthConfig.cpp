@@ -266,11 +266,4 @@ namespace WebUI {
 
     ModuleFactory::InstanceBuilder<EthConfig> __attribute__((init_priority(106))) eth_module("ethernet", true);
 }
-
-// True when Ethernet is the selected network type and the PHY came up.
-// Referenced weakly from esp32/Mdns.cpp and esp32/OTA.cpp, which are also
-// built into variants where this file (and ETH) are absent.
-bool fluidnc_ethernet_active() {
-    return WebUI::networkType() == WebUI::NetworkTypeEthernet && config->_ethernet && config->_ethernet->config_ok;
-}
 #endif

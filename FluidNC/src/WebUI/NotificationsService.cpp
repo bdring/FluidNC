@@ -537,9 +537,10 @@ namespace WebUI {
                 break;
         }
         bool res = true;
-        // Must be a client on a real network: WiFi STA or wired Ethernet.
+        // Must be a client on a real network: WiFi STA, or Ethernet with an
+        // IP (an unplugged cable fails here rather than later when sending).
         // AP-only WiFi has no route out for notifications.
-        if (networkType() == NetworkTypeEthernet ? !networkEnabled() : WiFi.getMode() != WIFI_STA) {
+        if (networkType() == NetworkTypeEthernet ? !networkConnected() : WiFi.getMode() != WIFI_STA) {
             res = false;
         }
         if (!res) {

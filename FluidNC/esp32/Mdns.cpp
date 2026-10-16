@@ -7,19 +7,17 @@
 #include "esp_wifi.h"
 #include <esp_err.h>
 #include <mdns.h>
-
-// Defined in WebUI/EthConfig.cpp when Ethernet support is compiled in;
-// null in builds without it.
-extern bool fluidnc_ethernet_active() __attribute__((weak));
+#include "WebUI/NetSettings.h"  // networkReady()
 
 namespace WebUI {
     EnumSetting* Mdns::_enable;
 
     // mDNS needs a client-side interface: WiFi STA or Ethernet.  The IDF
     // mdns component already binds to the netif that Arduino's ETH creates,
-    // so only this check kept it off for Ethernet.
+    // so only the WiFi STA check kept it off for Ethernet.  networkReady() is
+    // absent in noradio builds (no WebUI); fall back to the WiFi check there.
     static bool mdnsInterfaceUp() {
-        return WiFi.getMode() == WIFI_STA || (fluidnc_ethernet_active && fluidnc_ethernet_active());
+        return networkReady ? networkReady() : WiFi.getMode() == WIFI_STA;
     }
 
     void Mdns::init() {

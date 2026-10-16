@@ -6,20 +6,20 @@
 #include "Logging.h"
 #include <WiFi.h>
 #include "Driver/localfs.h"
+#include "WebUI/NetSettings.h"  // networkReady()
 
 #ifndef DISABLE_ARDUINO_OTA
 #include <ArduinoOTA.h>
 #endif
-
-// Defined in WebUI/EthConfig.cpp when Ethernet support is compiled in.
-extern bool fluidnc_ethernet_active() __attribute__((weak));
 
 class OTA : public Module {
 public:
     OTA(const char* name) : Module(name) {}
 
     void init() override {
-        if (WiFi.getMode() == WIFI_OFF && !(fluidnc_ethernet_active && fluidnc_ethernet_active())) {
+        // OTA runs on any WiFi mode (STA or AP), or on Ethernet once the PHY
+        // is up.  networkReady() is absent in noradio builds (no WebUI).
+        if (WiFi.getMode() == WIFI_OFF && !(WebUI::networkReady && WebUI::networkReady())) {
             return;
         }
 
@@ -86,4 +86,7 @@ public:
     ~OTA() {}
 };
 
-ModuleFactory::InstanceBuilder<OTA> __attribute__((init_priority(106))) ota_module("ota", true);
+// After WiFi (105) and Ethernet (106).  Ethernet used to share 106, and the
+// init order of equal priorities across files is unspecified, so OTA could
+// run before the Ethernet PHY was up.
+ModuleFactory::InstanceBuilder<OTA> __attribute__((init_priority(107))) ota_module("ota", true);
