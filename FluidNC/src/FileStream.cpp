@@ -105,7 +105,13 @@ void FileStream::setup(const char* mode) {
     if (mode_writes(mode)) {
         setvbuf(_fd, nullptr, _IOFBF, WRITE_BUFFER_SIZE);
     }
-    _size = stdfs::file_size(_fpath);
+    // Non-throwing: this constructor also runs in the web server task, where a
+    // std::filesystem_error is not caught and aborts the firmware.
+    std::error_code size_ec;
+    _size = stdfs::file_size(_fpath, size_ec);
+    if (size_ec) {
+        _size = 0;
+    }
 }
 
 // Delegates to the FluidPath constructor below so Channel's base-class name
