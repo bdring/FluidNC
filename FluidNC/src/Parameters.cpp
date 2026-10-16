@@ -112,6 +112,38 @@ const std::map<const std::string, axis_t> machine_positions = {
     { "_abs_w", W_AXIS },
 };
 
+// _target_* and _target_abs_* mirror _* and _abs_* above, but read from
+// gc_state.position (where the interpreter considers the tool to be, per its
+// own comment in GCode.h) rather than the real machine position from
+// get_mpos()/get_steps(). During a check-mode dry run, mc_move_motors() bails
+// out and the steppers never move, so get_mpos() just reports wherever the
+// machine physically sits, while gc_state.position is still correctly
+// advanced by every simulated motion command. These give a macro (a
+// user-supplied one, not just a generated one) a way to reach the position
+// the file's G-code would have reached, e.g. to resume a job after a crash.
+const std::map<const std::string, axis_t> target_positions = {
+    { "_target_x", X_AXIS },
+    { "_target_y", Y_AXIS },
+    { "_target_z", Z_AXIS },
+    { "_target_a", A_AXIS },
+    { "_target_b", B_AXIS },
+    { "_target_c", C_AXIS },
+    { "_target_u", U_AXIS },
+    { "_target_v", V_AXIS },
+    { "_target_w", W_AXIS },
+};
+const std::map<const std::string, axis_t> target_machine_positions = {
+    { "_target_abs_x", X_AXIS },
+    { "_target_abs_y", Y_AXIS },
+    { "_target_abs_z", Z_AXIS },
+    { "_target_abs_a", A_AXIS },
+    { "_target_abs_b", B_AXIS },
+    { "_target_abs_c", C_AXIS },
+    { "_target_abs_u", U_AXIS },
+    { "_target_abs_v", V_AXIS },
+    { "_target_abs_w", W_AXIS },
+};
+
 const std::array<const std::string, 6> unsupported_sys = {
     "_spindle_rpm_mode",
     "_spindle_css_mode",
@@ -265,6 +297,16 @@ bool get_system_param(const std::string& name, float& result) {
     if (auto search = machine_positions.find(sysn); search != machine_positions.end()) {
         auto axis = search->second;
         result    = to_inches(axis, get_mpos()[axis]);
+        return true;
+    }
+    if (auto search = target_positions.find(sysn); search != target_positions.end()) {
+        auto axis = search->second;
+        result    = to_inches(axis, gc_state.position[axis] - get_wco()[axis]);
+        return true;
+    }
+    if (auto search = target_machine_positions.find(sysn); search != target_machine_positions.end()) {
+        auto axis = search->second;
+        result    = to_inches(axis, gc_state.position[axis]);
         return true;
     }
     if (std::find(unsupported_sys.begin(), unsupported_sys.end(), sysn) != unsupported_sys.end()) {

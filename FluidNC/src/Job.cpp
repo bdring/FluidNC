@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Job.h"
+#include <atomic>
 #include "Logging.h"
 #include "Serial.h"    // allChannels
 #include "Protocol.h"  // unwind_cause
@@ -256,6 +257,71 @@ Channel* Job::channel() {
     JobLock lock;
     return job.empty() ? nullptr : job.back()->channel();
 }
+// Guards s_breakpoints too -- reusing s_job_mutex rather than a second lock,
+// since at_stop_line() already needs it to read the top-of-stack JobSource's
+// channel/line atomically with the breakpoint lookup. Named s_breakpoints,
+// not breakpoints, to avoid colliding with Job::breakpoints() below: inside
+// a Job:: member function body, an unqualified name is looked up in class
+// scope before the enclosing namespace, so "breakpoints" there would resolve
+// to the static method, not this variable.
+static std::set<std::pair<std::string, int32_t>> s_breakpoints;
+// Mirror of s_breakpoints.size(), written only under s_job_mutex, so that
+// at_stop_line() -- called for every dispatched line -- can skip taking the
+// mutex entirely in the common case of no breakpoints.
+static std::atomic<size_t> s_breakpoint_count { 0 };
+
+void Job::set_breakpoint(const std::string& path, int32_t line) {
+    JobLock lock;
+    s_breakpoints.insert({ path, line });
+    s_breakpoint_count = s_breakpoints.size();
+}
+bool Job::clear_breakpoint(const std::string& path, int32_t line) {
+    JobLock lock;
+    bool erased = s_breakpoints.erase({ path, line }) != 0;
+    s_breakpoint_count = s_breakpoints.size();
+    return erased;
+}
+bool Job::clear_breakpoint(size_t index) {
+    JobLock lock;
+    if (index == 0 || index > s_breakpoints.size()) {
+        return false;
+    }
+    auto it = s_breakpoints.begin();
+    std::advance(it, index - 1);
+    s_breakpoints.erase(it);
+    s_breakpoint_count = s_breakpoints.size();
+    return true;
+}
+void Job::clear_all_breakpoints() {
+    JobLock lock;
+    s_breakpoints.clear();
+    s_breakpoint_count = 0;
+}
+const std::set<std::pair<std::string, int32_t>>& Job::breakpoints() {
+    return s_breakpoints;
+}
+bool Job::at_stop_line() {
+    if (s_breakpoint_count == 0) {
+        return false;
+    }
+    JobLock lock;
+    if (!active_nl()) {
+        return false;
+    }
+    auto source = job.back();
+    return s_breakpoints.count({ source->channel()->name(), (int32_t)source->lineNumber() }) != 0;
+}
+void Job::rewind_current_line() {
+    JobLock lock;
+    if (!active_nl()) {
+        return;
+    }
+    auto     source  = job.back();
+    Channel* ch      = source->channel();
+    size_t   lineNum = source->lineNumber();
+    ch->set_position(ch->lineStartPosition());
+    source->setLineNumber(lineNum - 1);
+}
 void Job::set_ack_error(Channel* ack_channel, Error err) {
     if (!ack_channel) {
         return;
@@ -267,6 +333,15 @@ void Job::set_ack_error(Channel* ack_channel, Error err) {
             return;
         }
     }
+}
+int32_t Job::progress_line() {
+    JobLock lock;
+    for (auto it = job.rbegin(); it != job.rend(); ++it) {
+        if ((*it)->channel()->reports_progress()) {
+            return (int32_t)(*it)->lineNumber();
+        }
+    }
+    return -1;
 }
 Channel* Job::leader_channel() {
     JobLock lock;

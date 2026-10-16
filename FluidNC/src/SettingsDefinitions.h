@@ -16,5 +16,7 @@ extern EnumSetting* message_level;
 
 extern EnumSetting* gcode_echo;
 
+extern EnumSetting* file_line_numbers;
+
 void make_proxies();
 void make_coordinates();

@@ -6,10 +6,19 @@ import argparse
 import os
 import serial
 from tool import op_entries
-from tool.controller import Controller
+from tool.controller import Controller, GrblFault
+from tool.utils import color
 
 parser = argparse.ArgumentParser()
-parser.add_argument("device")
+parser.add_argument(
+    "device",
+    help=(
+        "DUT to connect to: a bare serial device path (e.g. /dev/cu.usbserial-0001, "
+        "kept for backward compatibility), or serial:<path>, ws://<host>, "
+        "telnet://<host>[:port], or sim:macos / sim:linux for the native simulator "
+        "build (see tool/transport/__init__.py's create_transport())."
+    ),
+)
 parser.add_argument("fixture_file")
 parser.add_argument("-b", "--baudrate", type=int, default=115200)
 args = parser.parse_args()
@@ -19,7 +28,7 @@ fixture_paths = []
 # check if fixture_file is a directory
 if os.path.isdir(args.fixture_file):
     for file in os.listdir(args.fixture_file):
-        if file.endswith(".nc"):
+        if file.endswith(".fnctest"):
             fixture_paths.append(os.path.join(args.fixture_file, file))
 else:
     fixture_paths.append(args.fixture_file)
@@ -28,21 +37,37 @@ else:
 def run_fixture(fixture_path, controller):
     op_entries_parsed = op_entries.parse_file(fixture_path)
 
+    failed = False
     try:
         for op_entry in op_entries_parsed:
             if not op_entry.execute(controller):
-                print(
-                    colored(f"--- Fixture ", "red")
-                    + colored(fixture_path, "red", attrs=["bold"])
-                    + colored(" failed ---", "red")
-                )
-                exit(1)
+                failed = True
+                break
 
     except KeyboardInterrupt:
         print("Interrupt")
+        failed = True
 
     except TimeoutError as e:
         print("Timeout waiting for response, line: " + e.args[0])
+        failed = True
+
+    except GrblFault as e:
+        # A real error:N/ALARM:N the fixture wasn't specifically waiting
+        # for -- see Controller.expect() in tool/controller.py. Distinct
+        # from a plain mismatch (which op_entry.execute() already reports
+        # itself and returns False for) because it can surface between
+        # fixture steps, not just as one step's own result.
+        print(color.error("Unexpected fault: ") + e.message.raw)
+        failed = True
+
+    if failed:
+        print(
+            colored(f"--- Fixture ", "red")
+            + colored(fixture_path, "red", attrs=["bold"])
+            + colored(" failed ---", "red")
+        )
+        exit(1)
 
     print(
         colored(f"--- Fixture ", "green")
