@@ -181,6 +181,11 @@ namespace WebUI {
             }
 
             ETH.setHostname(_hostname->get());
+            // Arduino-ESP32 3.x keeps one process-wide default hostname in
+            // NetworkManager.  WiFi.getHostname() returns it, and mDNS and OTA
+            // read it from there.  Only the WiFi module ever set it, so with
+            // Ethernet selected they advertised "esp32s3-XXXXXX".
+            Network.setHostname(_hostname->get());
 
             if (_eth_ip_mode->get() == NET_STATIC_MODE) {
                 uint32_t ip      = (uint32_t)_eth_ip->get();

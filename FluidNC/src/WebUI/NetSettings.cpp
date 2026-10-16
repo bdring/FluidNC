@@ -55,6 +55,20 @@ namespace WebUI {
         }
     }
 
+    bool networkReady() {
+        switch (networkType()) {
+            case NetworkTypeEthernet:
+#if MAX_N_ETH
+                return config->_ethernet && config->_ethernet->config_ok;
+#else
+                return false;
+#endif
+            case NetworkTypeWiFi:
+            default:
+                return WiFi.getMode() == WIFI_STA;
+        }
+    }
+
     HostnameSetting::HostnameSetting(const char* description, const char* grblName, const char* name, const char* defVal) :
         StringSetting(description, WEBSET, WA, grblName, name, defVal, MIN_HOSTNAME_LENGTH, MAX_HOSTNAME_LENGTH) {
         load();

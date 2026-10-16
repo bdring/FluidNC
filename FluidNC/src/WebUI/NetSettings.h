@@ -34,6 +34,18 @@ namespace WebUI {
     // connectivity, not just "the interface is configured on."
     bool networkConnected();
 
+    // True if the selected interface is up as a client on a real network:
+    // WiFi in STA mode, or Ethernet selected with the PHY initialized.  Does
+    // not require an IP yet - mDNS and OTA bind to the interface and pick the
+    // address up when it arrives.  For mDNS and OTA, which must not start on
+    // an AP-only WiFi.  Weak because esp32/Mdns.cpp and esp32/OTA.cpp are also
+    // built into noradio variants, where this file is absent; callers must
+    // check the function address before calling it.
+    bool networkReady() __attribute__((weak));
+
+    // Ethernet IP address as a string (EthConfig.cpp).
+    std::string ethIp();
+
     // Hostname is meaningful regardless of which interface is active, so
     // it is shared rather than duplicated as e.g. Ethernet/Hostname.
     class HostnameSetting : public StringSetting {
