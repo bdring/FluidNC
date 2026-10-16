@@ -19,6 +19,8 @@
 #include "Driver/watchdog.h"  // feed_watchdog()
 #include "Config.h"
 
+#include <algorithm>  // std::min
+
 #define CHECK_EXECUTE_RESULT(err, str)                                                                                                     \
     do {                                                                                                                                   \
         if ((err) != ESP_OK) {                                                                                                             \
@@ -132,7 +134,15 @@ std::error_code sd_mount(uint32_t max_files) {
     log_verbose("Mount_sd");
     esp_err_t err;
 
-    if ((err = host_config.set_card_clk(host_config.slot, host_config.max_freq_khz)) != ESP_OK) {
+    // Identify the card at the 400 kHz the SD specification allows during
+    // initialisation, or at the configured maximum when that is lower;
+    // sdmmc_card_init() raises the clock to max_freq_khz by itself once the
+    // card is identified.  Identifying at the full configured speed works with
+    // a card fresh from power-on, but it is outside the specification, and
+    // some cards that stay powered across a controller restart would not
+    // finish identification that way until they were power-cycled.
+    const int probe_khz = std::min(SDMMC_FREQ_PROBING, host_config.max_freq_khz);
+    if ((err = host_config.set_card_clk(host_config.slot, probe_khz)) != ESP_OK) {
         log_debug("spi_set_card_clk failed");
         return esp_error::make_error_code(err);
     }
@@ -175,7 +185,17 @@ std::error_code sd_mount(uint32_t max_files) {
         // that answers badly, and mounting happens on whichever task asked for the
         // card - including the watchdog-watched network task - so do not let the
         // two attempts add up against the timeout.
-        err = sdmmc_card_init(&host_config, card);
+        //
+        // sdmmc_card_init() does not reset the clock when it starts.  If the
+        // first attempt got far enough to raise it to max_freq_khz and failed
+        // after that, the retry would identify the card at full speed, which
+        // is what this function avoids, and the retry is the attempt that
+        // matters for a card that answers badly.
+        if ((err = host_config.set_card_clk(host_config.slot, probe_khz)) == ESP_OK) {
+            err = sdmmc_card_init(&host_config, card);
+        } else {
+            log_debug("spi_set_card_clk failed before retry");
+        }
     }
     resume_watchdog_for_task();
     CHECK_EXECUTE_RESULT(err, "sdmmc_card_init failed");
