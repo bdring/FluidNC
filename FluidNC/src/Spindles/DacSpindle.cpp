@@ -14,7 +14,9 @@
 
 #    include "DacSpindle.h"
 
-#    include <esp32-hal-dac.h>  // dacWrite
+#    include <driver/dac_oneshot.h>  // dac_oneshot_new_channel
+#    include <hal/dac_ll.h>           // dac_ll_update_output_value
+#    include <soc/dac_channel.h>      // DAC_CHAN0_GPIO_NUM
 
 namespace Spindles {
     // ======================================== Dac ======================================
@@ -23,13 +25,22 @@ namespace Spindles {
             return;
         }
 
-        _gpio_ok = true;
-
         if (!_output_pin.capabilities().has(Pin::Capabilities::DAC)) {  // DAC can only be used on these pins
-            _gpio_ok = false;
             log_error("DAC spindle pin invalid " << _output_pin.name() << " (pin 25 or 26 only)");
             return;
         }
+
+        // The driver sets up the pin and powers the channel once, here;
+        // set_output() then writes the register directly, since it runs
+        // in the step ISR, where the driver's calls are not allowed.
+        _dac_chan = _output_pin.getNative(Pin::Capabilities::DAC) == DAC_CHAN0_GPIO_NUM ? DAC_CHAN_0 : DAC_CHAN_1;
+        dac_oneshot_config_t config = { .chan_id = dac_channel_t(_dac_chan) };
+        if (dac_oneshot_new_channel(&config, &_dac_handle) != ESP_OK) {
+            _dac_handle = nullptr;
+            log_error("DAC spindle cannot use " << _output_pin.name());
+            return;
+        }
+        _gpio_ok = true;
 
         _enable_pin.setAttr(Pin::Attr::Output);
         _direction_pin.setAttr(Pin::Attr::Output);
@@ -55,9 +66,13 @@ namespace Spindles {
     };
     void IRAM_ATTR Dac::set_output(uint32_t duty) {
         if (_gpio_ok) {
-            auto outputNative = _output_pin.getNative(Pin::Capabilities::DAC);
+            dac_ll_update_output_value(dac_channel_t(_dac_chan), static_cast<uint8_t>(duty));
+        }
+    }
 
-            dacWrite(outputNative, static_cast<uint8_t>(duty));
+    Dac::~Dac() {
+        if (_dac_handle) {
+            dac_oneshot_del_channel(_dac_handle);
         }
     }
 

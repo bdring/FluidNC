@@ -16,7 +16,13 @@
 #define MAX_N_UARTS SOC_UART_NUM
 #define MAX_N_I2C SOC_I2C_NUM
 #define MAX_N_USB_HOST 0
-#define MAX_N_DACS SOC_DAC_PERIPH_NUM
+// IDF 5 replaced SOC_DAC_PERIPH_NUM with SOC_DAC_CHAN_NUM; an undefined
+// name would silently count as 0 and compile the DAC spindle out
+#ifdef SOC_DAC_CHAN_NUM
+#    define MAX_N_DACS SOC_DAC_CHAN_NUM
+#else
+#    define MAX_N_DACS 0  // No DAC, e.g. ESP32-S3
+#endif
 #define MAX_N_RMT SOC_RMT_GROUPS
 
 // The number that we support, regardless of how many the chip has
@@ -67,11 +73,9 @@ inline void platform_preinit() {
     // exactly the bug found and fixed on ESP32-S3 (see
     // esp32/esp32s3/Platform.h): as of Arduino-ESP32 core 3.x / ESP-IDF 5.x,
     // subscribing the loop task this early tripped a real TWDT timeout --
-    // and killed the board -- during blocking network bring-up. This code
-    // path is currently unreachable on plain ESP32 (which is pinned to
-    // ESP-IDF 4.4, taking the branch above), but is fixed preemptively so it
-    // doesn't silently reintroduce that crash if plain ESP32 is ever moved
-    // to ESP-IDF 5.x, matching what already happened for S3.
+    // and killed the board -- during blocking network bring-up. Plain ESP32
+    // now builds with ESP-IDF 5.x too (pioarduino), so it takes this branch
+    // as well.
     if (esp_task_wdt_status(NULL) == ESP_OK) {
         esp_err_t err = esp_task_wdt_delete(NULL);  // NULL means current task
         if (err != ESP_OK) {
