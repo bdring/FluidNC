@@ -132,7 +132,13 @@ std::error_code sd_mount(uint32_t max_files) {
     log_verbose("Mount_sd");
     esp_err_t err;
 
-    if ((err = host_config.set_card_clk(host_config.slot, host_config.max_freq_khz)) != ESP_OK) {
+    // Identify the card at the 400 kHz the SD specification requires during
+    // initialisation; sdmmc_card_init() raises the clock to max_freq_khz by
+    // itself once the card is identified.  Running the identification at the
+    // full configured speed works with a card fresh from power-on, but a card
+    // that is still powered after the controller restarts may never finish
+    // ACMD41 at that speed and stays unusable until it is power-cycled.
+    if ((err = host_config.set_card_clk(host_config.slot, SDMMC_FREQ_PROBING)) != ESP_OK) {
         log_debug("spi_set_card_clk failed");
         return esp_error::make_error_code(err);
     }
