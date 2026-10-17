@@ -145,9 +145,9 @@ namespace WebUI {
         static void fileUpload(
             AsyncWebServerRequest* request, const Volume& fs, String filename, size_t index, uint8_t* data, size_t len, bool final);
         static void SDFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final);
-        static void uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const Volume& fs);
+        static void uploadStart(AsyncWebServerRequest* request, const char* filename, uintmax_t filesize, const Volume& fs);
         static void uploadWrite(AsyncWebServerRequest* request, uint8_t* buffer, size_t length);
-        static void uploadEnd(AsyncWebServerRequest* request, size_t filesize);
+        static void uploadEnd(AsyncWebServerRequest* request, uintmax_t filesize);
         static void uploadStop();
         static void discardUploadFile();
         static void uploadCheck(AsyncWebServerRequest* request);

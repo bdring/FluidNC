@@ -285,7 +285,7 @@ namespace WebUI {
     FileStream* WebUI_Server::_uploadFile = nullptr;
     uint32_t    WebUI_Server::_uploadGeneration = 0;
     std::string WebUI_Server::_uploadPath = "";  // Store upload directory path for listing
-    uintmax_t   WebUI_Server::_uploadBudget     = SIZE_MAX;
+    uintmax_t   WebUI_Server::_uploadBudget     = UINTMAX_MAX;
     uintmax_t   WebUI_Server::_uploadWritten    = 0;
 
     EnumSetting *  http_enable, *http_block_during_motion;
@@ -1118,10 +1118,11 @@ namespace WebUI {
         delay(100);
     }
 
-    // WebUI names each part path + name and sends its size as path + name + "S",
-    // but browsers strip the directory from a part's filename before sending it.
-    // Put it back from the "path" field, or the size is never found - which
-    // silently skips the free-space check - and the file lands in the root.
+    // WebUI sends a part's size as path + name + "S", but a part's filename can
+    // arrive without the directory, which is given separately in the "path"
+    // field.  Put it back from there, or the size is never found - which skips
+    // the up-front free-space check - and the file lands in the root.  A name
+    // that already starts with "/" is used as-is.
     static std::string uploadFullName(AsyncWebServerRequest* request, const String& filename) {
         if (filename.startsWith("/") || !request->hasParam("path", true)) {
             return filename.c_str();
@@ -1133,9 +1134,18 @@ namespace WebUI {
         return fullname + filename.c_str();
     }
 
-    static size_t uploadFileSize(AsyncWebServerRequest* request, const std::string& fullname) {
-        std::string sizeargname = fullname + "S";
-        return request->hasParam(sizeargname.c_str(), true) ? request->getParam(sizeargname.c_str(), true)->value().toInt() : 0;
+    // ESP3D-WEBUI and WebUI-mm's file manager send the size as path + name + "S";
+    // WebUI-mm's extension upload sends it as name + "S" with no path.  Try the
+    // full name first, then the bare one.  0 means no size was declared.
+    // strtoull rather than String::toInt(), which stops at 2 GiB.
+    static uintmax_t uploadFileSize(AsyncWebServerRequest* request, const std::string& fullname, const String& filename) {
+        for (const std::string& name : { fullname, std::string(filename.c_str()) }) {
+            std::string sizeargname = name + "S";
+            if (request->hasParam(sizeargname.c_str(), true)) {
+                return strtoull(request->getParam(sizeargname.c_str(), true)->value().c_str(), nullptr, 10);
+            }
+        }
+        return 0;
     }
 
     //LocalFS files uploader handle
@@ -1143,12 +1153,12 @@ namespace WebUI {
         AsyncWebServerRequest* request, const Volume& fs, String filename, size_t index, uint8_t* data, size_t len, bool final) {
         std::string fullname = uploadFullName(request, filename);
         if (!index) {
-            uploadStart(request, fullname.c_str(), uploadFileSize(request, fullname), fs);
+            uploadStart(request, fullname.c_str(), uploadFileSize(request, fullname, filename), fs);
         }
         if (_upload_status == UploadStatus::ONGOING) {
             uploadWrite(request, data, len);
             if (final) {
-                uploadEnd(request, uploadFileSize(request, fullname));
+                uploadEnd(request, uploadFileSize(request, fullname, filename));
             }
         } else {
             uploadStop();
@@ -1436,7 +1446,7 @@ namespace WebUI {
     }
 
     // File upload
-    void WebUI_Server::uploadStart(AsyncWebServerRequest* request, const char* filename, size_t filesize, const Volume& fs) {
+    void WebUI_Server::uploadStart(AsyncWebServerRequest* request, const char* filename, uintmax_t filesize, const Volume& fs) {
         std::error_code ec;
 
         // An upload that never finished leaves its file open.  The onDisconnect
@@ -1499,27 +1509,58 @@ namespace WebUI {
             return;
         }
 
-        // The budget is what is free plus what replacing an existing file
-        // gives back, less the reserve.  It is enforced as the data arrives
-        // (uploadWrite), so it holds whether or not the client declared a size
-        // and whether or not the declared size was honest; the check against
-        // filesize here only refuses an upload that can never fit before any
-        // of it is sent.  Subtracting the reserve, rather than adding it to
-        // filesize, keeps a bogus filesize from wrapping past the comparison.
-        //
-        // It is measured once, so it guards against the upload itself, not
-        // against something else writing to the same volume meanwhile; the
-        // reserve absorbs small writes such as a settings save, nothing more.
+        // Refuse a declared size that can never fit, even counting what
+        // replacing an existing file would give back, before touching that
+        // file.  Subtracting the reserve, rather than adding it to filesize,
+        // keeps a bogus filesize from wrapping past the comparison.
         std::error_code size_ec;
         auto            existing_size = stdfs::file_size(fpath, size_ec);
-        auto            reclaimable   = space.available + (size_ec ? 0 : existing_size);
+        bool            replacing     = !size_ec;
+        auto            reclaimable   = space.available + (replacing ? existing_size : 0);
         if (reclaimable < reserve || filesize > reclaimable - reserve) {
             _upload_status = UploadStatus::FAILED;
             log_info("Upload not enough space");
             pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
             return;
         }
-        _uploadBudget  = reclaimable - reserve;
+
+        // Remove a file being replaced before opening the new one, and measure
+        // the budget after that.  On LittleFS, opening with "w" does not free
+        // the old file's blocks: the on-disk metadata keeps referencing them
+        // until the new file is closed, so counting them as free let a large
+        // replacement run the filesystem dry.  On FAT, "w" truncates on open,
+        // so the old contents are gone once the upload starts either way.
+        if (replacing) {
+            stdfs::remove(fpath, ec);
+            if (ec) {
+                _upload_status = UploadStatus::FAILED;
+                log_info("Upload cannot replace existing file");
+                pushError(request, ESP_ERROR_FILE_CREATION, "Upload rejected, cannot replace existing file");
+                return;
+            }
+            HashFS::rehash_file(fpath);
+            space = stdfs::space(fpath, ec);
+            if (ec) {
+                _upload_status = UploadStatus::FAILED;
+                log_info("Upload cannot determine free space");
+                pushError(request, ESP_ERROR_UPLOAD, "Upload rejected, cannot determine free space");
+                return;
+            }
+        }
+        if (space.available < reserve || filesize > space.available - reserve) {
+            _upload_status = UploadStatus::FAILED;
+            log_info("Upload not enough space");
+            pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+            return;
+        }
+
+        // The budget is enforced as the data arrives (uploadWrite), so it
+        // holds whether or not the client declared a size and whether or not
+        // the declared size was honest.  It is measured once, so it guards
+        // against the upload itself, not against something else writing to
+        // the same volume meanwhile; the reserve absorbs small writes such as
+        // a settings save, nothing more.
+        _uploadBudget  = space.available - reserve;
         _uploadWritten = 0;
 
         if (_upload_status != UploadStatus::FAILED) {
@@ -1612,7 +1653,7 @@ namespace WebUI {
         }
     }
 
-    void WebUI_Server::uploadEnd(AsyncWebServerRequest* request, size_t filesize) {
+    void WebUI_Server::uploadEnd(AsyncWebServerRequest* request, uintmax_t filesize) {
         //if file is open close it
         if (_uploadFile) {
             //            delete _uploadFile;
@@ -1657,7 +1698,7 @@ namespace WebUI {
                 // file_size() throws std::filesystem_error, which an
                 // ErrorException handler does not catch: use the error_code form.
                 std::error_code size_ec;
-                size_t          actual_size = stdfs::file_size(filepath, size_ec);
+                uintmax_t       actual_size = stdfs::file_size(filepath, size_ec);
                 if (size_ec) {
                     actual_size = 0;
                 }
@@ -1671,11 +1712,9 @@ namespace WebUI {
                     return;
                 }
             }
-            if (_uploadFile) {
-                delete _uploadFile;
-                _uploadFile = nullptr;
-                HashFS::rehash_file(filepath);
-            }
+            delete _uploadFile;
+            _uploadFile = nullptr;
+            HashFS::rehash_file(filepath);
         } else {
             _upload_status = UploadStatus::FAILED;
             log_info("Upload failed - file not open");
