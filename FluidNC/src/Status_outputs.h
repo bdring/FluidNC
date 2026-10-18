@@ -10,6 +10,7 @@ class Status_Outputs : public Channel, public ConfigurableModule {
     Pin _Hold_pin;
     Pin _Alarm_pin;
     Pin _Door_pin;
+    Pin _Spindle_pin;
 
 public:
 private:
@@ -88,5 +89,11 @@ public:
         // @pin_attributes output
         // Active while the safety door input is active.
         handler.item("door_pin", _Door_pin);
+
+        // @config spindle_pin
+        // @default NO_PIN
+        // @pin_attributes output
+        // Active while the spindle is active CW or CCW.
+        handler.item("spindle_pin", _Spindle_pin);        
     }
 };

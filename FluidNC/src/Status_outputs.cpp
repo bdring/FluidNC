@@ -31,9 +31,14 @@ void Status_Outputs::init() {
         _Door_pin.setAttr(Pin::Attr::Output);
     }
 
+    if(_Spindle_pin.defined())
+    {
+        _Spindle_pin.setAttr(Pin::Attr::Output);
+    }    
+
     log_info("Status outputs"
              << " Interval:" << _report_interval_ms << " Idle:" << _Idle_pin.name() << " Cycle:" << _Run_pin.name()
-             << " Hold:" << _Hold_pin.name() << " Alarm:" << _Alarm_pin.name()<< "Door:" << _Door_pin.name()) ;
+             << " Hold:" << _Hold_pin.name() << " Alarm:" << _Alarm_pin.name()<< "Door:" << _Door_pin.name() << "Spindle:" << _Spindle_pin.name()) ;
 
     allChannels.registration(this);
     setReportInterval(_report_interval_ms);
@@ -80,6 +85,14 @@ void Status_Outputs::parse_status_report() {
     _Hold_pin.write(_state.substr(0, 4) == "Hold");
     _Alarm_pin.write(_state == "Alarm");
     _Door_pin.write(_state.substr(0,4) == "Door");
+
+    auto spindlePos = _report.find("|A:");
+    if (spindlePos == std::string::npos) {
+        _Spindle_pin.write(0);
+    } else {
+        _state = _report.substr(spindlePos + 3, 1);
+        _Spindle_pin.write(_state == "S" || _state == "C");
+    }
 }
 
 // Configuration registration
