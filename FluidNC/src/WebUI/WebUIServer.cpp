@@ -1469,7 +1469,7 @@ namespace WebUI {
             // drop it rather than leave it to be found later.
             std::error_code rec;
             stdfs::remove(stranded, rec);
-            HashFS::rehash_file(stranded);
+            HashFS::delete_file(stranded);
         }
 
         FluidPath fpath { filename, fs, ec };
@@ -1538,7 +1538,7 @@ namespace WebUI {
                 pushError(request, ESP_ERROR_FILE_CREATION, "Upload rejected, cannot replace existing file");
                 return;
             }
-            HashFS::rehash_file(fpath);
+            HashFS::delete_file(fpath);
             space = stdfs::space(fpath, ec);
             if (ec) {
                 _upload_status = UploadStatus::FAILED;
@@ -1602,7 +1602,7 @@ namespace WebUI {
                     // GCode, so drop it as uploadCheck() would have.
                     std::error_code ec;
                     stdfs::remove(filepath, ec);
-                    HashFS::rehash_file(filepath);
+                    HashFS::delete_file(filepath);
                 });
             } catch (const ErrorException& err) {
                 _uploadFile    = nullptr;
@@ -1755,7 +1755,7 @@ namespace WebUI {
         _uploadFile = nullptr;
         std::error_code ec;
         stdfs::remove(filepath, ec);
-        HashFS::rehash_file(filepath);
+        HashFS::delete_file(filepath);
     }
 
     void WebUI_Server::poll() {
