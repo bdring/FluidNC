@@ -7,14 +7,23 @@
 #include "esp_wifi.h"
 #include <esp_err.h>
 #include <mdns.h>
+#include "WebUI/NetSettings.h"  // networkReady()
 
 namespace WebUI {
     EnumSetting* Mdns::_enable;
 
+    // mDNS needs a client-side interface: WiFi STA or Ethernet.  The IDF
+    // mdns component already binds to the netif that Arduino's ETH creates,
+    // so only the WiFi STA check kept it off for Ethernet.  networkReady() is
+    // absent in noradio builds (no WebUI); fall back to the WiFi check there.
+    static bool mdnsInterfaceUp() {
+        return networkReady ? networkReady() : WiFi.getMode() == WIFI_STA;
+    }
+
     void Mdns::init() {
         _enable = new EnumSetting("mDNS enable", WEBSET, WA, NULL, "MDNS/Enable", true, &onoffOptions);
 
-        if (WiFi.getMode() == WIFI_STA && _enable->get()) {
+        if (mdnsInterfaceUp() && _enable->get()) {
             if (mdns_init()) {
                 log_error("Cannot start mDNS");
                 return;
@@ -32,12 +41,12 @@ namespace WebUI {
         mdns_free();
     }
     void Mdns::add(const char* service, const char* proto, uint16_t port) {
-        if (WiFi.getMode() == WIFI_STA && _enable->get()) {
+        if (mdnsInterfaceUp() && _enable->get()) {
             mdns_service_add(NULL, service, proto, port, NULL, 0);
         }
     }
     void Mdns::remove(const char* service, const char* proto) {
-        if (WiFi.getMode() == WIFI_STA && _enable->get()) {
+        if (mdnsInterfaceUp() && _enable->get()) {
             mdns_service_remove(service, proto);
         }
     }
