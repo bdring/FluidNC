@@ -95,9 +95,9 @@ size_t FileStream::position() {
 void FileStream::setup(const char* mode) {
     _fd = fopen(_fpath.string().c_str(), mode);
 
+    bool opening = strcmp(mode, "w");
     if (!_fd) {
         log_debug("fopen failed for " << _fpath.string() << " mode " << mode << " errno: " << errno);
-        bool opening = strcmp(mode, "w");
         throw ErrorException(opening ? Error::FsFailedOpenFile : Error::FsFailedCreateFile);
     }
     // Must happen before any I/O on the stream.  A failure here is not fatal;
@@ -105,7 +105,21 @@ void FileStream::setup(const char* mode) {
     if (mode_writes(mode)) {
         setvbuf(_fd, nullptr, _IOFBF, WRITE_BUFFER_SIZE);
     }
-    _size = stdfs::file_size(_fpath);
+    // Non-throwing: this constructor also runs in the web server task, where a
+    // std::filesystem_error is not caught and aborts the firmware.
+    std::error_code size_ec;
+    _size = stdfs::file_size(_fpath, size_ec);
+    if (size_ec) {
+        // fopen() can succeed while the card stalls on the size.  Reporting 0
+        // would hide that from callers: the web server uses size() as the
+        // Content-Length, so a download or backup would store an empty file
+        // for one that exists.  Fail the open instead, with the exception the
+        // callers already catch.
+        log_debug("file_size failed for " << _fpath.string() << ": " << size_ec.message());
+        fclose(_fd);
+        _fd = nullptr;
+        throw ErrorException(opening ? Error::FsFailedOpenFile : Error::FsFailedCreateFile);
+    }
 }
 
 // Delegates to the FluidPath constructor below so Channel's base-class name

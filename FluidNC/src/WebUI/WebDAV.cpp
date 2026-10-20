@@ -22,6 +22,7 @@
 #endif
 
 #include "WebDAV.h"
+#include "FsProbe.h"
 #include "FileStream.h"
 #include "HashFS.h"
 #include "Driver/watchdog.h"  // WatchdogSuspend
@@ -397,12 +398,27 @@ void WebDAV::handleRequest(AsyncWebServerRequest* request) {
     log_verbose("fpath with method " << request->methodToString() << " on " << path);
 
     FluidPath fpath { path.string(), _volume, ec };
-    if (ec) {
-        resource = DavResource::NONE;
-    } else if (stdfs::is_regular_file(fpath)) {
-        resource = DavResource::FILE;
-    } else if (stdfs::is_directory(fpath)) {
-        resource = DavResource::DIR;
+    // The throwing overloads of is_regular_file() / is_directory() must not be
+    // used here.  This runs in the async web server task, where nothing
+    // catches the exception: an SD card that fails to answer aborted the
+    // firmware instead of returning an HTTP error.  See FsProbe.h for how the
+    // outcomes are told apart.
+    if (!ec) {
+        auto st = stdfs::status(fpath, ec);
+        switch (fs_probe(st, ec)) {
+            case FsProbe::FILE:
+                resource = DavResource::FILE;
+                break;
+            case FsProbe::DIR:
+                resource = DavResource::DIR;
+                break;
+            case FsProbe::UNAVAILABLE:
+                return handleUnavailable(path, ec, request);
+            case FsProbe::NONE:
+                // Missing, or a path error: the method decides (PUT and MKCOL
+                // create it, the others answer 404).
+                break;
+        }
     }
 
     if (request->method() == HTTP_MKCOL) {
@@ -484,9 +500,19 @@ void WebDAV::handleBody(AsyncWebServerRequest* request, unsigned char* data, siz
                 }
             }
 
-            if (stdfs::is_directory(fpath)) {
-                log_error("Cannot PUT to a directory");
-                return request->send(403);
+            // Non-throwing, see handleRequest().  handleRequest() already
+            // answered 503 for a volume that does not answer; do the same
+            // here rather than going on to open and write the file.
+            auto st = stdfs::status(fpath, ec);
+            switch (fs_probe(st, ec)) {
+                case FsProbe::DIR:
+                    log_error("Cannot PUT to a directory");
+                    return request->send(403);
+                case FsProbe::UNAVAILABLE:
+                    return handleUnavailable(path, ec, request);
+                case FsProbe::FILE:
+                case FsProbe::NONE:
+                    break;
             }
 
             // If we ever handle LOCK properly, we might need
@@ -607,8 +633,7 @@ void WebDAV::handlePropfind(const FluidPath& fpath, DavResource resource, AsyncW
 void WebDAV::handleGet(const FluidPath& fpath, DavResource resource, AsyncWebServerRequest* request) {
     // A collection has no content to GET.  Answer before opening it: some
     // platforms (e.g. POSIX) let fopen() open a directory, and FileStream
-    // would then throw a non-ErrorException from file_size(), escaping
-    // this async callback.
+    // would only fail afterwards, on file_size().
     if (resource == DavResource::DIR) {
         request->send(404);
         return;
@@ -786,6 +811,18 @@ void WebDAV::handleHead(DavResource resource, AsyncWebServerRequest* request) {
     response->addHeader("Dav", "1,2");
     response->addHeader("Ms-Author-Via", "DAV");
     response->addHeader("Allow", "PROPFIND,OPTIONS,DELETE,COPY,MOVE,HEAD,POST,PUT,GET");
+    request->send(response);
+}
+
+// The volume did not answer.  503 tells the client the resource may well
+// exist and to try again later, as opposed to 404.  WebDAV clients such as
+// macOS Finder retry 503 right away; Retry-After asks them to wait.
+void WebDAV::handleUnavailable(const stdfs::path& path, const std::error_code& ec, AsyncWebServerRequest* request) {
+    // debug, not info: a client retries this while the card is already
+    // misbehaving, and each retry would add a line.
+    log_debug("WebDAV: cannot access " << path.string() << ": " << ec.message());
+    AsyncWebServerResponse* response = request->beginResponse(503);
+    response->addHeader("Retry-After", "5");
     request->send(response);
 }
 
