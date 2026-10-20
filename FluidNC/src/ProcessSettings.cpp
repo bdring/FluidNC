@@ -35,6 +35,7 @@
 #    include "HeapDiff.h"
 #endif
 
+#include <cstdlib>  // std::abs
 #include <cstring>
 #include <string_view>
 #include <map>
@@ -1006,17 +1007,22 @@ static Error writeGPIOOff(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 
+// A negative interval also reports while idle; see Channel::setReportInterval()
+static const char* idle_note(int32_t interval) {
+    return interval < 0 ? ", including while idle" : "";
+}
+
 static Error setReportInterval(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value && *value) {
-        uint32_t intValue;
+        int32_t intValue;
 
         if (!string_util::from_decimal(value, intValue)) {
             return Error::BadNumberFormat;
         }
 
-        uint32_t actual = out.setReportInterval(intValue);
+        int32_t actual = out.setReportInterval(intValue);
         if (actual) {
-            log_info(out.name() << " auto report interval set to " << actual << " ms");
+            log_info(out.name() << " auto report interval set to " << std::abs(actual) << " ms" << idle_note(actual));
         } else {
             log_info(out.name() << " auto reporting turned off");
         }
@@ -1028,9 +1034,9 @@ static Error setReportInterval(const char* value, AuthenticationLevel auth_level
         return Error::Ok;
     }
 
-    uint32_t actual = out.getReportInterval();
+    int32_t actual = out.getReportInterval();
     if (actual) {
-        log_info_to(out, out.name() << " auto report interval is " << actual << " ms");
+        log_info_to(out, out.name() << " auto report interval is " << std::abs(actual) << " ms" << idle_note(actual));
     } else {
         log_info_to(out, out.name() << " auto reporting is off");
     }
