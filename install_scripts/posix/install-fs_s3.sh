@@ -6,7 +6,7 @@ if ! . ./tools.sh; then exit 1; fi
 
 export chip="esp32s3"
 
-LocalFS="0x3d0000 wifi/littlefs.bin"
+LocalFS="0x610000 ${BuildType}/littlefs.bin"
 esptool_write $LocalFS
 
 deactivate
