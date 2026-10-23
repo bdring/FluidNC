@@ -29,8 +29,7 @@ void UsbHostUart::begin() {
     // can take over — this prevents the config file from killing the only
     // serial console on boards without a USB-serial chip.
     if (tusb_inited()) {
-        log_error("USB Host: set USBCDC/Enable to OFF to use USB host (they share the USB port). "
-                  "WARNING: this will disable the native USB serial console.");
+        log_warn("USB Host: USBCDC/Enable must be OFF to use usb_host");
         return;
     }
 

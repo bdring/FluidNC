@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-// Recompile the ESP-IDF v4.4.7 copy of Chan's FatFs engine with FF_FS_TINY == 1.
+// Recompile the ESP-IDF v5.5.4 copy of Chan's FatFs engine with FF_FS_TINY == 1.
 //
-// The Arduino-ESP32 core 2.0.17 precompiled libfatfs.a is built with
+// The Arduino-ESP32 core 3.3.9 (pioarduino) precompiled libfatfs.a is built with
 // CONFIG_FATFS_PER_FILE_CACHE == 1, so ff.h sets FF_FS_TINY == 0 and every open
 // FIL carries a private BYTE buf[FF_MAX_SS] window.  On this SDK FF_MAX_SS is
 // MAX(FF_SS_SDCARD, FF_SS_WL) == MAX(512, CONFIG_WL_SECTOR_SIZE) == 4096, so that
@@ -23,9 +23,10 @@
 // vfs_fat_tiny.c MUST apply the identical override so that both translation
 // units agree on sizeof(FIL) / the FIL layout.
 //
-// ff.c is the verbatim components/fatfs/src/ff.c from the esp-idf v4.4.7 tag
-// (FatFs R0.13c).  Its ff.h / ffconf.h are byte-identical to the headers shipped
-// in framework-arduinoespressif32@3.20017.241212, so the recompiled object is
+// ff.c is the verbatim components/fatfs/src/ff.c from the esp-idf v5.5.4 tag
+// (FatFs R0.15), the exact IDF commit the libs were built from.  Its ff.h /
+// ffconf.h are byte-identical to the headers shipped in
+// framework-arduinoespressif32-libs 5.5.4, so the recompiled object is
 // ABI-identical to the archive member apart from this one setting.
 
 // Pull in sdkconfig.h first (it is #pragma once) and flip the option before

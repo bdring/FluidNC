@@ -69,6 +69,11 @@ void tmc_spi_transfer_data(const uint8_t* out, int out_bitlen, uint8_t* in, int 
     spi_ll_clear_int_stat(hw);
 #if ESP_IDF_VERSION_MAJOR < 5
     spi_ll_master_user_start(hw);
+#else
+    // Latch the settings above (a no-op on ESP32, required on ESP32-S3),
+    // then start the transaction, as IDF 5's spi_hal_user_start() does
+    spi_ll_apply_config(hw);
+    spi_ll_user_start(hw);
 #endif
     while (!spi_ll_usr_is_done(hw)) {}
 
