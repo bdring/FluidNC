@@ -35,6 +35,8 @@ const enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
 
 EnumSetting* gcode_echo;
 
+EnumSetting* file_line_numbers;
+
 void make_coordinate(CoordIndex index, const char* name, bool is_saved) {
     auto coord    = new Coordinates(name);
     coords[index] = coord;
@@ -108,6 +110,9 @@ void make_settings() {
         new StringSetting("Message issued at startup", EXTENDED, WG, NULL, "Start/Message", "Grbl \\V [FluidNC \\B (\\X) \\H]", 0, 40);
 
     gcode_echo = new EnumSetting("GCode Echo Enable", WEBSET, WG, NULL, "GCode/Echo", 0, &onoffOptions);
+
+    file_line_numbers = new EnumSetting(
+        "Report the running file's line number instead of the GCode N word", EXTENDED, WG, NULL, "File/LineNumbers", 0, &onoffOptions);
 }
 
 void make_proxies() {

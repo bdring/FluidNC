@@ -183,6 +183,9 @@ struct LineItem {
     char     line[Channel::maxLine];
 };
 static constexpr UBaseType_t CMD_QUEUE_DEPTH = 1;
+// Job::rewind_current_line() assumes at most one line is in flight ahead of
+// the job's line counter.
+static_assert(CMD_QUEUE_DEPTH == 1, "rewind_current_line() assumes a single in-flight line");
 QueueHandle_t                cmd_queue        = nullptr;
 
 bool cmd_queue_defer(const char* line, Channel& channel) {
@@ -353,6 +356,7 @@ static void poll_once() {
             char buf[Channel::maxLine];
             if (uxQueueSpacesAvailable(cmd_queue)) {
                 if (Channel* channel = Job::channel(); channel && channel->pending_processing_refs() == 0) {
+                    channel->setLineStartPosition(channel->position());
                     auto status = channel->pollLine(buf);
                     switch (status) {
                         case Error::Ok:
@@ -510,18 +514,73 @@ void protocol_main_loop() {
                 // Single-step mode: pause before each job line exactly like an inferred
                 // M0 ahead of that line, reporting a preview of what will run next. The
                 // line is only executed once a cycle start releases the hold.
-                if (config->_control->_singleBlockPin.get() && Job::active() && !sys.abort()) {
+                //
+                // Job::at_stop_line() reuses this same pre-dispatch pause for a
+                // persistent, debugger-style breakpoint, regardless of single_block_pin
+                // -- see $Breakpoint/Set/Clear/List (ProcessSettings.cpp) and
+                // Job::breakpoints() (Job.h). It's a live check against whatever job is
+                // currently on top of the stack, not a value snapshotted at nest() time,
+                // so setting or clearing a breakpoint takes effect immediately even on a
+                // file that's already running. Preceded by $C, a breakpoint stops a
+                // check-mode dry run at the target line with gc_state reconstructed as
+                // of that line; without $C first, it stops a normal run there instead.
+                // The check below therefore also fires while in CheckMode, which the
+                // plain single-block case does not. A breakpoint stays armed after being
+                // hit, firing again on every later visit to that line (e.g. inside a
+                // WHILE loop) until explicitly cleared.
+                if ((config->_control->_singleBlockPin.get() || Job::at_stop_line()) && Job::active() && !sys.abort()) {
                     protocol_buffer_synchronize();  // Finish all remaining buffered motion before pausing.
 
                     // protocol_buffer_synchronize() pumps realtime commands, during which the
                     // polling task can Job::abort() (Alarm/Critical/unwind_cause) and empty the
-                    // job stack. Fetch the job channel once, afterwards, and skip the pause if it
-                    // is gone rather than dereferencing a null Job::channel(). jc->lineNumber()
-                    // still matches item.line because CMD_QUEUE_DEPTH == 1 and poll_once() will
-                    // not read another job line while our processing_ref is held -- exactly one
-                    // job line is ever in flight; a deeper queue would let that skew.
-                    Channel* jc = Job::channel();
-                    if (jc && !state_is(State::CheckMode)) {
+                    // job stack, or nest/unnest something -- so re-fetch both jc and atStopLine
+                    // fresh afterward rather than trusting the outer condition's now-stale
+                    // values. jc->lineNumber() still matches item.line because CMD_QUEUE_DEPTH
+                    // == 1 and poll_once() will not read another job line while our
+                    // processing_ref is held -- exactly one job line is ever in flight; a
+                    // deeper queue would let that skew.
+                    Channel* jc         = Job::channel();
+                    bool     atStopLine = jc && Job::at_stop_line();
+                    if (jc && (!state_is(State::CheckMode) || atStopLine)) {
+                        if (atStopLine) {
+                            bool wasDryRun = state_is(State::CheckMode);
+                            log_info("Job reached line " << jc->lineNumber());
+                            // Only a check-mode dry run needs to be kicked out of CheckMode
+                            // here; a future breakpoint on a normal (non-check-mode) job would
+                            // already be in Cycle, and forcing Idle then would be wrong.
+                            if (wasDryRun) {
+                                set_state(State::Idle);
+
+                                // A dry run may have a restart_macro configured, to move into
+                                // position and re-establish spindle/coolant state (using
+                                // #<_target_x/y/z>, #<_spindle_cw>, #<_rpm>, #<_flood>, #<_mist>,
+                                // which reflect gc_state as reconstructed by the dry run) before
+                                // resuming the file for real -- see Machine/Macros.cpp. Same
+                                // shape as Spindle's m6_macro: typically just a delegating line
+                                // like "$SD/Run=restart.nc", since a real restart sequence needs
+                                // real conditionals, (PRINT ...), and its own explicit M0 pauses
+                                // that don't fit in one config-file line. It runs in normal (not
+                                // single block) mode; single block mode (below) is switched on
+                                // only once it finishes and control returns here.
+                                if (!config->_macros->_restart_macro.get().empty()) {
+                                    // The breakpoint stays armed (it's never auto-cleared -- see
+                                    // Job::at_stop_line() above) so re-reaching this line once the
+                                    // macro unnests re-triggers this same handler, this time with
+                                    // wasDryRun false, falling through to the plain single-block
+                                    // pause below. Rewind first, so the line reads correctly again
+                                    // once the macro unnests back to it; item.line (this file's
+                                    // line, just rewound) must not run this pass -- the macro's own
+                                    // first line is polled and dispatched fresh next pass instead.
+                                    Job::rewind_current_line();
+                                    config->_macros->_restart_macro.run(out_channel);
+                                    channel->release_processing_ref();
+                                    continue;
+                                }
+                            }
+                            if (!config->_control->_singleBlockPin.get()) {
+                                protocol_send_event(&pinActiveEvent, &config->_control->_singleBlockPin);
+                            }
+                        }
                         std::string_view preview(item.line);
                         bool             truncated = preview.size() > 20;
                         if (truncated) {

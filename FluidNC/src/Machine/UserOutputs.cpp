@@ -4,6 +4,7 @@
 
 #include "UserOutputs.h"
 #include "Config.h"  // log_*
+#include "State.h"  // state_is, State::CheckMode
 
 namespace Machine {
     UserOutputs::UserOutputs() {
@@ -47,6 +48,11 @@ namespace Machine {
         if (pin.undefined()) {
             return !isOn;  // It is okay to turn off an undefined pin, for safety
         }
+        // Check mode dry-runs the file for validation/simulation only; it must not
+        // actually toggle real outputs, so skip the write but still report success.
+        if (state_is(State::CheckMode)) {
+            return true;
+        }
         pin.synchronousWrite(isOn);
         return true;
     }
@@ -57,6 +63,13 @@ namespace Machine {
         // look for errors, but ignore if turning off to prevent mass turn off from generating errors
         if (pin.undefined()) {
             return percent == 0.0;
+        }
+
+        // Check mode dry-runs the file for validation/simulation only; it must not
+        // actually change a real output's duty cycle, so skip the write but still
+        // report success.
+        if (state_is(State::CheckMode)) {
+            return true;
         }
 
         // The 0.5 rounds to the nearest duty unit
