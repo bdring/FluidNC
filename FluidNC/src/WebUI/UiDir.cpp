@@ -28,7 +28,7 @@ namespace WebUI {
     void UiDir::init() {
         // A directory, on any filesystem, whose subdirectories each hold a
         // WebUI, served at /ui/<subdirectory>/ - e.g. builds too big for FLASH
-        http_ui_dir = new StringSetting("HTTP WebUI directory", WEBSET, WA, NULL, "HTTP/UIDir", "/sd/ui", 0, 0);
+        http_ui_dir = new StringSetting("HTTP WebUI directory", WEBSET, WA, NULL, "HTTP/UIDir", "", 0, 0);
         // The subdirectory of HTTP/UIDir that / redirects to, if it exists
         http_default_ui = new StringSetting("HTTP default WebUI", WEBSET, WA, NULL, "HTTP/DefaultUI", "", 0, 0);
     }
