@@ -14,7 +14,7 @@
 // everything they reference) is pulled in.
 //
 // Signatures match components/esp_netif/lwip/esp_netif_lwip_ppp.h at the
-// esp-idf v5.5.4 tag.  netif_related_data_t and esp_netif_auth_type_t are
+// esp-idf v5.5.6 tag.  netif_related_data_t and esp_netif_auth_type_t are
 // private / enum types; void* and int are ABI-identical stand-ins.
 // esp_netif_recv_ret_t is void because CONFIG_ESP_NETIF_RECEIVE_REPORT_ERRORS
 // is not set in this SDK.  Re-check all of this if the IDF version changes.

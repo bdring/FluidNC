@@ -1,9 +1,9 @@
-# fatfs_tiny — recompiled FatFs with FF_FS_TINY == 1 (esp32 / pioarduino Arduino core 3.3.9 only)
+# fatfs_tiny — recompiled FatFs with FF_FS_TINY == 1 (esp32 / IDF v5.5.6 only)
 
 ## Why
 
-On pioarduino `55.03.39` (Arduino core 3.3.9, `framework-arduinoespressif32-libs`
-5.5.4, ESP-IDF v5.5.4) the precompiled `esp32/lib/libfatfs.a` is built with:
+On Arduino-ESP32 `release/v3.3.x` (`framework-arduinoespressif32-libs`
+5.5.6, ESP-IDF v5.5.6) the precompiled `esp32/lib/libfatfs.a` is built with:
 
     CONFIG_FATFS_PER_FILE_CACHE = 1   ->  FF_FS_TINY = 0
     CONFIG_WL_SECTOR_SIZE       = 4096
@@ -28,8 +28,8 @@ than compiling the component.
 
 ## How
 
-- `ff.c`, `vfs_fat.c` — **verbatim** from the `v5.5.4` tag of `espressif/esp-idf`
-  (commit `735507283d`, the exact IDF the libs were built from per their
+- `ff.c`, `vfs_fat.c` — **verbatim** from the `v5.5.6` tag of `espressif/esp-idf`
+  (commit `880a203ae60`, the exact IDF the libs were built from per their
   `versions.txt`; `components/fatfs/src/ff.c` = FatFs R0.15 w/patch2,
   `components/fatfs/vfs/vfs_fat.c`). Do not edit. `ff.h`, `ffconf.h`,
   `vfs_fat_internal.h` and `esp_vfs_fat.h` were verified byte-identical to the
