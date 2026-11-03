@@ -117,7 +117,7 @@ void Uart::begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity
     _configured = false;
     changeMode(baud, dataBits, parity, stopBits);
 
-    uart_init(_uart_num);
+    uart_init(_uart_num, _tx_buffer_size);
     _configured = true;
 }
 

@@ -101,7 +101,7 @@ void uart_register_input_pin(uint32_t uart_num, pinnum_t pinnum, InputPin* objec
     }
 }
 
-void uart_init(uint32_t uart_num) {
+void uart_init(uint32_t uart_num, uint32_t tx_buffer_size) {
     uart_inst_t* uart = get_uart_instance(uart_num);
     if (uart == nullptr) {
         return;

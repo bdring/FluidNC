@@ -44,22 +44,16 @@ void uart_register_input_pin(uint32_t uart_num, pinnum_t pinnum, InputPin* objec
     last[uart_num]            = 0;
 }
 
-// TX ring buffer size.  With no TX buffer (size 0) every write blocks the
-// writing task until the bytes have been clocked out of the 128-byte hardware
-// FIFO: about 1 ms per 100 bytes at 1 Mbaud and about 9 ms per 100 bytes at
-// 115200 baud.  For a UART channel (e.g. a pendant) that task is the polling
-// task, which serves every channel, so a burst of output to a slow UART stalls
-// the WebUI and other channels.  With a buffer a write returns at once and the
-// UART interrupt sends the data.  Callers that must know the data is on the
-// wire (e.g. VFD/Modbus half-duplex) already call Uart::flushTxTimed().
-static const int UART_TX_BUFFER = 1024;
+// TX ring buffer size for the UART being installed; uart_init() sets it before
+// the install task runs (installs are serialized by s_done).
+static uint32_t s_tx_buffer_size = 0;
 
 static SemaphoreHandle_t s_done;
 
 static void uart_init_on_core_task(void* arg) {
     uart_port_t port = ((uart_port_t)(uintptr_t)arg);
 
-    fnc_uart_driver_install(port, 256, UART_TX_BUFFER, 0, NULL, ESP_INTR_FLAG_IRAM);
+    fnc_uart_driver_install(port, 256, s_tx_buffer_size, 0, NULL, ESP_INTR_FLAG_IRAM);
     fnc_uart_set_data_callback(port, uart_data_callback);
 
     xSemaphoreGive(s_done);
@@ -73,14 +67,22 @@ void init_uart_on_core(BaseType_t core_id, uart_port_t uart_num) {
     vSemaphoreDelete(s_done);
 }
 
-void uart_init(uint32_t uart_num) {
+void uart_init(uint32_t uart_num, uint32_t tx_buffer_size) {
     uart_port_t port = (uart_port_t)uart_num;
+
+    // The driver accepts either no TX buffer or one larger than the hardware FIFO.
+#ifdef UART_HW_FIFO_LEN
+    const uint32_t fifo_len = UART_HW_FIFO_LEN(port);
+#else
+    const uint32_t fifo_len = UART_FIFO_LEN;
+#endif
+    s_tx_buffer_size = tx_buffer_size > fifo_len ? tx_buffer_size : 0;
 
     // For UART0, install directly on the current core (usually the main core)
     // For other UARTs, use core 0 to avoid StepTimer conflicts
     if (uart_num == 0) {
         // Install UART0 on the current core so ISR can signal this task properly
-        uart_driver_install(port, 256, UART_TX_BUFFER, 0, NULL, ESP_INTR_FLAG_IRAM);
+        uart_driver_install(port, 256, s_tx_buffer_size, 0, NULL, ESP_INTR_FLAG_IRAM);
     } else {
         // We init other UARTs on core 0 so the interrupt handler runs there,
         // thus avoiding conflicts.

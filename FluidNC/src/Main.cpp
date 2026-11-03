@@ -66,6 +66,13 @@ void setup() {
         log_info("Board " << config->_board);
 
         // The initialization order reflects dependencies between the subsystems
+        // UARTs used as channels get a TX ring buffer (see UartChannel::TX_BUFFER_SIZE).
+        for (size_t i = 1; i < MAX_N_UARTS; i++) {
+            auto channel = config->_uart_channels[i];
+            if (channel && channel->uart_num() < MAX_N_UARTS && config->_uarts[channel->uart_num()]) {
+                config->_uarts[channel->uart_num()]->setTxBufferSize(UartChannel::TX_BUFFER_SIZE);
+            }
+        }
         for (size_t i = 1; i < MAX_N_UARTS; i++) {
             if (config->_uarts[i]) {
                 config->_uarts[i]->begin();

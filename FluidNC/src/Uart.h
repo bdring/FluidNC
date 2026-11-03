@@ -25,8 +25,9 @@ private:
 
     bool setPins(pinnum_t tx_pin, pinnum_t rx_pin, pinnum_t rts_pin = -1, pinnum_t cts_pin = -1);
 
-    uint32_t _uart_num   = 0;  // Hardware UART engine number
-    bool     _configured = false;
+    uint32_t _uart_num       = 0;  // Hardware UART engine number
+    bool     _configured     = false;
+    uint32_t _tx_buffer_size = 0;  // 0 = writes block until the data is in the FIFO
 
     bool     _sw_flowcontrol_enabled = false;
     uint32_t _xon_threshold          = 0;
@@ -70,6 +71,10 @@ public:
     virtual void begin();
     virtual void begin(uint32_t baud, UartData dataBits, UartStop stopBits, UartParity parity);
     bool configured() const { return _configured; }
+
+    // Must be called before begin().  Used for UARTs that serve as channels,
+    // so that output to a slow channel does not block the polling task.
+    void setTxBufferSize(uint32_t size) { _tx_buffer_size = size; }
 
     // Stream methods - Uart must inherit from Stream because the TMCStepper library
     // needs a Stream instance.
