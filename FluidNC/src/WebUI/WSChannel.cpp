@@ -3,6 +3,8 @@
 
 #include "WSChannel.h"
 
+#include <stdexcept>
+
 #include "Driver/Console.h"
 #include "WebUIServer.h"
 #include <cstdio>
@@ -479,7 +481,12 @@ namespace WebUI {
                 }
 
                 try {
-                    allChannels.registration(newChannel);
+                    // Not registration(): this event runs under AsyncWebSocket's
+                    // lock (see AllChannels::register_later), so the polling task
+                    // registers the channel instead.
+                    if (!allChannels.register_later(newChannel)) {
+                        throw std::runtime_error("channel add queue full");
+                    }
                 } catch (...) {
                     // erase/remove/back on a vector of pointers do not allocate.
                     const bool unwindHeld = xSemaphoreTake(ws_channels_mutex, portMAX_DELAY) == pdTRUE;

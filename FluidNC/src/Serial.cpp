@@ -103,6 +103,10 @@ bool AllChannels::kill(Channel* channel) {
     return _killQueue && xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10)) == pdTRUE;
 }
 
+bool AllChannels::register_later(Channel* channel) {
+    return _addQueue && xQueueSend(_addQueue, &channel, pdMS_TO_TICKS(10)) == pdTRUE;
+}
+
 void AllChannels::registration(Channel* channel) {
     xSemaphoreTake(_mutex_general, portMAX_DELAY);
     xSemaphoreTake(_mutex_pollLine, portMAX_DELAY);
@@ -205,6 +209,13 @@ Channel* AllChannels::find(const std::string_view name) {
 }
 Channel* AllChannels::poll(char* line) {
     reap_channels();
+
+    // New channels first: a connect queued before a disconnect of the same
+    // channel must be registered before that kill is processed.
+    Channel* newChannel;
+    while (_addQueue && xQueueReceive(_addQueue, &newChannel, 0)) {
+        registration(newChannel);
+    }
 
     Channel* deadChannel;
     while (_killQueue && xQueueReceive(_killQueue, &deadChannel, 0)) {
