@@ -1764,8 +1764,12 @@ Error gc_execute_line(const char* input_line, Channel& channel) {
     // [0. Non-specific error-checks]: Complete unused value words check, i.e. IJK used when in arc
     // radius mode, or axis words that aren't used in the block.
     if (jogMotion) {
-        // Jogging only uses the F feed rate and XYZ value words. N is valid, but S and T are invalid.
-        clear_bits(value_words, (bitnum_to_mask(GCodeWord::N) | bitnum_to_mask(GCodeWord::F)));
+        // P1 opts this jog into feed override; P0 (or no P word) keeps the default behavior.
+        if (gc_block.values.p != 0.0f && gc_block.values.p != 1.0f) {
+            return Error::InvalidJogCommand;
+        }
+        // Jogging uses F, axis words and optional N and P words. S and T are invalid.
+        clear_bits(value_words, (bitnum_to_mask(GCodeWord::N) | bitnum_to_mask(GCodeWord::F) | bitnum_to_mask(GCodeWord::P)));
     } else {
         clear_bits(value_words,
                    (bitnum_to_mask(GCodeWord::N) | bitnum_to_mask(GCodeWord::F) | bitnum_to_mask(GCodeWord::S) |
