@@ -32,6 +32,10 @@ class AllChannels : public Channel {
         Channel* channel;
     };
     QueueHandle_t _opQueue;
+    // An Add that failed (out of memory) is retried before any later op, so
+    // the order of adds and kills is kept.
+    ChannelOp     _pendingOp;
+    bool          _hasPendingOp = false;
     bool          queue_op(ChannelOp::Kind kind, Channel* channel);
 
     static SemaphoreHandle_t _mutex_general;
