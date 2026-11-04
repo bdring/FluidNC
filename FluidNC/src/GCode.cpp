@@ -18,6 +18,7 @@
 #include "Job.h"                  // Job::active() and Job::channel()
 
 #include "Machine/MachineConfig.h"
+#include "string_util.h"
 #include "Parameters.h"
 #include "Flowcontrol.h"
 
@@ -89,26 +90,23 @@ void gc_sync_position() {
     steps_to_mpos(gc_state.position, get_steps());
 }
 
-static bool decode_format_string(const char* comment, size_t& index, size_t len, const char*& format) {
+static bool decode_format_string(const char* comment, size_t& index, size_t len, int& decimals) {
     // comment[index] is '%'
     const char* f   = comment + index;
     size_t      rem = len - index;
     if (rem > 1 && f[1] == 'd') {
         ++index;
-        format = "%.0f";
+        decimals = 0;
         return true;
     }
     if (rem > 2 && f[1] == 'f') {
         ++index;
-        format = "%.4f";
+        decimals = 4;
         return true;
     }
     if (rem > 3 && f[1] == '.' && f[2] >= '0' && f[2] <= '9' && f[3] == 'f') {
-        static char fmt[5];
-        memcpy(fmt, f, 4);
-        fmt[4] = '\0';
         index += 3;
-        format = fmt;
+        decimals = f[2] - '0';
         return true;
     }
     return false;
@@ -130,19 +128,19 @@ static void gcode_comment_msg(const char* comment) {
     offset       = strlen("PRINT,");  // Same length as DEBUG,
     bool isdebug = strncasecmp(comment, "DEBUG,", offset) == 0;
     if (isdebug || strncasecmp(comment, "PRINT,", offset) == 0) {
-        const char* format   = "%lf";
+        int         decimals = 6;  // printf "%lf"
         size_t      msgindex = 0;
         size_t      len      = strlen(comment);
         for (index = offset; index < len; ++index) {
             char c = comment[index];
             if (c == '%') {
-                if (!decode_format_string(comment, index, len, format)) {
+                if (!decode_format_string(comment, index, len, decimals)) {
                     msg[msgindex++] = c;
                 }
             } else if (c == '#') {
                 float number;
                 if (read_number(comment, index, number)) {
-                    msgindex += snprintf(&msg[msgindex], msglen - msgindex, format, number);
+                    msgindex += string_util::format_fixed(&msg[msgindex], msglen - msgindex, number, decimals);
                 } else {
                     msg[msgindex++] = c;
                 }

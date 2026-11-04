@@ -5,6 +5,8 @@
 #include "Report.h"  // info_channel
 #include "GCode.h"   // CoordIndex
 
+#include "string_util.h"
+
 #include <string_view>
 #include <map>
 #include <Driver/NVS.h>
@@ -218,8 +220,8 @@ public:
         Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName), _valuep(valuep) {}
 
     const char* getStringValue() override {
-        static char strval[32];
-        std::snprintf(strval, 31, "%.3f", *_valuep);
+        static char strval[64];  // FLT_MAX has 39 integer digits
+        string_util::format_fixed(strval, sizeof(strval), *_valuep, 3);
         return strval;
     }
     Error       setStringValue(std::string_view value) override { return Error::ReadOnlySetting; }

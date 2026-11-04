@@ -22,7 +22,8 @@ public:
     const std::string& get() { return _gcode; }
     const char*        name() { return _name.c_str(); }
 
-    // add to _gcode using a printf style formatting like _macro.addf("G53G0Z%0.3f", _safe_z);
+    // add to _gcode using printf style formatting like _macro.addf("G53G0Z%s", formatFloat(_safe_z, 3).c_str());
+    // Avoid %f: newlib allocates per-task float conversion state that is never freed.
     void addf(const char* format, ...) {
         va_list arg;
         va_list copy;

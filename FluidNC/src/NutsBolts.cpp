@@ -6,6 +6,7 @@
 #include "Machine/MachineConfig.h"
 #include "Protocol.h"  // protocol_exec_rt_system
 
+#include "string_util.h"
 #include <cstring>
 #include <cstdint>
 #include <cmath>
@@ -134,11 +135,12 @@ const char* to_hex(uint32_t n) {
     return hexstr;
 }
 
-// Lightweight fixed-precision float formatting.  Uses snprintf instead of
-// std::ostringstream/<iomanip> to reduce reliance on libstdc++, which is quite large
+// Lightweight fixed-precision float formatting.  Uses integer arithmetic
+// instead of std::ostringstream/<iomanip>, which pulls in a lot of libstdc++,
+// or snprintf("%f"), which makes newlib allocate per-task state it never frees.
 std::string formatFloat(double value, int decimals) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.*f", decimals, value);
+    char buf[64];  // FLT_MAX has 39 integer digits
+    string_util::format_fixed(buf, sizeof(buf), value, decimals);
     return std::string(buf);
 }
 
@@ -146,24 +148,21 @@ std::string formatBytes(uint64_t bytes) {
     if (bytes < 1024) {
         return std::to_string((uint16_t)bytes) + " B";
     }
-    float b = bytes;
-    b /= 1024;
-    if (b < 1024) {
-        return formatFloat(b, 2) + " KB";
+    // Two decimals, in hundredths of the unit, rounded to nearest
+    static const char* const units[] = { " KB", " MB", " GB", " TB" };
+    uint64_t                 divisor = 1024;
+    size_t                   unit    = 0;
+    while (unit < 3 && bytes >= divisor * 1024) {
+        divisor *= 1024;
+        ++unit;
     }
-    b /= 1024;
-    if (b < 1024) {
-        return formatFloat(b, 2) + " MB";
+    uint64_t hundredths = (bytes / divisor) * 100 + ((bytes % divisor) * 100 + divisor / 2) / divisor;
+    if (unit == 3 && hundredths > 9999900) {
+        hundredths = 9999900;
     }
-    b /= 1024;
-    if (b < 1024) {
-        return formatFloat(b, 2) + " GB";
-    }
-    b /= 1024;
-    if (b > 99999) {
-        b = 99999;
-    }
-    return formatFloat(b, 2) + " TB";
+    char buf[24];
+    string_util::format_scaled(buf, sizeof(buf), hundredths, 2);
+    return std::string(buf) + units[unit];
 }
 
 std::string IP_string(uint32_t ipaddr) {

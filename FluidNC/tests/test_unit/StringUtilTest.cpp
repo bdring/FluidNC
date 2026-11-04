@@ -2,6 +2,10 @@
 #include "gtest/gtest.h"
 #include "string_util.h"
 #include <cstdint>
+#include <cstdio>
+#include <cmath>
+#include <random>
+#include <string>
 
 namespace {
 
@@ -557,6 +561,111 @@ TEST(StringUtil, FromFloatVerySmallValue) {
     float value;
     EXPECT_TRUE(string_util::from_float("0.00001", value));
     EXPECT_FLOAT_EQ(value, 0.00001f);
+}
+
+
+// ============================================================================
+// format_fixed / format_scaled tests
+// ============================================================================
+
+std::string fixed(double v, int d) {
+    char buf[64];
+    string_util::format_fixed(buf, sizeof(buf), v, d);
+    return buf;
+}
+
+std::string printf_fixed(double v, int d) {
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%.*f", d, v);
+    return buf;
+}
+
+TEST(StringUtil, FormatFixedBasics) {
+    EXPECT_EQ(fixed(0, 3), "0.000");
+    EXPECT_EQ(fixed(1.5, 0), "2");
+    EXPECT_EQ(fixed(-12.25, 1), "-12.2");
+    EXPECT_EQ(fixed(119.68, 2), "119.68");
+    EXPECT_EQ(fixed(-0.0, 3), "-0.000");
+    EXPECT_EQ(fixed(-0.0001, 3), "-0.000");
+    EXPECT_EQ(fixed(INFINITY, 3), "inf");
+    EXPECT_EQ(fixed(-INFINITY, 3), "-inf");
+    EXPECT_EQ(fixed(NAN, 3), "nan");
+}
+
+TEST(StringUtil, FormatFixedMatchesPrintfForFloats) {
+    std::mt19937                          rng(12345);
+    std::uniform_real_distribution<float> mag(-7, 7);
+    for (int i = 0; i < 200000; ++i) {
+        float v = std::pow(10.0f, mag(rng)) * ((rng() & 1) ? -1 : 1);
+        int   d = rng() % 7;
+        ASSERT_EQ(fixed(v, d), printf_fixed(v, d)) << "value " << v << " decimals " << d;
+    }
+}
+
+TEST(StringUtil, FormatFixedMatchesPrintfOnTies) {
+    for (int i = -40; i <= 40; ++i) {
+        double v = i * 0.5;
+        EXPECT_EQ(fixed(v, 0), printf_fixed(v, 0)) << v;
+        v = i * 0.125;
+        EXPECT_EQ(fixed(v, 2), printf_fixed(v, 2)) << v;
+    }
+}
+
+TEST(StringUtil, FormatFixedTruncatesToBuffer) {
+    char buf[5];
+    EXPECT_EQ(string_util::format_fixed(buf, sizeof(buf), 123.456, 3), 4u);
+    EXPECT_STREQ(buf, "123.");
+    EXPECT_EQ(string_util::format_fixed(buf, 0, 1.0, 1), 0u);
+}
+
+TEST(StringUtil, FormatFixedMatchesPrintfForDoubles) {
+    EXPECT_EQ(fixed(2.675, 2), "2.67");  // 2.675 is just below 2.675 in binary
+    EXPECT_EQ(fixed(1.005, 2), printf_fixed(1.005, 2));
+    std::mt19937_64                        rng(54321);
+    std::uniform_real_distribution<double> mag(-9, 9);
+    for (int i = 0; i < 200000; ++i) {
+        int    d = rng() % 10;
+        double v = std::pow(10.0, mag(rng)) * ((rng() & 1) ? -1 : 1);
+        if (std::fabs(v) * std::pow(10.0, d) >= 1e18) {
+            continue;
+        }
+        ASSERT_EQ(fixed(v, d), printf_fixed(v, d)) << "value " << v << " decimals " << d;
+    }
+    // Decimal "ties" such as k.5 / 10^d, which are rarely exact in binary
+    for (int d = 0; d < 10; ++d) {
+        double scale = std::pow(10.0, d);
+        for (int k = 0; k < 5000; ++k) {
+            double v = (k + 0.5) / scale;
+            ASSERT_EQ(fixed(v, d), printf_fixed(v, d)) << "value " << v << " decimals " << d;
+            v = (k * 1234567.0 + 0.5) / scale;
+            if (v * scale < 1e18) {
+                ASSERT_EQ(fixed(v, d), printf_fixed(v, d)) << "value " << v << " decimals " << d;
+            }
+        }
+    }
+}
+
+TEST(StringUtil, FormatFixedLargeValues) {
+    char buf[64];
+    string_util::format_fixed(buf, sizeof(buf), 3e38, 6);
+    EXPECT_EQ(std::string(buf), printf_fixed(3e38, 6));
+    for (double v : { 4503599627370497.0, 9.007199254740993e15, 123456789012.3456, 9.99e17 }) {
+        EXPECT_EQ(fixed(v, 0), printf_fixed(v, 0)) << v;
+    }
+}
+
+TEST(StringUtil, FormatFixedHugeFallsBackToPrintf) {
+    EXPECT_EQ(fixed(1e20, 2), printf_fixed(1e20, 2));
+}
+
+TEST(StringUtil, FormatScaled) {
+    char buf[32];
+    string_util::format_scaled(buf, sizeof(buf), 11968, 2);
+    EXPECT_STREQ(buf, "119.68");
+    string_util::format_scaled(buf, sizeof(buf), 5, 3, true);
+    EXPECT_STREQ(buf, "-0.005");
+    string_util::format_scaled(buf, sizeof(buf), 42, 0);
+    EXPECT_STREQ(buf, "42");
 }
 
 }  // namespace

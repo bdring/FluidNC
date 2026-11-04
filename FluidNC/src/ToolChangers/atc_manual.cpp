@@ -169,16 +169,16 @@ namespace ATCs {
 
     void Manual_ATC::move_to_change_location() {
         move_to_safe_z();
-        _macro.addf("G53G0X%0.3fY%0.3fZ%0.3f", _change_mpos[0], _change_mpos[1], _change_mpos[2]);
+        _macro.addf("G53G0X%sY%sZ%s", formatFloat(_change_mpos[0], 3).c_str(), formatFloat(_change_mpos[1], 3).c_str(), formatFloat(_change_mpos[2], 3).c_str());
     }
 
     void Manual_ATC::move_to_safe_z() {
-        _macro.addf("G53G0Z%0.3f", _safe_z);
+        _macro.addf("G53G0Z%s", formatFloat(_safe_z, 3).c_str());
     }
 
     void Manual_ATC::move_over_toolsetter() {
         move_to_safe_z();
-        _macro.addf("G53G0X%0.3fY%0.3f", _ets_mpos[0], _ets_mpos[1]);
+        _macro.addf("G53G0X%sY%s", formatFloat(_ets_mpos[0], 3).c_str(), formatFloat(_ets_mpos[1], 3).c_str());
     }
 
     void Manual_ATC::ets_probe() {
@@ -186,12 +186,12 @@ namespace ATCs {
 
         // do a fast probe if there is a seek that is faster than feed
         if (_probe_seek_rate > _probe_feed_rate) {
-            _macro.addf("G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], _probe_seek_rate);
+            _macro.addf("G53 G38.2 Z%s F%s", formatFloat(_ets_mpos[2], 3).c_str(), formatFloat(_probe_seek_rate, 3).c_str());
             _macro.addf("G53G0Z[#<_abs_z> + 5]");  // retract befor next probe
         }
 
         // do the feed rate probe
-        _macro.addf("G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], _probe_feed_rate);
+        _macro.addf("G53 G38.2 Z%s F%s", formatFloat(_ets_mpos[2], 3).c_str(), formatFloat(_probe_feed_rate, 3).c_str());
     }
 
     namespace {
