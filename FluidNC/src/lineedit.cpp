@@ -383,9 +383,12 @@ bool Lineedit::realtime(int c) {
 // Returns true when the line is complete
 // cppcheck-suppress unusedFunction
 bool Lineedit::step(int c) {
-    // Regardless of editing mode, ^L turns off editing/echoing
+    // Regardless of editing mode, ^L turns off editing/echoing and
+    // returns the history's memory to the heap.
     if (c == CTRL('l')) {
         editing = false;
+        std::vector<std::string>().swap(history);
+        history_num = -1;
         return false;
     }
 
