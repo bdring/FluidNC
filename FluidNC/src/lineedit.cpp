@@ -334,7 +334,11 @@ void Lineedit::show_realtime_command(const char* s) {
 // cppcheck-suppress unusedFunction
 uint32_t Lineedit::finish() {
     uint32_t length = endaddr - startaddr;
-    add_to_history(startaddr, length);
+    // Only interactive (editing mode) lines are worth recalling.  Recording
+    // lines from senders that never edit costs a heap allocation per line.
+    if (editing) {
+        add_to_history(startaddr, length);
+    }
     restart();
     return (length);
 }
@@ -379,9 +383,12 @@ bool Lineedit::realtime(int c) {
 // Returns true when the line is complete
 // cppcheck-suppress unusedFunction
 bool Lineedit::step(int c) {
-    // Regardless of editing mode, ^L turns off editing/echoing
+    // Regardless of editing mode, ^L turns off editing/echoing and
+    // returns the history's memory to the heap.
     if (c == CTRL('l')) {
         editing = false;
+        std::vector<std::string>().swap(history);
+        history_num = -1;
         return false;
     }
 
