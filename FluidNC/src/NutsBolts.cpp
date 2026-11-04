@@ -139,7 +139,7 @@ const char* to_hex(uint32_t n) {
 // instead of std::ostringstream/<iomanip>, which pulls in a lot of libstdc++,
 // or snprintf("%f"), which makes newlib allocate per-task state it never frees.
 std::string formatFloat(double value, int decimals) {
-    char buf[32];
+    char buf[64];  // FLT_MAX has 39 integer digits
     string_util::format_fixed(buf, sizeof(buf), value, decimals);
     return std::string(buf);
 }

@@ -569,13 +569,13 @@ TEST(StringUtil, FromFloatVerySmallValue) {
 // ============================================================================
 
 std::string fixed(double v, int d) {
-    char buf[40];
+    char buf[64];
     string_util::format_fixed(buf, sizeof(buf), v, d);
     return buf;
 }
 
 std::string printf_fixed(double v, int d) {
-    char buf[40];
+    char buf[64];
     snprintf(buf, sizeof(buf), "%.*f", d, v);
     return buf;
 }
@@ -616,6 +616,42 @@ TEST(StringUtil, FormatFixedTruncatesToBuffer) {
     EXPECT_EQ(string_util::format_fixed(buf, sizeof(buf), 123.456, 3), 4u);
     EXPECT_STREQ(buf, "123.");
     EXPECT_EQ(string_util::format_fixed(buf, 0, 1.0, 1), 0u);
+}
+
+TEST(StringUtil, FormatFixedMatchesPrintfForDoubles) {
+    EXPECT_EQ(fixed(2.675, 2), "2.67");  // 2.675 is just below 2.675 in binary
+    EXPECT_EQ(fixed(1.005, 2), printf_fixed(1.005, 2));
+    std::mt19937_64                        rng(54321);
+    std::uniform_real_distribution<double> mag(-9, 9);
+    for (int i = 0; i < 200000; ++i) {
+        int    d = rng() % 10;
+        double v = std::pow(10.0, mag(rng)) * ((rng() & 1) ? -1 : 1);
+        if (std::fabs(v) * std::pow(10.0, d) >= 1e18) {
+            continue;
+        }
+        ASSERT_EQ(fixed(v, d), printf_fixed(v, d)) << "value " << v << " decimals " << d;
+    }
+    // Decimal "ties" such as k.5 / 10^d, which are rarely exact in binary
+    for (int d = 0; d < 10; ++d) {
+        double scale = std::pow(10.0, d);
+        for (int k = 0; k < 5000; ++k) {
+            double v = (k + 0.5) / scale;
+            ASSERT_EQ(fixed(v, d), printf_fixed(v, d)) << "value " << v << " decimals " << d;
+            v = (k * 1234567.0 + 0.5) / scale;
+            if (v * scale < 1e18) {
+                ASSERT_EQ(fixed(v, d), printf_fixed(v, d)) << "value " << v << " decimals " << d;
+            }
+        }
+    }
+}
+
+TEST(StringUtil, FormatFixedLargeValues) {
+    char buf[64];
+    string_util::format_fixed(buf, sizeof(buf), 3e38, 6);
+    EXPECT_EQ(std::string(buf), printf_fixed(3e38, 6));
+    for (double v : { 4503599627370497.0, 9.007199254740993e15, 123456789012.3456, 9.99e17 }) {
+        EXPECT_EQ(fixed(v, 0), printf_fixed(v, 0)) << v;
+    }
 }
 
 TEST(StringUtil, FormatFixedHugeFallsBackToPrintf) {

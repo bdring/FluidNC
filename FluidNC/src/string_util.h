@@ -20,7 +20,7 @@ namespace string_util {
     bool split_prefix(std::string_view& rest, std::string_view& prefix, char delim);
 
     // Formats value with a fixed number of decimals (0-9), like
-    // snprintf("%.*f"), using integer arithmetic.  newlib's floating-point
+    // snprintf("%.*f") (same digits and rounding), using integer arithmetic.  newlib's floating-point
     // printf allocates per-task conversion state the first time a task uses
     // it and never frees it.  Values of 1e18 or more after scaling fall back
     // to snprintf.  Returns the length written, excluding the NUL.

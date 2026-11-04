@@ -220,7 +220,7 @@ public:
         Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName), _valuep(valuep) {}
 
     const char* getStringValue() override {
-        static char strval[32];
+        static char strval[64];  // FLT_MAX has 39 integer digits
         string_util::format_fixed(strval, sizeof(strval), *_valuep, 3);
         return strval;
     }

@@ -165,6 +165,20 @@ namespace string_util {
         return len;
     }
 
+    // Exact rounding error of the product p = a * b (Dekker), so that
+    // a * b == p + error exactly.  Avoids fma(), which newlib may not
+    // implement exactly.
+    static double product_error(double a, double b, double p) {
+        const double split = 134217729.0;  // 2^27 + 1
+        double       t     = split * a;
+        double       ah    = t - (t - a);
+        double       al    = a - ah;
+        t                  = split * b;
+        double bh          = t - (t - b);
+        double bl          = b - bh;
+        return ((ah * bh - p) + ah * bl + al * bh) + al * bl;
+    }
+
     size_t format_fixed(char* buf, size_t size, double value, int decimals) {
         if (size == 0) {
             return 0;
@@ -200,12 +214,24 @@ namespace string_util {
             buf[len] = '\0';
             return len;
         }
-        // Round half to even, as printf does.  For a float argument and up
-        // to 6 decimals the product is exact, so this matches printf exactly.
+        // Round half to even, as printf does, using the exact value of
+        // |value| * scale = scaled + err.  For a value that is exactly a float
+        // the product is exact (24 + 21 bits) and err is 0.
+        double av  = std::fabs(value);
+        double err = (double(float(av)) == av) ? 0 : product_error(av, scale, scaled);
+
         double   whole = std::floor(scaled);
-        uint64_t n     = uint64_t(whole);
         double   frac  = scaled - whole;
-        if (frac > 0.5 || (frac == 0.5 && (n & 1))) {
+        uint64_t n     = uint64_t(whole);
+        if (scaled >= 4503599627370496.0) {  // 2^52: scaled is an integer, err may exceed 1
+            double e = std::floor(err);
+            n += int64_t(e);
+            frac = err - e;
+            err  = 0;
+        }
+        // Below 2^52, frac and 0.5 are multiples of ulp(scaled) and |err| is at
+        // most half of that, so err can only decide an exact tie.
+        if (frac > 0.5 || (frac == 0.5 && (err > 0 || (err == 0 && (n & 1))))) {
             ++n;
         }
         return format_scaled(buf, size, n, decimals, negative);
