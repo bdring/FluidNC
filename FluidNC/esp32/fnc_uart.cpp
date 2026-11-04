@@ -3,6 +3,7 @@
 
 #include <driver/uart.h>
 #include "fnc_idf_uart.h"
+#include "esp_system.h"
 #include "hal/uart_hal.h"
 #include "Protocol.h"
 
@@ -44,25 +45,40 @@ void uart_register_input_pin(uint32_t uart_num, pinnum_t pinnum, InputPin* objec
     last[uart_num]            = 0;
 }
 
-// TX ring buffer size for the UART being installed; uart_init() sets it before
-// the install task runs (installs are serialized by s_done).
-static uint32_t s_tx_buffer_size = 0;
+// UARTs installed with a TX ring buffer.  esp_restart() resets without
+// draining the drivers' ring buffers, so output written just before a restart
+// (e.g. the reply to $Bye) would be lost; a shutdown handler drains them.
+static bool s_tx_buffered[UART_NUM_MAX] = { false };
+
+static void uart_flush_tx_buffers() {
+    for (uint32_t uart_num = 0; uart_num < UART_NUM_MAX; uart_num++) {
+        if (s_tx_buffered[uart_num]) {
+            uart_wait_output(uart_num, 100);  // bounded: 256 bytes take ~22 ms at 115200
+        }
+    }
+}
+
+struct UartInstall {
+    uart_port_t port;
+    uint32_t    tx_buffer_size;
+};
 
 static SemaphoreHandle_t s_done;
 
 static void uart_init_on_core_task(void* arg) {
-    uart_port_t port = ((uart_port_t)(uintptr_t)arg);
+    auto install = static_cast<const UartInstall*>(arg);
 
-    fnc_uart_driver_install(port, 256, s_tx_buffer_size, 0, NULL, ESP_INTR_FLAG_IRAM);
-    fnc_uart_set_data_callback(port, uart_data_callback);
+    fnc_uart_driver_install(install->port, 256, install->tx_buffer_size, 0, NULL, ESP_INTR_FLAG_IRAM);
+    fnc_uart_set_data_callback(install->port, uart_data_callback);
 
     xSemaphoreGive(s_done);
     vTaskDelete(NULL);
 }
 
-void init_uart_on_core(BaseType_t core_id, uart_port_t uart_num) {
+void init_uart_on_core(BaseType_t core_id, uart_port_t uart_num, uint32_t tx_buffer_size) {
+    UartInstall install { uart_num, tx_buffer_size };  // outlives the task: we wait for s_done
     s_done = xSemaphoreCreateBinary();
-    xTaskCreatePinnedToCore(uart_init_on_core_task, "uart_init", 4096, (void*)(uintptr_t)uart_num, 5, NULL, core_id);
+    xTaskCreatePinnedToCore(uart_init_on_core_task, "uart_init", 4096, &install, 5, NULL, core_id);
     xSemaphoreTake(s_done, portMAX_DELAY);
     vSemaphoreDelete(s_done);
 }
@@ -76,17 +92,26 @@ void uart_init(uint32_t uart_num, uint32_t tx_buffer_size) {
 #else
     const uint32_t fifo_len = UART_FIFO_LEN;
 #endif
-    s_tx_buffer_size = tx_buffer_size > fifo_len ? tx_buffer_size : 0;
+    if (tx_buffer_size <= fifo_len) {
+        tx_buffer_size = 0;
+    }
+    if (tx_buffer_size) {
+        static bool flush_registered = false;
+        if (!flush_registered) {
+            flush_registered = esp_register_shutdown_handler(uart_flush_tx_buffers) == ESP_OK;
+        }
+        s_tx_buffered[uart_num] = true;
+    }
 
     // For UART0, install directly on the current core (usually the main core)
     // For other UARTs, use core 0 to avoid StepTimer conflicts
     if (uart_num == 0) {
         // Install UART0 on the current core so ISR can signal this task properly
-        uart_driver_install(port, 256, s_tx_buffer_size, 0, NULL, ESP_INTR_FLAG_IRAM);
+        uart_driver_install(port, 256, tx_buffer_size, 0, NULL, ESP_INTR_FLAG_IRAM);
     } else {
         // We init other UARTs on core 0 so the interrupt handler runs there,
         // thus avoiding conflicts.
-        init_uart_on_core(0, port);
+        init_uart_on_core(0, port, tx_buffer_size);
     }
 }
 
