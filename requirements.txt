@@ -1,1 +1,6 @@
-platformio == 6.1.*
+# pioarduino's fork of PlatformIO Core (pip package "pioarduino", which
+# provides the usual `pio` command).  The pioarduino espressif32 platform
+# requires Core >= 6.2.0, and PlatformIO's own release stops at 6.1.x.
+# Requires Python >= 3.10.  Use the v6.2.0 tag, not 6.2.0.post1, which the
+# platform's semver check rejects.
+pioarduino @ https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.2.0.zip

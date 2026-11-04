@@ -86,7 +86,11 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.platformio
-          key: platformio-${{ runner.os }}
+          # Keyed on platformio.ini so a platform/framework change saves a
+          # fresh cache instead of restoring stale packages forever.
+          key: platformio-${{ runner.os }}-${{ matrix.pio_env }}${{ matrix.pio_env_variant }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            platformio-${{ runner.os }}-${{ matrix.pio_env }}${{ matrix.pio_env_variant }}-
       - name: Build target ${{ matrix.pio_env }}${{ matrix.pio_env_variant }}
         run: pio run -e ${{ matrix.pio_env }}${{ matrix.pio_env_variant }}
       - if: matrix.os == 'ubuntu-latest'
@@ -132,7 +136,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.9"
+          # PlatformIO Core 6.2.0 (pioarduino) requires Python >= 3.10.
+          python-version: "3.11"
           cache: "pip"
       - name: Install PlatformIO
         run: |
@@ -142,7 +147,9 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.platformio
-          key: platformio-${{ runner.os }}
+          key: platformio-${{ runner.os }}-tests-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            platformio-${{ runner.os }}-tests-
 
       # Separate run task for Windows, since it has issues with the included gcc
       - if: matrix.os == 'windows-latest'
