@@ -128,24 +128,30 @@ static void gcode_comment_msg(const char* comment) {
     offset       = strlen("PRINT,");  // Same length as DEBUG,
     bool isdebug = strncasecmp(comment, "DEBUG,", offset) == 0;
     if (isdebug || strncasecmp(comment, "PRINT,", offset) == 0) {
-        int         decimals = 6;  // printf "%lf"
-        size_t      msgindex = 0;
-        size_t      len      = strlen(comment);
+        int    decimals = 6;  // printf "%lf"
+        size_t msgindex = 0;
+        size_t len      = strlen(comment);
+        // Truncate to fit msg; the last byte is reserved for the terminator.
+        auto put = [&](char c) {
+            if (msgindex < msglen - 1) {
+                msg[msgindex++] = c;
+            }
+        };
         for (index = offset; index < len; ++index) {
             char c = comment[index];
             if (c == '%') {
                 if (!decode_format_string(comment, index, len, decimals)) {
-                    msg[msgindex++] = c;
+                    put(c);
                 }
             } else if (c == '#') {
                 float number;
                 if (read_number(comment, index, number)) {
                     msgindex += string_util::format_fixed(&msg[msgindex], msglen - msgindex, number, decimals);
                 } else {
-                    msg[msgindex++] = c;
+                    put(c);
                 }
             } else {
-                msg[msgindex++] = c;
+                put(c);
             }
         }
         msg[msgindex] = '\0';
