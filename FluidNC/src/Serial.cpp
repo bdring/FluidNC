@@ -99,12 +99,17 @@ void AllChannels::ready() {
     }
 }
 
+bool AllChannels::queue_op(ChannelOp::Kind kind, Channel* channel) {
+    ChannelOp op { kind, channel };
+    return _opQueue && xQueueSend(_opQueue, &op, pdMS_TO_TICKS(10)) == pdTRUE;
+}
+
 bool AllChannels::kill(Channel* channel) {
-    return _killQueue && xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10)) == pdTRUE;
+    return queue_op(ChannelOp::Kind::Kill, channel);
 }
 
 bool AllChannels::register_later(Channel* channel) {
-    return _addQueue && xQueueSend(_addQueue, &channel, pdMS_TO_TICKS(10)) == pdTRUE;
+    return queue_op(ChannelOp::Kind::Add, channel);
 }
 
 void AllChannels::registration(Channel* channel) {
@@ -210,18 +215,17 @@ Channel* AllChannels::find(const std::string_view name) {
 Channel* AllChannels::poll(char* line) {
     reap_channels();
 
-    // New channels first: a connect queued before a disconnect of the same
-    // channel must be registered before that kill is processed.
-    Channel* newChannel;
-    while (_addQueue && xQueueReceive(_addQueue, &newChannel, 0)) {
-        registration(newChannel);
-    }
-
-    Channel* deadChannel;
-    while (_killQueue && xQueueReceive(_killQueue, &deadChannel, 0)) {
-        deadChannel->begin_closing();
-        deregistration(deadChannel);
-        _zombies.push_back(deadChannel);
+    // Apply queued registrations and deletions in the order they were queued,
+    // so an add is always applied before a later kill of the same channel.
+    ChannelOp op;
+    while (_opQueue && xQueueReceive(_opQueue, &op, 0)) {
+        if (op.kind == ChannelOp::Kind::Add) {
+            registration(op.channel);
+        } else {
+            op.channel->begin_closing();
+            deregistration(op.channel);
+            _zombies.push_back(op.channel);
+        }
     }
 
     reap_channels();
