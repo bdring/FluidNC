@@ -38,6 +38,11 @@ idf_component_register(SRCS AssertionFailed.cpp
                        PRIV_REQUIRES espcoredump
                        WHOLE_ARCHIVE)
 
+target_link_options(${COMPONENT_LIB} PUBLIC
+    "-Wl,--wrap=esp_core_dump_init"
+    "-Wl,--wrap=esp_core_dump_write"
+)
+
 # USB Host mode: VCP components for ESP32-S3 (YAML config selects mode at runtime).
 # For PlatformIO builds this block is not reached (PlatformIO manages its own build).
 if(CONFIG_SOC_USB_OTG_SUPPORTED)
