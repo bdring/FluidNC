@@ -16,7 +16,7 @@ using AsyncWebServerRequestPtr = std::weak_ptr<AsyncWebServerRequest>;
 
 namespace WebUI {
     // Serves several WebUIs at once, each from a subdirectory of HTTP/UIDir
-    // (default /sd/ui):
+    // (default empty, so none; e.g. /sd/ui):
     //   /ui/                         a list of the WebUIs
     //   /ui/<name>/                  that WebUI's index.html, and its WebSocket
     //   /ui/<name>/command[_silent]  commands in that WebUI's session

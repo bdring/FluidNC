@@ -1157,11 +1157,10 @@ void make_user_commands() {
 
 // This is the handler for all forms of settings commands,
 // $..= and [..], with and without a value.
-Error do_command_or_setting(std::string_view key, std::string_view value, AuthenticationLevel auth_level, Channel& out) {
-    // If value is empty, it means that there was no value string, i.e.
-    // $key without =, or [key] with nothing following.
-    // If value is not NULL, but the string is empty, that is the form
-    // $key= with nothing following the = .
+Error do_command_or_setting(std::string_view key, std::string_view value, bool has_value, AuthenticationLevel auth_level, Channel& out) {
+    // has_value is false for $key without =, or [key] with nothing following.
+    // It is true, with an empty value, for $key= with nothing following
+    // the = , which sets a string setting to the empty string.
 
     // Try to execute a command.  Commands handle values internally;
     // you cannot determine whether to set or display solely based on
@@ -1225,7 +1224,7 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
                 return Error::AuthenticationFailed;
             }
 #endif
-            if (value.empty()) {
+            if (!has_value) {
                 show_setting(s->getName(), s->getStringValue(), NULL, out);
                 return Error::Ok;
             }
@@ -1242,7 +1241,7 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
                 return Error::AuthenticationFailed;
             }
 #endif
-            if (value.empty()) {
+            if (!has_value) {
                 show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
                 return Error::Ok;
             }
@@ -1254,7 +1253,7 @@ Error do_command_or_setting(std::string_view key, std::string_view value, Authen
     // indicating a display operation, we allow partial matches
     // and display every possibility.  This only applies to the
     // text form of the name, not to the nnn and ESPnnn forms.
-    if (value.empty()) {
+    if (!has_value) {
         bool found = false;
         for (Setting* s : Setting::List) {
             auto test = s->getName();
@@ -1284,15 +1283,18 @@ Error settings_execute_line(const char* line, Channel& out, AuthenticationLevel 
     std::string_view key(line + 1);
     std::string_view value;
 
-    string_util::split(key, value, *line == '[' ? ']' : '=');
+    bool has_value;
+    if (*line == '[') {
+        // [ESPxxx] with nothing after ] has no value
+        string_util::split(key, value, ']');
+        has_value = !value.empty();
+    } else {
+        // $xxx= with nothing after has a value, the empty string
+        has_value = string_util::split(key, value, '=');
+    }
     key = string_util::trim(key);
 
-    // At this point there are three possibilities for value
-    // NULL - $xxx without =
-    // NULL - [ESPxxx] with nothing after ]
-    // empty string - $xxx= with nothing after
-    // non-empty string - [ESPxxx]yyy or $xxx=yyy
-    return do_command_or_setting(key, value, auth_level, out);
+    return do_command_or_setting(key, value, has_value, auth_level, out);
 }
 
 // Does this line have to run on the protocol task?  gcode always does; a '$'
