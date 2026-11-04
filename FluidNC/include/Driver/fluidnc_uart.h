@@ -5,7 +5,9 @@
 
 class InputPin;
 
-void uart_init(uint32_t uart_num);
+// tx_buffer_size: TX ring buffer in bytes (0 = none, writes block until the
+// data is in the hardware FIFO).  Platforms without a TX ring buffer ignore it.
+void uart_init(uint32_t uart_num, uint32_t tx_buffer_size = 0);
 void uart_mode(uint32_t uart_num, uint32_t baud, UartData dataBits, UartParity parity, UartStop stopBits);
 bool uart_half_duplex(uint32_t uart_num);
 int  uart_read(uint32_t uart_num, uint8_t* buf, uint32_t len, uint32_t timeout_ms);

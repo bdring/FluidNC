@@ -24,7 +24,7 @@ inline std::string uart_key(uint32_t uart_num) {
 
 void uart_discard_input(uint32_t uart_num) {}
 
-void uart_init(uint32_t uart_num) {}
+void uart_init(uint32_t uart_num, uint32_t tx_buffer_size) {}
 
 int uart_buflen(uint32_t uart_num) {
     auto key = uart_key(uart_num);

@@ -8,6 +8,12 @@
 #include "lineedit.h"
 
 class UartChannel : public Channel, public Configuration::Configurable {
+public:
+    // TX ring buffer for a UART used as a channel.  Without one, writes block the
+    // polling task (which serves every channel) until the bytes reach the 128-byte
+    // FIFO: about 1 ms per 100 bytes at 1 Mbaud, 9 ms at 115200.
+    static constexpr uint32_t TX_BUFFER_SIZE = 256;
+
 private:
     Lineedit* _lineedit;
     Uart*     _uart = nullptr;
