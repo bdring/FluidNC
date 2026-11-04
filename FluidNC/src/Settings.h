@@ -5,6 +5,8 @@
 #include "Report.h"  // info_channel
 #include "GCode.h"   // CoordIndex
 
+#include "string_util.h"
+
 #include <string_view>
 #include <map>
 #include <Driver/NVS.h>
@@ -219,7 +221,7 @@ public:
 
     const char* getStringValue() override {
         static char strval[32];
-        std::snprintf(strval, 31, "%.3f", *_valuep);
+        string_util::format_fixed(strval, sizeof(strval), *_valuep, 3);
         return strval;
     }
     Error       setStringValue(std::string_view value) override { return Error::ReadOnlySetting; }

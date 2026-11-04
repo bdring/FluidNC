@@ -3,6 +3,10 @@
 #include <cstdlib>
 #include <cctype>
 #include <charconv>
+#include <cmath>
+#include <cstring>
+#include <cstdio>
+#include <algorithm>
 
 const char* nullstr = "";
 
@@ -129,5 +133,81 @@ namespace string_util {
             rest   = rest.substr(0, 0);
         }
         return true;
+    }
+
+    size_t format_scaled(char* buf, size_t size, uint64_t value, int decimals, bool negative) {
+        if (size == 0) {
+            return 0;
+        }
+        // Digits are generated backwards into tmp: fraction, '.', integer part, sign.
+        char  tmp[32];
+        char* p = tmp + sizeof(tmp);
+        for (int i = 0; i < decimals; ++i) {
+            *--p = char('0' + value % 10);
+            value /= 10;
+        }
+        if (decimals > 0) {
+            *--p = '.';
+        }
+        do {
+            *--p = char('0' + value % 10);
+            value /= 10;
+        } while (value);
+        if (negative) {
+            *--p = '-';
+        }
+        size_t len = tmp + sizeof(tmp) - p;
+        if (len >= size) {
+            len = size - 1;
+        }
+        memcpy(buf, p, len);
+        buf[len] = '\0';
+        return len;
+    }
+
+    size_t format_fixed(char* buf, size_t size, double value, int decimals) {
+        if (size == 0) {
+            return 0;
+        }
+        if (decimals < 0) {
+            decimals = 0;
+        } else if (decimals > 9) {
+            decimals = 9;
+        }
+        bool        negative = std::signbit(value);
+        const char* special  = nullptr;
+        if (std::isnan(value)) {
+            special = negative ? "-nan" : "nan";
+        } else if (std::isinf(value)) {
+            special = negative ? "-inf" : "inf";
+        }
+        double scale = 1;
+        for (int i = 0; i < decimals; ++i) {
+            scale *= 10;
+        }
+        double scaled = std::fabs(value) * scale;
+        if (!special && scaled >= 1e18) {
+            // Too big for uint64_t; such values are nonsense in practice.
+            int len = snprintf(buf, size, "%.*f", decimals, value);
+            return len < 0 ? 0 : std::min(size_t(len), size - 1);
+        }
+        if (special) {
+            size_t len = strlen(special);
+            if (len >= size) {
+                len = size - 1;
+            }
+            memcpy(buf, special, len);
+            buf[len] = '\0';
+            return len;
+        }
+        // Round half to even, as printf does.  For a float argument and up
+        // to 6 decimals the product is exact, so this matches printf exactly.
+        double   whole = std::floor(scaled);
+        uint64_t n     = uint64_t(whole);
+        double   frac  = scaled - whole;
+        if (frac > 0.5 || (frac == 0.5 && (n & 1))) {
+            ++n;
+        }
+        return format_scaled(buf, size, n, decimals, negative);
     }
 }

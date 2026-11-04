@@ -171,7 +171,7 @@ void OLED::show_dro(const float* axes, bool isMpos, bool* limits) {
         _oled->drawString(0, oled_y_pos, axis_msg.c_str());
 
         _oled->setTextAlignment(TEXT_ALIGN_RIGHT);
-        snprintf(axisVal, 20 - 1, "%.3f", axes[axis]);
+        string_util::format_fixed(axisVal, sizeof(axisVal), axes[axis], 3);
         _oled->drawString((_width == 128) ? 60 : 63, oled_y_pos, axisVal);
     }
     _oled->display();

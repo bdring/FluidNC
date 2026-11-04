@@ -78,7 +78,7 @@ namespace Configuration {
         }
 
         void item(const char* name, float& value, const float minValue, const float maxValue) override {
-            send_item(name, std::to_string(value));
+            send_item(name, formatFloat(value, 6));  // same digits as std::to_string(float)
         }
 
         void item(const char* name, std::vector<speedEntry>& value) override {
