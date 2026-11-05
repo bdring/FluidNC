@@ -90,6 +90,10 @@ inline bool should_exit() {
 }
 
 #define USE_ARDUINO_I2C_DRIVER 0
+// ESP32 keeps the legacy I2C driver for now.  esp32/i2c.cpp's new-driver path
+// (USE_I2C_MASTER_DRIVER 1, needs IDF 5.4+) also works here, but costs about
+// 4.7K of flash, and the legacy driver is only removed in IDF 7.
+#define USE_I2C_MASTER_DRIVER 0
 
 inline BaseType_t xTaskCreateAffinitySet(TaskFunction_t      pvTaskCode,
                                          const char* const   pcName,

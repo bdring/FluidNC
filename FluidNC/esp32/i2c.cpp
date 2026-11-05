@@ -4,10 +4,115 @@
 #include "Platform.h"
 #if !USE_ARDUINO_I2C_DRIVER
 
-#    include <driver/i2c.h>
-
 #    include "Driver/fluidnc_i2c.h"
 #    include "Logging.h"
+
+// USE_I2C_MASTER_DRIVER (from Platform.h) selects the new I2C master driver
+// (driver/i2c_master.h, IDF 5.4+).  The legacy driver (driver/i2c.h) is
+// end-of-life in IDF 6, slated for removal in IDF 7, and aborts at boot if
+// anything else in the firmware uses the new one.
+#    if USE_I2C_MASTER_DRIVER
+
+#        include <driver/i2c_master.h>
+
+static constexpr int    xfer_timeout_ms = 10;
+static constexpr size_t max_devices     = 8;  // per bus
+
+struct i2c_bus_t {
+    i2c_master_bus_handle_t handle = nullptr;
+    uint32_t                frequency;
+    struct {
+        uint8_t                 address;
+        i2c_master_dev_handle_t handle;
+    } devices[max_devices];
+    size_t n_devices = 0;
+};
+static i2c_bus_t buses[MAX_N_I2C];
+
+// The new driver addresses transfers to a device handle, so add each
+// address to the bus the first time it is used.
+static i2c_master_dev_handle_t i2c_device(objnum_t bus_number, uint8_t address) {
+    if (bus_number >= MAX_N_I2C) {
+        return nullptr;
+    }
+    i2c_bus_t& bus = buses[bus_number];
+    if (!bus.handle) {
+        return nullptr;
+    }
+    for (size_t i = 0; i < bus.n_devices; ++i) {
+        if (bus.devices[i].address == address) {
+            return bus.devices[i].handle;
+        }
+    }
+    if (bus.n_devices == max_devices) {
+        log_error("Too many I2C devices on bus " << bus_number);
+        return nullptr;
+    }
+    i2c_device_config_t dev_cfg = {};
+    dev_cfg.dev_addr_length     = I2C_ADDR_BIT_LEN_7;
+    dev_cfg.device_address      = address;
+    dev_cfg.scl_speed_hz        = bus.frequency;
+    i2c_master_dev_handle_t dev;
+    if (i2c_master_bus_add_device(bus.handle, &dev_cfg, &dev) != ESP_OK) {
+        return nullptr;
+    }
+    bus.devices[bus.n_devices++] = { address, dev };
+    return dev;
+}
+
+// cppcheck-suppress unusedFunction
+bool i2c_master_init(objnum_t bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_t frequency) {
+    if (bus_number >= MAX_N_I2C) {
+        return true;
+    }
+    i2c_master_bus_config_t bus_cfg      = {};
+    bus_cfg.i2c_port                     = i2c_port_num_t(bus_number);
+    bus_cfg.sda_io_num                   = gpio_num_t(sda_pin);
+    bus_cfg.scl_io_num                   = gpio_num_t(scl_pin);
+    bus_cfg.clk_source                   = I2C_CLK_SRC_DEFAULT;
+    bus_cfg.glitch_ignore_cnt            = 7;
+    bus_cfg.flags.enable_internal_pullup = true;
+
+    i2c_bus_t& bus = buses[bus_number];
+    if (i2c_new_master_bus(&bus_cfg, &bus.handle) != ESP_OK) {
+        log_error("i2c_new_master_bus failed");
+        bus.handle = nullptr;
+        return true;
+    }
+    bus.frequency = frequency;
+    bus.n_devices = 0;
+    return false;
+}
+
+// cppcheck-suppress unusedFunction
+int i2c_write(objnum_t bus_number, uint8_t address, const uint8_t* data, size_t count) {
+    if (count == 0) {
+        // A zero-length write is an address probe, e.g. a bus scan
+        if (bus_number >= MAX_N_I2C || !buses[bus_number].handle) {
+            return -1;
+        }
+        return i2c_master_probe(buses[bus_number].handle, address, xfer_timeout_ms) == ESP_OK ? 0 : -1;
+    }
+    auto dev = i2c_device(bus_number, address);
+    if (!dev) {
+        return -1;
+    }
+    return i2c_master_transmit(dev, data, count, xfer_timeout_ms) == ESP_OK ? int(count) : -1;
+}
+
+// cppcheck-suppress unusedFunction
+int i2c_read(objnum_t bus_number, uint8_t address, uint8_t* data, size_t count) {
+    auto dev = i2c_device(bus_number, address);
+    if (!dev) {
+        return -1;
+    }
+    return i2c_master_receive(dev, data, count, xfer_timeout_ms) == ESP_OK ? int(count) : -1;
+}
+
+#    else
+
+#        include <driver/i2c.h>
+
 
 // cppcheck-suppress unusedFunction
 bool i2c_master_init(objnum_t bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_t frequency) {
@@ -92,4 +197,5 @@ int i2c_write(objnum_t bus_number, uint8_t address, const uint8_t* data, size_t 
 int i2c_read(objnum_t bus_number, uint8_t address, uint8_t* data, size_t count) {
     return i2c_master_read_from_device((i2c_port_t)bus_number, address, data, count, 10 / portTICK_PERIOD_MS) ? -1 : count;
 }
+#    endif
 #endif
