@@ -3,6 +3,7 @@
 #include "Stepping.h"
 #include "Machine/MachineConfig.h"  // config
 #include "Motors/MotorDriver.h"     // MotorDrivers::MotorDriver
+#include "string_util.h"
 
 #include <atomic>
 
@@ -40,7 +41,7 @@ namespace Machine {
 
     void Stepping::afterParse() {
         if (!_engine) {
-            _engine = step_engines[0];
+            _engine = default_step_engine();
         }
 #if MAX_N_I2SO
         Assert(strncmp("I2S", _engine->name, 3) || config->_i2so, "I2SO bus must be configured for this stepping type");
@@ -293,4 +294,24 @@ void Stepping::group(Configuration::HandlerBase& handler) {
 
 uint32_t Stepping::maxPulsesPerSec() {
     return _engine->max_pulses_per_sec();
+}
+
+step_engine_t* default_step_engine() {
+    using namespace Machine;
+    const char* wanted = nullptr;
+    for (auto e = Machine::stepTypes; e->name; ++e) {
+        if (e->value == DEFAULT_STEPPING_ENGINE) {
+            wanted = e->name;
+            break;
+        }
+    }
+    if (wanted) {
+        // Same match as the config parser: I2S_STATIC and I2S_STREAM both select "I2S"
+        for (auto const engine : step_engines) {
+            if (string_util::starts_with_ignore_case(wanted, engine->name)) {
+                return engine;
+            }
+        }
+    }
+    return step_engines[0];
 }

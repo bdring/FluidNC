@@ -182,7 +182,7 @@ namespace Configuration {
                 return engine;
             }
         }
-        return step_engines[0];  // First value is default
+        return default_step_engine();
     }
 
     // cppcheck-suppress unusedFunction
