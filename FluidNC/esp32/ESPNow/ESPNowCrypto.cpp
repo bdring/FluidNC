@@ -2,12 +2,22 @@
 
 #include "ESPNowCrypto.h"
 
+#include <esp_idf_version.h>
 #include <esp_random.h>
-#include <mbedtls/ecdh.h>
-#include <mbedtls/ecp.h>
-#include <mbedtls/md.h>
-#include <mbedtls/sha256.h>
 #include <string.h>
+
+// IDF 6 ships Mbed TLS 4 / TF-PSA-Crypto, which removed the legacy ECDH, SHA-256
+// and HMAC APIs; use PSA Crypto there.  Older IDFs keep the legacy calls.
+#if ESP_IDF_VERSION_MAJOR >= 6
+#    define ESPNOW_USE_PSA 1
+#    include <psa/crypto.h>
+#else
+#    define ESPNOW_USE_PSA 0
+#    include <mbedtls/ecdh.h>
+#    include <mbedtls/ecp.h>
+#    include <mbedtls/md.h>
+#    include <mbedtls/sha256.h>
+#endif
 
 namespace {
 
@@ -17,6 +27,7 @@ constexpr char kEspNowPmkLabel[] = "fluiddial-espnow-pmk-v1";
 constexpr char kPairingWindowLabel[] = "fluidnc-espnow-pairing-window-v1";
 constexpr char kPairingSessionLabel[] = "fluidnc-espnow-pairing-session-v1";
 
+#if !ESPNOW_USE_PSA
 int espRandomBytes(void*, unsigned char* out, size_t len) {
     while (len > 0) {
         uint32_t word = esp_random();
@@ -28,22 +39,84 @@ int espRandomBytes(void*, unsigned char* out, size_t len) {
     return 0;
 }
 
+#endif
+
 }  // namespace
 
 namespace ESPNowCrypto {
 
-void derivePairingWindowLmk(uint8_t out_lmk[16]) {
+void hmacSha256(const uint8_t* key, size_t key_len, std::initializer_list<HmacPart> parts, uint8_t out[32]) {
+#if ESPNOW_USE_PSA
+    bool                  ok   = false;
+    mbedtls_svc_key_id_t  id   = MBEDTLS_SVC_KEY_ID_INIT;
+    psa_key_attributes_t  attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_mac_operation_t   op   = PSA_MAC_OPERATION_INIT;
+    psa_set_key_type(&attr, PSA_KEY_TYPE_HMAC);
+    psa_set_key_bits(&attr, PSA_BYTES_TO_BITS(key_len));
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_SIGN_MESSAGE);
+    psa_set_key_algorithm(&attr, PSA_ALG_HMAC(PSA_ALG_SHA_256));
+
+    if (psa_crypto_init() == PSA_SUCCESS && psa_import_key(&attr, key, key_len, &id) == PSA_SUCCESS &&
+        psa_mac_sign_setup(&op, id, PSA_ALG_HMAC(PSA_ALG_SHA_256)) == PSA_SUCCESS) {
+        ok = true;
+        for (const auto& part : parts) {
+            if (part.data && part.len > 0 &&
+                psa_mac_update(&op, reinterpret_cast<const uint8_t*>(part.data), part.len) != PSA_SUCCESS) {
+                ok = false;
+                break;
+            }
+        }
+        size_t mac_len = 0;
+        ok             = ok && psa_mac_sign_finish(&op, out, 32, &mac_len) == PSA_SUCCESS && mac_len == 32;
+    }
+    psa_mac_abort(&op);
+    psa_destroy_key(id);
+    psa_reset_key_attributes(&attr);
+    if (!ok) {
+        secureZero(out, 32);
+    }
+#else
+    mbedtls_md_context_t     ctx;
+    const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+
+    mbedtls_md_init(&ctx);
+    bool ok = mbedtls_md_setup(&ctx, info, 1) == 0 && mbedtls_md_hmac_starts(&ctx, key, key_len) == 0;
+    for (const auto& part : parts) {
+        if (ok && part.data && part.len > 0) {
+            ok = mbedtls_md_hmac_update(&ctx, reinterpret_cast<const uint8_t*>(part.data), part.len) == 0;
+        }
+    }
+    ok = ok && mbedtls_md_hmac_finish(&ctx, out) == 0;
+    mbedtls_md_free(&ctx);
+    if (!ok) {
+        secureZero(out, 32);
+    }
+#endif
+}
+
+static void sha256Label(const char* label, uint8_t out[16]) {
     uint8_t hash[32];
-    mbedtls_sha256(reinterpret_cast<const uint8_t*>(kPairingWindowLabel), strlen(kPairingWindowLabel), hash, 0);
-    memcpy(out_lmk, hash, 16);
+#if ESPNOW_USE_PSA
+    size_t hash_len = 0;
+    if (psa_crypto_init() != PSA_SUCCESS ||
+        psa_hash_compute(PSA_ALG_SHA_256, reinterpret_cast<const uint8_t*>(label), strlen(label), hash, sizeof(hash), &hash_len) !=
+            PSA_SUCCESS ||
+        hash_len != sizeof(hash)) {
+        secureZero(hash, sizeof(hash));
+    }
+#else
+    mbedtls_sha256(reinterpret_cast<const uint8_t*>(label), strlen(label), hash, 0);
+#endif
+    memcpy(out, hash, 16);
     secureZero(hash, sizeof(hash));
 }
 
+void derivePairingWindowLmk(uint8_t out_lmk[16]) {
+    sha256Label(kPairingWindowLabel, out_lmk);
+}
+
 void derivePmk(uint8_t out_pmk[16]) {
-    uint8_t hash[32];
-    mbedtls_sha256(reinterpret_cast<const uint8_t*>(kEspNowPmkLabel), strlen(kEspNowPmkLabel), hash, 0);
-    memcpy(out_pmk, hash, 16);
-    secureZero(hash, sizeof(hash));
+    sha256Label(kEspNowPmkLabel, out_pmk);
 }
 
 bool generateEcdhKeypair(uint8_t private_key[ECDH_PRIVATE_KEY_SIZE], uint8_t public_key[ECDH_PUBLIC_KEY_SIZE]) {
@@ -51,6 +124,33 @@ bool generateEcdhKeypair(uint8_t private_key[ECDH_PRIVATE_KEY_SIZE], uint8_t pub
         return false;
     }
 
+#if ESPNOW_USE_PSA
+    bool                 ok          = false;
+    size_t               private_len = 0;
+    size_t               public_len  = 0;
+    mbedtls_svc_key_id_t id          = MBEDTLS_SVC_KEY_ID_INIT;
+    psa_key_attributes_t attr        = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&attr, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
+    psa_set_key_bits(&attr, 256);
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
+    psa_set_key_algorithm(&attr, PSA_ALG_ECDH);
+
+    if (psa_crypto_init() == PSA_SUCCESS && psa_generate_key(&attr, &id) == PSA_SUCCESS &&
+        psa_export_key(id, private_key, ECDH_PRIVATE_KEY_SIZE, &private_len) == PSA_SUCCESS &&
+        private_len == ECDH_PRIVATE_KEY_SIZE &&
+        psa_export_public_key(id, public_key, ECDH_PUBLIC_KEY_SIZE, &public_len) == PSA_SUCCESS &&
+        public_len == ECDH_PUBLIC_KEY_SIZE) {
+        ok = true;
+    }
+
+    psa_destroy_key(id);
+    psa_reset_key_attributes(&attr);
+    if (!ok) {
+        secureZero(private_key, ECDH_PRIVATE_KEY_SIZE);
+        secureZero(public_key, ECDH_PUBLIC_KEY_SIZE);
+    }
+    return ok;
+#else
     bool ok = false;
     size_t public_len = 0;
     mbedtls_ecp_group group;
@@ -82,6 +182,7 @@ bool generateEcdhKeypair(uint8_t private_key[ECDH_PRIVATE_KEY_SIZE], uint8_t pub
     mbedtls_mpi_free(&private_mpi);
     mbedtls_ecp_group_free(&group);
     return ok;
+#endif
 }
 
 bool deriveEcdhSharedSecret(const uint8_t private_key[ECDH_PRIVATE_KEY_SIZE],
@@ -91,6 +192,32 @@ bool deriveEcdhSharedSecret(const uint8_t private_key[ECDH_PRIVATE_KEY_SIZE],
         return false;
     }
 
+#if ESPNOW_USE_PSA
+    // psa_raw_key_agreement() rejects a peer point that is not on the curve,
+    // which covers what mbedtls_ecp_check_pubkey() did on the legacy path.
+    bool                 ok         = false;
+    size_t               secret_len = 0;
+    mbedtls_svc_key_id_t id         = MBEDTLS_SVC_KEY_ID_INIT;
+    psa_key_attributes_t attr       = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&attr, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
+    psa_set_key_bits(&attr, 256);
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
+    psa_set_key_algorithm(&attr, PSA_ALG_ECDH);
+
+    if (psa_crypto_init() == PSA_SUCCESS && psa_import_key(&attr, private_key, ECDH_PRIVATE_KEY_SIZE, &id) == PSA_SUCCESS &&
+        psa_raw_key_agreement(PSA_ALG_ECDH, id, peer_public_key, ECDH_PUBLIC_KEY_SIZE, out_secret, ECDH_SHARED_SECRET_SIZE, &secret_len) ==
+            PSA_SUCCESS &&
+        secret_len == ECDH_SHARED_SECRET_SIZE) {
+        ok = true;
+    }
+
+    psa_destroy_key(id);
+    psa_reset_key_attributes(&attr);
+    if (!ok) {
+        secureZero(out_secret, ECDH_SHARED_SECRET_SIZE);
+    }
+    return ok;
+#else
     bool ok = false;
     mbedtls_ecp_group group;
     mbedtls_mpi private_mpi;
@@ -119,6 +246,7 @@ bool deriveEcdhSharedSecret(const uint8_t private_key[ECDH_PRIVATE_KEY_SIZE],
     mbedtls_mpi_free(&private_mpi);
     mbedtls_ecp_group_free(&group);
     return ok;
+#endif
 }
 
 void derivePairingSessionLmk(const uint8_t pairing_window_lmk[16],
@@ -129,39 +257,20 @@ void derivePairingSessionLmk(const uint8_t pairing_window_lmk[16],
                              size_t second_len,
                              uint8_t out_lmk[16]) {
     uint8_t full[32];
-    mbedtls_md_context_t ctx;
-    const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-
-    mbedtls_md_init(&ctx);
-    mbedtls_md_setup(&ctx, info, 1);
-    mbedtls_md_hmac_starts(&ctx, pairing_window_lmk, 16);
-    mbedtls_md_hmac_update(&ctx, reinterpret_cast<const uint8_t*>(kPairingSessionLabel), strlen(kPairingSessionLabel));
-    mbedtls_md_hmac_update(&ctx, shared_secret, ECDH_SHARED_SECRET_SIZE);
-    if (first_transcript && first_len > 0) {
-        mbedtls_md_hmac_update(&ctx, first_transcript, first_len);
-    }
-    if (second_transcript && second_len > 0) {
-        mbedtls_md_hmac_update(&ctx, second_transcript, second_len);
-    }
-    mbedtls_md_hmac_finish(&ctx, full);
-    mbedtls_md_free(&ctx);
-
+    hmacSha256(pairing_window_lmk,
+               16,
+               { { kPairingSessionLabel, strlen(kPairingSessionLabel) },
+                 { shared_secret, ECDH_SHARED_SECRET_SIZE },
+                 { first_transcript, first_len },
+                 { second_transcript, second_len } },
+               full);
     memcpy(out_lmk, full, 16);
     secureZero(full, sizeof(full));
 }
 
 void pairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, uint8_t out[16]) {
     uint8_t full[32];
-    mbedtls_md_context_t ctx;
-    const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-
-    mbedtls_md_init(&ctx);
-    mbedtls_md_setup(&ctx, info, 1);
-    mbedtls_md_hmac_starts(&ctx, key, 16);
-    mbedtls_md_hmac_update(&ctx, data, len);
-    mbedtls_md_hmac_finish(&ctx, full);
-    mbedtls_md_free(&ctx);
-
+    hmacSha256(key, 16, { { data, len } }, full);
     memcpy(out, full, 16);
     secureZero(full, sizeof(full));
 }

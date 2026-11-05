@@ -5,7 +5,6 @@
 
 #include <esp_log.h>
 #include <esp_random.h>
-#include <mbedtls/md.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <string.h>
@@ -71,16 +70,7 @@ static void storedPairingTag(const StoredPairingList& list,
                              const uint8_t key[kStorageKeySize],
                              uint8_t out_tag[16]) {
     uint8_t full[32];
-    mbedtls_md_context_t ctx;
-    const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-
-    mbedtls_md_init(&ctx);
-    mbedtls_md_setup(&ctx, info, 1);
-    mbedtls_md_hmac_starts(&ctx, key, kStorageKeySize);
-    mbedtls_md_hmac_update(&ctx, kStoredPairingTagLabel, sizeof(kStoredPairingTagLabel) - 1);
-    mbedtls_md_hmac_update(&ctx, reinterpret_cast<const uint8_t*>(&list), sizeof(list));
-    mbedtls_md_hmac_finish(&ctx, full);
-    mbedtls_md_free(&ctx);
+    ESPNowCrypto::hmacSha256(key, kStorageKeySize, { { kStoredPairingTagLabel, sizeof(kStoredPairingTagLabel) - 1 }, { &list, sizeof(list) } }, full);
 
     memcpy(out_tag, full, 16);
     ESPNowCrypto::secureZero(full, sizeof(full));
@@ -90,16 +80,7 @@ static void storedPairingPad(const uint8_t key[kStorageKeySize],
                              const uint8_t peer_mac[6],
                              uint8_t out_pad[16]) {
     uint8_t full[32];
-    mbedtls_md_context_t ctx;
-    const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-
-    mbedtls_md_init(&ctx);
-    mbedtls_md_setup(&ctx, info, 1);
-    mbedtls_md_hmac_starts(&ctx, key, kStorageKeySize);
-    mbedtls_md_hmac_update(&ctx, kStoredPairingWrapLabel, sizeof(kStoredPairingWrapLabel) - 1);
-    mbedtls_md_hmac_update(&ctx, peer_mac, 6);
-    mbedtls_md_hmac_finish(&ctx, full);
-    mbedtls_md_free(&ctx);
+    ESPNowCrypto::hmacSha256(key, kStorageKeySize, { { kStoredPairingWrapLabel, sizeof(kStoredPairingWrapLabel) - 1 }, { peer_mac, 6 } }, full);
 
     memcpy(out_pad, full, 16);
     ESPNowCrypto::secureZero(full, sizeof(full));

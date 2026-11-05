@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <atomic>
+#include <initializer_list>
 
 namespace ESPNowCrypto {
 
@@ -20,6 +21,16 @@ struct ReplayState {
     uint32_t underflow = 0;
     uint32_t regen_ms = 0;
 };
+
+// One input to hmacSha256(); null or zero-length parts are skipped
+struct HmacPart {
+    const void* data;
+    size_t      len;
+};
+
+// HMAC-SHA256 of the concatenated parts.  On failure out is zeroed, so a
+// tag computed from it never verifies.
+void hmacSha256(const uint8_t* key, size_t key_len, std::initializer_list<HmacPart> parts, uint8_t out[32]);
 
 void derivePairingWindowLmk(uint8_t out_lmk[16]);
 void derivePmk(uint8_t out_pmk[16]);
