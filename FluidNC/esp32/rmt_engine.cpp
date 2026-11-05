@@ -7,6 +7,7 @@
 #include "Driver/step_engine.h"
 #include "Driver/fluidnc_gpio.h"
 #include "Driver/StepTimer.h"
+#include "Config.h"  // Assert
 // The RMT channels are set up with the rmt_ll_* HAL calls instead of a driver.
 // The legacy driver (driver/rmt.h) is gone in IDF 6, and the new one hides the
 // channel number that set_step_pin() needs to restart a channel from the
@@ -72,9 +73,8 @@ static void rmt_enable_module() {
 // set_step_pin() later.
 static uint32_t init_step_pin(pinnum_t step_pin, bool step_inverted) {
     static uint32_t next_chan = 0;
-    if (next_chan >= RMT_TX_CHANNELS) {
-        return -1;
-    }
+    // Each RMT-stepped motor needs its own TX channel (8 on ESP32, 4 on S3)
+    Assert(next_chan < RMT_TX_CHANNELS, "Out of RMT channels for step pins");
     uint32_t chan = next_chan++;
 
     rmt_enable_module();
