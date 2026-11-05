@@ -32,6 +32,8 @@
 #include <rom/lldesc.h>
 #include <soc/i2s_struct.h>
 #include <soc/gpio_periph.h>
+#include <soc/gpio_sig_map.h>  // I2S0O_*_IDX
+#include <soc/i2s_reg.h>       // I2S_TX_DATA_NUM, I2S_*_INT_*
 #include "Driver/fluidnc_gpio.h"
 
 #include "esp_intr_alloc.h"

@@ -12,6 +12,7 @@
 #include <soc/soc_caps.h>
 #include <driver/ledc.h>
 #include <cstdint>
+#include <esp_rom_gpio.h>  // esp_rom_gpio_connect_out_signal
 
 #if CONFIG_IDF_TARGET_ESP32  // ESP32/PICO-D4
 #    include <esp32/rom/gpio.h>
@@ -172,5 +173,5 @@ void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
 PwmPin::~PwmPin() {
     // XXX we need to release the channel so it can be reused by later calls to pwmInit
 #define MATRIX_DETACH_OUT_SIG 0x100
-    gpio_matrix_out(_gpio, MATRIX_DETACH_OUT_SIG, false, false);
+    esp_rom_gpio_connect_out_signal(_gpio, MATRIX_DETACH_OUT_SIG, false, false);
 }

@@ -76,7 +76,7 @@ void report_watchdog_timeouts() {
 static TaskHandle_t wdt_task_handle = nullptr;
 
 static void get_wdt_task_handle() {
-#if ESP_IDF_VERSION_MAJOR >= 5 && ESP_IDF_VERSION_MINOR >= 2
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0)
     TaskHandle_t idle_0 = xTaskGetIdleTaskHandleForCore(0);
 #else
     TaskHandle_t idle_0 = xTaskGetIdleTaskHandleForCPU(0);

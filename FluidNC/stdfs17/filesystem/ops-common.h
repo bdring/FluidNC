@@ -716,7 +716,9 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
 	   uintmax_t& capacity, uintmax_t& free, uintmax_t& available,
 	   std::error_code& ec)
   {
-#ifdef _GLIBCXX_HAVE_SYS_STATVFS_H
+// GCC 15 newlib has sys/statvfs.h, but ESP-IDF's VFS answers statvfs() with
+// ENOSYS, so FluidNC uses its own branch below.
+#if defined(_GLIBCXX_HAVE_SYS_STATVFS_H) && !defined(__FLUIDNC)
     struct ::statvfs f;
     if (::statvfs(pathname, &f))
 	ec.assign(errno, std::generic_category());
