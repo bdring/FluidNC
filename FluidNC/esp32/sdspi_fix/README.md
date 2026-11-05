@@ -68,17 +68,19 @@ transaction. What this copy still buys on v5.5.6:
   v5.5.6's oversized-extra-data check (`b99459931a`) unnecessary.
 - The final block of a read still requests no extra bytes after the CRC (see
   esp-idf `4a2489b99a`: extra bytes before STOP_TRANSMISSION confused some cards).
-  `SDSPI_PAD_FINAL_BLOCK` (default 1) selects what happens there:
-  - `1`: that transfer is padded like the rest, clocking up to `rx_align - 1`
-    extra bytes before STOP_TRANSMISSION. No allocations at all.
+  `SDSPI_PAD_FINAL_BLOCK` (default 0) selects what happens there:
   - `0`: the transfer ending with the final CRC of a multi-block read
     (`CMD18`) is done at its exact length, as upstream does. spi_master then
     allocates a temporary buffer for it only on targets that check the
     length (ESP32-P4): once per multi-block read. On esp32/esp32s3 with v5.5.6
     the aligned `block_buf` address is enough, so neither setting allocates.
+  - `1`: that transfer is padded like the rest, clocking up to `rx_align - 1`
+    extra bytes before STOP_TRANSMISSION. No allocations at all, but it
+    reintroduces the extra clocks that `4a2489b99a` removed.
 
-  Build the `0` variant with `PLATFORMIO_BUILD_FLAGS=-DSDSPI_PAD_FINAL_BLOCK=0`.
-  **Open question; test `1` with several cards.**
+  Build the `1` variant with `PLATFORMIO_BUILD_FLAGS=-DSDSPI_PAD_FINAL_BLOCK=1`.
+  It only matters on targets that check RX length (P4); test it with several
+  cards before making it the default there.
 
 `diff` against the v5.5.6 tag to see the exact changes:
 

@@ -41,13 +41,15 @@
 /// Number of bytes read per poll while waiting for a data start token
 #define SDSPI_TOKEN_POLL_SIZE   8
 #define SDSPI_ALIGN_UP(n, a)    (((n) + (a) - 1) / (a) * (a))
-/// 1: pad the transfer ending with the final CRC of a multi-block read to the RX
-/// DMA alignment like every other transfer, clocking up to rx_align - 1 extra
-/// bytes before STOP_TRANSMISSION.  0: receive that transfer at its exact
-/// length, which makes spi_master allocate a temporary buffer for it when the
-/// length is not aligned (once per multi-block read).
+/// 0 (default): receive the transfer ending with the final CRC of a multi-block
+/// read at its exact length, as upstream does, so no extra clocks precede
+/// STOP_TRANSMISSION (esp-idf 4a2489b99a).  On esp32/esp32s3 with v5.5.6 the
+/// aligned block_buf address is enough to avoid a temporary buffer; targets that
+/// also check the length (ESP32-P4) allocate one once per multi-block read.
+/// 1: pad that transfer to the RX DMA alignment like every other transfer,
+/// clocking up to rx_align - 1 extra bytes before STOP_TRANSMISSION.
 #ifndef SDSPI_PAD_FINAL_BLOCK
-#define SDSPI_PAD_FINAL_BLOCK   1
+#define SDSPI_PAD_FINAL_BLOCK   0
 #endif
 
 /**
