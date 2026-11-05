@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <atomic>
+#include <initializer_list>
 
 namespace ESPNowCrypto {
 
@@ -21,20 +22,30 @@ struct ReplayState {
     uint32_t regen_ms = 0;
 };
 
+// One input to hmacSha256(); null or zero-length parts are skipped
+struct HmacPart {
+    const void* data;
+    size_t      len;
+};
+
+// HMAC-SHA256 of the concatenated parts.  Returns false on failure, with out
+// zeroed; callers must not use out then.
+bool hmacSha256(const uint8_t* key, size_t key_len, std::initializer_list<HmacPart> parts, uint8_t out[32]);
+
 void derivePairingWindowLmk(uint8_t out_lmk[16]);
 void derivePmk(uint8_t out_pmk[16]);
 bool generateEcdhKeypair(uint8_t private_key[ECDH_PRIVATE_KEY_SIZE], uint8_t public_key[ECDH_PUBLIC_KEY_SIZE]);
 bool deriveEcdhSharedSecret(const uint8_t private_key[ECDH_PRIVATE_KEY_SIZE],
                             const uint8_t peer_public_key[ECDH_PUBLIC_KEY_SIZE],
                             uint8_t out_secret[ECDH_SHARED_SECRET_SIZE]);
-void derivePairingSessionLmk(const uint8_t pairing_window_lmk[16],
+bool derivePairingSessionLmk(const uint8_t pairing_window_lmk[16],
                              const uint8_t shared_secret[ECDH_SHARED_SECRET_SIZE],
                              const uint8_t* first_transcript,
                              size_t first_len,
                              const uint8_t* second_transcript,
                              size_t second_len,
                              uint8_t out_lmk[16]);
-void pairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, uint8_t out[16]);
+bool pairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, uint8_t out[16]);
 bool verifyPairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, const uint8_t tag[16]);
 bool constantTimeEquals(const uint8_t* a, const uint8_t* b, size_t len);
 void secureZero(void* data, size_t len);
