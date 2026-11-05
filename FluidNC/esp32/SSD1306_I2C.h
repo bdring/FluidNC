@@ -20,6 +20,11 @@ public:
     bool connect();
     void display(void);
 
+    // The font OLEDDisplay's constructor installs (the library's ArialMT_Plain_10).
+    // Valid until the first setFont().  OLED uses it instead of linking a second
+    // copy of the same font.
+    const uint8_t* defaultFont() const { return fontData; }
+
 private:
     int getBufferOffset(void);
 
