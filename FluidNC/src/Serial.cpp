@@ -99,14 +99,30 @@ void AllChannels::ready() {
     }
 }
 
+bool AllChannels::queue_op(ChannelOp::Kind kind, Channel* channel) {
+    ChannelOp op { kind, channel };
+    return _opQueue && xQueueSend(_opQueue, &op, pdMS_TO_TICKS(10)) == pdTRUE;
+}
+
 bool AllChannels::kill(Channel* channel) {
-    return _killQueue && xQueueSend(_killQueue, &channel, pdMS_TO_TICKS(10)) == pdTRUE;
+    return queue_op(ChannelOp::Kind::Kill, channel);
+}
+
+bool AllChannels::register_later(Channel* channel) {
+    return queue_op(ChannelOp::Kind::Add, channel);
 }
 
 void AllChannels::registration(Channel* channel) {
     xSemaphoreTake(_mutex_general, portMAX_DELAY);
     xSemaphoreTake(_mutex_pollLine, portMAX_DELAY);
-    _channelq.push_back(channel);
+    try {
+        _channelq.push_back(channel);
+    } catch (...) {
+        // Out of memory: release the locks so polling continues, and let the caller decide.
+        xSemaphoreGive(_mutex_pollLine);
+        xSemaphoreGive(_mutex_general);
+        throw;
+    }
     xSemaphoreGive(_mutex_pollLine);
     xSemaphoreGive(_mutex_general);
 }
@@ -206,11 +222,29 @@ Channel* AllChannels::find(const std::string_view name) {
 Channel* AllChannels::poll(char* line) {
     reap_channels();
 
-    Channel* deadChannel;
-    while (_killQueue && xQueueReceive(_killQueue, &deadChannel, 0)) {
-        deadChannel->begin_closing();
-        deregistration(deadChannel);
-        _zombies.push_back(deadChannel);
+    // Apply queued registrations and deletions in the order they were queued,
+    // so an add is always applied before a later kill of the same channel.
+    // An add that fails for lack of memory is kept and retried first on the
+    // next pass; nothing after it is applied until it succeeds.
+    ChannelOp op;
+    while (_hasPendingOp || (_opQueue && xQueueReceive(_opQueue, &op, 0))) {
+        if (_hasPendingOp) {
+            op            = _pendingOp;
+            _hasPendingOp = false;
+        }
+        if (op.kind == ChannelOp::Kind::Add) {
+            try {
+                registration(op.channel);
+            } catch (...) {
+                _pendingOp    = op;
+                _hasPendingOp = true;
+                break;
+            }
+        } else {
+            op.channel->begin_closing();
+            deregistration(op.channel);
+            _zombies.push_back(op.channel);
+        }
     }
 
     reap_channels();
