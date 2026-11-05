@@ -15,7 +15,6 @@
 
 #        include <driver/i2c_master.h>
 
-static constexpr int    xfer_timeout_ms = 10;
 static constexpr size_t max_devices     = 8;  // per bus
 
 struct i2c_bus_t {
@@ -28,6 +27,15 @@ struct i2c_bus_t {
     size_t n_devices = 0;
 };
 static i2c_bus_t buses[MAX_N_I2C];
+
+// The driver's timeout covers the whole transfer, so scale it with the
+// length: about 9 bit times per byte (plus the address byte) at the bus
+// frequency, doubled for clock stretching, plus 10 ms of margin.  A full
+// 129-byte OLED page at 100 kHz takes about 11.7 ms on the wire.
+static int xfer_timeout_ms(objnum_t bus_number, size_t count) {
+    uint32_t freq = buses[bus_number].frequency ? buses[bus_number].frequency : 100000;
+    return 10 + int((count + 1) * 9 * 2 * 1000 / freq);
+}
 
 // The new driver addresses transfers to a device handle, so add each
 // address to the bus the first time it is used.
@@ -91,13 +99,13 @@ int i2c_write(objnum_t bus_number, uint8_t address, const uint8_t* data, size_t 
         if (bus_number >= MAX_N_I2C || !buses[bus_number].handle) {
             return -1;
         }
-        return i2c_master_probe(buses[bus_number].handle, address, xfer_timeout_ms) == ESP_OK ? 0 : -1;
+        return i2c_master_probe(buses[bus_number].handle, address, xfer_timeout_ms(bus_number, 0)) == ESP_OK ? 0 : -1;
     }
     auto dev = i2c_device(bus_number, address);
     if (!dev) {
         return -1;
     }
-    return i2c_master_transmit(dev, data, count, xfer_timeout_ms) == ESP_OK ? int(count) : -1;
+    return i2c_master_transmit(dev, data, count, xfer_timeout_ms(bus_number, count)) == ESP_OK ? int(count) : -1;
 }
 
 // cppcheck-suppress unusedFunction
@@ -106,7 +114,7 @@ int i2c_read(objnum_t bus_number, uint8_t address, uint8_t* data, size_t count) 
     if (!dev) {
         return -1;
     }
-    return i2c_master_receive(dev, data, count, xfer_timeout_ms) == ESP_OK ? int(count) : -1;
+    return i2c_master_receive(dev, data, count, xfer_timeout_ms(bus_number, count)) == ESP_OK ? int(count) : -1;
 }
 
 #    else
