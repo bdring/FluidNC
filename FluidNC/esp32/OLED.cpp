@@ -4,21 +4,46 @@
 
 #include "Machine/MachineConfig.h"
 
+// The fonts stop at '~' (126), so text is converted to ASCII before it is
+// measured or drawn: each non-ASCII UTF-8 character, or stray non-UTF-8 byte,
+// becomes one '?'.  Measuring, wrapping and drawing then all see the same
+// characters.
+static std::string displayText(const char* text) {
+    std::string out;
+    int         continuation = 0;  // UTF-8 continuation bytes still expected
+    for (auto p = reinterpret_cast<const uint8_t*>(text); *p; ++p) {
+        uint8_t b = *p;
+        if (b < 0x80) {
+            out += char(b);
+            continuation = 0;
+        } else if (b >= 0xC0) {
+            out += '?';
+            continuation = (b >= 0xF0) ? 3 : (b >= 0xE0) ? 2 : 1;
+        } else if (continuation > 0) {
+            --continuation;  // rest of a character already shown as '?'
+        } else {
+            out += '?';
+        }
+    }
+    return out;
+}
+
 void OLED::show(Layout& layout, const char* msg) {
     if (_width < layout._width_required) {
         return;
     }
     _oled->setTextAlignment(layout._align);
     _oled->setFont(*layout._font);
-    _oled->drawString(layout._x, layout._y, msg);
+    _oled->drawString(layout._x, layout._y, displayText(msg).c_str());
 }
 
 font_t OLED::_font10 = nullptr;
 font_t OLED::_font16 = FluidNC_Arial_16;
 
-// The fonts stop at '~' (126).  The library's own lookup turns UTF-8 into
-// Latin-1 codes up to 255 and does not range-check the font tables, so show
-// anything past '~' as '?'.  Control characters (e.g. '\n') pass through.
+// Safety net for any text that reaches the library without displayText():
+// the library turns UTF-8 into Latin-1 codes up to 255 and does not
+// range-check the font tables, so show anything past '~' as '?'.  Control
+// characters (e.g. '\n') pass through.
 static char asciiFontLookup(const uint8_t ch) {
     uint8_t c = uint8_t(DefaultFontTableLookup(ch));
     return (c > '~') ? '?' : char(c);
@@ -553,7 +578,8 @@ size_t OLED::char_width(char c, font_t font) {
     return xf->glyphs[index].width;
 }
 
-void OLED::wrapped_draw_string(int16_t y, const std::string& s, font_t font) {
+void OLED::wrapped_draw_string(int16_t y, const std::string& text, font_t font) {
+    std::string s = displayText(text.c_str());
     _oled->setFont(font);
     _oled->setTextAlignment(TEXT_ALIGN_LEFT);
 
