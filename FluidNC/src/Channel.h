@@ -170,6 +170,9 @@ public:
     int8_t _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
     virtual void  init() {}
+    // False for string-backed macro channels, whose line numbers say nothing
+    // about progress through the user's file (see Job::progress_line()).
+    virtual bool reports_progress() const { return true; }
     virtual void  handle() {}
     virtual Error pollLine(char* line);
     virtual void  ack(Error status);
@@ -186,6 +189,15 @@ public:
     virtual void sendLine(MsgLevel level, const std::string& line);
 
     size_t _line_number = 0;
+
+    // position() as of just before the most recent pollLine() read the line
+    // currently in flight. Set by poll_once() (Protocol.cpp) right before
+    // pollLine() is called. Used to rewind a job's file back to the start of
+    // a not-yet-executed line -- e.g. when a dry-run breakpoint (see
+    // Job::at_stop_line()) defers that line to run a restart_macro first --
+    // so the line is read again, unchanged, once the file is reached
+    // normally.
+    size_t _line_start_position = 0;
 
     std::string _progress;
 
@@ -292,6 +304,9 @@ public:
 
     size_t lineNumber() { return _line_number; }
     void   setLineNumber(size_t line_number) { _line_number = line_number; }
+
+    size_t lineStartPosition() { return _line_start_position; }
+    void   setLineStartPosition(size_t pos) { _line_start_position = pos; }
 
     virtual void   save() {}
     virtual void   restore() {}

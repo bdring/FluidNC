@@ -35,6 +35,13 @@ namespace Machine {
         static Macro _after_reset;
         static Macro _after_unlock;
 
+        // Same shape as Spindle's m6_macro: one config-file line, same syntax
+        // as macros:, typically just delegating to a real file (e.g.
+        // "$SD/Run=restart.nc") since a resume sequence needs real
+        // conditionals, (PRINT ...), and its own explicit M0 pauses that a
+        // single "&"-joined line can't give it directly.
+        static Macro _restart_macro;
+
         Macros() = default;
 
         // Configuration helpers:
@@ -49,6 +56,7 @@ namespace Machine {
             handler.item(_after_homing.name(), _after_homing);
             handler.item(_after_reset.name(), _after_reset);
             handler.item(_after_unlock.name(), _after_unlock);
+            handler.item(_restart_macro.name(), _restart_macro);
         }
 
         ~Macros() {}
@@ -67,6 +75,7 @@ namespace Machine {
 
     public:
         Error pollLine(char* line) override;
+        bool  reports_progress() const override { return false; }
 
         MacroChannel(Macro* macro);
 

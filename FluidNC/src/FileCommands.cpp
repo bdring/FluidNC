@@ -6,6 +6,7 @@
 #include "WebUI/Authentication.h"
 #include "Configuration/JsonGenerator.h"
 #include "InputFile.h"    // InputFile
+#include "FluidPath.h"    // FluidPath::canonPath()
 #include "Job.h"          // Job::
 #include "xmodem.h"       // xmodemReceive(), xmodemTransmit()
 #include "Protocol.h"     // pollingPaused
@@ -15,6 +16,7 @@
 #include "Driver/watchdog.h"  // feed_watchdog()
 
 #include <charconv>
+#include <map>
 
 static Error localFSSize(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP720
     try {
@@ -253,12 +255,22 @@ static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level,
     return err;
 }
 
+// Combined with a prior $C, a $Breakpoint/Set (ProcessSettings.cpp) armed on
+// this file gives a check-mode dry run that stops partway through with
+// gc_state reconstructed as of that line; without $C first, it stops a
+// normal run there instead (see protocol_main_loop's pre-dispatch pause gate
+// and Job::at_stop_line()).
 static Error runFile(const Volume& fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
     Error err;
     if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
         log_string(out, "Alarm");
         return Error::IdleError;
     }
+    if (!parameter || !*parameter) {
+        log_error_to(out, "Missing filename");
+        return Error::InvalidValue;
+    }
+
     Job::save();
     InputFile* theFile;
     if ((err = openFile(fs, parameter, out, theFile)) != Error::Ok) {

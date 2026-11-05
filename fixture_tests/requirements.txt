@@ -13,4 +13,5 @@ pyserial==3.5
 termcolor==2.4.0
 typing_extensions==4.5.0
 virtualenv==20.23.1
+websocket-client==1.9.0
 xmodem==0.4.7

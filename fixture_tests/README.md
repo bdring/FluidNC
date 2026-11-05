@@ -18,27 +18,27 @@ Supported operations:
 - `<|`: Expect one of the following responses from the ESP32
 
 The tool can be ran with either a directory, or a single file. If a directory is provided, the tool
-will run all the files ending in `.nc` in the directory.
+will run all the files ending in `.fnctest` in the directory.
 
 Example, checking alarm state:
 ```bash
-./run_fixture /dev/cu.usbserial-31320 fixtures/alarms.nc
+./run_fixture /dev/cu.usbserial-31320 fixtures/alarms.fnctest
 -> $X
 <~ [MSG:INFO: Caution: Unlocked]
 <- ok
 -> $Alarm/Send=10
 <- ok
 <- [MSG:INFO: ALARM: Spindle Control]
-Fixture fixtures/alarms.nc passed
+Fixture fixtures/alarms.fnctest passed
 ```
 
 Example, checking idle status reporting:
 ```bash
-./run_fixture /dev/cu.usbserial-31320 fixtures/idle_status.nc
+./run_fixture /dev/cu.usbserial-31320 fixtures/idle_status.fnctest
 -> $X
 <~ [MSG:INFO: Caution: Unlocked]
 <- ok
 -> ??
 <| <Idle|MPos:0.000,0.000,0.000|FS:0,0>
-Fixture fixtures/idle_status.nc passed
+Fixture fixtures/idle_status.fnctest passed
 ```

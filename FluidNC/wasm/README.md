@@ -30,14 +30,9 @@ From the repo root:
 pio run -e wasm
 ```
 
-Copy the build output next to the demo's `index.html`:
-
-```bash
-cp .pio/build/wasm/program.js FluidNC/wasm/demo/program.js
-cp .pio/build/wasm/program.wasm FluidNC/wasm/demo/program.wasm
-```
-
-(These two files are gitignored -- they're build output, not source.)
+The build copies its output, `program.js` and `program.wasm`, next to the
+demo's `index.html` in `FluidNC/wasm/demo/` (see `pio_toolchain_wasm.py`).
+These two files are gitignored -- they're build output, not source.
 
 ## 3. Test locally
 
