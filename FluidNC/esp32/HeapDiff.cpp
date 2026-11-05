@@ -8,8 +8,7 @@
 // diffing compares the current heap to that list, showing the
 // first few bytes of blocks that newly appeared.
 // It uses enough memory that it should not be included in production builds.
-// It only works on older ESP-IDF versions like 4.4, per comments below.
-// Later ESP-IDF versions have an API for traversing the heap.
+// It walks the heap with heap_caps_walk() (ESP-IDF 5.1+).
 
 #include "HeapDiff.h"
 
@@ -20,19 +19,14 @@
 #    include "Protocol.h"  // drain_messages()
 
 #    include <esp_heap_caps.h>
+#    include <soc/soc.h>  // SOC_DRAM_LOW / SOC_DRAM_HIGH
 #    include <cstdlib>  // qsort
 #    include <cstring>  // memset
 #    include <cstdio>   // snprintf
 #    include <cstdint>
 
 // ---------------------------------------------------------------------------
-// Home-grown heap-block snapshot / diff.
-//
-// The IDF 4.4 that this env builds against has no public per-block heap
-// iterator (heap_caps_walk() is IDF 5.1+), and heap_caps_dump() watchdogs
-// because it does UART I/O while holding the heap spinlock.  So we drive the
-// block iteration ourselves via `registered_heaps` (a COMMON symbol) and the
-// exported-but-unheadered multi_heap_get_*_block() API.
+// Heap-block snapshot / diff.
 //
 // RAM budget matters here -- this runs on a board that is already close to OOM
 // during a WebUI load.  The baseline snapshot stores only a 24-bit offset per
@@ -45,48 +39,18 @@
 
 namespace {
 
-    // ---- IDF 4.4 internal heap_t (components/heap/heap_private.h) ----------
-    // Offsets verified by disassembling heap_caps_get_info(): ->heap @28,
-    // ->next @32.  The 8-byte gap before ->heap is an embedded portMUX_TYPE.
-    struct idf_heap_t {
-        uint32_t           caps[3];      // @0
-        intptr_t           start;        // @12
-        intptr_t           end;          // @16
-        uint32_t           heap_mux[2];  // @20  portMUX_TYPE (opaque here)
-        void*              heap;         // @28  multi_heap_handle_t
-        struct idf_heap_t* next;         // @32  SLIST_ENTRY.sle_next
-    };
-
-    extern "C" {
-    // SLIST_HEAD(..., idf_heap_t) registered_heaps;  -- one pointer, COMMON
-    extern struct {
-        struct idf_heap_t* slh_first;
-    } registered_heaps;
-
-    // Exported from libheap.a, absent from the shipped headers.
-    typedef void* mh_handle_t;
-    typedef void* mh_block_t;
-    mh_block_t    multi_heap_get_first_block(mh_handle_t heap);
-    mh_block_t    multi_heap_get_next_block(mh_handle_t heap, mh_block_t block);
-    bool          multi_heap_is_free(mh_block_t block);
-    void*         multi_heap_get_block_address(mh_block_t block);
-    void          multi_heap_internal_lock(mh_handle_t heap);
-    void          multi_heap_internal_unlock(mh_handle_t heap);
-    }
-
     // ---- tunables --------------------------------------------------------
     // Baseline is ~1100 used blocks (WiFi on).  1600 * 3 B = 4.8 KB .bss.
     // Bump if $HeapSnap reports OVERFLOW; each +256 costs 768 B.
-    constexpr uint32_t CAP_BLOCKS               = 1600;
-    constexpr uint32_t CAP_ADDED                = 192;  // added blocks captured per diff
-    constexpr uint32_t DUMP_BYTES               = 64;   // live content bytes shown per added block
-    constexpr uint32_t MAX_PRINT                = 250;  // printed-line cap per category
-    constexpr uint32_t HARD_MAX_BLOCKS_PER_HEAP = 200000;
-    constexpr uint32_t HARD_MAX_HEAPS           = 32;
+    constexpr uint32_t CAP_BLOCKS = 1600;
+    constexpr uint32_t CAP_ADDED  = 192;  // added blocks captured per diff
+    constexpr uint32_t DUMP_BYTES = 64;   // live content bytes shown per added block
+    constexpr uint32_t MAX_PRINT  = 250;  // printed-line cap per category
 
-    // ESP32 internal DRAM data window (loose).  DRAM_LO is the offset base.
-    constexpr uintptr_t DRAM_LO = 0x3FF80000u;
-    constexpr uintptr_t DRAM_HI = 0x40000000u;
+    // Internal DRAM data window.  DRAM_LO is the offset base.
+    constexpr uintptr_t DRAM_LO = SOC_DRAM_LOW;
+    constexpr uintptr_t DRAM_HI = SOC_DRAM_HIGH;
+    static_assert(DRAM_HI - DRAM_LO <= 0x1000000u, "DRAM window must fit 24-bit offsets");
     inline bool         in_dram(uintptr_t a) {
         return a >= DRAM_LO && a < DRAM_HI;
     }
@@ -107,8 +71,6 @@ namespace {
 
     // ---- walk accounting (cross-check) --------------------------------
     uint32_t g_walk_blocks = 0;
-    uint32_t g_walk_heaps  = 0;
-    bool     g_layout_ok   = true;
 
     // ---- $HeapRefs scan target ---------------------------------------
     uint32_t g_ref_lo = 0;
@@ -154,65 +116,26 @@ namespace {
         return -1;
     }
 
-    bool heap_supports_8bit(const idf_heap_t* h) {
-        return ((h->caps[0] | h->caps[1] | h->caps[2]) & MALLOC_CAP_8BIT) != 0;
+    // Internal 8-bit-capable heaps only: PSRAM blocks fall outside the 24-bit
+    // DRAM_LO offset window, and IRAM-only heaps are not where leaks live.
+    constexpr uint32_t WALK_CAPS = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+
+    void (*g_walk_cb)(uint32_t addr, uint32_t size);
+
+    bool walker(walker_heap_into_t, walker_block_info_t block, void*) {
+        if (block.used) {
+            ++g_walk_blocks;
+            g_walk_cb((uint32_t)(uintptr_t)block.ptr, (uint32_t)block.size);
+        }
+        return true;
     }
 
-    // Only validates the SLIST node is safe to keep traversing.  Non-8-bit
-    // heaps (e.g. the IRAM heap) are filtered by heap_supports_8bit(), not
-    // treated as corruption.
-    bool heap_node_sane(const idf_heap_t* h) {
-        if (!in_dram((uintptr_t)h) || ((uintptr_t)h & 3)) {
-            return false;
-        }
-        uintptr_t nx = (uintptr_t)h->next;
-        if (nx && (!in_dram(nx) || (nx & 3))) {
-            return false;
-        }
-        return h->heap != nullptr;
-    }
-
-    // Walk every used MALLOC_CAP_8BIT block, calling cb(addr,size) with the
-    // heap spinlock held.  cb MUST NOT allocate, block, or do I/O.
+    // Walk every used internal 8-bit block, calling cb(addr,size) with the
+    // heap lock held.  cb MUST NOT allocate, block, or do I/O.
     void walk_used_8bit(void (*cb)(uint32_t addr, uint32_t size)) {
         g_walk_blocks = 0;
-        g_walk_heaps  = 0;
-        g_layout_ok   = true;
-
-        uint32_t heap_i = 0;
-        for (idf_heap_t* h = registered_heaps.slh_first; h && heap_i < HARD_MAX_HEAPS; h = h->next, ++heap_i) {
-            if (!heap_node_sane(h)) {
-                g_layout_ok = false;
-                break;
-            }
-            if (!heap_supports_8bit(h)) {
-                continue;
-            }
-            ++g_walk_heaps;
-
-            multi_heap_internal_lock(h->heap);
-            mh_block_t blk   = multi_heap_get_first_block(h->heap);
-            uint32_t   guard = 0;
-            while (blk && guard++ < HARD_MAX_BLOCKS_PER_HEAP) {
-                void*      a     = multi_heap_get_block_address(blk);
-                bool       freeb = multi_heap_is_free(blk);
-                mh_block_t nblk  = multi_heap_get_next_block(h->heap, blk);
-
-                uint32_t size = 0;
-                if (nblk) {
-                    void* na = multi_heap_get_block_address(nblk);
-                    if ((uintptr_t)na > (uintptr_t)a) {
-                        size = (uint32_t)((uintptr_t)na - (uintptr_t)a);
-                    }
-                }
-                if (!freeb) {
-                    ++g_walk_blocks;
-                    cb((uint32_t)(uintptr_t)a, size);
-                }
-                blk = nblk;
-            }
-            multi_heap_internal_unlock(h->heap);
-        }
+        g_walk_cb     = cb;
+        heap_caps_walk(WALK_CAPS, walker, nullptr);
     }
 
     // ---- per-block callbacks (spinlock held) --------------------------------
@@ -324,15 +247,15 @@ Error heap_snapshot(const char* value, AuthenticationLevel, Channel& out) {
     g_snapA_valid = true;
 
     multi_heap_info_t info;
-    heap_caps_get_info(&info, MALLOC_CAP_8BIT);
+    heap_caps_get_info(&info, WALK_CAPS);
     bool match = (g_walk_blocks == (uint32_t)info.allocated_blocks);
 
     log_info_to(out,
-                "HeapSnap: " << g_snapA_n << " used blocks (" << g_walk_heaps << " heaps)"
+                "HeapSnap: " << g_snapA_n << " used blocks"
                              << (g_snapA_over ? "  OVERFLOW-raise-CAP_BLOCKS" : ""));
     log_info_to(out,
                 "  cross-check: walk=" << g_walk_blocks << " vs heap_caps=" << (unsigned)info.allocated_blocks
-                                       << (match && g_layout_ok ? "  OK" : "  MISMATCH - heap_t layout suspect"));
+                                       << (match ? "  OK" : "  MISMATCH"));
     return Error::Ok;
 }
 
@@ -359,7 +282,7 @@ Error heap_diff(const char* value, AuthenticationLevel, Channel& out) {
 
     log_info_to(out,
                 "HeapDiff: A=" << g_snapA_n << " B=" << g_walk_blocks << "  added=" << g_added_n << " freed=" << g_freed_n
-                               << (g_diff_over ? "  ADD-OVERFLOW" : "") << (g_layout_ok ? "" : "  (layout suspect)"));
+                               << (g_diff_over ? "  ADD-OVERFLOW" : ""));
 
     char hx[12];
 
@@ -411,7 +334,7 @@ Error heap_refs(const char* value, AuthenticationLevel, Channel& out) {
     hex8(lo, target);
     log_info_to(out,
                 "HeapRefs: " << g_added_n << " blocks point into [" << lo << " +" << span << "]  (B=" << g_walk_blocks << ")"
-                             << (g_diff_over ? "  OVERFLOW" : "") << (g_layout_ok ? "" : "  (layout suspect)"));
+                             << (g_diff_over ? "  OVERFLOW" : ""));
 
     char     hx[12];
     uint32_t printed = 0;

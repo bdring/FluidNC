@@ -731,13 +731,12 @@ static bool fnc_uart_try_set_iomux_pin(uart_port_t uart_num, int io_num, uint32_
     }
 #if (SOC_UART_LP_NUM >= 1) && (SOC_RTCIO_PIN_COUNT >= 1)
     else {
-        if (upin->input) {
-            rtc_gpio_set_direction(io_num, RTC_GPIO_MODE_INPUT_ONLY);
-        } else {
-            rtc_gpio_set_direction(io_num, RTC_GPIO_MODE_OUTPUT_ONLY);
-        }
         rtc_gpio_init(io_num);
-        rtc_gpio_iomux_func_sel(io_num, upin->iomux_func);
+        if (upin->input) {
+            rtc_gpio_iomux_input(io_num, upin->iomux_func, upin->signal);
+        } else {
+            rtc_gpio_iomux_output(io_num, upin->iomux_func);
+        }
         // undo the workaround done in fnc_uart_module_enable for RX pin
 #if !SOC_LP_GPIO_MATRIX_SUPPORTED
         if (upin->input) {
@@ -876,8 +875,8 @@ esp_err_t fnc_uart_set_pin(uart_port_t uart_num, int tx_io_num, int rx_io_num, i
 #if CONFIG_ESP_SLEEP_GPIO_RESET_WORKAROUND || CONFIG_PM_SLP_DISABLE_GPIO
         // In such case, IOs are going to switch to sleep configuration (isolate) when entering sleep for power saving reason
         // But TX IO in isolate state could write garbled data to the other end
-        // Therefore, we should disable the switch of the TX pin to sleep configuration
-        gpio_sleep_sel_dis(tx_io_num);
+        // Therefore, we should enable internal pull-up of the TX pin in sleep configuration
+        gpio_sleep_set_pull_mode(tx_io_num, GPIO_PULLUP_ONLY);
 #endif
         if (tx_rx_same_io || !fnc_uart_try_set_iomux_pin(uart_num, tx_io_num, SOC_UART_TX_PIN_IDX)) {
             if (uart_num < SOC_UART_HP_NUM) {
@@ -901,8 +900,10 @@ esp_err_t fnc_uart_set_pin(uart_port_t uart_num, int tx_io_num, int rx_io_num, i
 #if CONFIG_ESP_SLEEP_GPIO_RESET_WORKAROUND || CONFIG_PM_SLP_DISABLE_GPIO
         // In such case, IOs are going to switch to sleep configuration (isolate) when entering sleep for power saving reason
         // But RX IO in isolate state could receive garbled data into FIFO, which is not desired
-        // Therefore, we should disable the switch of the RX pin to sleep configuration
-        gpio_sleep_sel_dis(rx_io_num);
+        // Therefore, we should enable internal pull-up of the RX pin in sleep configuration
+        // Meanwhile, RX pin may be used for wakeup, so configure RX pin as input
+        gpio_sleep_set_pull_mode(rx_io_num, GPIO_PULLUP_ONLY);
+        gpio_sleep_set_direction(rx_io_num, GPIO_MODE_INPUT);
 #endif
         if (tx_rx_same_io || !fnc_uart_try_set_iomux_pin(uart_num, rx_io_num, SOC_UART_RX_PIN_IDX)) {
             io_reserve_mask &= ~BIT64(rx_io_num); // input IO via GPIO matrix does not need to be reserved
@@ -2163,9 +2164,7 @@ esp_err_t fnc_uart_set_rx_full_threshold(uart_port_t uart_num, int threshold)
         return ESP_ERR_INVALID_STATE;
     }
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
-    if (uart_hal_get_intr_ena_status(&(uart_context[uart_num].hal)) & UART_INTR_RXFIFO_FULL) {
-        uart_hal_set_rxfifo_full_thr(&(uart_context[uart_num].hal), threshold);
-    }
+    uart_hal_set_rxfifo_full_thr(&(uart_context[uart_num].hal), threshold);
     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
     return ESP_OK;
 }
@@ -2180,9 +2179,7 @@ esp_err_t fnc_uart_set_tx_empty_threshold(uart_port_t uart_num, int threshold)
         return ESP_ERR_INVALID_STATE;
     }
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
-    if (uart_hal_get_intr_ena_status(&(uart_context[uart_num].hal)) & UART_INTR_TXFIFO_EMPTY) {
-        uart_hal_set_txfifo_empty_thr(&(uart_context[uart_num].hal), threshold);
-    }
+    uart_hal_set_txfifo_empty_thr(&(uart_context[uart_num].hal), threshold);
     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
     return ESP_OK;
 }
