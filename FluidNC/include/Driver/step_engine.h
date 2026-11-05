@@ -68,6 +68,12 @@ typedef struct step_engine {
 // Registered step engines.
 extern std::vector<step_engine_t*> step_engines;
 
+// The engine to use when the config names none or an unknown one: the one
+// that the platform's DEFAULT_STEPPING_ENGINE names, else the first registered.
+// Chosen by name because registration order follows static-constructor order,
+// which differs between toolchains (IDF 5 ran them in reverse, IDF 6 forward).
+step_engine_t* default_step_engine();
+
 // clang-format off
 #define REGISTER_STEP_ENGINE(name, engine)                       \
     __attribute__((constructor)) void __register_##name(void) {  \
