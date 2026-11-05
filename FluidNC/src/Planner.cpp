@@ -315,10 +315,12 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     if (block->motion.systemMotion) {
         get_steps(position_steps);
     } else {
-        if (!block->is_jog && Homing::unhomed_axes()) {
-            log_info("Unhomed axes: " << Axes::maskToNames(Homing::unhomed_axes()));
-            send_alarm(ExecAlarm::Unhomed);
-            return false;
+        if (Homing::unhomed_axes()) {
+            if (!block->is_jog || config->_start->_mustHomeForJog) {
+                log_info("Unhomed axes: " << Axes::maskToNames(Homing::unhomed_axes()));
+                send_alarm(ExecAlarm::Unhomed);
+                return false;
+            }
         }
         copyAxes(position_steps, pl.position);
     }
