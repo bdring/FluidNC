@@ -45,7 +45,7 @@ int espRandomBytes(void*, unsigned char* out, size_t len) {
 
 namespace ESPNowCrypto {
 
-void hmacSha256(const uint8_t* key, size_t key_len, std::initializer_list<HmacPart> parts, uint8_t out[32]) {
+bool hmacSha256(const uint8_t* key, size_t key_len, std::initializer_list<HmacPart> parts, uint8_t out[32]) {
 #if ESPNOW_USE_PSA
     bool                  ok   = false;
     mbedtls_svc_key_id_t  id   = MBEDTLS_SVC_KEY_ID_INIT;
@@ -75,6 +75,7 @@ void hmacSha256(const uint8_t* key, size_t key_len, std::initializer_list<HmacPa
     if (!ok) {
         secureZero(out, 32);
     }
+    return ok;
 #else
     mbedtls_md_context_t     ctx;
     const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
@@ -91,6 +92,7 @@ void hmacSha256(const uint8_t* key, size_t key_len, std::initializer_list<HmacPa
     if (!ok) {
         secureZero(out, 32);
     }
+    return ok;
 #endif
 }
 
@@ -249,7 +251,7 @@ bool deriveEcdhSharedSecret(const uint8_t private_key[ECDH_PRIVATE_KEY_SIZE],
 #endif
 }
 
-void derivePairingSessionLmk(const uint8_t pairing_window_lmk[16],
+bool derivePairingSessionLmk(const uint8_t pairing_window_lmk[16],
                              const uint8_t shared_secret[ECDH_SHARED_SECRET_SIZE],
                              const uint8_t* first_transcript,
                              size_t first_len,
@@ -257,28 +259,38 @@ void derivePairingSessionLmk(const uint8_t pairing_window_lmk[16],
                              size_t second_len,
                              uint8_t out_lmk[16]) {
     uint8_t full[32];
-    hmacSha256(pairing_window_lmk,
-               16,
-               { { kPairingSessionLabel, strlen(kPairingSessionLabel) },
-                 { shared_secret, ECDH_SHARED_SECRET_SIZE },
-                 { first_transcript, first_len },
-                 { second_transcript, second_len } },
-               full);
-    memcpy(out_lmk, full, 16);
+    bool    ok = hmacSha256(pairing_window_lmk,
+                         16,
+                         { { kPairingSessionLabel, strlen(kPairingSessionLabel) },
+                           { shared_secret, ECDH_SHARED_SECRET_SIZE },
+                           { first_transcript, first_len },
+                           { second_transcript, second_len } },
+                         full);
+    if (ok) {
+        memcpy(out_lmk, full, 16);
+    } else {
+        secureZero(out_lmk, 16);
+    }
     secureZero(full, sizeof(full));
+    return ok;
 }
 
-void pairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, uint8_t out[16]) {
+bool pairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, uint8_t out[16]) {
     uint8_t full[32];
-    hmacSha256(key, 16, { { data, len } }, full);
-    memcpy(out, full, 16);
+    bool    ok = hmacSha256(key, 16, { { data, len } }, full);
+    if (ok) {
+        memcpy(out, full, 16);
+    } else {
+        secureZero(out, 16);
+    }
     secureZero(full, sizeof(full));
+    return ok;
 }
 
 bool verifyPairingAuthTag(const uint8_t key[16], const uint8_t* data, size_t len, const uint8_t tag[16]) {
     uint8_t expected[16];
-    pairingAuthTag(key, data, len, expected);
-    bool ok = constantTimeEquals(expected, tag, 16);
+    // A failed HMAC must not compare equal to an attacker-supplied tag
+    bool ok = pairingAuthTag(key, data, len, expected) && constantTimeEquals(expected, tag, 16);
     secureZero(expected, sizeof(expected));
     return ok;
 }

@@ -1393,7 +1393,7 @@ void ESPNowChannel::handleDiscovery(const uint8_t* src_mac, const uint8_t* data,
             private_key, pkt.pubkey, shared_secret);
     if (derived) {
         ESPNowCrypto::derivePairingWindowLmk(window_lmk);
-        ESPNowCrypto::derivePairingSessionLmk(
+        derived = ESPNowCrypto::derivePairingSessionLmk(
             window_lmk,
             shared_secret,
             reinterpret_cast<const uint8_t*>(&pkt),
@@ -1489,11 +1489,16 @@ void ESPNowChannel::handlePairConfirm(const uint8_t* src_mac, const uint8_t* dat
     result.channel = espnowCurrentChannel();
     memcpy(result.session_id, pkt.session_id, sizeof(result.session_id));
     copyHostname(result.hostname);
-    ESPNowCrypto::pairingAuthTag(
-        _pairing.lmk,
-        reinterpret_cast<const uint8_t*>(&result),
-        offsetof(PairResultV4Pkt, auth_tag),
-        result.auth_tag);
+    if (!ESPNowCrypto::pairingAuthTag(
+            _pairing.lmk,
+            reinterpret_cast<const uint8_t*>(&result),
+            offsetof(PairResultV4Pkt, auth_tag),
+            result.auth_tag)) {
+        log_error("ESP-NOW: pairing result authentication failed");
+        ESPNowCrypto::secureZero(&result, sizeof(result));
+        clearPairingTransaction(true);
+        return;
+    }
 
     memcpy(_pairing.result, &result, sizeof(result));
     _pairing.result_len = sizeof(result);
