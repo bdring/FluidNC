@@ -1,27 +1,62 @@
 #include "OLED.h"
+#include "OLEDFonts.h"
 #include "string_util.h"
 
 #include "Machine/MachineConfig.h"
+
+// The fonts stop at '~' (126), so text is converted to ASCII before it is
+// measured or drawn: each non-ASCII UTF-8 character, or stray non-UTF-8 byte,
+// becomes one '?'.  Measuring, wrapping and drawing then all see the same
+// characters.
+static std::string displayText(const char* text) {
+    std::string out;
+    int         continuation = 0;  // UTF-8 continuation bytes still expected
+    for (auto p = reinterpret_cast<const uint8_t*>(text); *p; ++p) {
+        uint8_t b = *p;
+        if (b < 0x80) {
+            out += char(b);
+            continuation = 0;
+        } else if (b >= 0xC0) {
+            out += '?';
+            continuation = (b >= 0xF0) ? 3 : (b >= 0xE0) ? 2 : 1;
+        } else if (continuation > 0) {
+            --continuation;  // rest of a character already shown as '?'
+        } else {
+            out += '?';
+        }
+    }
+    return out;
+}
 
 void OLED::show(Layout& layout, const char* msg) {
     if (_width < layout._width_required) {
         return;
     }
     _oled->setTextAlignment(layout._align);
-    _oled->setFont(layout._font);
-    _oled->drawString(layout._x, layout._y, msg);
+    _oled->setFont(*layout._font);
+    _oled->drawString(layout._x, layout._y, displayText(msg).c_str());
 }
 
-OLED::Layout OLED::bannerLayout128  = { 0, 0, 0, ArialMT_Plain_24, TEXT_ALIGN_CENTER };
-OLED::Layout OLED::bannerLayout64   = { 0, 0, 0, ArialMT_Plain_16, TEXT_ALIGN_CENTER };
-OLED::Layout OLED::stateLayout      = { 0, 0, 0, ArialMT_Plain_16, TEXT_ALIGN_LEFT };
-OLED::Layout OLED::tickerLayout     = { 63, 0, 128, ArialMT_Plain_10, TEXT_ALIGN_CENTER };
-OLED::Layout OLED::filenameLayout   = { 63, 13, 128, ArialMT_Plain_10, TEXT_ALIGN_CENTER };
-OLED::Layout OLED::percentLayout128 = { 128, 0, 128, ArialMT_Plain_16, TEXT_ALIGN_RIGHT };
-OLED::Layout OLED::percentLayout64  = { 64, 0, 64, ArialMT_Plain_16, TEXT_ALIGN_RIGHT };
-OLED::Layout OLED::limitLabelLayout = { 80, 14, 128, ArialMT_Plain_10, TEXT_ALIGN_LEFT };
-OLED::Layout OLED::posLabelLayout   = { 60, 14, 128, ArialMT_Plain_10, TEXT_ALIGN_RIGHT };
-OLED::Layout OLED::radioAddrLayout  = { 50, 0, 128, ArialMT_Plain_10, TEXT_ALIGN_LEFT };
+font_t OLED::_font10 = nullptr;
+font_t OLED::_font16 = FluidNC_Arial_16;
+
+// Safety net for any text that reaches the library without displayText():
+// the library turns UTF-8 into Latin-1 codes up to 255 and does not
+// range-check the font tables, so show anything past '~' as '?'.  Control
+// characters (e.g. '\n') pass through.
+static char asciiFontLookup(const uint8_t ch) {
+    uint8_t c = uint8_t(DefaultFontTableLookup(ch));
+    return (c > '~') ? '?' : char(c);
+}
+
+OLED::Layout OLED::stateLayout      = { 0, 0, 0, &_font16, TEXT_ALIGN_LEFT };
+OLED::Layout OLED::tickerLayout     = { 63, 0, 128, &_font10, TEXT_ALIGN_CENTER };
+OLED::Layout OLED::filenameLayout   = { 63, 13, 128, &_font10, TEXT_ALIGN_CENTER };
+OLED::Layout OLED::percentLayout128 = { 128, 0, 128, &_font16, TEXT_ALIGN_RIGHT };
+OLED::Layout OLED::percentLayout64  = { 64, 0, 64, &_font16, TEXT_ALIGN_RIGHT };
+OLED::Layout OLED::limitLabelLayout = { 80, 14, 128, &_font10, TEXT_ALIGN_LEFT };
+OLED::Layout OLED::posLabelLayout   = { 60, 14, 128, &_font10, TEXT_ALIGN_RIGHT };
+OLED::Layout OLED::radioAddrLayout  = { 50, 0, 128, &_font10, TEXT_ALIGN_LEFT };
 
 void OLED::afterParse() {
     if (!config->_i2c[_i2c_num]) {
@@ -69,8 +104,11 @@ void OLED::init() {
         return;
     }
     log_info("OLED I2C address: " << to_hex(_address) << " width: " << _width << " height: " << _height);
-    _oled = new SSD1306_I2C(_address, _geometry, config->_i2c[_i2c_num], 400000);
+    auto display = new SSD1306_I2C(_address, _geometry, config->_i2c[_i2c_num], 400000);
+    _font10      = display->defaultFont();
+    _oled        = display;
     _oled->init();
+    _oled->setFontTableLookupFunction(asciiFontLookup);
 
     if (_flip) {
         _oled->flipScreenVertically();
@@ -81,9 +119,6 @@ void OLED::init() {
     _oled->setTextAlignment(TEXT_ALIGN_LEFT);
 
     _oled->clear();
-
-    show((_width == 128) ? bannerLayout128 : bannerLayout64, "FluidNC");
-
     _oled->display();
 
     allChannels.registration(this);
@@ -132,7 +167,7 @@ void OLED::show_file() {
         }
         show(tickerLayout, _ticker);
 
-        wrapped_draw_string(14, _filename, ArialMT_Plain_16);
+        wrapped_draw_string(14, _filename, _font16);
 
         _oled->drawProgressBar(0, 45, 120, 10, pct);
     } else {
@@ -154,7 +189,7 @@ void OLED::show_dro(const float* axes, bool isMpos, bool* limits) {
     show(limitLabelLayout, "L");
     show(posLabelLayout, isMpos ? "M Pos" : "W Pos");
 
-    _oled->setFont(ArialMT_Plain_10);
+    _oled->setFont(_font10);
     uint8_t oled_y_pos;
     for (axis_t axis = X_AXIS; axis < n_axis; axis++) {
         oled_y_pos = ((_height == 64) ? 24 : 17) + (axis * 10);
@@ -183,15 +218,15 @@ void OLED::show_radio_info() {
     }
     if (_width == 128) {
         if (_state == "Alarm") {
-            wrapped_draw_string(18, _radio_info, ArialMT_Plain_10);
-            wrapped_draw_string(30, _radio_addr, ArialMT_Plain_10);
+            wrapped_draw_string(18, _radio_info, _font10);
+            wrapped_draw_string(30, _radio_addr, _font10);
         } else if (_state != "Run") {
             show(radioAddrLayout, _radio_addr);
         }
     } else {
         if (_state == "Alarm") {
-            wrapped_draw_string(10, _radio_info, ArialMT_Plain_10);
-            wrapped_draw_string(28, _radio_addr, ArialMT_Plain_10);
+            wrapped_draw_string(10, _radio_info, _font10);
+            wrapped_draw_string(28, _radio_addr, _font10);
         }
     }
 }
@@ -399,7 +434,7 @@ void OLED::parse_STA() {
     _radio_info  = _report.substr(start, _report.size() - start - 1);
 
     _oled->clear();
-    wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
+    wrapped_draw_string(0, _radio_info, _font10);
     _oled->display();
 }
 
@@ -409,9 +444,9 @@ void OLED::parse_IP() {
     _radio_addr  = _report.substr(start, _report.size() - start - 1);
 
     _oled->clear();
-    auto fh = font_height(ArialMT_Plain_10);
-    wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
-    wrapped_draw_string(fh * 2, _radio_addr, ArialMT_Plain_10);
+    auto fh = font_height(_font10);
+    wrapped_draw_string(0, _radio_info, _font10);
+    wrapped_draw_string(fh * 2, _radio_addr, _font10);
     _oled->display();
     dwell_ms(_radio_delay, DwellMode::SysSuspend);
 }
@@ -428,9 +463,9 @@ void OLED::parse_AP() {
     _radio_addr = _report.substr(ip_start, ip_end - ip_start);
 
     _oled->clear();
-    auto fh = font_height(ArialMT_Plain_10);
-    wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
-    wrapped_draw_string(fh * 2, _radio_addr, ArialMT_Plain_10);
+    auto fh = font_height(_font10);
+    wrapped_draw_string(0, _radio_info, _font10);
+    wrapped_draw_string(fh * 2, _radio_addr, _font10);
     _oled->display();
     dwell_ms(_radio_delay, DwellMode::SysSuspend);
 }
@@ -442,7 +477,7 @@ void OLED::parse_BT() {
     _radio_info += btname.c_str();
 
     _oled->clear();
-    wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
+    wrapped_draw_string(0, _radio_info, _font10);
     _oled->display();
     dwell_ms(_radio_delay, DwellMode::SysSuspend);
 }
@@ -452,9 +487,9 @@ void OLED::parse_WebUI() {
     std::string ipaddr = _report.substr(start, _report.size() - start - 1);
 
     _oled->clear();
-    auto fh = font_height(ArialMT_Plain_10);
-    wrapped_draw_string(0, "WebUI from", ArialMT_Plain_10);
-    wrapped_draw_string(fh * 2, ipaddr, ArialMT_Plain_10);
+    auto fh = font_height(_font10);
+    wrapped_draw_string(0, "WebUI from", _font10);
+    wrapped_draw_string(fh * 2, ipaddr, _font10);
     _oled->display();
 }
 
@@ -528,11 +563,18 @@ struct xfont_t {
 };
 size_t OLED::char_width(char c, font_t font) {
     xfont_t* xf    = (xfont_t*)font;
-    int16_t  index = c - xf->first;
-    return (index < 0) ? 0 : xf->glyphs[index].width;
+    int16_t  index = uint8_t(c) - xf->first;
+    if (index < 0) {
+        return 0;
+    }
+    if (index >= xf->nchars) {
+        index = '?' - xf->first;  // drawn as '?', see asciiFontLookup()
+    }
+    return xf->glyphs[index].width;
 }
 
-void OLED::wrapped_draw_string(int16_t y, const std::string& s, font_t font) {
+void OLED::wrapped_draw_string(int16_t y, const std::string& text, font_t font) {
+    std::string s = displayText(text.c_str());
     _oled->setFont(font);
     _oled->setTextAlignment(TEXT_ALIGN_LEFT);
 

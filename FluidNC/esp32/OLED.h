@@ -17,11 +17,9 @@ public:
         uint8_t                    _x;
         uint8_t                    _y;
         uint8_t                    _width_required;
-        font_t                     _font;
+        const font_t*              _font;  // set at init(), see _font10
         OLEDDISPLAY_TEXT_ALIGNMENT _align;
     };
-    static Layout bannerLayout128;
-    static Layout bannerLayout64;
     static Layout stateLayout;
     static Layout tickerLayout;
     static Layout filenameLayout;
@@ -30,6 +28,12 @@ public:
     static Layout limitLabelLayout;
     static Layout posLabelLayout;
     static Layout radioAddrLayout;
+
+    // Fonts are ASCII-only in effect: init() installs a lookup that maps every
+    // other character to '?'.  _font10 is the OLED library's default font, read
+    // from the display at init() so it is linked only once.
+    static font_t _font10;
+    static font_t _font16;
 
 private:
     std::string _report;
