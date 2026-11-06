@@ -49,6 +49,21 @@ static bool partition_is_blank(const esp_partition_t* part) {
     return true;
 }
 
+// True if block 0 or 1 holds a LittleFS v2 superblock, whose "littlefs"
+// magic sits 8 bytes in.  A LittleFS that has this but will not mount is
+// damaged beyond use, so reformatting it loses nothing readable.
+static bool has_littlefs_magic(const esp_partition_t* part) {
+    const size_t blocksize = 4096;
+    char         magic[8];
+    for (size_t block = 0; block < 2 && (block + 1) * blocksize <= part->size; ++block) {
+        if (esp_partition_read(part, block * blocksize + 8, magic, sizeof(magic)) == ESP_OK &&
+            memcmp(magic, "littlefs", sizeof(magic)) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool localfs_mount() {
     SD.prefix = "/sd";
 
@@ -64,10 +79,13 @@ bool localfs_mount() {
         return false;
     }
 
-    // Create a filesystem only on completely erased flash.  Anything else is probably a
+    // Format erased flash or a damaged LittleFS.  Anything else is probably a
     // SPIFFS filesystem from an older FluidNC release, which this release
-    // cannot read; formatting it would silently destroy config.yaml.
-    if (!partition_is_blank(part)) {
+    // cannot read but an older one can migrate; formatting it would silently
+    // destroy config.yaml.
+    if (has_littlefs_magic(part)) {
+        log_warn("Local FS is damaged; reformatting");
+    } else if (!partition_is_blank(part)) {
         log_error("Local FS is not LittleFS (old SPIFFS?); $LocalFS/Format erases it");
         return false;
     }
