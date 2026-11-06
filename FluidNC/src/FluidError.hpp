@@ -1,7 +1,7 @@
 #include <system_error>
 
 // The associated message strings are in FluidError.cpp
-enum class FluidError { None, SDNotConfigured };
+enum class FluidError { None, SDNotConfigured, FsNotMounted };
 
 std::error_code make_error_code(FluidError);
 

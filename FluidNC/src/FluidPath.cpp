@@ -170,8 +170,18 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
 }
 
 FluidPath::FluidPath(const std::string_view name, const Volume& fs, std::error_code* ecptr) : stdfs::path(canonPath(name, fs)) {
-    auto mount = *(++begin());  // Use the path iterator to get the first component
-    _isSD = mount == "sd";
+    // An unmounted volume has an empty prefix, so its paths come out as "" or
+    // "/" with no volume component.  Report that instead of reading past the end.
+    if (empty() || (has_root_directory() && relative_path().empty())) {
+        std::error_code ec = FluidError::FsNotMounted;
+        if (ecptr) {
+            *ecptr = ec;
+            return;
+        }
+        throw stdfs::filesystem_error { "Filesystem not mounted", name, ec };
+    }
+    auto it = ++begin();  // The first component after the root, e.g. "sd"
+    _isSD   = it != end() && *it == "sd";
 
     if (_isSD) {
         if (!config->_sdCard->config_ok) {
