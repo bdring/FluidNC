@@ -49,8 +49,6 @@ static char asciiFontLookup(const uint8_t ch) {
     return (c > '~') ? '?' : char(c);
 }
 
-OLED::Layout OLED::bannerLayout128  = { 0, 0, 0, &_font16, TEXT_ALIGN_CENTER };
-OLED::Layout OLED::bannerLayout64   = { 0, 0, 0, &_font16, TEXT_ALIGN_CENTER };
 OLED::Layout OLED::stateLayout      = { 0, 0, 0, &_font16, TEXT_ALIGN_LEFT };
 OLED::Layout OLED::tickerLayout     = { 63, 0, 128, &_font10, TEXT_ALIGN_CENTER };
 OLED::Layout OLED::filenameLayout   = { 63, 13, 128, &_font10, TEXT_ALIGN_CENTER };
@@ -121,9 +119,6 @@ void OLED::init() {
     _oled->setTextAlignment(TEXT_ALIGN_LEFT);
 
     _oled->clear();
-
-    show((_width == 128) ? bannerLayout128 : bannerLayout64, "FluidNC");
-
     _oled->display();
 
     allChannels.registration(this);

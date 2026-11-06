@@ -20,8 +20,6 @@ public:
         const font_t*              _font;  // set at init(), see _font10
         OLEDDISPLAY_TEXT_ALIGNMENT _align;
     };
-    static Layout bannerLayout128;
-    static Layout bannerLayout64;
     static Layout stateLayout;
     static Layout tickerLayout;
     static Layout filenameLayout;
