@@ -2,14 +2,10 @@
 #include <string.h>
 #include "Config.h"
 
-#include "esp_spiffs.h"
 #include "ff.h"
 #include "esp_littlefs.h"
 #include "Driver/littlefs.h"
 
-bool isSPIFFS(const std::string_view mountpoint) {
-    return mountpoint == "spiffs";
-}
 bool isSD(const std::string_view mountpoint) {
     return mountpoint == "sd";
 }
@@ -33,11 +29,7 @@ bool fluidnc_vfs_stats(const std::string_view mountpoint, uint64_t& total, uint6
     }
     size_t stotal, sused;
 
-    if (isSPIFFS(mountpoint)) {
-        if (esp_spiffs_info("spiffs", &stotal, &sused) != ESP_OK) {
-            return false;
-        }
-    } else if (isLittleFS(mountpoint)) {
+    if (isLittleFS(mountpoint)) {
         if (esp_littlefs_info(littlefs_label, &stotal, &sused)) {
             return false;
         }

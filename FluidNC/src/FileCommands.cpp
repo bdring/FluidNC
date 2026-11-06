@@ -624,25 +624,6 @@ static Error backupLocalFS(const char* parameter, AuthenticationLevel auth_level
 static Error restoreLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
     return copyDir(SD, "/localfs_copy", LocalFS, "/", out);
 }
-static Error migrateLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-    const char* newfs = parameter && *parameter ? parameter : "littlefs";
-    if (strcmp(newfs, LocalFS.name) == 0) {
-        log_error_to(out, "localfs format is already " << newfs);
-        return Error::InvalidValue;
-    }
-    log_info("Backing up local filesystem contents to SD");
-    Error err = copyDir(LocalFS, "/", SD, "/localfs_copy", out);
-    if (err != Error::Ok) {
-        return err;
-    }
-    log_info("Reformatting local filesystem to " << newfs);
-    if (localfs_format(newfs)) {
-        return Error::FsFailedFormat;
-    }
-    log_info("Restoring local filesystem contents");
-    return copyDir(SD, "/localfs_copy", LocalFS, "/", out);
-}
-
 // Used by js/files.js
 static Error showSDStatus(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200
     try {
@@ -746,7 +727,6 @@ void make_file_commands() {
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Mkdir", makeLocalDirectory, allowConfigStates);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Backup", backupLocalFS);
     new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Restore", restoreLocalFS);
-    new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
     new WebCommand(NULL, WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
 
     new WebCommand("path", WEBCMD, WU, NULL, "File/SendJSON", fileSendJson);
