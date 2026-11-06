@@ -1,7 +1,7 @@
 #include "FluidError.hpp"
 
 namespace FluidErrorCategory {
-    const char* error_names[] = { "None", "SDCard not configured" };
+    const char* error_names[] = { "None", "SDCard not configured", "Filesystem not mounted" };
     namespace detail {
         class category : public std::error_category {
         public:

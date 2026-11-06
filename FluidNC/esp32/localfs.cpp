@@ -2,7 +2,6 @@
 #include "Driver/littlefs.h"  // littlefs_format
 #include "FluidPath.h"
 #include <cstddef>  // NULL
-#include <algorithm>  // std::min
 #include <cstring>
 #include <string>
 #include "string_util.h"
@@ -32,12 +31,12 @@ static const esp_partition_t* localfs_partition(const char** label) {
     return nullptr;
 }
 
-// True if the start of the partition is erased flash (all 0xFF), i.e. it
-// has never held a filesystem and can be formatted without losing anything.
+// True if the whole partition is erased flash (all 0xFF), i.e. it holds no
+// data and can be formatted without losing anything.  Runs only after a
+// failed mount, and stops at the first byte that is not 0xFF.
 static bool partition_is_blank(const esp_partition_t* part) {
     uint8_t buf[256];
-    size_t  len = std::min<size_t>(part->size, 8192);
-    for (size_t offset = 0; offset < len; offset += sizeof(buf)) {
+    for (size_t offset = 0; offset < part->size; offset += sizeof(buf)) {
         if (esp_partition_read(part, offset, buf, sizeof(buf)) != ESP_OK) {
             return false;
         }
@@ -65,7 +64,7 @@ bool localfs_mount() {
         return false;
     }
 
-    // Create a filesystem only on erased flash.  Anything else is probably a
+    // Create a filesystem only on completely erased flash.  Anything else is probably a
     // SPIFFS filesystem from an older FluidNC release, which this release
     // cannot read; formatting it would silently destroy config.yaml.
     if (!partition_is_blank(part)) {
