@@ -137,6 +137,13 @@ start:
     description: |
       Refuses to accept motion commands until $H (home) has been run at least once since boot. Jogging and settings commands still work while unhomed.
 
+  must_home_for_jog:
+    type: boolean
+    default: 'false'
+    tuning: typical
+    description: |
+      When true, jog commands ($J) are also refused until $H (home) has been run at least once since boot. Requires must_home to be true to take effect, since only axes marked for homing are tracked as unhomed. Gives soft-limit protection for jogs when machine position is otherwise unknown.
+
   deactivate_parking:
     type: boolean
     default: 'false'
