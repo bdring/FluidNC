@@ -1,0 +1,50 @@
+# Diagnostic config only: steps/mm are provisional, not machine calibration.
+board: MKS TinyBee V1.0
+name: TinyBee XY diagnostic
+stepping:
+  engine: I2S_STATIC
+  idle_ms: 250
+  pulse_us: 4
+  dir_delay_us: 1
+  disable_delay_us: 1
+i2so:
+  bck_pin: gpio.25
+  data_pin: gpio.27
+  ws_pin: gpio.26
+kinematics:
+  Cartesian:
+axes:
+  x:
+    steps_per_mm: 200
+    max_rate_mm_per_min: 120
+    acceleration_mm_per_sec2: 10
+    max_travel_mm: 100
+    soft_limits: false
+    motor0:
+      hard_limits: false
+      stepstick:
+        step_pin: I2SO.1
+        direction_pin: I2SO.2
+        disable_pin: I2SO.0
+  y:
+    steps_per_mm: 200
+    max_rate_mm_per_min: 120
+    acceleration_mm_per_sec2: 10
+    max_travel_mm: 100
+    soft_limits: false
+    motor0:
+      hard_limits: false
+      stepstick:
+        step_pin: I2SO.4
+        direction_pin: I2SO.5
+        disable_pin: I2SO.3
+  z:
+    steps_per_mm: 200
+    max_rate_mm_per_min: 120
+    acceleration_mm_per_sec2: 10
+    max_travel_mm: 100
+    soft_limits: false
+    motor0:
+      null_motor:
+start:
+  must_home: false

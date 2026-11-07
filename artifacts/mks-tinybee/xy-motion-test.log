@@ -1,0 +1,71 @@
+ets JunÂ 201‚0:22:MSH
+ró—‚ÂÅ (õ]I=9}IESET)I½½Ñé0Åb (SPÉeMQ}1ASH_BOŠ•j
+coîVëÍ¥Áé 0, SPIW¥‚Â••5
+clk_dr—‚x00,\EÉÙé0x‚,d_dr—‚x00,ã.ú‘ÉÙé0x00,hd_–Ùé0x0bºÁ}‘ÉÙé0x00
+m‹•éDIO,±½­dZ—Šj
+loX–‚ÂÍff‚30,len'“j
+l+‘é0x40º8000,lYKŠª²’‚j
+ho 0 tXZŠ’’½om 4
+ë+‘é0x‚8040bb•¹é31SHent®0x400‚59c
+[MSG:INFO: uart_channel0 created]
+
+[MSG:RST]
+[MSG:INFO: FluidNC v4.x.x (main-22e2add7-dirty) https://github.com/Looczky/FluidNC_MKSTinyBee]
+[MSG:INFO: Local filesystem is /littlefs]
+[MSG:INFO: Configuration file:config.xy-test.yaml]
+[MSG:INFO: Machine TinyBee XY diagnostic]
+[MSG:INFO: Board MKS TinyBee V1.0]
+[MSG:INFO: I2SO BCK:gpio.25 WS:gpio.26 DATA:gpio.27Min Pulse:2us]
+[MSG:INFO: Stepping:I2S Pulse:4us Dsbl Delay:1us Dir Delay:1us Idle Delay:250ms]
+[MSG:INFO: Axis count 3]
+[MSG:INFO: Axis X (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.1 Dir:I2SO.2 Disable:I2SO.0]
+[MSG:INFO: Axis Y (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.4 Dir:I2SO.5 Disable:I2SO.3]
+[MSG:INFO: Axis Z (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO: Kinematic system: Cartesian]
+[MSG:INFO: STA SSID is not set]
+[MSG:INFO: AP SSID FluidNC IP 192.168.0.1 mask 255.255.255.0 channel 1]
+[MSG:INFO: AP started]
+[MSG:INFO: WiFi on]
+[MSG:INFO: HTTP started on port 80]
+[MSG:INFO: Telnet started on port 23]
+[MSG:INFO: HTTP command registered]
+
+Grbl 4.x [FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) '$' for help]
+
+>>> $I
+[VER:4.x FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) :]
+[OPT:PHS]
+[CLUSTER:16]
+[MSG:Machine: TinyBee XY diagnostic]
+[MSG:Mode=AP:SSID=FluidNC:IP=192.168.0.1:MAC=AC-15-18-D0-21-A1]
+ok
+
+>>> $Config/Filename
+$Config/Filename=config.xy-test.yaml
+ok
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+
+>>> $J=G91 G21 X0.25 F30
+ok
+<Idle|MPos:0.250,0.000,0.000|FS:0,0>
+
+>>> $J=G91 G21 X-0.25 F30
+[MSG:INFO: WebUI: Request from 192.168.0.2]
+ok
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+
+>>> $J=G91 G21 Y0.25 F30
+ok
+<Idle|MPos:0.000,0.250,0.000|FS:0,0>
+
+>>> $J=G91 G21 Y-0.25 F30
+ok
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+
+Test finished: four short jogs acknowledged; physical movement requires observation.
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>

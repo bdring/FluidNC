@@ -1,0 +1,220 @@
+ets†©ó¬ 20LÇÇ“í2:µS»!Æ.óÇ¬≈ ®ı]I=N_RQ™îïbíΩΩ—i0x1‚BöA%˝FAS’e1MH_BOäj
+¨Àô•ùsip:Ç, ”ï]AÈ0xeeç°,kÎE…ŸÈ∞¡0,\E…ŸÈ0x00â}ë…Ÿ:0x∞bÕ¡_drv'¬¡0	ã}ë…v:0¯Çb∫¡_drˆ'¬¡∞C°Îãï:DIä	±Ωck VÀÈ1C!Î+ë:0x≥ññÇöÇ,lÂK¢≤¢Ç
+l+ëÈ0—00∑Ç00¨´πÈ1562∞C!ÎÇ tXZäí ro´¢j
+loañÇ¬—0080Çbbïn:3±SH®πtryÇx40¬05π¨»[MSG:INFO: uart_channel0 created]
+
+[MSG:RST]
+[MSG:INFO: FluidNC v4.x.x (main-22e2add7-dirty) https://github.com/Looczky/FluidNC_MKSTinyBee]
+[MSG:INFO: Local filesystem is /littlefs]
+[MSG:INFO: Configuration file:config.xy-test.yaml]
+[MSG:INFO: Machine TinyBee XY diagnostic]
+[MSG:INFO: Board MKS TinyBee V1.0]
+[MSG:INFO: I2SO BCK:gpio.25 WS:gpio.26 DATA:gpio.27Min Pulse:2us]
+[MSG:INFO: Stepping:I2S Pulse:4us Dsbl Delay:1us Dir Delay:1us Idle Delay:250ms]
+[MSG:INFO: Axis count 3]
+[MSG:INFO: Axis X (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.1 Dir:I2SO.2 Disable:I2SO.0]
+[MSG:INFO: Axis Y (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.4 Dir:I2SO.5 Disable:I2SO.3]
+[MSG:INFO: Axis Z (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO: Kinematic system: Cartesian]
+[MSG:INFO: STA SSID is not set]
+[MSG:INFO: AP SSID FluidNC IP 192.168.0.1 mask 255.255.255.0 channel 1]
+[MSG:INFO: AP started]
+[MSG:INFO: WiFi on]
+[MSG:INFO: HTTP started on port 80]
+[MSG:INFO: Telnet started on port 23]
+[MSG:INFO: HTTP command registered]
+
+Grbl 4.x [FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) '$' for help]
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+[MSG:INFO: WebUI: Request from 192.168.0.2]
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+[MSG:INFO: WebUI: Request from 192.168.0.2]
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+<Jog|MPos:0.000,-0.040,0.000|FS:114,0>
+<Jog|MPos:0.000,-0.995,0.000|FS:120,0|WCO:0.000,0.000,0.000>
+<Jog|MPos:0.000,-2.020,0.000|FS:120,0>
+<Jog|MPos:0.000,-3.040,0.000|FS:120,0>
+<Jog|MPos:0.000,-4.060,0.000|FS:120,0>
+<Jog|MPos:0.000,-5.080,0.000|FS:120,0>
+<Jog|MPos:0.000,-6.105,0.000|FS:120,0>
+[MSG:INFO: ALARM: Abort Cycle]
+ALARM:3
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+
+Grbl 4.x [FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) '$' for help]
+[MSG:INFO: websocket auto report interval set to 300 ms]
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0|Ov:100,100,100>
+<Alarm|MPos:0.000,-6.435,0.000|FS:0,0>

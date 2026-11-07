@@ -1,0 +1,94 @@
+# Pad PS5 → silniki X i Y przez FluidNC
+
+Uruchom z katalogu projektu:
+
+```bash
+tools/run_gamepad_xy.sh
+```
+
+Lewy drążek poziomo steruje X, prawy poziomo steruje Y. Wychylenie określa
+prędkość. Wycentruj oba drążki po uruchomieniu, aby uzbroić sterowanie.
+Kółko anuluje jog; po jego puszczeniu wycentruj drążki, aby ponownie ruszyć.
+Ctrl+C kończy program i anuluje jog. Odłączenie pada lub błąd komunikacji
+kończy program z próbą anulowania ruchu. Przy zerwanym połączeniu z płytką
+nie można potwierdzić zatrzymania; przyjęte krótkie odcinki mogą się wykonać.
+
+## Jedno źródło prędkości i przyspieszeń
+
+Zmieniasz je w `artifacts/mks-tinybee/config.xy-gamepad.yaml`, pod osiami
+`axes.x` i `axes.y`:
+
+- `max_rate_mm_per_min`: prędkość przy pełnym wychyleniu drążka;
+- `acceleration_mm_per_sec2`: rampa zmiany prędkości i kierunku.
+
+Po edycji lokalnego YAML-a wgraj go do plików FluidNC jako
+`config.xy-gamepad.yaml`, uruchom firmware ponownie w stanie Idle,
+a następnie uruchom ponownie program pada. Ten plik jest już ustawiony
+jako aktywny. Nie trzeba kompilować firmware.
+
+**Podczas sterowania Python odczytuje aktualne wartości z płytki** poprzez
+`$/axes/x/...` i `$/axes/y/...`. Nie ma własnych kopii ani zapasowych wartości
+prędkości i przyspieszeń. Przy starcie pokazuje źródło i odczytane parametry.
+Jeśli nie można ich odczytać, program nie uruchamia ruchów.
+
+`--dry-run` odczytuje te same pola z lokalnego YAML-a, bez otwierania USB.
+Możesz wskazać inny plik przez `--config`:
+
+```bash
+tools/run_gamepad_xy.sh --dry-run
+tools/run_gamepad_xy.sh --dry-run --config /sciezka/config.yaml
+tools/run_gamepad_xy.sh --monitor
+```
+
+Monitor pokazuje surowe osie i przyciski pada, bez odczytywania konfiguracji
+płytki. `--duration 10` ogranicza czas dowolnego trybu.
+
+## Ustawienia samego pada
+
+Na początku `gamepad_motor_controller_xy.py` pozostają:
+
+| Zmienna | Znaczenie |
+| --- | --- |
+| `X_STICK_AXIS`, `Y_STICK_AXIS` | Indeksy osi pada |
+| `INVERT_X_STICK`, `INVERT_Y_STICK` | Odwrócenie kierunku danego drążka |
+| `DEADZONE` | Martwa strefa wokół środka |
+| `EXPO` | Krzywa reakcji; 1 liniowo, większa = dokładniej przy środku |
+| `ENABLE_BUTTON` | Opcjonalny przycisk, który trzeba trzymać; `None` wyłącza wymaganie |
+| `STOP_BUTTON` | Przycisk anulowania jog |
+| `MAX_QUEUED_SEGMENTS`, `SEGMENT_SECONDS` | Głębokość kolejki i długość odcinka |
+| `SERIAL_PORT`, `BAUD_RATE` | Port TinyBee i szybkość transmisji |
+
+## Zachowanie ruchu
+
+Każdy drążek ma osobną rampę. Zmiana kierunku Y nie zeruje zadanej
+prędkości X, nie resetuje sterownika ani nie anuluje obu osi. Powrót
+jednego drążka do środka wyhamowuje tę oś. Oba drążki w środku anulują jog.
+Posuw XY jest normą wektora prędkości, więc równoczesna jazda obu osi
+nie dzieli zadanej prędkości jednego silnika przez dwa.
+
+FluidNC ma wspólny planer: na zmianach kierunku może zwolnić obie osie.
+Skrypt nie zapewnia niezależnych generatorów prędkości w firmware.
+Kolejka jest ograniczana raportem wolnych bloków `Bf`, komendy wymagają
+potwierdzeń `ok`. Nominalny czas segmentów nie jest gwarantowanym czasem
+zatrzymania — dochodzi bufor kroków firmware i hamowanie. Po zmianie
+limitów program sprawdza, czy kolejka daje zapas na drogę hamowania,
+i wypisuje uwagę, jeżeli może ograniczać prędkość.
+
+Otwieranie USB/CH340 może zrestartować ESP i chwilowo rozłączyć panel.
+Program czeka na start i wymaga Idle; nie odblokowuje alarmów.
+Podczas pracy steruj z jednego programu. Skrypt tymczasowo ustawia
+`$Report/Status=3` i przy wyjściu przywraca odczytaną wartość.
+Po SIGKILL lub utracie zasilania może pozostać 3; to zakres raportów.
+Kroki/mm w tym profilu są diagnostyczne, bez kalibracji mechaniki.
+
+## Instalacja i testy
+
+```bash
+python3 -m venv .venv-gamepad
+.venv-gamepad/bin/python -m pip install -r tools/requirements-gamepad.txt
+.venv-gamepad/bin/python -m unittest discover -s tools/testing -p test_gamepad_xy.py -v
+```
+
+Źródła protokołu: [jogging GRBL](https://github.com/gnea/grbl/blob/master/doc/markdown/jogging.md),
+lokalne `FluidNC/src/Jog.cpp`, `Planner.cpp`, `Report.cpp`.
+Inspiracja: `RoboticArm/tools/gamepad_motor_controller_xy.py`.

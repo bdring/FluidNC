@@ -1,0 +1,74 @@
+ets Ju¬íÇä≤ 00∫&&ß”SH®HHÕ—È0E (POWQ™ }IMET),bÎãÈ0x1,BöA%}FAST_*M!}	OOT)ç°¨ÀÀ•ùsip: b SP…•Ç¬ïï
+cl≠E…ŸÈ0x00,qE…ŸÈ0A0,d_ñŸÈ0xÇ‚cs0E…ŸÈ0A0,hdE…ŸÈ0¯Ç,wp_ñŸÈ0xÇj
+mo‰Y'TÍä	±Ωç≠Ådiv:±C!Î+ëÈ0x3fÊÇöÇbbïn:46¥j
+loañÇ¬—0∞ÇÇÇbbïπÈ15ìÇj
+ËÇ¢Ö•l 12†ÆÎµÅ¥C!Î+ëÈ0x400Ç400,ÏYKöä≤¢j
+entÚ^Ç¬—0∞Ç59c·[MSG:INFO: uart_channel0 created]
+
+[MSG:RST]
+[MSG:INFO: FluidNC v4.x.x (main-22e2add7-dirty) https://github.com/Looczky/FluidNC_MKSTinyBee]
+[MSG:INFO: Local filesystem is /littlefs]
+[MSG:INFO: Configuration file:config.xy-test.yaml]
+[MSG:INFO: Machine TinyBee XY diagnostic]
+[MSG:INFO: Board MKS TinyBee V1.0]
+[MSG:INFO: I2SO BCK:gpio.25 WS:gpio.26 DATA:gpio.27Min Pulse:2us]
+[MSG:INFO: Stepping:I2S Pulse:4us Dsbl Delay:1us Dir Delay:1us Idle Delay:250ms]
+[MSG:INFO: Axis count 3]
+[MSG:INFO: Axis X (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.1 Dir:I2SO.2 Disable:I2SO.0]
+[MSG:INFO: Axis Y (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.4 Dir:I2SO.5 Disable:I2SO.3]
+[MSG:INFO: Axis Z (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO: Kinematic system: Cartesian]
+[MSG:INFO: STA SSID is not set]
+[MSG:INFO: AP SSID FluidNC IP 192.168.0.1 mask 255.255.255.0 channel 1]
+[MSG:INFO: AP started]
+[MSG:INFO: WiFi on]
+[MSG:INFO: HTTP started on port 80]
+[MSG:INFO: Telnet started on port 23]
+[MSG:INFO: HTTP command registered]
+
+Grbl 4.x [FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) '$' for help]
+[VER:4.x FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) :]
+[OPT:PHS]
+[CLUSTER:16]
+[MSG:Machine: TinyBee XY diagnostic]
+[MSG:Mode=AP:SSID=FluidNC:IP=192.168.0.1:MAC=AC-15-18-D0-21-A1]
+ok
+[MSG:INFO: FluidNC v4.x.x (main-22e2add7-dirty) https://github.com/Looczky/FluidNC_MKSTinyBee]
+[MSG:INFO: Local filesystem is /littlefs]
+[MSG:INFO: Configuration file:config.xy-test.yaml]
+[MSG:INFO: Machine TinyBee XY diagnostic]
+[MSG:INFO: Board MKS TinyBee V1.0]
+[MSG:INFO: I2SO BCK:gpio.25 WS:gpio.26 DATA:gpio.27Min Pulse:2us]
+[MSG:INFO: Stepping:I2S Pulse:4us Dsbl Delay:1us Dir Delay:1us Idle Delay:250ms]
+[MSG:INFO: Axis count 3]
+[MSG:INFO: Axis X (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.1 Dir:I2SO.2 Disable:I2SO.0]
+[MSG:INFO: Axis Y (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.4 Dir:I2SO.5 Disable:I2SO.3]
+[MSG:INFO: Axis Z (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO: Kinematic system: Cartesian]
+[MSG:INFO: STA SSID is not set]
+[MSG:INFO: AP SSID FluidNC IP 192.168.0.1 mask 255.255.255.0 channel 1]
+[MSG:INFO: AP started]
+[MSG:INFO: WiFi on]
+[MSG:INFO: HTTP started on port 80]
+[MSG:INFO: Telnet started on port 23]
+[MSG:INFO: HTTP command registered]
+ok
+[FILE: config.xy-test.yaml|SIZE:1058]
+[FILE: config.yaml|SIZE:3156]
+[FILE: favicon.ico|SIZE:1150]
+[FILE: index.html.gz|SIZE:111625]
+[/littlefs Free:60.00 KB Used:132.00 KB Total:192.00 KB]
+ok
+LocalFS  Total:192.00 KB Used:132.00 KB
+ok
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>

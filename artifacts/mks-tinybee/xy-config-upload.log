@@ -1,0 +1,96 @@
+ets JuÂ 2016 00'&&§ÓSH¨HHÍÑé0x1 (POWEªÊê%UMQ¥,boot'ÂÅb (SPI_FA*Õe1M!}	==Q¥
+configsip'‚b SPIWP:0xYYC¡,k}‘ÉÙé0x‚bŠ}‘ÉÙé0x00‰}drv:0x00,c.ú‘ÉÙé0x00,hdEÉv:0x00,wp_d.—‚ÂÁ0
+mode:TêŠ	±½­di—Šj
+load:0x3––‚30,len:464j
+load:0x40078‚‚bb•¹é15620
+ë‚tail 12 ro«¢
+load:0x4‚Â‚¢00,len:316SH¨¹ÑÉå0x400‚ªÊ5
+[MSG:INFO: uart_channel0 created]
+
+[MSG:RST]
+[MSG:INFO: FluidNC v4.x.x (main-22e2add7-dirty) https://github.com/Looczky/FluidNC_MKSTinyBee]
+[MSG:INFO: Local filesystem is /littlefs]
+[MSG:INFO: Configuration file:config.yaml]
+[MSG:INFO: Machine Default (Test Drive no I/O)]
+[MSG:INFO: Board None]
+[MSG:INFO: Stepping:RMT Pulse:4us Dsbl Delay:0us Dir Delay:0us Idle Delay:255ms]
+[MSG:INFO: Axis count 3]
+[MSG:INFO: Axis X (-1000.013,0.013)]
+[MSG:INFO:   Motor0]
+[MSG:INFO: Axis Y (-1000.013,0.013)]
+[MSG:INFO:   Motor0]
+[MSG:INFO: Axis Z (-1000.013,0.013)]
+[MSG:INFO:   Motor0]
+[MSG:INFO: Kinematic system: Cartesian]
+[MSG:INFO: STA SSID is not set]
+[MSG:INFO: AP SSID FluidNC IP 192.168.0.1 mask 255.255.255.0 channel 1]
+[MSG:INFO: AP started]
+[MSG:INFO: WiFi on]
+[MSG:INFO: HTTP started on port 80]
+[MSG:INFO: Telnet started on port 23]
+[MSG:INFO: HTTP command registered]
+
+Grbl 4.x [FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) '$' for help]
+
+>>> $Config/Filename
+$Config/Filename=config.yaml
+ok
+[MSG:INFO: Received 1058 bytes to file /littlefs/config.xy-test.yaml]
+[MSG:Files changed]
+ok
+
+>>> $LocalFS/Show=config.xy-test.yaml
+# Diagnostic config only: steps/mm are provisional, not machine calibration.
+board: MKS TinyBee V1.0
+name: TinyBee XY diagnostic
+stepping:
+  engine: I2S_STATIC
+  idle_ms: 250
+  pulse_us: 4
+  dir_delay_us: 1
+  disable_delay_us: 1
+i2so:
+  bck_pin: gpio.25
+  data_pin: gpio.27
+  ws_pin: gpio.26
+kinematics:
+  Cartesian:
+axes:
+  x:
+    steps_per_mm: 200
+    max_rate_mm_per_min: 120
+    acceleration_mm_per_sec2: 10
+    max_travel_mm: 100
+    soft_limits: false
+    motor0:
+      hard_limits: false
+      stepstick:
+        step_pin: I2SO.1
+        direction_pin: I2SO.2
+        disable_pin: I2SO.0
+  y:
+    steps_per_mm: 200
+    max_rate_mm_per_min: 120
+    acceleration_mm_per_sec2: 10
+    max_travel_mm: 100
+    soft_limits: false
+    motor0:
+      hard_limits: false
+      stepstick:
+        step_pin: I2SO.4
+        direction_pin: I2SO.5
+        disable_pin: I2SO.3
+  z:
+    steps_per_mm: 200
+    max_rate_mm_per_min: 120
+    acceleration_mm_per_sec2: 10
+    max_travel_mm: 100
+    soft_limits: false
+    motor0:
+      null_motor:
+start:
+  must_home: false
+ok
+
+>>> $Config/Filename=config.xy-test.yaml
+ok

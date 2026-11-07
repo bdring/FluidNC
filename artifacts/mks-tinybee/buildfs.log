@@ -1,0 +1,33 @@
+Processing wifi (platform: https://github.com/pioarduino/platform-espressif32.git#55.03.39; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (55.3.39+sha.cbc3349) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, esp-prog-2, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - contrib-piohome @ 3.4.4 
+ - framework-arduinoespressif32 @ 3.3.9 
+ - framework-arduinoespressif32-libs @ 5.5.4+sha.735507283d 
+ - tool-esp-rom-elfs @ 2024.10.11 
+ - tool-esptoolpy @ 5.3.0 
+ - tool-xtensa-esp-elf-gdb @ 17.1.0+20260402 
+ - toolchain-xtensa-esp-elf @ 14.2.0+20260121
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ off, Compatibility ~ strict
+Found 48 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TMCStepper @ 0.7.3
+|-- JsonStreamingParser @ 1.0.5+sha.ddb90a2
+|-- ESP8266 and ESP32 OLED driver for SSD1306 displays @ 4.4.1
+|-- AsyncTCP @ 3.5.0
+|-- ESPAsyncWebServer @ 3.12.1+sha.75dafb4
+Building in release mode
+Building FS image from 'FluidNC/data' directory to .pio/build/wifi/littlefs.bin
+========================= [SUCCESS] Took 3.24 seconds =========================
+
+Environment    Status    Duration
+-------------  --------  ------------
+wifi           SUCCESS   00:00:03.240
+========================= 1 succeeded in 00:00:03.240 =========================

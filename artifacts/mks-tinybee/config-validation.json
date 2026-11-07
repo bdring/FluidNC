@@ -1,0 +1,8 @@
+{
+  "valid": true,
+  "config": "artifacts/mks-tinybee/MKS_TinyBee_1_XYZAB.reference.yaml",
+  "schema": "/home/luki/Dokumenty/projekty/FluidNC_MKSTinyBee/FluidNC/docs/config_items.yaml",
+  "permissive": false,
+  "errors": [],
+  "warnings": []
+}

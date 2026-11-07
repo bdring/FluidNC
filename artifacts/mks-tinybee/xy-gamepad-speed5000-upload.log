@@ -1,0 +1,162 @@
+å×Jun Â’01‚‚Ò2²§Ój
+Š®Ñi0øLB‚=]ROê%UMQe,âëÑi0xL,BA%½FÁ*Õe1MH_ÂêQ%
+¬Ë™ågóZé 0,šA%WPºÂ••
+,këEÉÙi0ø‚bŠ}‘Év:°Á°	}‘rv'ÂÁ0,£.úÑrö'ÂA0,‹}‘rvºÂÁ0,wğEÉÙ:0Á0C¡ë‹•éDIO	±oc-"¥Ù:±C!ë+‘é0x³–ÖA03âlåË¢²40C!ë+‘é0x4‚ºÂ‚0°‰•¹:1µ“‚j
+h‚¢…¥± 1&’½om SHˆë…‘:0¸‚Â04‚,¬YKš16SH¨¹ÑÉå °Ñ°Â‚ªÊcá[MSG:INFO: uart_channel0 created]
+
+[MSG:RST]
+[MSG:INFO: FluidNC v4.x.x (main-22e2add7-dirty) https://github.com/Looczky/FluidNC_MKSTinyBee]
+[MSG:INFO: Local filesystem is /littlefs]
+[MSG:INFO: Configuration file:config.xy-gamepad.yaml]
+[MSG:INFO: Machine TinyBee XY diagnostic]
+[MSG:INFO: Board MKS TinyBee V1.0]
+[MSG:INFO: I2SO BCK:gpio.25 WS:gpio.26 DATA:gpio.27Min Pulse:2us]
+[MSG:INFO: Stepping:I2S Pulse:4us Dsbl Delay:1us Dir Delay:1us Idle Delay:250ms]
+[MSG:INFO: Axis count 3]
+[MSG:INFO: Axis X (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.1 Dir:I2SO.2 Disable:I2SO.0]
+[MSG:INFO: Axis Y (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.4 Dir:I2SO.5 Disable:I2SO.3]
+[MSG:INFO: Axis Z (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO: Kinematic system: Cartesian]
+[MSG:INFO: STA SSID is not set]
+[MSG:INFO: AP SSID FluidNC IP 192.168.0.1 mask 255.255.255.0 channel 1]
+[MSG:INFO: AP started]
+[MSG:INFO: WiFi on]
+[MSG:INFO: HTTP started on port 80]
+[MSG:INFO: Telnet started on port 23]
+[MSG:INFO: HTTP command registered]
+
+Grbl 4.x [FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) '$' for help]
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
+
+>>> $Config/Filename
+$Config/Filename=config.xy-gamepad.yaml
+ok
+[MSG:INFO: Received 1062 bytes to file /littlefs/config.xy-gamepad.yaml]
+[MSG:Files changed]
+ok
+
+>>> $LocalFS/Show=config.xy-gamepad.yaml
+# Diagnostic config only: steps/mm are provisional, not machine calibration.
+board: MKS TinyBee V1.0
+name: TinyBee XY diagnostic
+stepping:
+  engine: I2S_STATIC
+  idle_ms: 250
+  pulse_us: 4
+  dir_delay_us: 1
+  disable_delay_us: 1
+i2so:
+  bck_pin: gpio.25
+  data_pin: gpio.27
+  ws_pin: gpio.26
+kinematics:
+  Cartesian:
+axes:
+  x:
+    steps_per_mm: 200
+    max_rate_mm_per_min: 5000
+    acceleration_mm_per_sec2: 500
+    max_travel_mm: 100
+    soft_limits: false
+    motor0:
+      hard_limits: false
+      stepstick:
+        step_pin: I2SO.1
+        direction_pin: I2SO.2
+        disable_pin: I2SO.0
+  y:
+    steps_per_mm: 200
+    max_rate_mm_per_min: 5000
+    acceleration_mm_per_sec2: 500
+    max_travel_mm: 100
+    soft_limits: false
+    motor0:
+      hard_limits: false
+      stepstick:
+        step_pin: I2SO.4
+        direction_pin: I2SO.5
+        disable_pin: I2SO.3
+  z:
+    steps_per_mm: 200
+    max_rate_mm_per_min: 120
+    acceleration_mm_per_sec2: 10
+    max_travel_mm: 100
+    soft_limits: false
+    motor0:
+      null_motor:
+start:
+  must_home: false
+ok
+
+>>> $Config/Filename=config.xy-gamepad.yaml
+ok
+
+>>> $Config/Filename
+$Config/Filename=config.xy-gamepad.yaml
+ok
+etsRÕ¹ ’‚Š²00:²&§Ój
+
+rst'ÂÅ ¨õ]I=¹_RESQU‰I½½t:0xL,BšA%_FASÔe1M!ıBOOTJC¡¬ËË¥Í¥Áé 0, *•]Aé0xeeŠ,k}‘ÉÙ:0x0°)}‘ÉÙi0x00‰}‘ÉÙé0x00,¬.ú‘ÉÙ:0x0bhd_d.—‚ÂÁ0,wp_ä.—‚ÂÁ0
+moV–"%=± clo¬-"¥Ùé1
+l+‘é0ø&–™Á030,lYK¢²¢‚j
+loá–‚ÂÑ00780°âlen§ª²’‚j
+ho ‚taiŠ’’½om ´C!ë+‘i0x40Â040°‰«¹é3164
+Y‹Éå0x400‚59cá[MSG:INFO: uart_channel0 created]
+
+[MSG:RST]
+[MSG:INFO: FluidNC v4.x.x (main-22e2add7-dirty) https://github.com/Looczky/FluidNC_MKSTinyBee]
+[MSG:INFO: Local filesystem is /littlefs]
+[MSG:INFO: Configuration file:config.xy-gamepad.yaml]
+[MSG:INFO: Machine TinyBee XY diagnostic]
+[MSG:INFO: Board MKS TinyBee V1.0]
+[MSG:INFO: I2SO BCK:gpio.25 WS:gpio.26 DATA:gpio.27Min Pulse:2us]
+[MSG:INFO: Stepping:I2S Pulse:4us Dsbl Delay:1us Dir Delay:1us Idle Delay:250ms]
+[MSG:INFO: Axis count 3]
+[MSG:INFO: Axis X (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.1 Dir:I2SO.2 Disable:I2SO.0]
+[MSG:INFO: Axis Y (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO:     stepstick Step:I2SO.4 Dir:I2SO.5 Disable:I2SO.3]
+[MSG:INFO: Axis Z (-100.005,0.005)]
+[MSG:INFO:   Motor0]
+[MSG:INFO: Kinematic system: Cartesian]
+[MSG:INFO: STA SSID is not set]
+[MSG:INFO: AP SSID FluidNC IP 192.168.0.1 mask 255.255.255.0 channel 1]
+[MSG:INFO: AP started]
+[MSG:INFO: WiFi on]
+[MSG:INFO: HTTP started on port 80]
+[MSG:INFO: Telnet started on port 23]
+[MSG:INFO: HTTP command registered]
+
+Grbl 4.x [FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) '$' for help]
+
+>>> $I
+[VER:4.x FluidNC v4.x.x (main-22e2add7-dirty) (esp32-wifi) :]
+[OPT:PHS]
+[CLUSTER:16]
+[MSG:Machine: TinyBee XY diagnostic]
+[MSG:Mode=AP:SSID=FluidNC:IP=192.168.0.1:MAC=AC-15-18-D0-21-A1]
+ok
+
+>>> $/axes/x/acceleration_mm_per_sec2
+$/axes/x/acceleration_mm_per_sec2=500.000
+ok
+
+>>> $/axes/y/acceleration_mm_per_sec2
+$/axes/y/acceleration_mm_per_sec2=500.000
+ok
+
+>>> $/axes/x/max_rate_mm_per_min
+$/axes/x/max_rate_mm_per_min=5000.000
+ok
+
+>>> $/axes/y/max_rate_mm_per_min
+$/axes/y/max_rate_mm_per_min=5000.000
+ok
+<Idle|MPos:0.000,0.000,0.000|FS:0,0|Ov:100,100,100>
