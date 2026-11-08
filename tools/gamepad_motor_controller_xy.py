@@ -23,8 +23,8 @@ SERIAL_PORT = None               # None = autowykrywanie CH340 (Linux/Windows); 
 SERIAL_USB_VID = 0x1A86          # CH340 na MKS TinyBee
 BAUD_RATE = 115200
 GAMEPAD_INDEX = 0
-X_STICK_AXIS = 0                 # lewy drążek, poziomo
-Y_STICK_AXIS = 3                 # prawy drążek, poziomo (sprawdź --monitor)
+X_STICK_AXIS = None              # None = z mapowania SDL (lewy drążek poziomo); albo indeks z --monitor
+Y_STICK_AXIS = None              # None = z mapowania SDL (prawy drążek poziomo); albo indeks z --monitor
 INVERT_X_STICK = False
 INVERT_Y_STICK = False
 # Prędkości i przyspieszenia pochodzą z aktywnej konfiguracji FluidNC.
@@ -32,7 +32,7 @@ INVERT_Y_STICK = False
 OFFLINE_CONFIG = Path(__file__).resolve().parents[1] / "artifacts/mks-tinybee/config.xy-gamepad.yaml"
 DEADZONE = 0.08                  # 0..1, szum drążków
 EXPO = 1.8                      # 1 = liniowo; >1 = precyzja przy środku
-STOP_BUTTON = 1                 # kółko: anuluj jog; wymaga powrotu do środka
+STOP_BUTTON = None              # None = z mapowania SDL (kółko PS / B Xbox); jog cancel, wymaga powrotu do środka
 ENABLE_BUTTON = None            # np. 4 = wymagaj trzymania L1; None = bez
 SEGMENT_SECONDS = 0.04           # długość jednego odcinka ruchu
 MAX_QUEUED_SEGMENTS = 6          # krótka kolejka; zapas hamowania jest sprawdzany z limitów YAML
@@ -300,13 +300,38 @@ class Board:
             self.port.close()
 
 
+def sdl_mapping(pygame):
+    """Indeksy osi/przycisków z bazy SDL; DualSense i Xbox mają różny surowy układ."""
+    try:
+        from pygame._sdl2 import controller
+        controller.init()
+        if controller.is_controller(GAMEPAD_INDEX):
+            return controller.Controller(GAMEPAD_INDEX).get_mapping()
+    except (ImportError, pygame.error):
+        pass
+    return {}
+
+
+def mapped_index(mapping, name, prefix, fallback):
+    value = mapping.get(name, "")
+    return int(value[1:]) if re.fullmatch(prefix + r"\d+", value) else fallback
+
+
 def get_pad(pygame):
+    global X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON
     if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     pygame.display.init()  # kolejka zdarzeń SDL wymaga podsystemu video
     pygame.joystick.init()
     if GAMEPAD_INDEX >= pygame.joystick.get_count():
-        raise RuntimeError("Nie wykryto pada. Podłącz DualSense i spróbuj ponownie.")
+        raise RuntimeError("Nie wykryto pada. Podłącz pada (DualSense/Xbox) i spróbuj ponownie.")
+    mapping = sdl_mapping(pygame)
+    if X_STICK_AXIS is None:
+        X_STICK_AXIS = mapped_index(mapping, "leftx", "a", 0)
+    if Y_STICK_AXIS is None:
+        Y_STICK_AXIS = mapped_index(mapping, "rightx", "a", 3)
+    if STOP_BUTTON is None:
+        STOP_BUTTON = mapped_index(mapping, "b", "b", 1)
     pad = pygame.joystick.Joystick(GAMEPAD_INDEX)
     if max(X_STICK_AXIS, Y_STICK_AXIS) >= pad.get_numaxes() or min(X_STICK_AXIS, Y_STICK_AXIS) < 0:
         raise ValueError("Indeks drążka poza zakresem; użyj --monitor.")
@@ -314,6 +339,8 @@ def get_pad(pygame):
         if button is not None and not 0 <= button < pad.get_numbuttons():
             raise ValueError("Indeks przycisku poza zakresem.")
     print(f"Pad [{GAMEPAD_INDEX}]: {pad.get_name()}, osi: {pad.get_numaxes()}, przycisków: {pad.get_numbuttons()}")
+    print(f"Mapowanie: X = oś {X_STICK_AXIS}, Y = oś {Y_STICK_AXIS}, stop = przycisk {STOP_BUTTON}"
+          f" ({'SDL' if mapping else 'domyślne'})")
     return pad
 
 

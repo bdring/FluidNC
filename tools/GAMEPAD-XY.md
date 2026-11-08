@@ -52,18 +52,33 @@ tools/run_gamepad_xy.sh --monitor
 Monitor pokazuje surowe osie i przyciski pada, bez odczytywania konfiguracji
 płytki. `--duration 10` ogranicza czas dowolnego trybu.
 
+## Test silników bez pada
+
+Gdy pad steruje, a silniki stoją, uruchom:
+
+```bash
+.venv-gamepad/bin/python tools/motor_test_xy.py              # Linux
+.venv-gamepad\Scripts\python tools\motor_test_xy.py          # Windows
+```
+
+Skrypt wykonuje jog X i Y tam i z powrotem i pokazuje `MPos`. Długość, prędkość,
+osie i liczbę powtórzeń zmienisz w stałych `TEST_*` na początku pliku albo
+opcjami `--distance`, `--feed`, `--axes`, `--repeats`, `--port`. Jeśli `MPos` się zmienia, a silnik
+stoi, problem jest sprzętowy: brak zasilania silników (samo USB zasila tylko
+ESP32), sterowniki, kable silników lub prąd sterownika (Vref).
+
 ## Ustawienia samego pada
 
 Na początku `gamepad_motor_controller_xy.py` pozostają:
 
 | Zmienna | Znaczenie |
 | --- | --- |
-| `X_STICK_AXIS`, `Y_STICK_AXIS` | Indeksy osi pada |
+| `X_STICK_AXIS`, `Y_STICK_AXIS` | Indeksy osi pada; `None` = z mapowania SDL (działa dla DualSense i Xbox na Linuksie i Windowsie) |
 | `INVERT_X_STICK`, `INVERT_Y_STICK` | Odwrócenie kierunku danego drążka |
 | `DEADZONE` | Martwa strefa wokół środka |
 | `EXPO` | Krzywa reakcji; 1 liniowo, większa = dokładniej przy środku |
 | `ENABLE_BUTTON` | Opcjonalny przycisk, który trzeba trzymać; `None` wyłącza wymaganie |
-| `STOP_BUTTON` | Przycisk anulowania jog |
+| `STOP_BUTTON` | Przycisk anulowania jog; `None` = z mapowania SDL (kółko PS / B Xbox) |
 | `MAX_QUEUED_SEGMENTS`, `SEGMENT_SECONDS` | Głębokość kolejki i długość odcinka |
 | `SERIAL_PORT`, `BAUD_RATE` | Port TinyBee (`None` = autowykrywanie CH340, można nadpisać `--port COM5`) i szybkość transmisji |
 
