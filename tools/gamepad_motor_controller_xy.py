@@ -19,7 +19,8 @@ os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 os.environ.setdefault("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
 
 # ---- USTAWIENIA DO EDYCJI ---------------------------------------------------
-SERIAL_PORT = "/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0"
+SERIAL_PORT = None               # None = autowykrywanie CH340 (Linux/Windows); np. "COM5"
+SERIAL_USB_VID = 0x1A86          # CH340 na MKS TinyBee
 BAUD_RATE = 115200
 GAMEPAD_INDEX = 0
 X_STICK_AXIS = 0                 # lewy drążek, poziomo
@@ -371,8 +372,24 @@ def run(pygame, pad, board, duration, limits):
         time.sleep(POLL_SECONDS)
 
 
+def find_serial_port():
+    # Linux: stabilna nazwa by-id nie zmienia się przy przełączaniu USB (ttyUSB0/1).
+    by_id = sorted(Path("/dev/serial/by-id").glob(f"usb-{SERIAL_USB_VID:04x}_*"))
+    if len(by_id) == 1:
+        return str(by_id[0])
+    from serial.tools import list_ports
+    ports = [p for p in list_ports.comports() if p.vid == SERIAL_USB_VID]
+    if len(ports) == 1:
+        return ports[0].device
+    available = ", ".join(f"{p.device} ({p.description})" for p in list_ports.comports()) or "brak"
+    if not ports:
+        raise RuntimeError(f"nie znaleziono płytki (USB VID {SERIAL_USB_VID:04x}); dostępne porty: {available}; użyj --port")
+    raise RuntimeError(f"kilka pasujących portów: {available}; wskaż jeden przez --port")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--port", default=SERIAL_PORT, help="port płytki, np. COM5 lub /dev/ttyUSB0 (domyślnie autowykrywanie)")
     parser.add_argument("--monitor", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--config", type=Path, help="lokalny YAML, tylko z --dry-run")
@@ -386,7 +403,7 @@ def main():
     try:
         import pygame
     except ImportError:
-        parser.exit(1, "Brak zależności. Uruchom tools/run_gamepad_xy.sh\n")
+        parser.exit(1, "Brak zależności: pip install -r tools/requirements-gamepad.txt (instrukcja: tools/GAMEPAD-XY.md)\n")
     signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     board = None
     result = 0
@@ -407,7 +424,9 @@ def main():
                 limits = load_yaml_limits(filename)
                 show_motion_limits(limits, filename)
             else:
-                board = Board(SERIAL_PORT, BAUD_RATE)
+                port = args.port or find_serial_port()
+                print(f"Port płytki: {port}")
+                board = Board(port, BAUD_RATE)
                 board.initialize()
                 limits = board.limits
             run(pygame, pad, board, args.duration, limits)

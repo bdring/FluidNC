@@ -3,8 +3,17 @@
 Uruchom z katalogu projektu:
 
 ```bash
-tools/run_gamepad_xy.sh
+tools/run_gamepad_xy.sh          # Linux
 ```
+
+```powershell
+.\tools\run_gamepad_xy.ps1       # Windows (PowerShell)
+```
+
+Port płytki jest wykrywany automatycznie (CH340, USB VID `1a86`): na Linuksie
+`/dev/serial/by-id/usb-1a86_*`, na Windowsie odpowiedni `COMx`. Gdy podłączonych
+jest kilka takich adapterów, wskaż port ręcznie: `--port COM5` lub
+`--port /dev/ttyUSB0`.
 
 Lewy drążek poziomo steruje X, prawy poziomo steruje Y. Wychylenie określa
 prędkość. Wycentruj oba drążki po uruchomieniu, aby uzbroić sterowanie.
@@ -56,7 +65,7 @@ Na początku `gamepad_motor_controller_xy.py` pozostają:
 | `ENABLE_BUTTON` | Opcjonalny przycisk, który trzeba trzymać; `None` wyłącza wymaganie |
 | `STOP_BUTTON` | Przycisk anulowania jog |
 | `MAX_QUEUED_SEGMENTS`, `SEGMENT_SECONDS` | Głębokość kolejki i długość odcinka |
-| `SERIAL_PORT`, `BAUD_RATE` | Port TinyBee i szybkość transmisji |
+| `SERIAL_PORT`, `BAUD_RATE` | Port TinyBee (`None` = autowykrywanie CH340, można nadpisać `--port COM5`) i szybkość transmisji |
 
 ## Zachowanie ruchu
 
@@ -83,11 +92,24 @@ Kroki/mm w tym profilu są diagnostyczne, bez kalibracji mechaniki.
 
 ## Instalacja i testy
 
+Linux:
+
 ```bash
 python3 -m venv .venv-gamepad
 .venv-gamepad/bin/python -m pip install -r tools/requirements-gamepad.txt
 .venv-gamepad/bin/python -m unittest discover -s tools/testing -p test_gamepad_xy.py -v
 ```
+
+Windows (PowerShell):
+
+```powershell
+py -3 -m venv .venv-gamepad
+.venv-gamepad\Scripts\python -m pip install -r tools\requirements-gamepad.txt
+.venv-gamepad\Scripts\python -m unittest discover -s tools\testing -p test_gamepad_xy.py -v
+```
+
+Jeśli PowerShell blokuje skrypty `.ps1`, uruchom
+`.venv-gamepad\Scripts\python tools\gamepad_motor_controller_xy.py` bezpośrednio.
 
 Źródła protokołu: [jogging GRBL](https://github.com/gnea/grbl/blob/master/doc/markdown/jogging.md),
 lokalne `FluidNC/src/Jog.cpp`, `Planner.cpp`, `Report.cpp`.
