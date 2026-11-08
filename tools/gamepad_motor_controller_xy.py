@@ -361,7 +361,11 @@ def resolve_layout(name, mapping):
 
 def get_pad(pygame):
     global X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON
-    if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+    if os.name == "nt":
+        # Z RawInput pad pod sterownikiem "dummy" zwraca same zera; XInput/WGI działają bez okna.
+        os.environ.setdefault("SDL_JOYSTICK_RAWINPUT", "0")
+        os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    elif not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     pygame.display.init()  # kolejka zdarzeń SDL wymaga podsystemu video
     pygame.joystick.init()
