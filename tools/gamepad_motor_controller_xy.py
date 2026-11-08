@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DualSense -> FluidNC XY. Konfiguracja poniżej; instrukcja: GAMEPAD-XY.md.
+"""Pad PS5 / Xbox -> FluidNC XY (Linux i Windows). Konfiguracja poniżej; instrukcja: GAMEPAD-XY.md.
 
 --monitor: tylko odczyt pada, bez otwierania portu płytki.
 --dry-run: drukowanie ruchów, bez otwierania portu płytki.
@@ -24,22 +24,34 @@ class PadLayout(NamedTuple):
     stop_button: int             # kółko (PS5) / B (Xbox)
 
 
-# Zapasowe układy, gdy SDL nie zna pada. PS5 = pierwotne wartości (DualSense, Linux).
+# Surowy układ zależy od systemu i sterownika, więc głównym źródłem jest mapowanie
+# SDL. Te układy są zapasowe, gdy SDL nie zna pada:
+# - Linux: sterowniki jądra hid-playstation / xpad (LX, LY, L2, RX, RY, R2),
+# - Windows: Xbox przez XInput (LX, LY, LT, RX, RY, RT),
+#            PS5 przez HIDAPI SDL (LX, LY, RX, RY, L2, R2).
 FALLBACK_LAYOUTS = {
-    "PS5": PadLayout(x_axis=0, y_axis=3, stop_button=1),
-    "XBOX": PadLayout(x_axis=0, y_axis=2, stop_button=1),
+    ("linux", "PS5"): PadLayout(x_axis=0, y_axis=3, stop_button=1),
+    ("linux", "XBOX"): PadLayout(x_axis=0, y_axis=3, stop_button=1),
+    ("windows", "PS5"): PadLayout(x_axis=0, y_axis=2, stop_button=1),
+    ("windows", "XBOX"): PadLayout(x_axis=0, y_axis=3, stop_button=1),
 }
+DEFAULT_LAYOUT = PadLayout(x_axis=0, y_axis=3, stop_button=1)  # pierwotny układ skryptu
+# Kolejność ma znaczenie: "Xbox Wireless Controller" nie może trafić do PS5.
 PAD_NAME_PATTERNS = {
+    "XBOX": ("xbox", "x-box", "xinput", "microsoft"),
     "PS5": ("dualsense", "ps5", "playstation", "sony", "wireless controller"),
-    "XBOX": ("xbox", "x-box", "xinput"),
 }
+
+
+def host_platform():
+    return "windows" if os.name == "nt" else "linux"
 
 
 # ---- USTAWIENIA DO EDYCJI ---------------------------------------------------
 SERIAL_PORT = None               # None = autowykrywanie CH340 (Linux/Windows); np. "COM5"
 SERIAL_USB_VID = 0x1A86          # CH340 na MKS TinyBee
 BAUD_RATE = 115200
-GAMEPAD_INDEX = 0
+GAMEPAD_INDEX = None             # None = pierwszy rozpoznany pad (PS5/Xbox); albo numer z --monitor
 X_STICK_AXIS = None              # None = autowykrycie pada (PS5/Xbox); albo własny indeks z --monitor
 Y_STICK_AXIS = None              # None = autowykrycie pada (PS5/Xbox); albo własny indeks z --monitor
 INVERT_X_STICK = False
@@ -325,13 +337,13 @@ def detect_pad_kind(name):
     return None
 
 
-def sdl_mapping(pygame):
+def sdl_mapping(pygame, index):
     """Mapowanie SDL GameController: fizyczne drążki -> surowe indeksy na tym systemie."""
     try:
         from pygame._sdl2 import controller
         controller.init()
-        if controller.is_controller(GAMEPAD_INDEX):
-            return controller.Controller(GAMEPAD_INDEX).get_mapping()
+        if controller.is_controller(index):
+            return controller.Controller(index).get_mapping()
     except (ImportError, pygame.error):
         pass
     return {}
@@ -342,16 +354,19 @@ def mapped_index(mapping, name, prefix):
     return int(match[1]) if match else None
 
 
-def resolve_layout(name, mapping):
+def resolve_layout(name, mapping, platform=None):
     """Zwraca (typ pada, układ, źródło). Ręczne indeksy mają pierwszeństwo."""
+    platform = platform or host_platform()
     kind = detect_pad_kind(name)
     sdl = PadLayout(mapped_index(mapping, "leftx", "a"),
                     mapped_index(mapping, "rightx", "a"),
                     mapped_index(mapping, "b", "b"))
     if None not in sdl:
         base, source = sdl, "mapowanie SDL"
+    elif kind:
+        base, source = FALLBACK_LAYOUTS[(platform, kind)], f"zapasowy układ {kind}/{platform}"
     else:
-        base, source = FALLBACK_LAYOUTS[kind or "PS5"], f"układ {kind or 'PS5 (domyślny)'}"
+        base, source = DEFAULT_LAYOUT, "domyślny układ (nieznany pad)"
     manual = (X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON)
     layout = PadLayout(*(m if m is not None else b for m, b in zip(manual, base)))
     if any(m is not None for m in manual):
@@ -359,27 +374,47 @@ def resolve_layout(name, mapping):
     return kind or "nieznany", layout, source
 
 
-def get_pad(pygame):
-    global X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON
-    if os.name == "nt":
-        # Z RawInput pad pod sterownikiem "dummy" zwraca same zera; XInput/WGI działają bez okna.
+def configure_sdl():
+    """Ustawienia SDL zależne od systemu; muszą być przed pygame.display.init()."""
+    if host_platform() == "windows":
+        # Z RawInput pad pod sterownikiem "dummy" zwraca same zera.
+        # Bez niego Xbox idzie przez XInput/WGI, PS5 przez HIDAPI; oba działają bez okna.
         os.environ.setdefault("SDL_JOYSTICK_RAWINPUT", "0")
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     elif not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+
+
+def choose_pad_index(pygame):
+    """GAMEPAD_INDEX albo pierwszy rozpoznany pad (pomija np. touchpad/czujniki ruchu)."""
+    count = pygame.joystick.get_count()
+    if GAMEPAD_INDEX is not None:
+        if GAMEPAD_INDEX >= count:
+            raise RuntimeError(f"Brak pada o indeksie {GAMEPAD_INDEX} (wykryto {count}).")
+        return GAMEPAD_INDEX
+    if count == 0:
+        raise RuntimeError("Nie wykryto pada. Podłącz pada (PS5/Xbox) i spróbuj ponownie.")
+    for index in range(count):
+        if sdl_mapping(pygame, index) or detect_pad_kind(pygame.joystick.Joystick(index).get_name()):
+            return index
+    return 0
+
+
+def get_pad(pygame):
+    global X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON
+    configure_sdl()
     pygame.display.init()  # kolejka zdarzeń SDL wymaga podsystemu video
     pygame.joystick.init()
-    if GAMEPAD_INDEX >= pygame.joystick.get_count():
-        raise RuntimeError("Nie wykryto pada. Podłącz pada (PS5/Xbox) i spróbuj ponownie.")
-    pad = pygame.joystick.Joystick(GAMEPAD_INDEX)
-    kind, layout, source = resolve_layout(pad.get_name(), sdl_mapping(pygame))
+    index = choose_pad_index(pygame)
+    pad = pygame.joystick.Joystick(index)
+    kind, layout, source = resolve_layout(pad.get_name(), sdl_mapping(pygame, index))
     X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON = layout
     if max(X_STICK_AXIS, Y_STICK_AXIS) >= pad.get_numaxes() or min(X_STICK_AXIS, Y_STICK_AXIS) < 0:
         raise ValueError("Indeks drążka poza zakresem; użyj --monitor.")
     for button in (STOP_BUTTON, ENABLE_BUTTON):
         if button is not None and not 0 <= button < pad.get_numbuttons():
             raise ValueError("Indeks przycisku poza zakresem.")
-    print(f"Pad [{GAMEPAD_INDEX}]: {pad.get_name()}, osi: {pad.get_numaxes()}, przycisków: {pad.get_numbuttons()}")
+    print(f"Pad [{index}]: {pad.get_name()}, osi: {pad.get_numaxes()}, przycisków: {pad.get_numbuttons()}")
     print(f"Typ pada: {kind}; X = oś {X_STICK_AXIS}, Y = oś {Y_STICK_AXIS}, stop = przycisk {STOP_BUTTON} ({source})")
     return pad
 

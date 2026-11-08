@@ -95,32 +95,74 @@ class MotionTests(unittest.TestCase):
 
 
 class PadDetectionTests(unittest.TestCase):
-    XBOX_SDL = {"leftx": "a0", "lefty": "a1", "rightx": "a2", "righty": "a3", "b": "b1"}
-    PS5_LINUX_SDL = {"leftx": "a0", "lefty": "a1", "rightx": "a3", "righty": "a4", "b": "b1"}
+    # Mapowania SDL obserwowane / dokumentowane dla każdego scenariusza.
+    SDL = {
+        ("linux", "PS5"): {"leftx": "a0", "lefty": "a1", "rightx": "a3", "righty": "a4", "b": "b1"},
+        ("linux", "XBOX"): {"leftx": "a0", "lefty": "a1", "rightx": "a3", "righty": "a4", "b": "b1"},
+        ("windows", "PS5"): {"leftx": "a0", "lefty": "a1", "rightx": "a2", "righty": "a3", "b": "b1"},
+        ("windows", "XBOX"): {"leftx": "a0", "lefty": "a1", "rightx": "a3", "righty": "a4", "b": "b1"},
+    }
+    NAMES = {
+        ("linux", "PS5"): "Sony Interactive Entertainment DualSense Wireless Controller",
+        ("linux", "XBOX"): "Microsoft X-Box One S pad",
+        ("windows", "PS5"): "PS5 Controller",
+        ("windows", "XBOX"): "Xbox One Controller",
+    }
+    EXPECTED = {
+        ("linux", "PS5"): (0, 3, 1),
+        ("linux", "XBOX"): (0, 3, 1),
+        ("windows", "PS5"): (0, 2, 1),
+        ("windows", "XBOX"): (0, 3, 1),
+    }
 
-    def resolve(self, name, mapping, **overrides):
+    def resolve(self, name, mapping, platform="linux", **overrides):
         values = {"X_STICK_AXIS": None, "Y_STICK_AXIS": None, "STOP_BUTTON": None, **overrides}
         with patch.multiple(m, **values):
-            return m.resolve_layout(name, mapping)
+            return m.resolve_layout(name, mapping, platform)
 
     def test_detects_pad_kind_by_name(self):
-        self.assertEqual(m.detect_pad_kind("Xbox One Controller"), "XBOX")
-        self.assertEqual(m.detect_pad_kind("Sony Interactive Entertainment DualSense Wireless Controller"), "PS5")
+        for (_, kind), name in self.NAMES.items():
+            self.assertEqual(m.detect_pad_kind(name), kind, name)
         self.assertEqual(m.detect_pad_kind("DualSense Wireless Controller"), "PS5")
+        self.assertEqual(m.detect_pad_kind("Xbox Wireless Controller"), "XBOX")
         self.assertIsNone(m.detect_pad_kind("Generic USB Joystick"))
 
-    def test_sdl_mapping_is_used(self):
-        self.assertEqual(self.resolve("Xbox One Controller", self.XBOX_SDL)[1], (0, 2, 1))
-        self.assertEqual(self.resolve("DualSense Wireless Controller", self.PS5_LINUX_SDL)[1], (0, 3, 1))
+    def test_all_scenarios_with_sdl_mapping(self):
+        for scenario, expected in self.EXPECTED.items():
+            platform, _ = scenario
+            kind, layout, source = self.resolve(self.NAMES[scenario], self.SDL[scenario], platform)
+            self.assertEqual((kind, layout, source), (scenario[1], expected, "mapowanie SDL"), scenario)
 
-    def test_fallback_without_sdl_mapping(self):
-        self.assertEqual(self.resolve("Xbox One Controller", {})[1], (0, 2, 1))
-        # PS5 i nieznany pad: pierwotny układ skryptu.
-        self.assertEqual(self.resolve("DualSense Wireless Controller", {})[1], (0, 3, 1))
-        self.assertEqual(self.resolve("Generic USB Joystick", {})[:2], ("nieznany", (0, 3, 1)))
+    def test_all_scenarios_without_sdl_mapping(self):
+        for scenario, expected in self.EXPECTED.items():
+            platform, kind = scenario
+            self.assertEqual(self.resolve(self.NAMES[scenario], {}, platform)[1], expected, scenario)
+
+    def test_ps5_linux_keeps_original_layout(self):
+        self.assertEqual(self.resolve(self.NAMES[("linux", "PS5")], {}, "linux")[1], (0, 3, 1))
+
+    def test_unknown_pad_uses_original_layout(self):
+        for platform in ("linux", "windows"):
+            self.assertEqual(self.resolve("Generic USB Joystick", {}, platform)[:2], ("nieznany", (0, 3, 1)))
 
     def test_manual_indices_override_detection(self):
-        self.assertEqual(self.resolve("Xbox One Controller", self.XBOX_SDL, Y_STICK_AXIS=5)[1], (0, 5, 1))
+        scenario = ("windows", "XBOX")
+        self.assertEqual(self.resolve(self.NAMES[scenario], self.SDL[scenario], "windows", Y_STICK_AXIS=5)[1],
+                         (0, 5, 1))
+
+    def test_windows_disables_rawinput_and_linux_keeps_display(self):
+        with patch.dict(m.os.environ, {}, clear=True), patch.object(m, "host_platform", return_value="windows"):
+            m.configure_sdl()
+            self.assertEqual(m.os.environ.get("SDL_JOYSTICK_RAWINPUT"), "0")
+            self.assertEqual(m.os.environ.get("SDL_VIDEODRIVER"), "dummy")
+        with patch.dict(m.os.environ, {"DISPLAY": ":0"}, clear=True), \
+                patch.object(m, "host_platform", return_value="linux"):
+            m.configure_sdl()
+            self.assertNotIn("SDL_JOYSTICK_RAWINPUT", m.os.environ)
+            self.assertNotIn("SDL_VIDEODRIVER", m.os.environ)
+        with patch.dict(m.os.environ, {}, clear=True), patch.object(m, "host_platform", return_value="linux"):
+            m.configure_sdl()
+            self.assertEqual(m.os.environ.get("SDL_VIDEODRIVER"), "dummy")
 
 
 class YamlTests(unittest.TestCase):

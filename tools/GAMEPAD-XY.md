@@ -82,13 +82,23 @@ Na początku `gamepad_motor_controller_xy.py` pozostają:
 | `MAX_QUEUED_SEGMENTS`, `SEGMENT_SECONDS` | Głębokość kolejki i długość odcinka |
 | `SERIAL_PORT`, `BAUD_RATE` | Port TinyBee (`None` = autowykrywanie CH340, można nadpisać `--port COM5`) i szybkość transmisji |
 
-Typ pada (PS5 / Xbox) jest rozpoznawany po nazwie. Indeksy osi i przycisku
-stop pochodzą z mapowania SDL GameController, które zna surowy układ danego
-pada na danym systemie (np. Xbox na Windowsie: prawy drążek poziomo = oś 2,
-DualSense na Linuksie: oś 3). Gdy SDL nie zna pada, używany jest stały układ
-dla wykrytego typu, a dla nieznanego pada pierwotny układ PS5 (0, 3, stop 1).
-Skrypt wypisuje przy starcie wykryty typ i źródło mapowania. Ręcznie ustawione
-`X_STICK_AXIS`, `Y_STICK_AXIS`, `STOP_BUTTON` mają pierwszeństwo.
+Skrypt obsługuje pady PS5 (DualSense) i Xbox na Linuksie i Windowsie.
+Typ pada jest rozpoznawany po nazwie, a `GAMEPAD_INDEX = None` wybiera pierwszy
+rozpoznany pad. Indeksy osi i przycisku stop pochodzą z mapowania SDL
+GameController, które zna surowy układ pada na danym systemie. Gdy SDL nie zna
+pada, używany jest zapasowy układ dla pary system + pad:
+
+| System | Pad | X | Y | Stop |
+| --- | --- | --- | --- | --- |
+| Linux | PS5 (hid-playstation) | 0 | 3 | 1 (kółko) |
+| Linux | Xbox (xpad) | 0 | 3 | 1 (B) |
+| Windows | PS5 (HIDAPI SDL) | 0 | 2 | 1 (kółko) |
+| Windows | Xbox (XInput) | 0 | 3 | 1 (B) |
+
+Nieznany pad dostaje pierwotny układ skryptu (0, 3, stop 1). Na Windowsie
+skrypt wyłącza RawInput (`SDL_JOYSTICK_RAWINPUT=0`), bo bez okna pad zwracałby
+same zera. Przy starcie wypisywany jest wykryty typ i źródło mapowania.
+Ręcznie ustawione `X_STICK_AXIS`, `Y_STICK_AXIS`, `STOP_BUTTON` mają pierwszeństwo.
 
 ## Zachowanie ruchu
 
