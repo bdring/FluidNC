@@ -94,6 +94,24 @@ class MotionTests(unittest.TestCase):
         self.assertAlmostEqual(m.stick_value(-0.5), -m.stick_value(0.5))
 
 
+class PadTypeTests(unittest.TestCase):
+    def apply(self, pad_type, **overrides):
+        values = {"X_STICK_AXIS": None, "Y_STICK_AXIS": None, "STOP_BUTTON": None, **overrides}
+        with patch.multiple(m, **values):
+            m.apply_pad_type(pad_type)
+            return m.X_STICK_AXIS, m.Y_STICK_AXIS, m.STOP_BUTTON
+
+    def test_ps5_is_default_and_keeps_original_layout(self):
+        self.assertIs(m.PAD_TYPE, m.PadType.PS5)
+        self.assertEqual(self.apply(m.PadType.PS5), (0, 3, 1))
+
+    def test_xbox_uses_right_stick_horizontal_axis(self):
+        self.assertEqual(self.apply(m.PadType.XBOX), (0, 2, 1))
+
+    def test_manual_indices_override_pad_type(self):
+        self.assertEqual(self.apply(m.PadType.XBOX, Y_STICK_AXIS=5), (0, 5, 1))
+
+
 class YamlTests(unittest.TestCase):
     def load(self, text):
         with tempfile.TemporaryDirectory() as directory:

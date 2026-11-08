@@ -12,19 +12,32 @@ import os
 import re
 import signal
 import time
+from enum import Enum
 from pathlib import Path
 from typing import NamedTuple
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 os.environ.setdefault("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
 
+class PadLayout(NamedTuple):
+    x_axis: int                  # lewy drążek, poziomo
+    y_axis: int                  # prawy drążek, poziomo
+    stop_button: int             # kółko (PS5) / B (Xbox)
+
+
+class PadType(Enum):
+    PS5 = PadLayout(x_axis=0, y_axis=3, stop_button=1)    # DualSense (Linux)
+    XBOX = PadLayout(x_axis=0, y_axis=2, stop_button=1)   # Xbox One/Series (Windows XInput)
+
+
 # ---- USTAWIENIA DO EDYCJI ---------------------------------------------------
 SERIAL_PORT = None               # None = autowykrywanie CH340 (Linux/Windows); np. "COM5"
 SERIAL_USB_VID = 0x1A86          # CH340 na MKS TinyBee
 BAUD_RATE = 115200
 GAMEPAD_INDEX = 0
-X_STICK_AXIS = None              # None = z mapowania SDL (lewy drążek poziomo); albo indeks z --monitor
-Y_STICK_AXIS = None              # None = z mapowania SDL (prawy drążek poziomo); albo indeks z --monitor
+PAD_TYPE = PadType.PS5           # PadType.PS5 albo PadType.XBOX; nadpisanie: --pad xbox
+X_STICK_AXIS = None              # None = z PAD_TYPE; albo własny indeks z --monitor
+Y_STICK_AXIS = None              # None = z PAD_TYPE; albo własny indeks z --monitor
 INVERT_X_STICK = False
 INVERT_Y_STICK = False
 # Prędkości i przyspieszenia pochodzą z aktywnej konfiguracji FluidNC.
@@ -32,7 +45,7 @@ INVERT_Y_STICK = False
 OFFLINE_CONFIG = Path(__file__).resolve().parents[1] / "artifacts/mks-tinybee/config.xy-gamepad.yaml"
 DEADZONE = 0.08                  # 0..1, szum drążków
 EXPO = 1.8                      # 1 = liniowo; >1 = precyzja przy środku
-STOP_BUTTON = None              # None = z mapowania SDL (kółko PS / B Xbox); jog cancel, wymaga powrotu do środka
+STOP_BUTTON = None              # None = z PAD_TYPE (kółko PS5 / B Xbox); jog cancel, wymaga powrotu do środka
 ENABLE_BUTTON = None            # np. 4 = wymagaj trzymania L1; None = bez
 SEGMENT_SECONDS = 0.04           # długość jednego odcinka ruchu
 MAX_QUEUED_SEGMENTS = 6          # krótka kolejka; zapas hamowania jest sprawdzany z limitów YAML
@@ -300,38 +313,27 @@ class Board:
             self.port.close()
 
 
-def sdl_mapping(pygame):
-    """Indeksy osi/przycisków z bazy SDL; DualSense i Xbox mają różny surowy układ."""
-    try:
-        from pygame._sdl2 import controller
-        controller.init()
-        if controller.is_controller(GAMEPAD_INDEX):
-            return controller.Controller(GAMEPAD_INDEX).get_mapping()
-    except (ImportError, pygame.error):
-        pass
-    return {}
-
-
-def mapped_index(mapping, name, prefix, fallback):
-    value = mapping.get(name, "")
-    return int(value[1:]) if re.fullmatch(prefix + r"\d+", value) else fallback
-
-
-def get_pad(pygame):
+def apply_pad_type(pad_type):
+    """Uzupełnia nieustawione ręcznie indeksy z profilu pada."""
     global X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON
+    layout = pad_type.value
+    if X_STICK_AXIS is None:
+        X_STICK_AXIS = layout.x_axis
+    if Y_STICK_AXIS is None:
+        Y_STICK_AXIS = layout.y_axis
+    if STOP_BUTTON is None:
+        STOP_BUTTON = layout.stop_button
+
+
+def get_pad(pygame, pad_type=None):
     if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     pygame.display.init()  # kolejka zdarzeń SDL wymaga podsystemu video
     pygame.joystick.init()
     if GAMEPAD_INDEX >= pygame.joystick.get_count():
-        raise RuntimeError("Nie wykryto pada. Podłącz pada (DualSense/Xbox) i spróbuj ponownie.")
-    mapping = sdl_mapping(pygame)
-    if X_STICK_AXIS is None:
-        X_STICK_AXIS = mapped_index(mapping, "leftx", "a", 0)
-    if Y_STICK_AXIS is None:
-        Y_STICK_AXIS = mapped_index(mapping, "rightx", "a", 3)
-    if STOP_BUTTON is None:
-        STOP_BUTTON = mapped_index(mapping, "b", "b", 1)
+        raise RuntimeError("Nie wykryto pada. Podłącz pada (PS5/Xbox) i spróbuj ponownie.")
+    pad_type = pad_type or PAD_TYPE
+    apply_pad_type(pad_type)
     pad = pygame.joystick.Joystick(GAMEPAD_INDEX)
     if max(X_STICK_AXIS, Y_STICK_AXIS) >= pad.get_numaxes() or min(X_STICK_AXIS, Y_STICK_AXIS) < 0:
         raise ValueError("Indeks drążka poza zakresem; użyj --monitor.")
@@ -339,8 +341,7 @@ def get_pad(pygame):
         if button is not None and not 0 <= button < pad.get_numbuttons():
             raise ValueError("Indeks przycisku poza zakresem.")
     print(f"Pad [{GAMEPAD_INDEX}]: {pad.get_name()}, osi: {pad.get_numaxes()}, przycisków: {pad.get_numbuttons()}")
-    print(f"Mapowanie: X = oś {X_STICK_AXIS}, Y = oś {Y_STICK_AXIS}, stop = przycisk {STOP_BUTTON}"
-          f" ({'SDL' if mapping else 'domyślne'})")
+    print(f"Typ pada: {pad_type.name}; X = oś {X_STICK_AXIS}, Y = oś {Y_STICK_AXIS}, stop = przycisk {STOP_BUTTON}")
     return pad
 
 
@@ -417,6 +418,8 @@ def find_serial_port():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", default=SERIAL_PORT, help="port płytki, np. COM5 lub /dev/ttyUSB0 (domyślnie autowykrywanie)")
+    parser.add_argument("--pad", choices=[t.name.lower() for t in PadType],
+                        help=f"typ pada (domyślnie PAD_TYPE = {PAD_TYPE.name.lower()})")
     parser.add_argument("--monitor", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--config", type=Path, help="lokalny YAML, tylko z --dry-run")
@@ -435,7 +438,7 @@ def main():
     board = None
     result = 0
     try:
-        pad = get_pad(pygame)
+        pad = get_pad(pygame, PadType[args.pad.upper()] if args.pad else None)
         if args.monitor:
             started = time.monotonic()
             while args.duration is None or time.monotonic() - started < args.duration:

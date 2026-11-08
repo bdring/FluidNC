@@ -73,12 +73,13 @@ Na początku `gamepad_motor_controller_xy.py` pozostają:
 
 | Zmienna | Znaczenie |
 | --- | --- |
-| `X_STICK_AXIS`, `Y_STICK_AXIS` | Indeksy osi pada; `None` = z mapowania SDL (działa dla DualSense i Xbox na Linuksie i Windowsie) |
+| `PAD_TYPE` | `PadType.PS5` (domyślnie, DualSense na Linuksie) albo `PadType.XBOX` (Windows); jednorazowo `--pad xbox` / `--pad ps5` |
+| `X_STICK_AXIS`, `Y_STICK_AXIS` | Indeksy osi pada; `None` = z `PAD_TYPE` (PS5: 0 i 3, Xbox: 0 i 2) |
 | `INVERT_X_STICK`, `INVERT_Y_STICK` | Odwrócenie kierunku danego drążka |
 | `DEADZONE` | Martwa strefa wokół środka |
 | `EXPO` | Krzywa reakcji; 1 liniowo, większa = dokładniej przy środku |
 | `ENABLE_BUTTON` | Opcjonalny przycisk, który trzeba trzymać; `None` wyłącza wymaganie |
-| `STOP_BUTTON` | Przycisk anulowania jog; `None` = z mapowania SDL (kółko PS / B Xbox) |
+| `STOP_BUTTON` | Przycisk anulowania jog; `None` = z `PAD_TYPE` (kółko PS5 / B Xbox) |
 | `MAX_QUEUED_SEGMENTS`, `SEGMENT_SECONDS` | Głębokość kolejki i długość odcinka |
 | `SERIAL_PORT`, `BAUD_RATE` | Port TinyBee (`None` = autowykrywanie CH340, można nadpisać `--port COM5`) i szybkość transmisji |
 
