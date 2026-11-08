@@ -73,15 +73,22 @@ Na początku `gamepad_motor_controller_xy.py` pozostają:
 
 | Zmienna | Znaczenie |
 | --- | --- |
-| `PAD_TYPE` | `PadType.PS5` (domyślnie, DualSense na Linuksie) albo `PadType.XBOX` (Windows); jednorazowo `--pad xbox` / `--pad ps5` |
-| `X_STICK_AXIS`, `Y_STICK_AXIS` | Indeksy osi pada; `None` = z `PAD_TYPE` (PS5: 0 i 3, Xbox: 0 i 2) |
+| `X_STICK_AXIS`, `Y_STICK_AXIS` | Indeksy osi pada; `None` = autowykrycie (patrz niżej) |
 | `INVERT_X_STICK`, `INVERT_Y_STICK` | Odwrócenie kierunku danego drążka |
 | `DEADZONE` | Martwa strefa wokół środka |
 | `EXPO` | Krzywa reakcji; 1 liniowo, większa = dokładniej przy środku |
 | `ENABLE_BUTTON` | Opcjonalny przycisk, który trzeba trzymać; `None` wyłącza wymaganie |
-| `STOP_BUTTON` | Przycisk anulowania jog; `None` = z `PAD_TYPE` (kółko PS5 / B Xbox) |
+| `STOP_BUTTON` | Przycisk anulowania jog; `None` = autowykrycie (kółko PS5 / B Xbox) |
 | `MAX_QUEUED_SEGMENTS`, `SEGMENT_SECONDS` | Głębokość kolejki i długość odcinka |
 | `SERIAL_PORT`, `BAUD_RATE` | Port TinyBee (`None` = autowykrywanie CH340, można nadpisać `--port COM5`) i szybkość transmisji |
+
+Typ pada (PS5 / Xbox) jest rozpoznawany po nazwie. Indeksy osi i przycisku
+stop pochodzą z mapowania SDL GameController, które zna surowy układ danego
+pada na danym systemie (np. Xbox na Windowsie: prawy drążek poziomo = oś 2,
+DualSense na Linuksie: oś 3). Gdy SDL nie zna pada, używany jest stały układ
+dla wykrytego typu, a dla nieznanego pada pierwotny układ PS5 (0, 3, stop 1).
+Skrypt wypisuje przy starcie wykryty typ i źródło mapowania. Ręcznie ustawione
+`X_STICK_AXIS`, `Y_STICK_AXIS`, `STOP_BUTTON` mają pierwszeństwo.
 
 ## Zachowanie ruchu
 

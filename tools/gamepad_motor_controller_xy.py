@@ -12,7 +12,6 @@ import os
 import re
 import signal
 import time
-from enum import Enum
 from pathlib import Path
 from typing import NamedTuple
 
@@ -25,9 +24,15 @@ class PadLayout(NamedTuple):
     stop_button: int             # kółko (PS5) / B (Xbox)
 
 
-class PadType(Enum):
-    PS5 = PadLayout(x_axis=0, y_axis=3, stop_button=1)    # DualSense (Linux)
-    XBOX = PadLayout(x_axis=0, y_axis=2, stop_button=1)   # Xbox One/Series (Windows XInput)
+# Zapasowe układy, gdy SDL nie zna pada. PS5 = pierwotne wartości (DualSense, Linux).
+FALLBACK_LAYOUTS = {
+    "PS5": PadLayout(x_axis=0, y_axis=3, stop_button=1),
+    "XBOX": PadLayout(x_axis=0, y_axis=2, stop_button=1),
+}
+PAD_NAME_PATTERNS = {
+    "PS5": ("dualsense", "ps5", "playstation", "sony", "wireless controller"),
+    "XBOX": ("xbox", "x-box", "xinput"),
+}
 
 
 # ---- USTAWIENIA DO EDYCJI ---------------------------------------------------
@@ -35,9 +40,8 @@ SERIAL_PORT = None               # None = autowykrywanie CH340 (Linux/Windows); 
 SERIAL_USB_VID = 0x1A86          # CH340 na MKS TinyBee
 BAUD_RATE = 115200
 GAMEPAD_INDEX = 0
-PAD_TYPE = PadType.PS5           # PadType.PS5 albo PadType.XBOX; nadpisanie: --pad xbox
-X_STICK_AXIS = None              # None = z PAD_TYPE; albo własny indeks z --monitor
-Y_STICK_AXIS = None              # None = z PAD_TYPE; albo własny indeks z --monitor
+X_STICK_AXIS = None              # None = autowykrycie pada (PS5/Xbox); albo własny indeks z --monitor
+Y_STICK_AXIS = None              # None = autowykrycie pada (PS5/Xbox); albo własny indeks z --monitor
 INVERT_X_STICK = False
 INVERT_Y_STICK = False
 # Prędkości i przyspieszenia pochodzą z aktywnej konfiguracji FluidNC.
@@ -45,7 +49,7 @@ INVERT_Y_STICK = False
 OFFLINE_CONFIG = Path(__file__).resolve().parents[1] / "artifacts/mks-tinybee/config.xy-gamepad.yaml"
 DEADZONE = 0.08                  # 0..1, szum drążków
 EXPO = 1.8                      # 1 = liniowo; >1 = precyzja przy środku
-STOP_BUTTON = None              # None = z PAD_TYPE (kółko PS5 / B Xbox); jog cancel, wymaga powrotu do środka
+STOP_BUTTON = None              # None = autowykrycie (kółko PS5 / B Xbox); jog cancel, wymaga powrotu do środka
 ENABLE_BUTTON = None            # np. 4 = wymagaj trzymania L1; None = bez
 SEGMENT_SECONDS = 0.04           # długość jednego odcinka ruchu
 MAX_QUEUED_SEGMENTS = 6          # krótka kolejka; zapas hamowania jest sprawdzany z limitów YAML
@@ -313,35 +317,66 @@ class Board:
             self.port.close()
 
 
-def apply_pad_type(pad_type):
-    """Uzupełnia nieustawione ręcznie indeksy z profilu pada."""
+def detect_pad_kind(name):
+    lowered = name.lower()
+    for kind, patterns in PAD_NAME_PATTERNS.items():
+        if any(pattern in lowered for pattern in patterns):
+            return kind
+    return None
+
+
+def sdl_mapping(pygame):
+    """Mapowanie SDL GameController: fizyczne drążki -> surowe indeksy na tym systemie."""
+    try:
+        from pygame._sdl2 import controller
+        controller.init()
+        if controller.is_controller(GAMEPAD_INDEX):
+            return controller.Controller(GAMEPAD_INDEX).get_mapping()
+    except (ImportError, pygame.error):
+        pass
+    return {}
+
+
+def mapped_index(mapping, name, prefix):
+    match = re.fullmatch(prefix + r"(\d+)", mapping.get(name, ""))
+    return int(match[1]) if match else None
+
+
+def resolve_layout(name, mapping):
+    """Zwraca (typ pada, układ, źródło). Ręczne indeksy mają pierwszeństwo."""
+    kind = detect_pad_kind(name)
+    sdl = PadLayout(mapped_index(mapping, "leftx", "a"),
+                    mapped_index(mapping, "rightx", "a"),
+                    mapped_index(mapping, "b", "b"))
+    if None not in sdl:
+        base, source = sdl, "mapowanie SDL"
+    else:
+        base, source = FALLBACK_LAYOUTS[kind or "PS5"], f"układ {kind or 'PS5 (domyślny)'}"
+    manual = (X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON)
+    layout = PadLayout(*(m if m is not None else b for m, b in zip(manual, base)))
+    if any(m is not None for m in manual):
+        source += " + ręczne ustawienia"
+    return kind or "nieznany", layout, source
+
+
+def get_pad(pygame):
     global X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON
-    layout = pad_type.value
-    if X_STICK_AXIS is None:
-        X_STICK_AXIS = layout.x_axis
-    if Y_STICK_AXIS is None:
-        Y_STICK_AXIS = layout.y_axis
-    if STOP_BUTTON is None:
-        STOP_BUTTON = layout.stop_button
-
-
-def get_pad(pygame, pad_type=None):
     if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     pygame.display.init()  # kolejka zdarzeń SDL wymaga podsystemu video
     pygame.joystick.init()
     if GAMEPAD_INDEX >= pygame.joystick.get_count():
         raise RuntimeError("Nie wykryto pada. Podłącz pada (PS5/Xbox) i spróbuj ponownie.")
-    pad_type = pad_type or PAD_TYPE
-    apply_pad_type(pad_type)
     pad = pygame.joystick.Joystick(GAMEPAD_INDEX)
+    kind, layout, source = resolve_layout(pad.get_name(), sdl_mapping(pygame))
+    X_STICK_AXIS, Y_STICK_AXIS, STOP_BUTTON = layout
     if max(X_STICK_AXIS, Y_STICK_AXIS) >= pad.get_numaxes() or min(X_STICK_AXIS, Y_STICK_AXIS) < 0:
         raise ValueError("Indeks drążka poza zakresem; użyj --monitor.")
     for button in (STOP_BUTTON, ENABLE_BUTTON):
         if button is not None and not 0 <= button < pad.get_numbuttons():
             raise ValueError("Indeks przycisku poza zakresem.")
     print(f"Pad [{GAMEPAD_INDEX}]: {pad.get_name()}, osi: {pad.get_numaxes()}, przycisków: {pad.get_numbuttons()}")
-    print(f"Typ pada: {pad_type.name}; X = oś {X_STICK_AXIS}, Y = oś {Y_STICK_AXIS}, stop = przycisk {STOP_BUTTON}")
+    print(f"Typ pada: {kind}; X = oś {X_STICK_AXIS}, Y = oś {Y_STICK_AXIS}, stop = przycisk {STOP_BUTTON} ({source})")
     return pad
 
 
@@ -418,8 +453,6 @@ def find_serial_port():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", default=SERIAL_PORT, help="port płytki, np. COM5 lub /dev/ttyUSB0 (domyślnie autowykrywanie)")
-    parser.add_argument("--pad", choices=[t.name.lower() for t in PadType],
-                        help=f"typ pada (domyślnie PAD_TYPE = {PAD_TYPE.name.lower()})")
     parser.add_argument("--monitor", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--config", type=Path, help="lokalny YAML, tylko z --dry-run")
@@ -438,7 +471,7 @@ def main():
     board = None
     result = 0
     try:
-        pad = get_pad(pygame, PadType[args.pad.upper()] if args.pad else None)
+        pad = get_pad(pygame)
         if args.monitor:
             started = time.monotonic()
             while args.duration is None or time.monotonic() - started < args.duration:

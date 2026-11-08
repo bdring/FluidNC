@@ -94,22 +94,33 @@ class MotionTests(unittest.TestCase):
         self.assertAlmostEqual(m.stick_value(-0.5), -m.stick_value(0.5))
 
 
-class PadTypeTests(unittest.TestCase):
-    def apply(self, pad_type, **overrides):
+class PadDetectionTests(unittest.TestCase):
+    XBOX_SDL = {"leftx": "a0", "lefty": "a1", "rightx": "a2", "righty": "a3", "b": "b1"}
+    PS5_LINUX_SDL = {"leftx": "a0", "lefty": "a1", "rightx": "a3", "righty": "a4", "b": "b1"}
+
+    def resolve(self, name, mapping, **overrides):
         values = {"X_STICK_AXIS": None, "Y_STICK_AXIS": None, "STOP_BUTTON": None, **overrides}
         with patch.multiple(m, **values):
-            m.apply_pad_type(pad_type)
-            return m.X_STICK_AXIS, m.Y_STICK_AXIS, m.STOP_BUTTON
+            return m.resolve_layout(name, mapping)
 
-    def test_ps5_is_default_and_keeps_original_layout(self):
-        self.assertIs(m.PAD_TYPE, m.PadType.PS5)
-        self.assertEqual(self.apply(m.PadType.PS5), (0, 3, 1))
+    def test_detects_pad_kind_by_name(self):
+        self.assertEqual(m.detect_pad_kind("Xbox One Controller"), "XBOX")
+        self.assertEqual(m.detect_pad_kind("Sony Interactive Entertainment DualSense Wireless Controller"), "PS5")
+        self.assertEqual(m.detect_pad_kind("DualSense Wireless Controller"), "PS5")
+        self.assertIsNone(m.detect_pad_kind("Generic USB Joystick"))
 
-    def test_xbox_uses_right_stick_horizontal_axis(self):
-        self.assertEqual(self.apply(m.PadType.XBOX), (0, 2, 1))
+    def test_sdl_mapping_is_used(self):
+        self.assertEqual(self.resolve("Xbox One Controller", self.XBOX_SDL)[1], (0, 2, 1))
+        self.assertEqual(self.resolve("DualSense Wireless Controller", self.PS5_LINUX_SDL)[1], (0, 3, 1))
 
-    def test_manual_indices_override_pad_type(self):
-        self.assertEqual(self.apply(m.PadType.XBOX, Y_STICK_AXIS=5), (0, 5, 1))
+    def test_fallback_without_sdl_mapping(self):
+        self.assertEqual(self.resolve("Xbox One Controller", {})[1], (0, 2, 1))
+        # PS5 i nieznany pad: pierwotny układ skryptu.
+        self.assertEqual(self.resolve("DualSense Wireless Controller", {})[1], (0, 3, 1))
+        self.assertEqual(self.resolve("Generic USB Joystick", {})[:2], ("nieznany", (0, 3, 1)))
+
+    def test_manual_indices_override_detection(self):
+        self.assertEqual(self.resolve("Xbox One Controller", self.XBOX_SDL, Y_STICK_AXIS=5)[1], (0, 5, 1))
 
 
 class YamlTests(unittest.TestCase):
