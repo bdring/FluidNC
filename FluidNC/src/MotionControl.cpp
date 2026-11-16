@@ -238,7 +238,9 @@ void mc_arc(float*            target,
     // is desired, i.e. least-squares, midpoint on arc, just change arc_segment_count().
     // For most uses, this value should not exceed 2000.
     uint16_t segments = arc_segment_count(radius, angular_travel, config->_arcTolerance);
-    if (segments) {
+    // A single chord needs no subdivision; skipping this block leaves pl_data (notably the
+    // inverse-time feed mode) untouched for the final mc_linear() below.
+    if (segments > 1) {
         // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
         // by a number of discrete segments. The inverse feed_rate should be correct for the sum of
         // all segments.

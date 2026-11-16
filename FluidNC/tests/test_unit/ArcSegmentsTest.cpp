@@ -45,7 +45,8 @@ TEST(ArcSegments, SagittaWithinToleranceRandom) {
 // Degenerate inputs must not yield 0 chords or garbage
 TEST(ArcSegments, DegenerateInputs) {
     EXPECT_EQ(arc_segment_count(10.0F, 0.0F, 0.002F), 1u);      // zero sweep
-    EXPECT_EQ(arc_segment_count(0.0005F, 1.0F, 0.002F), 1u);    // tolerance > 2R -> NaN
+    EXPECT_EQ(arc_segment_count(0.0005F, 1.0F, 0.002F), 1u);    // tolerance > 2R
+    EXPECT_EQ(arc_segment_count(0.001F, 1.0F, 0.002F), 1u);     // tolerance == 2R: no inf -> 65535
     EXPECT_EQ(arc_segment_count(1e6F, 6.28F, 0.001F), 65535u);  // clamp, no uint16 overflow
 }
 

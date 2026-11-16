@@ -16,8 +16,13 @@
 // It must be rounded UP; rounding down emits chords longer than the tolerance
 // allows (by up to 4x).  Always returns at least 1 for a non-degenerate arc.
 inline uint16_t arc_segment_count(float radius, float angular_travel, float tolerance) {
+    if (!(tolerance < 2 * radius)) {
+        // A chord with sagitta `tolerance` would be wider than the circle, so one chord suffices.
+        // Also keeps the division below away from inf/NaN.
+        return 1;
+    }
     float segments = ceilf(fabsf(0.5F * angular_travel * radius) / sqrtf(tolerance * (2 * radius - tolerance)));
-    if (!(segments >= 1.0F)) {  // also catches NaN from tolerance >= 2*radius
+    if (!(segments >= 1.0F)) {  // zero sweep, or NaN from a NaN input
         return 1;
     }
     return segments > 65535.0F ? uint16_t(65535) : uint16_t(segments);
