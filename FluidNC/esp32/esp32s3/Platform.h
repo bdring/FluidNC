@@ -41,16 +41,17 @@ const int BAUD_RATE = 115200;
 
 #include "Logging.h"
 
-// As of ESP-IDF 5.4, the Arduino core's Wire/TwoWire implementation
-// (esp32-hal-i2c-ng.c) switched to the new "driver_ng" I2C driver
-// (driver/i2c_master.h). ESP-IDF now aborts at startup if the legacy
-// driver (driver/i2c.h, used by esp32/i2c.cpp) is also installed
-// anywhere in the same firmware ("CONFLICT! driver_ng is not allowed
-// to be used with this old driver"). Route FluidNC's own I2C bus
-// through Wire (arduino_i2c_driver.cpp) so everything uses driver_ng.
+// As of ESP-IDF 5.4, the Arduino core's Wire uses the new I2C master driver
+// (driver/i2c_master.h), and IDF aborts at startup if the legacy driver
+// (driver/i2c.h) is also used anywhere in the firmware.  esp32/i2c.cpp uses
+// the new driver directly when USE_I2C_MASTER_DRIVER is set, which avoids the
+// conflict without the extra code of going through Wire.
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
-#    define USE_ARDUINO_I2C_DRIVER 1
+#    define USE_I2C_MASTER_DRIVER 1
+#else
+#    define USE_I2C_MASTER_DRIVER 0
 #endif
+#define USE_ARDUINO_I2C_DRIVER 0
 
 #include "wdt.h"  // configure_task_watchdog
 

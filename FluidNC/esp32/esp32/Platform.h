@@ -23,7 +23,13 @@
 #else
 #    define MAX_N_DACS 0  // No DAC, e.g. ESP32-S3
 #endif
-#define MAX_N_RMT SOC_RMT_GROUPS
+// IDF 6 dropped SOC_RMT_GROUPS; an undefined name here would silently count as
+// 0 and compile the RMT stepping type out
+#ifdef SOC_RMT_SUPPORTED
+#    define MAX_N_RMT 1
+#else
+#    define MAX_N_RMT 0
+#endif
 
 // The number that we support, regardless of how many the chip has
 #define MAX_N_I2SO 1
@@ -90,6 +96,10 @@ inline bool should_exit() {
 }
 
 #define USE_ARDUINO_I2C_DRIVER 0
+// ESP32 keeps the legacy I2C driver for now.  esp32/i2c.cpp's new-driver path
+// (USE_I2C_MASTER_DRIVER 1, needs IDF 5.4+) also works here, but costs about
+// 4.7K of flash, and the legacy driver is only removed in IDF 7.
+#define USE_I2C_MASTER_DRIVER 0
 
 inline BaseType_t xTaskCreateAffinitySet(TaskFunction_t      pvTaskCode,
                                          const char* const   pcName,

@@ -17,6 +17,7 @@
 #    include <driver/dac_oneshot.h>  // dac_oneshot_new_channel
 #    include <hal/dac_ll.h>           // dac_ll_update_output_value
 #    include <soc/dac_channel.h>      // DAC_CHAN0_GPIO_NUM
+#    include <esp_idf_version.h>
 
 namespace Spindles {
     // ======================================== Dac ======================================
@@ -66,7 +67,11 @@ namespace Spindles {
     };
     void IRAM_ATTR Dac::set_output(uint32_t duty) {
         if (_gpio_ok) {
+#    if ESP_IDF_VERSION_MAJOR >= 6
+            dac_ll_pad_set_output_code(dac_channel_t(_dac_chan), static_cast<uint8_t>(duty));
+#    else
             dac_ll_update_output_value(dac_channel_t(_dac_chan), static_cast<uint8_t>(duty));
+#    endif
         }
     }
 

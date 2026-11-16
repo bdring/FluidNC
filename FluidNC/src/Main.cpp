@@ -140,10 +140,13 @@ void setup() {
         limits_init();
 
         // Initialize system state.
-        for (auto const& module : Modules()) {
+        // Configurable modules (OLED, status outputs) go first so the OLED is
+        // already an output channel when the network modules start WiFi/BT and
+        // log the SSID, AP and BT messages it displays.
+        for (auto const& module : ConfigurableModules()) {
             module->init();
         }
-        for (auto const& module : ConfigurableModules()) {
+        for (auto const& module : Modules()) {
             module->init();
         }
 

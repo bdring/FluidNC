@@ -21,7 +21,7 @@
 
 // On Xtensa targets we can access the exception frame
 #if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
-#include "xtensa/xtensa_context.h"
+#include "xtensa_context.h"
 #define BACKTRACE_XTENSA 1
 #endif
 

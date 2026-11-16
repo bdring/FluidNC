@@ -64,7 +64,7 @@
 #ifdef _GLIBCXX_HAVE_SYS_STAT_H
 #  include <sys/stat.h>   // stat, utimensat, fchmodat
 #endif
-#ifdef _GLIBCXX_HAVE_SYS_STATVFS_H
+#if defined(_GLIBCXX_HAVE_SYS_STATVFS_H) && !defined(__FLUIDNC)
 # include <sys/statvfs.h> // statvfs
 #endif
 #if !_GLIBCXX_USE_UTIMENSAT && _GLIBCXX_HAVE_UTIME_H

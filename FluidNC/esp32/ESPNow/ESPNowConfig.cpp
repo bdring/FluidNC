@@ -5,7 +5,6 @@
 
 #include <esp_log.h>
 #include <esp_random.h>
-#include <mbedtls/md.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <string.h>
@@ -67,53 +66,53 @@ static bool ensureStorageKey(nvs_handle_t h, uint8_t out_key[kStorageKeySize]) {
     return loadStorageKey(h, out_key) || createStorageKey(h, out_key);
 }
 
-static void storedPairingTag(const StoredPairingList& list,
+static bool storedPairingTag(const StoredPairingList& list,
                              const uint8_t key[kStorageKeySize],
                              uint8_t out_tag[16]) {
     uint8_t full[32];
-    mbedtls_md_context_t ctx;
-    const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-
-    mbedtls_md_init(&ctx);
-    mbedtls_md_setup(&ctx, info, 1);
-    mbedtls_md_hmac_starts(&ctx, key, kStorageKeySize);
-    mbedtls_md_hmac_update(&ctx, kStoredPairingTagLabel, sizeof(kStoredPairingTagLabel) - 1);
-    mbedtls_md_hmac_update(&ctx, reinterpret_cast<const uint8_t*>(&list), sizeof(list));
-    mbedtls_md_hmac_finish(&ctx, full);
-    mbedtls_md_free(&ctx);
-
-    memcpy(out_tag, full, 16);
+    bool    ok = ESPNowCrypto::hmacSha256(key, kStorageKeySize, { { kStoredPairingTagLabel, sizeof(kStoredPairingTagLabel) - 1 }, { &list, sizeof(list) } }, full);
+    if (ok) {
+        memcpy(out_tag, full, 16);
+    }
     ESPNowCrypto::secureZero(full, sizeof(full));
+    return ok;
 }
 
-static void storedPairingPad(const uint8_t key[kStorageKeySize],
+static bool storedPairingPad(const uint8_t key[kStorageKeySize],
                              const uint8_t peer_mac[6],
                              uint8_t out_pad[16]) {
     uint8_t full[32];
-    mbedtls_md_context_t ctx;
-    const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-
-    mbedtls_md_init(&ctx);
-    mbedtls_md_setup(&ctx, info, 1);
-    mbedtls_md_hmac_starts(&ctx, key, kStorageKeySize);
-    mbedtls_md_hmac_update(&ctx, kStoredPairingWrapLabel, sizeof(kStoredPairingWrapLabel) - 1);
-    mbedtls_md_hmac_update(&ctx, peer_mac, 6);
-    mbedtls_md_hmac_finish(&ctx, full);
-    mbedtls_md_free(&ctx);
-
-    memcpy(out_pad, full, 16);
+    bool    ok = ESPNowCrypto::hmacSha256(key, kStorageKeySize, { { kStoredPairingWrapLabel, sizeof(kStoredPairingWrapLabel) - 1 }, { peer_mac, 6 } }, full);
+    if (ok) {
+        memcpy(out_pad, full, 16);
+    }
     ESPNowCrypto::secureZero(full, sizeof(full));
+    return ok;
 }
 
-static void cryptStoredLmk(const uint8_t key[kStorageKeySize],
+// Returns false, leaving lmk unchanged, if the pad could not be derived
+static bool cryptStoredLmk(const uint8_t key[kStorageKeySize],
                            const uint8_t peer_mac[6],
                            uint8_t lmk[16]) {
     uint8_t pad[16];
-    storedPairingPad(key, peer_mac, pad);
-    for (size_t i = 0; i < 16; ++i) {
-        lmk[i] ^= pad[i];
+    bool    ok = storedPairingPad(key, peer_mac, pad);
+    if (ok) {
+        for (size_t i = 0; i < 16; ++i) {
+            lmk[i] ^= pad[i];
+        }
     }
     ESPNowCrypto::secureZero(pad, sizeof(pad));
+    return ok;
+}
+
+// Wrap every LMK in list and compute its tag; false if any step failed
+static bool wrapStoredPairings(const uint8_t key[kStorageKeySize], StoredPairingList& list, uint8_t tag[16]) {
+    for (uint8_t i = 0; i < list.count; ++i) {
+        if (!cryptStoredLmk(key, list.records[i].peer_mac, list.records[i].lmk)) {
+            return false;
+        }
+    }
+    return storedPairingTag(list, key, tag);
 }
 
 static bool verifyStoredPairingTag(nvs_handle_t h, const StoredPairingList& list) {
@@ -126,8 +125,8 @@ static bool verifyStoredPairingTag(nvs_handle_t h, const StoredPairingList& list
     if (nvs_get_blob(h, ESPNOW_KEY_PAIRS_TAG, stored_tag, &len) == ESP_OK &&
         len == sizeof(stored_tag) &&
         loadStorageKey(h, storage_key)) {
-        storedPairingTag(list, storage_key, expected);
-        ok = ESPNowCrypto::constantTimeEquals(expected, stored_tag, sizeof(stored_tag));
+        ok = storedPairingTag(list, storage_key, expected) &&
+             ESPNowCrypto::constantTimeEquals(expected, stored_tag, sizeof(stored_tag));
     }
 
     ESPNowCrypto::secureZero(stored_tag, sizeof(stored_tag));
@@ -158,11 +157,15 @@ static bool loadStoredPairings(nvs_handle_t h, StoredPairingList* out, bool repo
         memset(out, 0, sizeof(*out));
         return false;
     }
-    for (uint8_t i = 0; i < out->count; ++i) {
-        cryptStoredLmk(storage_key, out->records[i].peer_mac, out->records[i].lmk);
+    bool ok = true;
+    for (uint8_t i = 0; ok && i < out->count; ++i) {
+        ok = cryptStoredLmk(storage_key, out->records[i].peer_mac, out->records[i].lmk);
     }
     ESPNowCrypto::secureZero(storage_key, sizeof(storage_key));
-    return true;
+    if (!ok) {
+        ESPNowCrypto::secureZero(out, sizeof(*out));
+    }
+    return ok;
 }
 
 static void initStoredPairings(StoredPairingList* list) {
@@ -231,15 +234,10 @@ bool ESPNowConfig::savePairing(const uint8_t* peer_mac, const uint8_t* lmk) {
 
     uint8_t storage_key[kStorageKeySize] = {};
     uint8_t tag[16] = {};
-    bool have_storage_key = ensureStorageKey(h, storage_key);
-    if (have_storage_key) {
-        for (uint8_t i = 0; i < stored_list.count; ++i) {
-            cryptStoredLmk(storage_key, stored_list.records[i].peer_mac, stored_list.records[i].lmk);
-        }
-        storedPairingTag(stored_list, storage_key, tag);
-    }
+    // Never write the list unless every LMK was wrapped and tagged
+    bool wrapped = ensureStorageKey(h, storage_key) && wrapStoredPairings(storage_key, stored_list, tag);
 
-    esp_err_t err = have_storage_key ? nvs_set_blob(h, ESPNOW_KEY_PAIRS, &stored_list, sizeof(stored_list)) : ESP_FAIL;
+    esp_err_t err = wrapped ? nvs_set_blob(h, ESPNOW_KEY_PAIRS, &stored_list, sizeof(stored_list)) : ESP_FAIL;
     if (err == ESP_OK) {
         err = nvs_set_blob(h, ESPNOW_KEY_PAIRS_TAG, tag, sizeof(tag));
     }
@@ -296,12 +294,7 @@ bool ESPNowConfig::removePairing(const uint8_t* peer_mac) {
 
             uint8_t storage_key[kStorageKeySize] = {};
             uint8_t tag[16] = {};
-            bool have_storage_key = ensureStorageKey(h, storage_key);
-            if (have_storage_key) {
-                for (uint8_t i = 0; i < stored_list.count; ++i) {
-                    cryptStoredLmk(storage_key, stored_list.records[i].peer_mac, stored_list.records[i].lmk);
-                }
-                storedPairingTag(stored_list, storage_key, tag);
+            if (ensureStorageKey(h, storage_key) && wrapStoredPairings(storage_key, stored_list, tag)) {
                 err = nvs_set_blob(h, ESPNOW_KEY_PAIRS, &stored_list, sizeof(stored_list));
                 if (err == ESP_OK) {
                     err = nvs_set_blob(h, ESPNOW_KEY_PAIRS_TAG, tag, sizeof(tag));

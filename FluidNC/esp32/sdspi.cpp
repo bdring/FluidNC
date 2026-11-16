@@ -7,6 +7,7 @@
 
 #include <vfs_api.h>
 #include <esp_vfs_fat.h>
+#include <esp_idf_version.h>
 #include <diskio_impl.h>
 #include <diskio_sdmmc.h>
 #include <ff.h>
@@ -41,7 +42,12 @@ static esp_err_t mount_to_vfs_fat(uint32_t max_files, sdmmc_card_t* card, uint8_
     FRESULT res;
 
     // connect FATFS to VFS
+#if ESP_IDF_VERSION_MAJOR >= 6
+    const esp_vfs_fat_conf_t vfs_conf = { .base_path = base_path, .fat_drive = drv, .max_files = max_files };
+    err                               = esp_vfs_fat_register(&vfs_conf, &fs);
+#else
     err = esp_vfs_fat_register(base_path, drv, max_files, &fs);
+#endif
     if (err == ESP_ERR_INVALID_STATE) {
         // it's okay, already registered with VFS
     } else if (err != ESP_OK) {

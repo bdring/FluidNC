@@ -84,7 +84,11 @@ uint32_t stepTimerInit(bool (*callback)(void)) {
 #    include <esp_attr.h>
 #    include <esp_compiler.h>
 // #    include "esp_intr_types.h"
-#    include "soc/timer_periph.h"
+#    if ESP_IDF_VERSION_MAJOR >= 6
+#        include "hal/timer_periph.h"
+#    else
+#        include "soc/timer_periph.h"
+#    endif
 
 #    define IRAM IRAM_ATTR
 
@@ -150,7 +154,11 @@ uint32_t stepTimerInit(bool (*callback)(void)) {
 
     timer_isr_callback = callback;
 
+#    if ESP_IDF_VERSION_MAJOR >= 6
+    esp_intr_alloc_intrstatus(soc_timg_gptimer_signals[0][0].irq_id,
+#    else
     esp_intr_alloc_intrstatus(timer_group_periph_signals.groups[0].timer_irq_id[0],
+#    endif
                               ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_LEVEL3,
                               (uint32_t)timer_ll_get_intr_status_reg(&TIMERG0),
                               TIMER_LL_EVENT_ALARM(TIMER_0),

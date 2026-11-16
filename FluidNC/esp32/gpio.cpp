@@ -9,7 +9,7 @@
 
 #include "driver/gpio.h"
 #include "hal/gpio_hal.h"
-#include "rom/gpio.h"  // gpio_matrix_*
+#include "esp_rom_gpio.h"  // esp_rom_gpio_connect_out_signal
 
 static gpio_dev_t* _gpio_dev = GPIO_HAL_GET_HW(GPIO_PORT_0);
 
@@ -78,7 +78,7 @@ void gpio_route(pinnum_t pin, uint32_t signal) {
     gpio_num_t gpio = (gpio_num_t)pin;
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[gpio], PIN_FUNC_GPIO);
     gpio_set_direction(gpio, (gpio_mode_t)GPIO_MODE_DEF_OUTPUT);
-    gpio_matrix_out(gpio, signal, 0, 0);
+    esp_rom_gpio_connect_out_signal(gpio, signal, false, false);
 }
 
 typedef uint64_t gpio_mask_t;
