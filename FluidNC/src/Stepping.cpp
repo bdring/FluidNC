@@ -164,9 +164,10 @@ void IRAM_ATTR Stepping::step(AxisMask step_mask, AxisMask dir_mask) {
                     }
                 }
             }
-            // Some stepper drivers need time between changing direction and doing a pulse.
-            _engine->finish_dir();
         }
+        // Some stepper drivers need time between changing direction and doing a pulse.
+        // Do this once after all changed direction pins have been set.
+        _engine->finish_dir();
         previous_dir_mask = dir_mask;
     }
 
