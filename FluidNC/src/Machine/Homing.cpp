@@ -58,7 +58,7 @@ namespace Machine {
         set_bitnum(_unhomed_axes, axis);
     }
     void Homing::set_all_axes_unhomed() {
-        if (config->_start->_mustHome) {
+        if (config->_start->_mustHome != static_cast<uint32_t>(MustHomeMode::Disabled)) {
             _unhomed_axes = Machine::Axes::homingMask;
         }
     }

@@ -316,7 +316,7 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         get_steps(position_steps);
     } else {
         if (Homing::unhomed_axes()) {
-            if (!block->is_jog || config->_start->_mustHomeForJog) {
+            if (!block->is_jog || config->_start->_mustHome == static_cast<uint32_t>(Machine::MustHomeMode::Strict)) {
                 log_info("Unhomed axes: " << Axes::maskToNames(Homing::unhomed_axes()));
                 send_alarm(ExecAlarm::Unhomed);
                 return false;

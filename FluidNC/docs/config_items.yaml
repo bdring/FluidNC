@@ -12,6 +12,7 @@
 # below that uses one, instead of repeating the list inline every time.
 enum_types:
   messageLevels2: &messageLevels2 [None, Error, Warn, Info, Debug, Verbose]
+  mustHomeModes: &mustHomeModes [false, true, strict]
   phyTypes: &phyTypes [w5500, ksz8851, dm9051]
   pulseUsValues: &pulseUsValues [1, 2, 4]
   stepTypes: &stepTypes [Timed, RMT, I2S_STATIC, I2S_STREAM, Simulator, PIO]
@@ -131,18 +132,12 @@ section_meta:
 
 start:
   must_home:
-    type: boolean
+    type: enum
+    values: *mustHomeModes
     default: 'true'
     tuning: typical
     description: |
-      Refuses to accept motion commands until $H (home) has been run at least once since boot. Jogging and settings commands still work while unhomed.
-
-  must_home_for_jog:
-    type: boolean
-    default: 'false'
-    tuning: typical
-    description: |
-      When true, jog commands ($J) are also refused until $H (home) has been run at least once since boot. Requires must_home to be true to take effect, since only axes marked for homing are tracked as unhomed. Gives soft-limit protection for jogs when machine position is otherwise unknown.
+      false allows motion while unhomed. true blocks G-code/MDI motion but allows jogging. strict also blocks jog commands ($J) until $H (home) has been run at least once since boot.
 
   deactivate_parking:
     type: boolean

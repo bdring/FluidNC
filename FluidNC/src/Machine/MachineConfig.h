@@ -27,6 +27,7 @@
 #include "UartChannel.h"
 #include "Driver/Console.h"
 #include "Module.h"
+#include "EnumItem.h"
 #if SUPPORT_LISTENERS
 #    include "Listeners/SysListener.h"
 #endif
@@ -43,10 +44,17 @@
 namespace Machine {
     using ::Kinematics::Kinematics;
 
+    enum class MustHomeMode : uint32_t {
+        Disabled = 0,
+        Enabled  = 1,
+        Strict   = 2,
+    };
+
+    extern const EnumItem mustHomeModes[];
+
     class Start : public Configuration::Configurable {
     public:
-        bool _mustHome          = true;
-        bool _mustHomeForJog = false;
+        uint32_t _mustHome          = true;
         bool _deactivateParking = false;
 
         // At power-up or a reset, the limit switches will be checked
@@ -62,18 +70,10 @@ namespace Machine {
             // @config must_home
             // @default true
             // @tuning typical
-            // Refuses to accept motion commands until $H (home) has been run at least once
-            // since boot. Jogging and settings commands still work while unhomed.
-            handler.item("must_home", _mustHome);
-
-            // @config must_home_for_jog
-            // @default false
-            // @tuning typical
-            // When true, jog commands ($J) are also refused until $H (home) has been run at
-            // least once since boot. Requires must_home to be true to take effect, since only
-            // axes marked for homing are tracked as unhomed. Gives soft-limit protection for
-            // jogs when machine position is otherwise unknown.
-            handler.item("must_home_for_jog", _mustHomeForJog);
+            // false allows motion while unhomed. true blocks G-code/MDI motion but allows
+            // jogging. strict also blocks jog commands ($J) until $H (home) has been run
+            // at least once since boot.
+            handler.item("must_home", _mustHome, mustHomeModes);
 
             // @config deactivate_parking
             // @default false
