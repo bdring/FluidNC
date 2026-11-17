@@ -38,17 +38,12 @@
 #include "UserOutputs.h"
 #include "UserInputs.h"
 #include "Macros.h"
+#include "Machine/MustHomeMode.h"
 
 #include <string_view>
 
 namespace Machine {
     using ::Kinematics::Kinematics;
-
-    enum class MustHomeMode : uint32_t {
-        Disabled = 0,
-        Enabled  = 1,
-        Strict   = 2,
-    };
 
     extern const EnumItem mustHomeModes[];
 

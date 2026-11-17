@@ -41,12 +41,24 @@ jobs:
           import yaml
           from jsonschema import Draft202012Validator
           from config_schema_adapter import build_schema
+          from fluidnc_validate_core import validate_document
           schema = build_schema(yaml.safe_load(open("FluidNC/docs/config_items.yaml")))
           Draft202012Validator.check_schema(schema)
           v = Draft202012Validator(schema)
           for f in sorted(glob.glob("example_configs/*.yaml")):
               doc = yaml.safe_load(open(f))
               list(v.iter_errors(doc))  # must not raise
+          for value in (True, False, "strict"):
+              result = validate_document({"start": {"must_home": value}}, schema)
+              assert result["valid"], f"must_home={value!r}: {result['errors']}"
+          for value in ("Strict", "STRICT"):
+              strict_result = validate_document({"start": {"must_home": value}}, schema)
+              assert not strict_result["valid"], f"strict mode should require canonical casing: {value}"
+              permissive_result = validate_document(
+                  {"start": {"must_home": value}}, schema, permissive=True
+              )
+              assert permissive_result["valid"], f"permissive mode should accept {value}: {permissive_result['errors']}"
+              assert permissive_result["warnings"], f"permissive mode should report normalization for {value}"
           print("schema OK; validated", len(glob.glob("example_configs/*.yaml")), "example configs")
           PY
 

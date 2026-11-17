@@ -53,6 +53,7 @@ ENUM_FIELDS = {
     "homing_mode": ["StealthChop", "CoolStep", "StallGuard"],
     "message_level": ["None", "Error", "Warn", "Info", "Debug", "Verbose"],
     "axis": ["x", "y", "z", "a", "b", "c", "u", "v", "w"],  # parking.axis
+    "must_home": ["strict"],
 }
 
 
