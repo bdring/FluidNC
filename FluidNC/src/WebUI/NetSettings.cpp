@@ -25,7 +25,25 @@ namespace WebUI {
         { "Ethernet", NetworkTypeEthernet },
     };
 
-    NetworkType networkType() { return _network_type ? NetworkType(_network_type->get()) : NetworkTypeWiFi; }
+    // Create on first use: module init order is not guaranteed, and EthConfig
+    // needs the network type before deciding whether to start the PHY.
+    static void ensureSettings() {
+        if (_network_type == nullptr) {
+            _hostname = new HostnameSetting("Hostname", "ESP112", "Hostname", "fluidnc");
+#if defined(CONFIG_IDF_TARGET_ESP32P4) && MAX_N_ETH
+            // P4 boards have no WiFi radio; start on Ethernet.
+            constexpr int defaultNetworkType = NetworkTypeEthernet;
+#else
+            constexpr int defaultNetworkType = NetworkTypeWiFi;
+#endif
+            _network_type = new EnumSetting("Network type", WEBSET, WA, NULL, "network/type", defaultNetworkType, &networkTypeOptions);
+        }
+    }
+
+    NetworkType networkType() {
+        ensureSettings();
+        return NetworkType(_network_type->get());
+    }
 
     bool networkEnabled() {
         switch (networkType()) {
@@ -86,13 +104,9 @@ namespace WebUI {
     class NetSettingsModule : public Module {
     public:
         NetSettingsModule(const char* name) : Module(name) {}
-        void init() override {
-            _hostname     = new HostnameSetting("Hostname", "ESP112", "Hostname", "fluidnc");
-            _network_type = new EnumSetting("Network type", WEBSET, WA, NULL, "network/type", NetworkTypeWiFi, &networkTypeOptions);
-        }
+        void init() override { ensureSettings(); }
     };
 
-    // init_priority must be lower than WiFi/Ethernet (105) so _hostname and
-    // _network_type exist by the time those modules init().
+    // Register before the WiFi/Ethernet modules (105/106).
     ModuleFactory::InstanceBuilder<NetSettingsModule> __attribute__((init_priority(104))) net_settings_module("netsettings", true);
 }
