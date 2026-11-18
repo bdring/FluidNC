@@ -69,6 +69,7 @@ namespace Machine {
 #if MAX_N_PIO
             PIO_ENGINE,
 #endif
+            PARLIO,
         };
 
         Stepping() = default;

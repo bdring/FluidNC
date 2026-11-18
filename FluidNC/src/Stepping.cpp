@@ -24,20 +24,28 @@ namespace Machine {
     uint32_t Stepping::_directionDelayUsecs = 0;
     uint32_t Stepping::_disableDelayUsecs   = 0;
 
-    const EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
+    const EnumItem stepTypes[] = {
+#if !defined(CONFIG_IDF_TARGET_ESP32P4)
+        // The P4 build does not compile the Timed engine.
+        { Stepping::TIMED, "Timed" },
+#endif
+#if MAX_N_PARLIO
+        { Stepping::PARLIO, "PARLIO" },
+#endif
 #if MAX_N_RMT
-                                   { Stepping::RMT_ENGINE, "RMT" },
+        { Stepping::RMT_ENGINE, "RMT" },
 #endif
 #if MAX_N_I2SO
-                                   { Stepping::I2S_STATIC, "I2S_STATIC" }, { Stepping::I2S_STREAM, "I2S_STREAM" },
+        { Stepping::I2S_STATIC, "I2S_STATIC" }, { Stepping::I2S_STREAM, "I2S_STREAM" },
 #endif
 #if MAX_N_SIMULATOR
-                                   { Stepping::SIMULATOR, "Simulator" },
+        { Stepping::SIMULATOR, "Simulator" },
 #endif
 #if defined(MAX_N_PIO) && MAX_N_PIO
-                                   { Stepping::PIO_ENGINE, "PIO" },
+        { Stepping::PIO_ENGINE, "PIO" },
 #endif
-                                   EnumItem(DEFAULT_STEPPING_ENGINE) };
+        EnumItem(DEFAULT_STEPPING_ENGINE)
+    };
 
     void Stepping::afterParse() {
         if (!_engine) {
@@ -45,6 +53,9 @@ namespace Machine {
         }
 #if MAX_N_I2SO
         Assert(strncmp("I2S", _engine->name, 3) || config->_i2so, "I2SO bus must be configured for this stepping type");
+#endif
+#if MAX_N_PARLIO
+        Assert(strncmp("PARLIO", _engine->name, 6) || config->_parlio, "PARLIO bus must be configured for this stepping type");
 #endif
     }
 

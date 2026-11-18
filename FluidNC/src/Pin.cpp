@@ -11,6 +11,9 @@
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
+#if MAX_N_PARLIO
+#    include "Pins/PARLIOPinDetail.h"
+#endif
 #include "Pins/ChannelPinDetail.h"
 #ifdef ENABLE_WS_CHANNEL_PINS
 #    include "Pins/WSChannelPinDetail.h"
@@ -86,6 +89,12 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
 #if MAX_N_I2SO
     if (string_util::equal_ignore_case(pin_type, "i2so")) {
         pinImplementation = new Pins::I2SOPinDetail(static_cast<pinnum_t>(pin_number), parser);
+        return nullptr;
+    }
+#endif
+#if MAX_N_PARLIO
+    if (string_util::equal_ignore_case(pin_type, "parlio")) {
+        pinImplementation = new Pins::PARLIOPinDetail(static_cast<pinnum_t>(pin_number), parser);
         return nullptr;
     }
 #endif

@@ -90,6 +90,12 @@ void setup() {
         }
 #    endif
 
+#    if MAX_N_PARLIO
+        if (config->_parlio) {
+            config->_parlio->init();
+        }
+#    endif
+
 #    if MAX_N_SPI
         if (config->_spi) {
             config->_spi->init();
