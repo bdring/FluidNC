@@ -70,6 +70,7 @@ namespace ATCs {
             _prev_tool = new_tool;
             move_to_safe_z();
             move_to_change_location();
+            _macro.addf("M61 Q0");  // macros do not update the tool number automatically with M6Tx
             reset();
             return _macro.run(channel, true);
         }
@@ -94,6 +95,7 @@ namespace ATCs {
                     _macro.addf("G20");
                 }
                 _prev_tool = new_tool;
+                _macro.addf("M61 Q0");  // macros do not update the tool number automatically with M6Tx
                 return _macro.run(channel, true);
             }
 
