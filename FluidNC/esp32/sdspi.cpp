@@ -122,8 +122,10 @@ bool sd_init_slot(uint32_t freq_hz, pinnum_t cs_pin, pinnum_t cd_pin, pinnum_t w
     err = sdspi_host_init_device(&slot_config, &(host_config.slot));
     CHECK_EXECUTE_RESULT(err, "slot init failed");
 
+#if !defined(CONFIG_IDF_TARGET_ESP32P4)
     SDMMC.clock.phase_dout = 1;
     SDMMC.clock.phase_din  = 6;
+#endif
 
     return true;
 

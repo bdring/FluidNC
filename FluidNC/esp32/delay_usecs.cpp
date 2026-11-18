@@ -1,7 +1,13 @@
 #include "Driver/delay_usecs.h"
 
 #include <esp_attr.h>  // IRAM_ATTR
-#include <xtensa/core-macros.h>
+
+#if defined(CONFIG_IDF_TARGET_ESP32P4)
+#    include <Arduino.h>
+#    include <esp_cpu.h>
+#else
+#    include <xtensa/core-macros.h>
+#endif
 
 #include <sdkconfig.h>
 
@@ -10,6 +16,7 @@
 // of framework-arduinoespressif32 that we are using does not have the associated
 // libesp_hw_support.a library in the esp32s3 subdirectory.  It is present in the
 // other subdirectories (esp32/, esp32s2/ and esp32c3)
+#if !defined(CONFIG_IDF_TARGET_ESP32P4)
 int esp_clk_cpu_freq(void) {
     // This is how to do it with newer ESP-IDF versions
     // uint32_t cpu_freq_hz;
@@ -18,12 +25,18 @@ int esp_clk_cpu_freq(void) {
 
     return 240000000;
 }
+#endif
 
 uint32_t ticks_per_us;
 
 // cppcheck-suppress unusedFunction
 void timing_init() {
+#if defined(CONFIG_IDF_TARGET_ESP32P4)
+    // getCpuFrequencyMhz() is in MHz, which is exactly one tick per microsecond.
+    ticks_per_us = getCpuFrequencyMhz();
+#else
     ticks_per_us = esp_clk_cpu_freq() / 1000000;
+#endif
 }
 
 void IRAM_ATTR delay_us(int32_t us) {
@@ -57,5 +70,9 @@ void IRAM_ATTR spinUntil(int32_t endTicks) {
 // and factored so it can be used in different ways.
 
 int32_t IRAM_ATTR getCpuTicks() {
+#if defined(CONFIG_IDF_TARGET_ESP32P4)
+    return (int32_t)esp_cpu_get_cycle_count();
+#else
     return XTHAL_GET_CCOUNT();
+#endif
 }

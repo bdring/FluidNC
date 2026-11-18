@@ -11,6 +11,13 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
+#if defined(CONFIG_IDF_TARGET_ESP32P4)
+// The P4 has no APB UART clock; its default is PLL_F80M.
+#    define FNC_UART_SCLK UART_SCLK_DEFAULT
+#else
+#    define FNC_UART_SCLK UART_SCLK_APB
+#endif
+
 const int PINNUM_MAX                        = 64;
 bool      events_enabled[UART_NUM_MAX]      = { false };
 InputPin* objects[UART_NUM_MAX][PINNUM_MAX] = { nullptr };
@@ -144,7 +151,7 @@ void uart_mode(uint32_t uart_num, uint32_t baud, UartData dataBits, UartParity p
         // Zero the fields not set here, e.g. IDF 6's rx_glitch_filt_thresh,
         // which uart_param_config() asserts on
         fnc_uart_config_t conf = {};
-        conf.source_clk          = UART_SCLK_APB;
+        conf.source_clk          = FNC_UART_SCLK;
         conf.baud_rate           = baud;
         conf.data_bits           = datalen[dataBits];
         conf.parity              = parity_mode[parity];
@@ -155,7 +162,7 @@ void uart_mode(uint32_t uart_num, uint32_t baud, UartData dataBits, UartParity p
         fnc_uart_param_config(port, &conf);
     } else {
         uart_config_t conf = {};
-        conf.source_clk          = UART_SCLK_APB;
+        conf.source_clk          = FNC_UART_SCLK;
         conf.baud_rate           = baud;
         conf.data_bits           = datalen[dataBits];
         conf.parity              = parity_mode[parity];

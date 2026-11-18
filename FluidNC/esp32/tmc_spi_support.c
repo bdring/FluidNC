@@ -15,6 +15,9 @@
 #    define HSPI_HOST SPI2_HOST
 #    define SPI2 GPSPI2
 #endif
+#ifdef CONFIG_IDF_TARGET_ESP32P4
+#    define SPI2 GPSPI2
+#endif
 
 spi_dev_t* hw = &SPI2;
 

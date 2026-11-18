@@ -22,6 +22,7 @@
 #    include <esp32s3/rom/gpio.h>
 #elif CONFIG_IDF_TARGET_ESP32C3
 #    include <esp32c3/rom/gpio.h>
+#elif CONFIG_IDF_TARGET_ESP32P4
 #else
 #    error Target CONFIG_IDF_TARGET is not supported
 #endif
@@ -150,6 +151,11 @@ void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
     // ledc_set_duty(speedmode, ledc_channel_t(c), duty);
     // This does:
 
+#if defined(CONFIG_IDF_TARGET_ESP32P4)
+    // P4 LEDC registers differ from the older targets.
+    ledc_set_duty(speedmode, ledc_channel_t(c), duty);
+    ledc_update_duty(speedmode, ledc_channel_t(c));
+#else
     auto& ch = LEDC.channel_group[speedmode].channel[c];
 
     // These can be ignored because they should have been set by initial set_duty / update_duty (ctor):
@@ -166,6 +172,7 @@ void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
     ch.conf1.duty_start = on;
     // -> ledc_ls_channel_update(speed_mode, channel); // Doesn't seem to hurt for high speed channels.
     ch.conf0.low_speed_update = 1;
+#endif
 
     // log_debug("Setting duty to " << duty);
 }
