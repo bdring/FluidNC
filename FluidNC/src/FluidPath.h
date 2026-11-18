@@ -11,7 +11,7 @@ struct Volume {
     const char* name;
     std::string prefix;
 };
-extern Volume SD;
+extern Volume SDVolume;
 extern Volume LocalFS;
 
 // Helper class to manage SD card mount/unmount lifecycle
