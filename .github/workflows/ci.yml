@@ -67,6 +67,12 @@ jobs:
         pio_env_variant:
           - ""
           - "_s3"
+        include:
+          # ESP32-P4 PARLIO build.  It has its own env name, not a suffix
+          # variant of the other ESP32 targets.
+          - os: ubuntu-latest
+            pio_env: noradio_p4
+            pio_env_variant: ""
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
