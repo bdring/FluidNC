@@ -261,11 +261,37 @@ addDoc('config-items', configItemsPath)
 # browser consumers with no YAML parser).
 addDoc('config-items-json', os.path.splitext(configItemsPath)[0] + '.json')
 
-flashsize = "4m"
-
+# Each entry describes one MCU family.  flashsize/fs_offset/bootloader_offset
+# follow that family's PlatformIO partition table; fs_build is the variant
+# whose build directory contains the filesystem and boot assets.
 versions = [
-    { "mcu": "esp32",   "env_suffix": "", "builds":  ["wifi", "bt", "noradio"]},
-    { "mcu": "esp32s3", "env_suffix": "_s3", "builds" : ["wifi", "noradio"]},
+    {
+        "mcu": "esp32",
+        "env_suffix": "",
+        "builds": ["wifi", "bt", "noradio"],
+        "flashsize": "4m",
+        "fs_build": "wifi",
+        "fs_offset": "0x3d0000",
+        "bootloader_offset": "0x1000",
+    },
+    {
+        "mcu": "esp32s3",
+        "env_suffix": "_s3",
+        "builds": ["wifi", "noradio"],
+        "flashsize": "4m",
+        "fs_build": "wifi",
+        "fs_offset": "0x3d0000",
+        "bootloader_offset": "0x0",
+    },
+    {
+        "mcu": "esp32p4",
+        "env_suffix": "_p4",
+        "builds": ["noradio"],
+        "flashsize": "8m",
+        "fs_build": "noradio",
+        "fs_offset": "0x610000",
+        "bootloader_offset": "0x2000",
+    },
 ]
 bootapp = 'boot_app0.bin';
 bootloader = 'bootloader.bin'
@@ -273,6 +299,10 @@ bootloader = 'bootloader.bin'
 for version in versions:
     mcu = version["mcu"]
     suffix = version["env_suffix"]
+    versionFlashsize = version["flashsize"]
+    fsBuild = version["fs_build"]
+    fsOffset = version["fs_offset"]
+    bootloaderOffset = version["bootloader_offset"]
     buildEnviron = environ
     for buildName in version["builds"]:
         envName = buildName + suffix
@@ -303,7 +333,7 @@ for version in versions:
 
         addImage(mcu + '-' + buildName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + buildName)
 
-        if buildName == 'wifi':
+        if buildName == fsBuild:
             if buildFs(envName, verbose=verbose, env=buildEnviron) != 0:
                sys.exit(1)
 
@@ -314,9 +344,9 @@ for version in versions:
             bootappsrc = os.path.join(coreDir,'packages','framework-arduinoespressif32','tools','partitions', bootapp)
             shutil.copy(bootappsrc, buildDir)
 
-            addImage(mcu + '-' + buildName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + buildName + '/' + flashsize)
-            addImage(mcu + '-' + flashsize + '-partitions', '0x8000', 'partitions.bin', buildDir, mcu + '/' + flashsize)
-            addImage(mcu + '-bootloader', '0x1000' if mcu == 'esp32' else '0x0', bootloader, buildDir, mcu)
+            addImage(mcu + '-' + buildName + '-' + versionFlashsize + '-filesystem', fsOffset, 'littlefs.bin', buildDir, mcu + '/' + buildName + '/' + versionFlashsize)
+            addImage(mcu + '-' + versionFlashsize + '-partitions', '0x8000', 'partitions.bin', buildDir, mcu + '/' + versionFlashsize)
+            addImage(mcu + '-bootloader', bootloaderOffset, bootloader, buildDir, mcu)
             addImage(mcu + '-bootapp', '0xe000', bootapp, buildDir, mcu)
 
 # wifi_s3_octalPSRAM is esp32s3 built against the Octal-PSRAM Arduino core
@@ -484,6 +514,12 @@ def makeManifest():
     addVariant("noradio", "Does not support WiFi", "Installation type", compatible_psram=["none", "quad", "octal"])
     addInstallable(fresh_install, True, [mcu + "-4m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
     addInstallable(firmware_update, False, [mcu + "-bootapp", mcu + "-noradio-firmware"])
+
+    mcu = "esp32p4"
+    addMCU(mcu, "ESP32-P4", "Firmware variant")
+    addVariant("noradio", "Ethernet and WebUI; no WiFi radio. Uses PARLIO step and direction outputs.", "Installation type")
+    addInstallable(fresh_install, True, [mcu + "-8m-partitions", mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware", mcu + "-noradio-8m-filesystem"])
+    addInstallable(firmware_update, False, [mcu + "-bootloader", mcu + "-bootapp", mcu + "-noradio-firmware"])
 
     addFile("WebUI-2", "/localfs/index.html.gz", "index-webui-2.html.gz", os.path.join("release", "current", "data"), "data")
     addFile("WebUI-3", "/localfs/index.html.gz", "index-webui-3.html.gz", os.path.join("release", "current", "data"), "data")
