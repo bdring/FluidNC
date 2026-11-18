@@ -1,5 +1,9 @@
 {
  "enum_types": {
+  "clockModes": [
+   "ext_in",
+   "out"
+  ],
   "messageLevels2": [
    "None",
    "Error",
@@ -11,7 +15,8 @@
   "phyTypes": [
    "w5500",
    "ksz8851",
-   "dm9051"
+   "dm9051",
+   "ip101"
   ],
   "pulseUsValues": [
    1,
@@ -20,6 +25,7 @@
   ],
   "stepTypes": [
    "Timed",
+   "PARLIO",
    "RMT",
    "I2S_STATIC",
    "I2S_STREAM",
@@ -73,6 +79,9 @@
  "pin_namespaces": {
   "i2so": {
    "pattern": "i2so\\.[0-9]+"
+  },
+  "parlio": {
+   "pattern": "parlio\\.[0-9]+"
   },
   "pinext": {
    "pattern": "pinext[0-9]\\.[0-9]+"
@@ -204,6 +213,7 @@
    "type": "enum",
    "values": [
     "Timed",
+    "PARLIO",
     "RMT",
     "I2S_STATIC",
     "I2S_STREAM",
@@ -422,6 +432,110 @@
    "default": "NO_PIN",
    "pin_attributes": "output",
    "description": "Optional output-enable pin for the I2S shift-register chain.\n"
+  }
+ },
+ "parlio": {
+  "clk_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO output clock pin.\n"
+  },
+  "data0_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 0 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data1_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 1 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data2_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 2 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data3_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 3 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data4_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 4 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data5_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 5 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data6_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 6 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data7_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 7 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data8_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 8 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data9_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 9 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data10_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 10 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data11_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 11 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data12_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 12 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data13_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 13 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data14_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 14 output. Use only for stepper motor step and direction signals.\n"
+  },
+  "data15_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "PARLIO data bit 15 output. Use only for stepper motor step and direction signals.\n"
   }
  },
  "sdcard": {
@@ -695,17 +809,39 @@
    "type": "pin",
    "default": "NO_PIN",
    "pin_attributes": "output",
-   "description": "Optional hardware reset pin for the PHY.\n"
+   "description": "Optional hardware reset pin. For RMII PHYs it is passed to ETH.begin().\n"
+  },
+  "mdc_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "output",
+   "description": "RMII management clock (MDC).\n"
+  },
+  "mdio_pin": {
+   "type": "pin",
+   "default": "NO_PIN",
+   "pin_attributes": "io",
+   "description": "RMII management data (MDIO), bidirectional.\n"
+  },
+  "clock_mode": {
+   "type": "enum",
+   "values": [
+    "ext_in",
+    "out"
+   ],
+   "default": "ext_in",
+   "description": "RMII REF_CLK direction: ext_in or out.\n"
   },
   "phy_type": {
    "type": "enum",
    "values": [
     "w5500",
     "ksz8851",
-    "dm9051"
+    "dm9051",
+    "ip101"
    ],
    "default": "W5500",
-   "description": "Which SPI-attached Ethernet PHY chip is present. W5500 is the only one actually tested; KSZ8851/DM9051 use the same SPI+CS wiring and ETH.begin() call shape with a different chip-type constant, so they're offered too. RMII-attached PHYs (LAN8720 and similar) are a different wiring/API shape entirely and aren't supported by this section.\n"
+   "description": "Ethernet PHY chip type. SPI types use cs_pin; IP101 uses RMII.\n"
   },
   "phy_addr": {
    "type": "integer",
