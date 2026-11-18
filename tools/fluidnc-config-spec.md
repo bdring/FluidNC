@@ -43,7 +43,7 @@ The config file has an implicit root (there is **no** `machine:` wrapper key —
 
 | Kind | Keys |
 |---|---|
-| Singular sections | `stepping`, `i2so`, `spi`, `sdcard`, `kinematics`, `axes`, `control`, `coolant`, `probe`, `macros`, `start`, `parking`, `user_outputs`, `user_inputs`, `oled`, `status_outputs` |
+| Singular sections | `stepping`, `i2so`, `parlio`, `spi`, `sdcard`, `kinematics`, `axes`, `control`, `coolant`, `probe`, `macros`, `start`, `parking`, `user_outputs`, `user_inputs`, `oled`, `status_outputs` |
 | Numbered sections | `uart0`…`uart9`, `uart_channel0`…, `i2c0`… (one digit each) |
 | Spindle types | one or more of `PWM`, `Laser`, `10V`, `BESC`, `HBridge`, `OnOff`, `Relay`, `DAC`, `PlasmaSpindle`, `NoSpindle`, `ModbusVFD`, plus the named-VFD keys (`Huanyang`, `H2A`, `YL620`, `DeltaMS300`, `FolinnBD600`, `H100`, `MollomG70`, `NowForever`, `SiemensV20`, `DanfossVLT2800`) — see `spindle_sections:` / `vfd_named_types:` in `config_items.yaml` |
 | ATC | `atc_manual` (referenced by a spindle's `atc:` field) |
@@ -129,7 +129,7 @@ Ground truth: `Pin::parse()` in `Pin.cpp` is the single dispatch point for every
 
 ```
 pin           := pin_type [ "." pin_number ] [ ":" attribute ]*
-pin_type      := "gpio" | "i2so" | "uart_channel" digit | "no_pin" | "void" | "pinext" digit
+pin_type      := "gpio" | "i2so" | "parlio" | "uart_channel" digit | "no_pin" | "void" | "pinext" digit
 pin_number    := decimal integer in 0-127 (board-specific legality is checked by firmware)
 attribute     := ("high" | "low")       (active state; default high)
                | ("pu" | "pd")          (pull-up / pull-down; input pins only; default floating)
@@ -146,6 +146,7 @@ special_value := "NO_PIN"               (canonical "no pin", stands alone with n
 |---|---|
 | `gpio.N` | Native MCU pin (ESP32 or, on a dev build, RP2040 — same grammar). |
 | `i2so.N` | Output-only pin on an external I2S shift-register chain. Requires an `i2so:` section (§4) and an I2S stepping engine. Cannot do PWM. |
+| `parlio.N` | Step or direction output on the ESP32-P4 PARLIO parallel bus. Use only for stepper motor step and direction signals — not for relays, LEDs, or other on/off outputs. Requires a `parlio:` section (§4) and the PARLIO stepping engine. `N` is the data bit, 0-15. |
 | `uart_channelN.M` | Advanced/rare: a virtual pin carried over a UART "channel" — `N` selects the `uart_channelN:` section, `M` is the virtual pin index. Supports `:pu`/`:pd`/`:low`/`:high`, not `:ds`. |
 | `void` | A real allocatable pin that does nothing (accepts writes, reports reads, drives no hardware). Written bare (`void`, not `void.0`). Exempt from the duplicate-pin check (§0.12) — useful for bench-testing or disabling one part of a machine. |
 | `NO_PIN` | "Nothing connected here." |
@@ -160,6 +161,7 @@ special_value := "NO_PIN"               (canonical "no pin", stands alone with n
 ### Stepping and pins
 
 - **`i2so:` section is required if any `i2so.N` pin appears anywhere in the file.** Without it those pins do not function.
+- **`parlio:` section is required if any `parlio.N` pin appears anywhere in the file.** Without it those pins do not function; the PARLIO engine asserts at startup. The section's `data0_pin`…`data15_pin` map bits to physical GPIOs. Do not mix `parlio.N` pins with any non-PARLIO stepping engine. Use `parlio.N` only for stepper motor step and direction signals; it is not a general-purpose output.
 - **Do not mix `i2so.N` pins with `stepping.engine: Timed` or `RMT`.** I2SO pins require an I2S stepping engine (`I2S_STATIC` / `I2S_STREAM`). `I2S_STATIC` and `I2S_STREAM` are functionally identical (historical names). `RMT` is compiled in only on boards with `MAX_N_RMT`; the I2S engines only with `MAX_N_I2SO` — an `engine:` value valid on one board build may not exist on another.
 - **`stepping.idle_ms` default `255` is a magic value**, not an ordinary millisecond count — it means "never auto-disable motors," and it is also the out-of-the-box default. So an unconfigured `stepping:` already leaves motors permanently enabled; any value 0–254 or 256+ is a real delay before auto-disable.
 - **`pulse_us` / `dir_delay_us` cap the achievable step rate.** At load time FluidNC checks `1000000 / (2*pulse_us + dir_delay_us)` against `steps_per_mm * max_rate_mm_per_min / 60` and throws `"Stepping rate N steps/sec exceeds the maximum rate M"` if it can't keep up. Keep `steps_per_mm` no higher than needed (lower microstepping if margin is tight).

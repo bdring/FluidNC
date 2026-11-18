@@ -132,6 +132,7 @@ adapter) and the pin-type namespace set (a new source annotation).
 | subclass | annotation | resulting fragment |
 |---|---|---|
 | `I2SOPinDetail` | `@pin_namespace i2so` | `i2so\.[0-9]+` |
+| `PARLIOPinDetail` | `@pin_namespace parlio` | `parlio\.[0-9]+` |
 | `UartChannelPinDetail` | `@pin_namespace uart_channel<n>` | `uart_channel[0-9]\.[0-9]+` |
 | `ExtPinDetail` | `@pin_namespace pinext<n>` | `pinext[0-9]\.[0-9]+` |
 | `GPIOPinDetail` | *(none — builtin)* | `gpio\.[0-9]+` (adapter constant) |
@@ -166,6 +167,7 @@ No other new annotation grammar. `@stability` is **not** added (decision 1).
    ```yaml
    pin_namespaces:
      i2so:         { pattern: 'i2so\.[0-9]+' }
+     parlio:       { pattern: 'parlio\.[0-9]+' }
      uart_channel: { pattern: 'uart_channel[0-9]\.[0-9]+' }
      pinext:       { pattern: 'pinext[0-9]\.[0-9]+' }
    ```

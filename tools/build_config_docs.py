@@ -37,6 +37,7 @@ SECTIONS = [
     ("spi", [("Machine/SPIBus.cpp", "SPIBus")], None),
     ("i2cN", [("Machine/I2CBus.cpp", "I2CBus")], None),
     ("i2so", [("Machine/I2SOBus.cpp", "I2SOBus")], None),
+    ("parlio", [("Machine/ParlioBus.cpp", "ParlioBus")], None),
     ("sdcard", [("SDCard.h", "SDCard")], None),
     ("user_outputs", [("Machine/UserOutputs.cpp", "UserOutputs")], None),
     ("uartN", [("Uart.cpp", "Uart")], None),
