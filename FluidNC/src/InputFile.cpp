@@ -31,6 +31,12 @@ Error InputFile::readLine(char* line, size_t maxlen) {
         }
         line[len++] = c;
     }
+    if (c < 0 && len > 0) {
+        // EOF reached with a pending line that lacks a trailing newline --
+        // count it the same as a newline-terminated line so the file's last
+        // line is not left out of the count.
+        ++_line_number;
+    }
     line[len] = '\0';
     if (read_failed()) {
         // An I/O error is not end of file.  Do not hand back the partial line

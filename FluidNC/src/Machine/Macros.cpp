@@ -101,6 +101,27 @@ Macro Macros::_after_reset { "after_reset" };
 // Runs after a $X unlock command.
 Macro Macros::_after_unlock { "after_unlock" };
 
+// @config restart_macro
+// @default ""
+// @default_note empty (no restart macro is run)
+// @tuning typical
+// A macro (one config-file line, same syntax as macros: and Spindle's
+// m6_macro) run when a check-mode dry run ($C then $SD/Run=path or
+// $LocalFS/Run=path, with a $Breakpoint/Set armed for that path -- see
+// ProcessSettings.cpp) reaches its target line. gc_state has been
+// reconstructed by the dry run as of that line, so #<_target_x/y/z>,
+// #<_spindle_cw>, #<_rpm>, #<_flood>, and #<_mist> reflect where the file's
+// G-code would have left the tool and its spindle/coolant state. A real
+// restart sequence typically needs conditionals, (PRINT ...), and its own
+// explicit M0 pauses that don't fit in one config-file line, so this is
+// usually just a delegating line like "$SD/Run=restart.nc" rather than the
+// sequence itself. It runs in normal (not single block) mode; single block
+// mode is switched on only once it finishes, so it steps through the
+// resumed job one line at a time from there. If empty, the dry run just
+// pauses at the target line in single block mode with no restart macro run
+// first.
+Macro Macros::_restart_macro { "restart_macro" };
+
 // clang-format off
 const std::map<std::string, Cmd> overrideCodes = {
     { "fr", Cmd::FeedOvrReset },
@@ -147,9 +168,10 @@ bool Macro::run(Channel* channel, bool defer_ack) {
 }
 
 Error MacroChannel::readLine(char* line, size_t maxlen) {
-    size_t             len       = 0;
-    const std::string& gcode     = _macro->_gcode;
-    const int          gcode_len = gcode.length();
+    size_t             len        = 0;
+    const std::string& gcode      = _macro->_gcode;
+    const int          gcode_len  = gcode.length();
+    bool               terminated = false;
     while (_position < gcode_len) {
         if (len >= maxlen) {
             return Error::LineLengthExceeded;
@@ -170,14 +192,20 @@ Error MacroChannel::readLine(char* line, size_t maxlen) {
         // & is a proxy for newlines in macros, because you cannot
         // enter a newline directly in a config file string value.
         if (c == '&' || c == '\n') {
+            terminated = true;
             break;
         }
         line[len++] = c;
     }
     line[len] = '\0';
-    ++_line_number;
-    if (len == 0) {
-        ++_blank_lines;
+    // Match InputFile::readLine's semantics: count a line when it was properly
+    // terminated, or when EOF was reached with pending content lacking a
+    // terminator, but not when this call found nothing at all (true EOF).
+    if (terminated || len > 0) {
+        ++_line_number;
+        if (len == 0) {
+            ++_blank_lines;
+        }
     }
 
     return len ? Error::Ok : Error::Eof;
