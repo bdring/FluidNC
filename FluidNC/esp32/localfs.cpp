@@ -21,7 +21,7 @@ const char* littlefsPrefix    = "/littlefs";
 bool createme = false;
 
 bool localfs_mount() {
-    SD.prefix = "/sd";
+    SDVolume.prefix = "/sd";
 
     if (spiffs_mount(spiffsPartition, false) == ESP_OK) {
         LocalFS.prefix = spiffsPrefix;
