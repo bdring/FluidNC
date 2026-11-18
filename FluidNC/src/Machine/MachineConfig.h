@@ -34,6 +34,9 @@
 #include "SPIBus.h"
 #include "I2CBus.h"
 #include "I2SOBus.h"
+#if MAX_N_PARLIO
+#    include "ParlioBus.h"
+#endif
 #include "UserOutputs.h"
 #include "UserInputs.h"
 #include "Macros.h"
@@ -97,6 +100,9 @@ namespace Machine {
 #endif
 #if MAX_N_I2SO
         I2SOBus* _i2so = nullptr;
+#endif
+#if MAX_N_PARLIO
+        ParlioBus* _parlio = nullptr;
 #endif
         Stepping*       _stepping    = nullptr;
         CoolantControl* _coolant     = nullptr;

@@ -10,17 +10,8 @@
 #include <cstdint>
 
 namespace Machine {
-    // Ethernet PHY types supported via Arduino-ESP32's SPI-attached
-    // Ethernet driver (ETH.h). W5500 is the one we've actually tested,
-    // but KSZ8851SNL and DM9051 use the same SPI-bus-plus-CS wiring and
-    // the same ETH.begin() call shape with a different eth_phy_type_t,
-    // so supporting them costs nothing extra here.
-    //
-    // RMII-attached PHYs (LAN8720, IP101, RTL8201, JL1101, KSZ8041, ...)
-    // need a different pin set (MDC/MDIO/RMII clock, no SPI/CS/INT) and a
-    // different ETH.begin() overload, so they are intentionally not
-    // supported by this class. Add a separate config section for those
-    // if/when they're needed.
+    // Ethernet PHY types supported by Arduino-ESP32's ETH.h: SPI parts use
+    // cs_pin; RMII parts use mdc_pin/mdio_pin and the fixed RMII pins.
     class EthPhy : public Configuration::Configurable {
     public:
         EthPhy() = default;
@@ -40,13 +31,27 @@ namespace Machine {
         // W5500 is 0; keep numeric values stable since they may end up in
         // saved config round-trips via the enum machinery.
         enum PhyType {
-            W5500    = 0,
-            KSZ8851  = 1,
-            DM9051   = 2,
+            W5500   = 0,
+            KSZ8851 = 1,
+            DM9051  = 2,
+            IP101   = 3,
         };
         static const EnumItem phyTypes[];
 
+        enum ClockMode {
+            ClockExtIn = 0,  // 50 MHz REF_CLK driven by the PHY/oscillator
+            ClockOut   = 1,  // ESP32-P4 drives the 50 MHz RMII clock
+        };
+        static const EnumItem clockModes[];
+
         uint32_t _phy_type = W5500;
+
+        Pin _mdc;
+        Pin _mdio;
+
+        uint32_t _clock_mode = ClockExtIn;
+
+        bool isRMII() const { return _phy_type == IP101; }
 
         uint32_t _phy_addr = 1;
 
@@ -72,16 +77,30 @@ namespace Machine {
             // @config rst_pin
             // @default NO_PIN
             // @pin_attributes output
-            // Optional hardware reset pin for the PHY.
+            // Optional hardware reset pin. For RMII PHYs it is passed to ETH.begin().
             handler.item("rst_pin", _rst);
+
+            // @config mdc_pin
+            // @default NO_PIN
+            // @pin_attributes output
+            // RMII management clock (MDC).
+            handler.item("mdc_pin", _mdc);
+
+            // @config mdio_pin
+            // @default NO_PIN
+            // @pin_attributes io
+            // RMII management data (MDIO), bidirectional.
+            handler.item("mdio_pin", _mdio);
+
+            // @config clock_mode
+            // @default ext_in
+            // @ignore_drift YAML token is ext_in; the C++ field initializer is the ClockExtIn enum constant.
+            // RMII REF_CLK direction: ext_in or out.
+            handler.item("clock_mode", _clock_mode, clockModes);
 
             // @config phy_type
             // @default W5500
-            // Which SPI-attached Ethernet PHY chip is present. W5500 is the only one
-            // actually tested; KSZ8851/DM9051 use the same SPI+CS wiring and ETH.begin()
-            // call shape with a different chip-type constant, so they're offered too.
-            // RMII-attached PHYs (LAN8720 and similar) are a different wiring/API shape
-            // entirely and aren't supported by this section.
+            // Ethernet PHY chip type. SPI types use cs_pin; IP101 uses RMII.
             handler.item("phy_type", _phy_type, phyTypes);
 
             // @config phy_addr

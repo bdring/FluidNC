@@ -63,6 +63,10 @@ namespace Machine {
         // We currently support only one I2S bus
         handler.section("i2so", _i2so);
 #endif
+#if MAX_N_PARLIO
+        // We currently support only one PARLIO bus
+        handler.section("parlio", _parlio);
+#endif
 #if MAX_N_I2C
         handler.sections("i2c", 0, MAX_N_I2C, false, _i2c);
 #endif
@@ -364,6 +368,9 @@ namespace Machine {
         delete _axes;
 #if MAX_N_I2SO
         delete _i2so;
+#endif
+#if MAX_N_PARLIO
+        delete _parlio;
 #endif
         delete _coolant;
         delete _probe;

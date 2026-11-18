@@ -15,7 +15,16 @@ namespace Machine {
         { EthPhy::W5500, "w5500" },
         { EthPhy::KSZ8851, "ksz8851" },
         { EthPhy::DM9051, "dm9051" },
+#if defined(ETH_PHY_IP101)
+        { EthPhy::IP101, "ip101" },
+#endif
         EnumItem(EthPhy::W5500),
+    };
+
+    const EnumItem EthPhy::clockModes[] = {
+        { EthPhy::ClockExtIn, "ext_in" },
+        { EthPhy::ClockOut, "out" },
+        EnumItem(EthPhy::ClockExtIn),
     };
 
     static eth_phy_type_t arduinoPhyType(uint32_t phy_type) {
@@ -24,13 +33,31 @@ namespace Machine {
                 return ETH_PHY_KSZ8851;
             case EthPhy::DM9051:
                 return ETH_PHY_DM9051;
+#if defined(ETH_PHY_IP101)
+            case EthPhy::IP101:
+                return ETH_PHY_IP101;
+#endif
             case EthPhy::W5500:
             default:
                 return ETH_PHY_W5500;
         }
     }
 
+#if defined(CONFIG_IDF_TARGET_ESP32P4) || defined(CONFIG_IDF_TARGET_ESP32)
+    static eth_clock_mode_t arduinoClockMode(uint32_t mode) {
+#    if defined(CONFIG_IDF_TARGET_ESP32P4)
+        return mode == EthPhy::ClockOut ? EMAC_CLK_OUT : EMAC_CLK_EXT_IN;
+#    else
+        return mode == EthPhy::ClockOut ? ETH_CLOCK_GPIO0_OUT : ETH_CLOCK_GPIO0_IN;
+#    endif
+    }
+#endif
+
     void EthPhy::validate() {
+        if (isRMII()) {
+            Assert(_mdc.defined() && _mdio.defined(), "Ethernet mdc_pin and mdio_pin must be configured");
+            return;
+        }
         // config->_spi->defined() cannot be checked here: SPIBus::defined()
         // only becomes true once SPIBus::init() actually runs the hardware
         // init, which happens later in the startup sequence than validate().
@@ -41,6 +68,40 @@ namespace Machine {
     void EthPhy::afterParse() {}
 
     bool EthPhy::init() {
+        if (isRMII()) {
+#if defined(CONFIG_IDF_TARGET_ESP32P4) || defined(CONFIG_IDF_TARGET_ESP32)
+            if (!_mdc.defined() || !_mdio.defined()) {
+                log_error("Ethernet RMII needs mdc_pin and mdio_pin");
+                return false;
+            }
+
+            _mdc.setAttr(Pin::Attr::Output);
+            _mdio.setAttr(Pin::Attr::Input);
+            pinnum_t mdc  = _mdc.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+            pinnum_t mdio = _mdio.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
+
+            int power = -1;
+            if (_rst.defined()) {
+                _rst.setAttr(Pin::Attr::Output);
+                power = _rst.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+            }
+
+            log_info("Ethernet RMII PHY " << phyTypes[_phy_type].name << " mdc:" << _mdc.name() << " mdio:" << _mdio.name()
+                                          << " rst:" << _rst.name());
+
+            bool ok = ETH.begin(arduinoPhyType(_phy_type), _phy_addr, int(mdc), int(mdio), power, arduinoClockMode(_clock_mode));
+            if (!ok) {
+                log_error("Ethernet RMII PHY init failed");
+                return false;
+            }
+            config_ok = true;
+            return true;
+#else
+            log_error("Ethernet RMII is not supported on this target");
+            return false;
+#endif
+        }
+
         if (!_cs.defined()) {
             log_debug("Ethernet not configured (no cs_pin)");
             return false;
