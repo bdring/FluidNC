@@ -1,9 +1,10 @@
-# fatfs_tiny — recompiled FatFs with FF_FS_TINY == 1 (esp32 / pioarduino Arduino core 3.3.9 only)
+# fatfs_tiny — recompiled FatFs with FF_FS_TINY == 1 (esp32 and esp32s3, IDF v5.5.6)
 
 ## Why
 
-On pioarduino `55.03.39` (Arduino core 3.3.9, `framework-arduinoespressif32-libs`
-5.5.4, ESP-IDF v5.5.4) the precompiled `esp32/lib/libfatfs.a` is built with:
+On Arduino-ESP32 `release/v3.3.x` (`framework-arduinoespressif32-libs`
+5.5.6, ESP-IDF v5.5.6) the precompiled `esp32/lib/libfatfs.a` and `esp32s3/lib/libfatfs.a` are
+built with:
 
     CONFIG_FATFS_PER_FILE_CACHE = 1   ->  FF_FS_TINY = 0
     CONFIG_WL_SECTOR_SIZE       = 4096
@@ -28,17 +29,18 @@ than compiling the component.
 
 ## How
 
-- `ff.c`, `vfs_fat.c` — **verbatim** from the `v5.5.4` tag of `espressif/esp-idf`
-  (commit `735507283d`, the exact IDF the libs were built from per their
+- `ff.c`, `vfs_fat.c` — **verbatim** from the `v5.5.6` tag of `espressif/esp-idf`
+  (commit `880a203ae60`, the exact IDF the libs were built from per their
   `versions.txt`; `components/fatfs/src/ff.c` = FatFs R0.15 w/patch2,
   `components/fatfs/vfs/vfs_fat.c`). Do not edit. `ff.h`, `ffconf.h`,
   `vfs_fat_internal.h` and `esp_vfs_fat.h` were verified byte-identical to the
-  headers in `framework-arduinoespressif32-libs/esp32/include/fatfs/`, so the
+  headers in `framework-arduinoespressif32-libs/{esp32,esp32s3}/include/fatfs/`
+  (identical on both chips), so the
   recompiled objects are ABI-identical to the archive members apart from
   `FF_FS_TINY`.
 - `ff_tiny.c`, `vfs_fat_tiny.c` — thin wrappers: `#undef` / `#define
   CONFIG_FATFS_PER_FILE_CACHE 0`, then `#include` the verbatim file. Only these
-  two wrappers are compiled (see `[common_esp32] build_src_filter` in
+  two wrappers are compiled (see `[common_esp32_base] build_src_filter` in
   `platformio.ini`); the verbatim `.c` files are not built on their own.
 - Link-order override: the wrapper objects are direct link inputs, so `f_*` /
   `esp_vfs_fat_*` resolve from them and the `ff.c.obj` / `vfs_fat.c.obj` members
@@ -49,16 +51,18 @@ than compiling the component.
 
 ## Scope
 
-esp32 (`[common_esp32]`) only. The `_s3` envs use the same IDF but a different
-chip's prebuilt libs/sdkconfig; they are not wired to these files.
+All envs that extend `[common_esp32_base]`: the classic esp32 and the esp32s3
+envs. Their prebuilt libs have the same FatFs headers and `CONFIG_FATFS_*`
+settings.
 
-Because `[common_esp32]` links with `-z muldefs` (for `stdfs17`), a duplicate
+Because both `[common_esp32]` and `[common_esp32s3]` link with `-z muldefs`, a duplicate
 definition would NOT be a link error. Verify after any change that the linker
 map has no `libfatfs.a(ff.c.obj)` or `libfatfs.a(vfs_fat.c.obj)` entries.
 
 ## Updating
 
-If the classic `esp32` env's Arduino core / IDF version changes, read the IDF
+If the Arduino core / IDF version changes, read the IDF
 commit from `framework-arduinoespressif32-libs/versions.txt`, re-fetch both files
 from that `espressif/esp-idf` tag, and re-verify the headers against
-`framework-arduinoespressif32-libs/esp32/include/fatfs/{src,vfs}/`.
+`framework-arduinoespressif32-libs/{esp32,esp32s3}/include/fatfs/{src,vfs}/`,
+and check that both chips' sdkconfig.h still agree on `CONFIG_FATFS_*`.
