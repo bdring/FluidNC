@@ -367,7 +367,7 @@ namespace WebUI {
 
         // No metadata on the FLASH filesystem; it consumes too much space
         auto flash_dav = new WebDAV("/flash", LocalFS, true);
-        auto sd_dav    = new WebDAV("/sd", SD, true);
+        auto sd_dav    = new WebDAV("/sd", SDVolume, true);
 
         _webserver->addHandler(flash_dav);
         _webserver->addHandler(sd_dav);
@@ -1214,7 +1214,7 @@ namespace WebUI {
         fileUpload(request, LocalFS, filename, index, data, len, final);
     }
     void WebUI_Server::SDFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
-        fileUpload(request, SD, filename, index, data, len, final);
+        fileUpload(request, SDVolume, filename, index, data, len, final);
     }
 
     //Web Update handler
@@ -1439,7 +1439,7 @@ namespace WebUI {
     }
 
     void WebUI_Server::handle_direct_SDFileList(AsyncWebServerRequest* request) {
-        handleFileOps(request, SD);
+        handleFileOps(request, SDVolume);
     }
     void WebUI_Server::handleFileList(AsyncWebServerRequest* request) {
         handleFileOps(request, LocalFS);

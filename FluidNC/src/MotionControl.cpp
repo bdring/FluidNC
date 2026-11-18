@@ -4,6 +4,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "MotionControl.h"
+#include "ArcSegments.h"
 
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"  // run_cycles
@@ -232,13 +233,14 @@ void mc_arc(float*            target,
         }
     }
 
-    // NOTE: Segment end points are on the arc, which can lead to the arc diameter being smaller by up to
-    // (2x) arc_tolerance. For 99% of users, this is just fine. If a different arc segment fit
-    // is desired, i.e. least-squares, midpoint on arc, just change the mm_per_arc_segment calculation.
+    // NOTE: Segment end points are on the arc, so no chord deviates from the arc by more than
+    // arc_tolerance, but the chords lie inside the circle.  If a different arc segment fit
+    // is desired, i.e. least-squares, midpoint on arc, just change arc_segment_count().
     // For most uses, this value should not exceed 2000.
-    uint16_t segments =
-        uint16_t(floorf(fabsf(0.5F * angular_travel * radius) / sqrtf(config->_arcTolerance * (2 * radius - config->_arcTolerance))));
-    if (segments) {
+    uint16_t segments = arc_segment_count(radius, angular_travel, config->_arcTolerance);
+    // A single chord needs no subdivision; skipping this block leaves pl_data (notably the
+    // inverse-time feed mode) untouched for the final mc_linear() below.
+    if (segments > 1) {
         // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
         // by a number of discrete segments. The inverse feed_rate should be correct for the sum of
         // all segments.
@@ -260,27 +262,16 @@ void mc_arc(float*            target,
            For arc generation, the center of the circle is the axis of rotation and the radius vector is
            defined from the circle center to the initial position. Each line segment is formed by successive
            vector rotations. Single precision values can accumulate error greater than tool precision in rare
-           cases. So, exact arc path correction is implemented. This approach avoids the problem of too many very
-           expensive trig operations [sin(),cos(),tan()] which can take 100-200 usec each to compute.
+           cases. So, exact arc path correction is implemented every N_ARC_CORRECTION segments. This approach
+           avoids the problem of too many very expensive trig operations [sin(),cos(),tan()].
 
-           Small angle approximation may be used to reduce computation overhead further. A third-order approximation
-           (second order sin() has too much error) holds for most, if not, all CNC applications. Note that this
-           approximation will begin to accumulate a numerical drift error when theta_per_segment is greater than
-           ~0.25 rad(14 deg) AND the approximation is successively used without correction several dozen times. This
-           scenario is extremely unlikely, since segment lengths and theta_per_segment are automatically generated
-           and scaled by the arc tolerance setting. Only a very large arc tolerance setting, unrealistic for CNC
-           applications, would cause this numerical drift error. However, it is best to set N_ARC_CORRECTION from a
-           low of ~4 to a high of ~20 or so to avoid trig operations while keeping arc generation accurate.
-
-           This approximation also allows mc_arc to immediately insert a line segment into the planner
-           without the initial overhead of computing cos() or sin(). By the time the arc needs to be applied
-           a correction, the planner should have caught up to the lag caused by the initial mc_arc overhead.
-           This is important when there are successive arc motions.
+           The per-segment rotation uses exact cos() and sin(), computed once per arc.  An earlier
+           small-angle approximation let the radius drift noticeably on small arcs, where
+           theta_per_segment is large, exceeding the arc tolerance.
         */
-        // Computes: cos_T = 1 - theta_per_segment^2/2, sin_T = theta_per_segment - theta_per_segment^3/6) in ~52usec
-        float cos_T = 2.0f - theta_per_segment * theta_per_segment;
-        float sin_T = theta_per_segment * 0.16666667f * (cos_T + 4.0f);
-        cos_T *= 0.5;
+        float cos_T;
+        float sin_T;
+        arc_segment_rotation(theta_per_segment, cos_T, sin_T);
         float    sin_Ti;
         float    cos_Ti;
         uint16_t i;

@@ -89,7 +89,7 @@ static Error showFile(const Volume& fs, const char* parameter, AuthenticationLev
 }
 
 static Error showSDFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
-    return showFile(SD, parameter, auth_level, out);
+    return showFile(SDVolume, parameter, auth_level, out);
 }
 static Error showLocalFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
     return showFile(LocalFS, parameter, auth_level, out);
@@ -148,7 +148,7 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
     InputFile*  theFile;
     Error       err;
     std::string fn(args);
-    if ((err = openFile(SD, fn.c_str(), out, theFile)) != Error::Ok) {
+    if ((err = openFile(SDVolume, fn.c_str(), out, theFile)) != Error::Ok) {
         error = "Cannot open file";
     } else {
         char  fileLine[255];
@@ -278,7 +278,7 @@ static Error runFile(const Volume& fs, const char* parameter, AuthenticationLeve
 }
 
 static Error runSDFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP220
-    return runFile(SD, parameter, auth_level, out);
+    return runFile(SDVolume, parameter, auth_level, out);
 }
 
 // Used by js/controls.js
@@ -314,7 +314,7 @@ static Error deleteObject(const Volume& fs, const char* name, Channel& out) {
 }
 
 static Error deleteSDObject(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP215
-    return deleteObject(SD, parameter, out);
+    return deleteObject(SDVolume, parameter, out);
 }
 
 static Error deleteLocalFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
@@ -357,7 +357,7 @@ static Error listFilesystem(const Volume& fs, const char* value, AuthenticationL
 }
 
 static Error listSDFiles(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
-    return listFilesystem(SD, parameter, auth_level, out);
+    return listFilesystem(SDVolume, parameter, auth_level, out);
 }
 
 static Error listLocalFiles(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
@@ -403,7 +403,7 @@ static Error listFilesystemJSON(const Volume& fs, const char* value, Authenticat
 }
 
 static Error listSDFilesJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
-    return listFilesystemJSON(SD, parameter, auth_level, out);
+    return listFilesystemJSON(SDVolume, parameter, auth_level, out);
 }
 
 static Error listLocalFilesJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
@@ -418,7 +418,7 @@ static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_leve
 
     std::error_code ec;
 
-    FluidPath fpath { parameter, SD, ec };
+    FluidPath fpath { parameter, SDVolume, ec };
     if (ec) {
         error = "No volume";
     }
@@ -495,7 +495,7 @@ static Error renameObject(const Volume& fs, const char* parameter, Authenticatio
     return Error::Ok;
 }
 static Error renameSDObject(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    return renameObject(SD, parameter, auth_level, out);
+    return renameObject(SDVolume, parameter, auth_level, out);
 }
 static Error renameLocalObject(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
     return renameObject(LocalFS, parameter, auth_level, out);
@@ -523,7 +523,7 @@ static Error makeDirectory(const Volume& fs, const char* parameter, Channel& out
     return Error::Ok;
 }
 static Error makeSDDirectory(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
-    return makeDirectory(SD, parameter, out);
+    return makeDirectory(SDVolume, parameter, out);
 }
 static Error makeLocalDirectory(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
     return makeDirectory(LocalFS, parameter, out);
@@ -560,7 +560,7 @@ static Error copyDir(const Volume& ifs, const std::string_view iDir, const Volum
     {  // Block to manage scope of outDir
         FluidPath outDir { oDir, ofs, ec };
         if (ec) {
-            log_error_to(out, "Cannot mount " << SD.name);
+            log_error_to(out, "Cannot mount " << SDVolume.name);
             return Error::FsFailedMount;
         }
 
@@ -619,15 +619,15 @@ static Error showLocalFSHashes(const char* parameter, AuthenticationLevel auth_l
 }
 
 static Error backupLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-    return copyDir(LocalFS, "/", SD, "/localfs_copy", out);
+    return copyDir(LocalFS, "/", SDVolume, "/localfs_copy", out);
 }
 static Error restoreLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-    return copyDir(SD, "/localfs_copy", LocalFS, "/", out);
+    return copyDir(SDVolume, "/localfs_copy", LocalFS, "/", out);
 }
 // Used by js/files.js
 static Error showSDStatus(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200
     try {
-        FluidPath path { "/", SD };
+        FluidPath path { "/", SDVolume };
     } catch (std::filesystem::filesystem_error const& ex) {
         log_error_to(out, ex.what());
         log_string(out, "No SD card detected");

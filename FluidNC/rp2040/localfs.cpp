@@ -41,7 +41,7 @@ bool localfs_mount() {
     LocalFS.prefix = "/littlefs";  // LittleFS is mounted at root on RP2040
     VFS.map("/littlefs", LittleFS);
 
-    SD.prefix = "/sd";  // SD card would go here if used
+    SDVolume.prefix = "/sd";  // SD card would go here if used
 
     log_info("LittleFS mounted successfully at " << LocalFS.prefix);
     return true;

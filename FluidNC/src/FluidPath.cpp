@@ -13,7 +13,7 @@
 #include <freertos/semphr.h>
 #include "Arduino.h"
 
-Volume SD { "sd" };
+Volume SDVolume { "sd" };
 Volume LocalFS { "localfs" };
 
 namespace {
@@ -125,7 +125,7 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
     // check below already maps them to themselves, but on native ports they
     // are relative ("native_localfs", "native_sd"), and re-resolving one
     // used to prepend the default volume's prefix a second time.
-    for (const Volume* v : { &LocalFS, &SD }) {
+    for (const Volume* v : { &LocalFS, &SDVolume }) {
         const std::string& prefix = v->prefix;
         if (!prefix.empty() && filename.substr(0, prefix.length()) == prefix &&
             (filename.length() == prefix.length() || filename[prefix.length()] == '/')) {
@@ -152,8 +152,8 @@ const std::string FluidPath::canonPath(std::string_view filename, const Volume& 
             ret += tail;
             return ret;
         }
-        if (string_util::equal_ignore_case(fsname, SD.name)) {
-            ret = SD.prefix;
+        if (string_util::equal_ignore_case(fsname, SDVolume.name)) {
+            ret = SDVolume.prefix;
             ret += tail;
             return ret;
         }

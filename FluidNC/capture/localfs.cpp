@@ -17,8 +17,8 @@ bool localfs_format(const std::string fsname) {
     return false;
 }
 bool localfs_mount() {
-    SD.prefix      = "native_sd";
-    LocalFS.prefix = "native_localfs";
+    SDVolume.prefix = "native_sd";
+    LocalFS.prefix  = "native_localfs";
     if (stdfs::is_directory(LocalFS.prefix)) {
         return true;
     }
@@ -38,11 +38,11 @@ void sd_deinit_slot() {}
 void sd_unmount() {}
 
 std::error_code sd_mount(uint32_t max_files) {
-    std::cout << "Mounting sd from " << SD.prefix << std::endl;
+    std::cout << "Mounting sd from " << SDVolume.prefix << std::endl;
 
-    if (stdfs::is_directory(SD.prefix)) {
+    if (stdfs::is_directory(SDVolume.prefix)) {
         return {};
     }
-    log_error(SD.prefix << " subdirectory is missing");
+    log_error(SDVolume.prefix << " subdirectory is missing");
     return std::make_error_code(std::errc::no_such_file_or_directory);
 };

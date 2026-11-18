@@ -65,7 +65,7 @@ static bool has_littlefs_magic(const esp_partition_t* part) {
 }
 
 bool localfs_mount() {
-    SD.prefix = "/sd";
+    SDVolume.prefix = "/sd";
 
     if (littlefs_mount(littlefsPartition, false) == ESP_OK || littlefs_mount(spiffsPartition, false) == ESP_OK) {
         LocalFS.prefix = littlefsPrefix;
