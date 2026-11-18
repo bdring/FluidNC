@@ -39,7 +39,7 @@ def find_tool(tool_name, toolchain_prefix=None, mcu=None):
     if mcu:
         if "s3" in mcu:
             prefixes = ["xtensa-esp32s3-elf-", "xtensa-esp-elf-"]
-        elif "c3" in mcu or "c6" in mcu or "h2" in mcu:
+        elif "c3" in mcu or "c6" in mcu or "h2" in mcu or "p4" in mcu:
             prefixes = ["riscv32-esp-elf-"]
         else:
             prefixes = ["xtensa-esp32-elf-", "xtensa-esp-elf-"]
@@ -66,9 +66,10 @@ def find_tool(tool_name, toolchain_prefix=None, mcu=None):
         for pkg_dir in sorted(pio_dir.iterdir(), reverse=True):
             if "toolchain" in pkg_dir.name:
                 for candidate in candidates:
-                    tool_path = pkg_dir / "bin" / candidate
-                    if tool_path.exists():
-                        return str(tool_path)
+                    for suffix in ("", ".exe"):
+                        tool_path = pkg_dir / "bin" / (candidate + suffix)
+                        if tool_path.exists():
+                            return str(tool_path)
 
     # Fallback: generic
     found = shutil.which(tool_name)
