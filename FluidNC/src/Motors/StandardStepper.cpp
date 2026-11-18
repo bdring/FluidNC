@@ -56,14 +56,18 @@ namespace MotorDrivers {
 
         // Allow "sim" pins for simulation, otherwise enforce stepping engine type
         if (!string_util::starts_with_ignore_case(_step_pin.name(), "sim")) {
-            const char* type = strncmp(Stepping::_engine->name, "I2S", 3) == 0 ? "i2so" : "gpio";
+            const char* type = strncmp(Stepping::_engine->name, "I2S", 3) == 0     ? "i2so"
+                             : strncmp(Stepping::_engine->name, "PARLIO", 6) == 0 ? "parlio"
+                                                                                  : "gpio";
             Assert(string_util::starts_with_ignore_case(_step_pin.name(), type), "Step pin %s type must be %s", _step_pin.name(), type);
         }
 
         if (_dir_pin.defined()) {
             // Allow "sim" pins for simulation, otherwise enforce stepping engine type
             if (!string_util::starts_with_ignore_case(_dir_pin.name(), "sim")) {
-                const char* type = strncmp(Stepping::_engine->name, "I2S", 3) == 0 ? "i2so" : "gpio";
+                const char* type = strncmp(Stepping::_engine->name, "I2S", 3) == 0     ? "i2so"
+                                 : strncmp(Stepping::_engine->name, "PARLIO", 6) == 0 ? "parlio"
+                                                                                      : "gpio";
                 Assert(string_util::starts_with_ignore_case(_dir_pin.name(), type), "Direction pin %s type must be %s", _dir_pin.name(), type);
             }
         }
