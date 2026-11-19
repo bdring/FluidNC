@@ -8,6 +8,11 @@
    "Debug",
    "Verbose"
   ],
+  "mustHomeModes": [
+   false,
+   true,
+   "strict"
+  ],
   "phyTypes": [
    "w5500",
    "ksz8851",
@@ -181,10 +186,15 @@
  },
  "start": {
   "must_home": {
-   "type": "boolean",
+   "type": "enum",
+   "values": [
+    false,
+    true,
+    "strict"
+   ],
    "default": "true",
    "tuning": "typical",
-   "description": "Refuses to accept motion commands until $H (home) has been run at least once since boot. Jogging and settings commands still work while unhomed.\n"
+   "description": "false allows motion while unhomed. true blocks G-code/MDI motion but allows jogging. strict also blocks jog commands ($J) until $H (home) has been run at least once since boot.\n"
   },
   "deactivate_parking": {
    "type": "boolean",

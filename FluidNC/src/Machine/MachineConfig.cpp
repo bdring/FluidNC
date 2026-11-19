@@ -35,6 +35,13 @@ Machine::MachineConfig* config;
 // TODO FIXME: Split this file up into several files, perhaps put it in some folder and namespace Machine?
 
 namespace Machine {
+    const EnumItem mustHomeModes[] = {
+        { static_cast<uint32_t>(MustHomeMode::Disabled), "false" },
+        { static_cast<uint32_t>(MustHomeMode::Enabled), "true" },
+        { static_cast<uint32_t>(MustHomeMode::Strict), "strict" },
+        EnumItem(static_cast<uint32_t>(MustHomeMode::Enabled)),
+    };
+
     void MachineConfig::group(Configuration::HandlerBase& handler) {
         // @config board
         // @default "None"

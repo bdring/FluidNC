@@ -321,7 +321,9 @@ static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_leve
         send_alarm(ExecAlarm::StartupPin);
         return Error::CheckDoor;
     }
-    Homing::set_all_axes_homed();
+    if (Machine::alarmUnlockMayClearHoming(static_cast<Machine::MustHomeMode>(config->_start->_mustHome))) {
+        Homing::set_all_axes_homed();
+    }
     // Release every motor, including the second motor of a ganged axis.  This
     // deliberately bypasses Kinematics::releaseMotors(): that is a homing
     // primitive whose overrides apply kinematics-specific rules (CoreXY frees
