@@ -43,6 +43,7 @@ bool                   dma_started = false;
 uint32_t pulse_words = 4;
 uint32_t dir_words   = 0;
 uint32_t step_invert_mask = 0;
+uint32_t step_pin_mask    = 0;
 
 volatile uint32_t delay_words     = 1000;
 volatile uint32_t next_ticks      = 1000;
@@ -145,7 +146,9 @@ void fillChunk(uint8_t index) {
         pdata  = pulse_data;
         idle   = idle_word;
         uint32_t delay  = delay_words;
-        bool     is_step = (pdata != idle);
+        // Only a change on a step pin is a step.  A direction-only change
+        // must not cause a pulse word to be emitted.
+        bool is_step = ((pdata ^ idle) & step_pin_mask) != 0;
 
         rdir   = is_step ? dir_words : 0;
         rpulse = is_step ? pulse_words : 0;
@@ -471,6 +474,7 @@ uint32_t init_step_pin(pinnum_t pin, bool inverted) {
     } else {
         step_invert_mask &= ~(1UL << bit);
     }
+    step_pin_mask |= (1UL << bit);
     idle_word = dir_mask | step_invert_mask;
     return bit;
 }
