@@ -49,6 +49,13 @@ volatile uint32_t next_ticks      = 1000;
 volatile uint32_t dir_mask        = 0;
 volatile uint32_t idle_word       = 0;
 volatile uint32_t pulse_data      = 0;
+
+static void IRAM_ATTR updateIdleWord(uint32_t value) {
+    if (idle_word != value) {
+        idle_word = value;
+        parlio_ll_tx_set_idle_data_value(&PARL_IO, value);
+    }
+}
 volatile uint32_t remaining_dir   = 0;
 volatile uint32_t remaining_pulse = 0;
 volatile uint32_t remaining_delay = 0;
@@ -154,7 +161,7 @@ void fillChunk(uint8_t index) {
     remaining_dir   = rdir;
     remaining_pulse = rpulse;
     remaining_delay = rdelay;
-    idle_word       = idle;
+    updateIdleWord(idle);
     syncChunk(index);
 }
 
@@ -485,8 +492,8 @@ void finish_dir() {}
 
 void IRAM_ATTR start_step() {
     uint32_t idle = dir_mask | step_invert_mask;
-    idle_word     = idle;
-    pulse_data    = idle;
+    updateIdleWord(idle);
+    pulse_data = idle;
 }
 
 void IRAM_ATTR set_step_pin(pinnum_t id, bool level) {
