@@ -355,12 +355,34 @@ bool initDma() {
     return true;
 }
 
+static gpio_drive_cap_t driveCapability(int32_t drive_ma) {
+    switch (drive_ma) {
+        case 5:
+            return GPIO_DRIVE_CAP_0;
+        case 10:
+            return GPIO_DRIVE_CAP_1;
+        case 20:
+            return GPIO_DRIVE_CAP_2;
+        case 40:
+            return GPIO_DRIVE_CAP_3;
+        default:
+            // Should be unreachable. ParlioBus::group() accepts only 5, 10, 20 or 40.
+            return GPIO_DRIVE_CAP_1;
+    }
+}
+
 void routePins() {
     // Keep the idle level steady while the pads switch to PARLIO.
     parlio_ll_tx_set_idle_data_value(&PARL_IO, idle_word);
 
     auto bus = config->_parlio;
+    auto drive = driveCapability(bus->_drive_ma);
+    log_info("PARLIO drive " << bus->_drive_ma << " mA");
+
     pinMode(bus->_clk_native, OUTPUT);
+    if (gpio_set_drive_capability((gpio_num_t)bus->_clk_native, drive) != ESP_OK) {
+        log_error("PARLIO clk drive capability failed");
+    }
     digitalWrite(bus->_clk_native, LOW);
     esp_rom_gpio_connect_out_signal((uint32_t)bus->_clk_native,
                                     parlio_periph_signals.groups[0].tx_units[0].clk_out_sig,
@@ -373,6 +395,9 @@ void routePins() {
         }
         int pin = bus->_data_native[i];
         pinMode(pin, OUTPUT);
+        if (gpio_set_drive_capability((gpio_num_t)pin, drive) != ESP_OK) {
+            log_error("PARLIO data drive capability failed for pin " << pin);
+        }
         digitalWrite(pin, LOW);
         esp_rom_gpio_connect_out_signal((uint32_t)pin, parlio_periph_signals.groups[0].tx_units[0].data_sigs[i], false, false);
         gpio_input_enable((gpio_num_t)pin);
