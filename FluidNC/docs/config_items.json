@@ -441,6 +441,11 @@
    "pin_attributes": "output",
    "description": "PARLIO output clock pin.\n"
   },
+  "drive_ma": {
+   "type": "integer",
+   "default": "10",
+   "description": "PARLIO pad drive strength in mA. Valid values are 5, 10, 20 and 40.\n"
+  },
   "data0_pin": {
    "type": "pin",
    "default": "NO_PIN",
