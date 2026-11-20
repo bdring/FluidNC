@@ -18,6 +18,8 @@ namespace Machine {
         Pin _data[NUM_DATA_PINS];
         Pin _clk;
 
+        int32_t _drive_ma = 10;
+
         int8_t _data_native[NUM_DATA_PINS] = {};
         bool   _data_defined[NUM_DATA_PINS] = {};
         int8_t _clk_native = -1;

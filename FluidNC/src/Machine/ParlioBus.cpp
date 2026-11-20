@@ -36,6 +36,15 @@ namespace Machine {
         // PARLIO output clock pin.
         handler.item("clk_pin", _clk);
 
+        // @config drive_ma
+        // @default 10
+        // PARLIO pad drive strength in mA. Valid values are 5, 10, 20 and 40.
+        handler.item("drive_ma", _drive_ma);
+        if (_drive_ma != 5 && _drive_ma != 10 && _drive_ma != 20 && _drive_ma != 40) {
+            _drive_ma = 10;
+            throw AssertionFailed::create("PARLIO drive_ma must be 5, 10, 20, or 40");
+        }
+
         // @config data0_pin
         // @default NO_PIN
         // @pin_attributes output
