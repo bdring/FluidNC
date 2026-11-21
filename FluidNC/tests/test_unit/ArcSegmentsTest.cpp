@@ -59,3 +59,71 @@ TEST(ArcSegments, RotationIsExact) {
         EXPECT_NEAR(atan2f(s, c), th, 1e-6F);
     }
 }
+
+namespace {
+
+const float kEps    = 5e-7F;  // ARC_ANGULAR_TRAVEL_EPSILON
+const float kTwoPi  = 2 * float(M_PI);
+const float kAngTol = 1e-5F;
+
+// The former mc_arc() computation of the raw start-to-end angle, which went through the
+// absolute center coordinate.  Kept here only to prove the reproducer below exercises it.
+float old_raw_angle(const float start[2], const float end[2], const float offset[2]) {
+    const float center[2] = { start[0] + offset[0], start[1] + offset[1] };
+    const float rs[2]     = { -offset[0], -offset[1] };
+    const float re[2]     = { end[0] - center[0], end[1] - center[1] };
+    return atan2f(rs[0] * re[1] - rs[1] * re[0], rs[0] * re[0] + rs[1] * re[1]);
+}
+
+}  // namespace
+
+// User report: small full circle far from the origin drew nothing, Z just went down and up.
+//   G0 X105.0821 Y124.8697
+//   G3 X105.0821 Y124.8697 I-0.0510 J0.6379
+TEST(ArcAngularTravel, SmallFullCircleFarFromOrigin) {
+    const float p[2]   = { 105.0821F, 124.8697F };
+    const float off[2] = { -0.0510F, 0.6379F };
+
+    // The old computation's rounding error exceeds the full-circle epsilon
+    EXPECT_GT(fabsf(old_raw_angle(p, p, off)), kEps);
+
+    EXPECT_NEAR(arc_angular_travel(p, p, off, false, 0, kEps), kTwoPi, kAngTol);   // G3
+    EXPECT_NEAR(arc_angular_travel(p, p, off, true, 0, kEps), -kTwoPi, kAngTol);   // G2
+}
+
+// Property: start == end is always a full circle in the commanded direction, for any
+// position, radius and center direction.
+TEST(ArcAngularTravel, FullCircleRandom) {
+    std::mt19937                          g(2);
+    std::uniform_real_distribution<float> U(0.0F, 1.0F);
+    for (int i = 0; i < 200000; i++) {
+        float p[2]   = { 2000.0F * U(g) - 1000.0F, 2000.0F * U(g) - 1000.0F };  // -1000 .. 1000 mm
+        float R      = 0.01F * powf(10.0F, 4.0F * U(g));                        // 0.01 .. 100 mm
+        float a      = kTwoPi * U(g);
+        float off[2] = { R * cosf(a), R * sinf(a) };
+        bool  cw     = U(g) < 0.5F;
+        float t      = arc_angular_travel(p, p, off, cw, 0, kEps);
+        ASSERT_NEAR(t, cw ? -kTwoPi : kTwoPi, kAngTol) << "p=" << p[0] << "," << p[1] << " off=" << off[0] << "," << off[1];
+    }
+}
+
+// Partial arcs keep their sign and size; a short arc is not mistaken for a full circle
+TEST(ArcAngularTravel, PartialArcs) {
+    const float s[2]   = { 110.0F, 100.0F };
+    const float off[2] = { -10.0F, 0.0F };  // center (100, 100)
+    const float q[2]   = { 100.0F, 110.0F };  // 90 degrees CCW from s
+    EXPECT_NEAR(arc_angular_travel(s, q, off, false, 0, kEps), float(M_PI_2), kAngTol);       // G3 short way
+    EXPECT_NEAR(arc_angular_travel(s, q, off, true, 0, kEps), -3 * float(M_PI_2), kAngTol);   // G2 long way
+
+    const float tiny[2] = { 100.0F + 10.0F * cosf(1e-3F), 100.0F + 10.0F * sinf(1e-3F) };
+    EXPECT_NEAR(arc_angular_travel(s, tiny, off, false, 0, kEps), 1e-3F, 1e-5F);
+}
+
+// P word: Pn adds n-1 extra turns; P0 and P1 are the plain arc
+TEST(ArcAngularTravel, Rotations) {
+    const float p[2]   = { 105.0821F, 124.8697F };
+    const float off[2] = { -0.0510F, 0.6379F };
+    EXPECT_NEAR(arc_angular_travel(p, p, off, false, 1, kEps), kTwoPi, kAngTol);
+    EXPECT_NEAR(arc_angular_travel(p, p, off, false, 3, kEps), 3 * kTwoPi, 3 * kAngTol);
+    EXPECT_NEAR(arc_angular_travel(p, p, off, true, 2, kEps), -2 * kTwoPi, 2 * kAngTol);
+}
