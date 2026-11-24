@@ -90,6 +90,17 @@ def _add_js_suffix(source, target, env):
     for t in target:
         src = str(t)
         shutil.copyfile(src, src + ".js")
+        _copy_to_demo(src, env)
+
+
+# Put the build where the demo page loads it from (demo/program.js and
+# demo/program.wasm, which are gitignored), so that a rebuild is all it
+# takes to run it in the demo.
+def _copy_to_demo(src, env):
+    demo = os.path.join(env.subst("$PROJECT_DIR"), "FluidNC", "wasm", "demo")
+    for ext in (".js", ".wasm"):
+        shutil.copyfile(src + ext, os.path.join(demo, os.path.basename(src) + ext))
+    print("[env:wasm] Copied {0}.js and {0}.wasm to {1}".format(os.path.basename(src), os.path.relpath(demo)))
 
 
 # PROGSUFFIX/PROGPATH get re-substituted by BuildProgram() using whatever

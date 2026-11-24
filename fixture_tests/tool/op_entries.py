@@ -1,6 +1,7 @@
 import re
 from xmodem import XMODEM
 import os
+from tool.grbl_message import MessageType, classify
 from tool.utils import remote_file_sha256, file_stream_sha256, color
 import fnmatch
 
@@ -66,14 +67,28 @@ class SendLineOpEntry(OpEntry):
         return True
 
 
+def _expect_or_blank(controller, message_type):
+    """controller.expect(), but reports a timeout the same way the old
+    current_line()-based code did: as an empty-string "line" rather than
+    None, so the existing Expected/Actual mismatch printing needs no
+    special-casing for the timeout case."""
+    msg = controller.expect(message_type)
+    return msg.raw if msg is not None else ""
+
+
 class StringMatchOpEntry(OpEntry):
     def __init__(self, op, data, lineno, fixture_path):
         super().__init__(op, data, lineno, fixture_path)
         self.optional = op == "<~"
+        # What type of line this entry is waiting for -- see
+        # tool/grbl_message.py. Anything else (a status report, [MSG:...],
+        # etc. arriving while we wait) is routed around transparently by
+        # controller.expect() instead of being treated as a mismatch,
+        # since the protocol makes no ordering guarantee across types.
+        self.expected_type = classify(self.data).type
 
     def execute(self, controller):
-        # optional unconditionally matches all lines
-        line = controller.current_line()
+        line = _expect_or_blank(controller, self.expected_type)
         matches = self.data == line
         if matches:
             print(self._op_str() + color.received_line(line))
@@ -92,9 +107,13 @@ class AnyStringMatchOpEntry(OpEntry):
 
     def __init__(self, op, data, lineno, fixture_path):
         super().__init__(op, [data], lineno, fixture_path)
+        # All alternatives are expected to be the same message type (e.g.
+        # several possible status-report shapes); the first one decides
+        # what execute() waits for.
+        self.expected_type = classify(data).type
 
     def execute(self, controller):
-        line = controller.current_line()
+        line = _expect_or_blank(controller, self.expected_type)
         if line not in self.data:
             print(color.error("Expected one of: "))
             for fline in self.data:
@@ -111,24 +130,33 @@ class UntilStringMatchOpEntry(OpEntry):
     def __init__(self, op, data, lineno, fixture_path):
         self.glob_match = data.startswith("* ")
         super().__init__(op, data.removeprefix("* "), lineno, fixture_path)
+        self.expected_type = classify(self.data).type
 
     def execute(self, controller):
+        # Unlike the other ops, this one is *designed* to skip over lines
+        # that don't match -- that's the whole point of "consume until
+        # found". So it doesn't lean on controller.expect()'s skip-set;
+        # instead it classifies every line itself and only refuses to
+        # skip past a real fault (error/alarm) that isn't literally the
+        # thing being waited for, same as expect() would.
         while True:
-            matches = self._line_matches(controller)
-            print(
-                self._op_str()
-                + color.green(controller.current_line(), dark=True, bold=matches)
-            )
+            line = controller.current_line()
+            msg = classify(line)
+            if msg.type in (MessageType.ERROR, MessageType.ALARM) and line != self.data:
+                print(color.error("Unexpected: ") + line)
+                return False
+            matches = self._line_matches(line)
+            print(self._op_str() + color.green(line, dark=True, bold=matches))
             controller.clear_line()
             if matches:
                 break
         return True
 
-    def _line_matches(self, controller):
+    def _line_matches(self, line):
         if self.glob_match:
-            return fnmatch.fnmatch(controller.current_line(), self.data)
+            return fnmatch.fnmatch(line, self.data)
         else:
-            return self.data == controller.current_line()
+            return self.data == line
 
 
 class SendFileOpEntry(OpEntry):

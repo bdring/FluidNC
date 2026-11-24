@@ -3,6 +3,8 @@
 
 #include "Channel.h"
 #include <vector>
+#include <set>
+#include <utility>
 
 class JobSource {
 private:
@@ -168,18 +170,58 @@ public:
     static bool get_param(const std::string& name, float& value);
     static bool set_param(const std::string& name, float value);
     static bool param_exists(const std::string& name);
+
     // Modal state saved by M70/M73 at the top job's call level.  Both return
     // false when no job is active, in which case the caller uses the base
     // (interactive) call level's slot instead.
     static bool get_saved_modal(std::optional<ModalSnapshot>& saved);
     static bool set_saved_modal(const std::optional<ModalSnapshot>& saved);
+
     // If the top job saved its modal state with M73 and has not yet restored
     // it, clears the M73 flag and returns true, so the caller can run M72 as
     // the job's final line before unnesting it.
     static bool take_autorestore();
 
     static Channel* channel();         // top-of-stack channel, or nullptr when idle
+    // Line number of the innermost active job that is not a macro, i.e. how far
+    // the user's file has gotten even while a tool-change or restart macro
+    // runs on top of it. Returns -1 if no such job is active.
+    static int32_t progress_line();
     static Channel* leader_channel();  // job leader, or nullptr when idle
+
+    // Persistent, debugger-style breakpoints: canonical path
+    // (FluidPath::canonPath()) + 1-based line number. Checked live -- via
+    // at_stop_line(), below -- against the top-of-stack job's own channel
+    // name (which for a file-backed JobSource already *is* its canonical
+    // path; see FileStream::FileStream()) and current line, on every
+    // pre-dispatch pause check in Protocol.cpp. Not snapshotted into a
+    // JobSource at nest() time, so $Breakpoint/Set or $Breakpoint/Clear take
+    // effect immediately, even on a file that's already running -- there is
+    // no separate "arm this job" step. A breakpoint stays armed after being
+    // hit, like a real debugger's, firing again on every subsequent visit to
+    // that line (e.g. inside a WHILE loop) until explicitly cleared.
+    static void set_breakpoint(const std::string& path, int32_t line);
+    // Removes one breakpoint by exact (path, line); returns false if no such
+    // breakpoint was armed.
+    static bool clear_breakpoint(const std::string& path, int32_t line);
+    // Removes one breakpoint by its 1-based position in breakpoints()'s
+    // (sorted, stable) order; returns false if index is out of range.
+    static bool clear_breakpoint(size_t index);
+    static void clear_all_breakpoints();
+    // Not safe against a concurrent Set/Clear; interactive use only -- same
+    // caveat as jobs_stack() below.
+    static const std::set<std::pair<std::string, int32_t>>& breakpoints();
+
+    // True if the top-of-stack job's channel has a breakpoint armed at its
+    // current line (see breakpoints() above). Used by protocol_main_loop's
+    // pre-dispatch pause gate (Protocol.cpp).
+    static bool at_stop_line();
+
+    // Rewinds the top-of-stack job's channel back to the start of the line
+    // it just read (via Channel::lineStartPosition()/lineNumber()), so that
+    // line is read again, unchanged, on a later pollLine() call -- e.g. to
+    // defer it while a restart_macro runs first.
+    static void rewind_current_line();
 
     // Snapshot of the stack for $Local/Params listing.  Not safe against a
     // concurrent unnest()/abort(); only meaningful for interactive use.
