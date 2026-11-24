@@ -12,7 +12,6 @@ idf_component_register(SRCS AssertionFailed.cpp
                             restart.cpp
                             sdspi.cpp
                             spi.cpp
-                            spiffs.cpp
                             StartupLog.cpp
                             StepTimer.cpp
                             tmc_spi.cpp
@@ -34,7 +33,7 @@ idf_component_register(SRCS AssertionFailed.cpp
                             esp32s3/UsbHostUart.cpp
                             esp32s3/i2s_engine_dedicated.c
                        INCLUDE_DIRS "." ".." "../include" "../lib/TMCStepper/src" "esp32s3" "../src"
-                       REQUIRES esp_driver_uart driver fatfs vfs spiffs esp_driver_sdspi esp_timer arduino-esp32 nvs_flash esp_driver_gpio mbedtls esp_tinyusb
+                       REQUIRES esp_driver_uart driver fatfs vfs esp_driver_sdspi esp_timer arduino-esp32 nvs_flash esp_driver_gpio mbedtls esp_tinyusb
                        PRIV_REQUIRES espcoredump
                        WHOLE_ARCHIVE)
 

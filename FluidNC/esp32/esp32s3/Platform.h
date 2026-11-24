@@ -61,9 +61,10 @@ inline void platform_preinit() {
 #if ESP_IDF_VERSION_MAJOR >= 5
     // esp_littlefs logs its own ESP_LOGE for a condition FluidNC treats as
     // normal: localfs_mount()/localfs_format() intentionally probe a
-    // partition named "littlefs" first, then fall back to a partition named
-    // "spiffs" (see esp32/localfs.cpp); the first probe logs a "partition
-    // could not be found" error even though the fallback succeeds.
+    // partition named "littlefs" first, then fall back to a LittleFS
+    // partition named "spiffs" (see esp32/localfs.cpp); the first probe logs
+    // a "partition could not be found" error even though the fallback
+    // succeeds.
     // Suppress at the IDF logging level rather than trying to intercept
     // FluidNC's own logger, since this comes from inside the IDF component.
     //
