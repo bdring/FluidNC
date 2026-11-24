@@ -203,7 +203,6 @@ void mc_arc(float*            target,
 
     // Radius vector from center to current location
     float radii[2] = { -offset[axis_0], -offset[axis_1] };
-    float rt[2]    = { target[axis_0] - center[0], target[axis_1] - center[1] };
 
     auto n_axis = Axes::_numberAxis;
 
@@ -212,26 +211,11 @@ void mc_arc(float*            target,
         previous_position[i] = position[i];
     }
 
-    // CCW angle between position and target from circle center. Only one atan2() trig computation required.
-    float angular_travel = atan2f(radii[0] * rt[1] - radii[1] * rt[0], radii[0] * rt[0] + radii[1] * rt[1]);
-    if (is_clockwise_arc) {  // Correct atan2 output per direction
-        if (angular_travel >= -ARC_ANGULAR_TRAVEL_EPSILON) {
-            angular_travel -= 2 * float(M_PI);
-        }
-        // See https://linuxcnc.org/docs/2.6/html/gcode/gcode.html#sec:G2-G3-Arc
-        // The P word specifies the number of extra rotations.  Missing P, P0 or P1
-        // is just the programmed arc.  Pn adds n-1 rotations
-        if (rotations > 1) {
-            angular_travel -= (rotations - 1) * 2 * float(M_PI);
-        }
-    } else {
-        if (angular_travel <= ARC_ANGULAR_TRAVEL_EPSILON) {
-            angular_travel += 2 * float(M_PI);
-        }
-        if (rotations > 1) {
-            angular_travel += (rotations - 1) * 2 * float(M_PI);
-        }
-    }
+    // Signed angle from position to target around the center, including P rotations.
+    const float start[2]       = { position[axis_0], position[axis_1] };
+    const float end[2]         = { target[axis_0], target[axis_1] };
+    const float plane_off[2]   = { offset[axis_0], offset[axis_1] };
+    float       angular_travel = arc_angular_travel(start, end, plane_off, is_clockwise_arc, rotations, float(ARC_ANGULAR_TRAVEL_EPSILON));
 
     // NOTE: Segment end points are on the arc, so no chord deviates from the arc by more than
     // arc_tolerance, but the chords lie inside the circle.  If a different arc segment fit
