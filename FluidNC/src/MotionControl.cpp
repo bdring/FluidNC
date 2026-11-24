@@ -302,9 +302,8 @@ void mc_arc(float*            target,
             }
             pl_data->feed_rate = original_feedrate;  // This restores the feedrate kinematics may have altered
             mc_linear(position, pl_data, previous_position);
-            previous_position[axis_0]      = position[axis_0];
-            previous_position[axis_1]      = position[axis_1];
-            previous_position[axis_linear] = position[axis_linear];
+            // All axes, as the A/B/C axes also move with each segment
+            copyAxes(previous_position, position);
             // Bail mid-circle on system abort or alarm (e.g. a hard limit), so the
             // remaining segments are not planned into a buffer that will never run.
             // Runtime command check already performed by mc_linear.
