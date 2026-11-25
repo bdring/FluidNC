@@ -70,6 +70,7 @@ namespace ATCs {
             _prev_tool = new_tool;
             move_to_safe_z();
             move_to_change_location();
+            _macro.addf("M61 Q0");  // macros do not update the tool number automatically with M6Tx
             reset();
             return _macro.run(channel, true);
         }
@@ -94,6 +95,7 @@ namespace ATCs {
                     _macro.addf("G20");
                 }
                 _prev_tool = new_tool;
+                _macro.addf("M61 Q0");  // macros do not update the tool number automatically with M6Tx
                 return _macro.run(channel, true);
             }
 
@@ -153,6 +155,8 @@ namespace ATCs {
                 _macro.addf("G91");
             }
 
+            _macro.addf("M61 Q%d", new_tool);  // macros do not update the tool number automatically with M6Tx
+
             return _macro.run(channel, true);
         } catch (...) { log_info("Exception caught"); }
 
@@ -169,7 +173,10 @@ namespace ATCs {
 
     void Manual_ATC::move_to_change_location() {
         move_to_safe_z();
-        _macro.addf("G53G0X%sY%sZ%s", formatFloat(_change_mpos[0], 3).c_str(), formatFloat(_change_mpos[1], 3).c_str(), formatFloat(_change_mpos[2], 3).c_str());
+        _macro.addf("G53G0X%sY%sZ%s",
+                    formatFloat(_change_mpos[0], 3).c_str(),
+                    formatFloat(_change_mpos[1], 3).c_str(),
+                    formatFloat(_change_mpos[2], 3).c_str());
     }
 
     void Manual_ATC::move_to_safe_z() {
