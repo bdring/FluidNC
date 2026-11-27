@@ -27,6 +27,7 @@
 #include "UartChannel.h"
 #include "Driver/Console.h"
 #include "Module.h"
+#include "EnumItem.h"
 #if SUPPORT_LISTENERS
 #    include "Listeners/SysListener.h"
 #endif
@@ -37,15 +38,18 @@
 #include "UserOutputs.h"
 #include "UserInputs.h"
 #include "Macros.h"
+#include "Machine/MustHomeMode.h"
 
 #include <string_view>
 
 namespace Machine {
     using ::Kinematics::Kinematics;
 
+    extern const EnumItem mustHomeModes[];
+
     class Start : public Configuration::Configurable {
     public:
-        bool _mustHome          = true;
+        uint32_t _mustHome          = true;
         bool _deactivateParking = false;
 
         // At power-up or a reset, the limit switches will be checked
@@ -61,9 +65,10 @@ namespace Machine {
             // @config must_home
             // @default true
             // @tuning typical
-            // Refuses to accept motion commands until $H (home) has been run at least once
-            // since boot. Jogging and settings commands still work while unhomed.
-            handler.item("must_home", _mustHome);
+            // false allows motion while unhomed. true blocks G-code/MDI motion but allows
+            // jogging. strict also blocks jog commands ($J) until $H (home) has been run
+            // at least once since boot.
+            handler.item("must_home", _mustHome, mustHomeModes);
 
             // @config deactivate_parking
             // @default false
