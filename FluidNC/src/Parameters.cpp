@@ -481,9 +481,9 @@ bool get_param(const param_ref_t& param_ref, float& value) {
 // Scientific notation is officially not supported by g-code, and the 'E' character may
 // be a g-code word on some CNC systems. So, 'E' notation will not be recognized.
 // NOTE: Thanks to Radu-Eosif Mihailescu for identifying the issues with using strtod().
-const int MAX_INT_DIGITS = 8;  // Maximum number of digits in int32 (and float)
+const int MAX_INT_DIGITS = 8;  // Maximum number of significant digits to accumulate
 
-static float uint_to_float(uint32_t intval, int8_t exp) {
+static float uint_to_float(uint32_t intval, int exp) {
     float fval = (float)intval;
     // Apply decimal. Should perform no more than two floating point multiplications for the
     // expected range of E0 to E-4.
@@ -519,16 +519,20 @@ bool read_float(const char* line, size_t& pos, float& result) {
     }
 
     // Extract number into fast integer. Track decimal in terms of exponent value.
-    uint32_t intval    = 0;
-    int8_t   exp       = 0;
-    size_t   ndigit    = 0;
-    bool     isdecimal = false;
+    uint32_t intval             = 0;
+    int      exp                = 0;
+    size_t   significant_digits = 0;
+    bool     has_digit          = false;
+    bool     isdecimal          = false;
     while (1) {
         c = *ptr;
         if (isdigit(c)) {
             ++ptr;
-            ndigit++;
-            if (ndigit <= MAX_INT_DIGITS) {
+            has_digit = true;
+            if (significant_digits || c != '0') {
+                ++significant_digits;
+            }
+            if (significant_digits <= MAX_INT_DIGITS) {
                 if (isdecimal) {
                     exp--;
                 }
@@ -546,7 +550,7 @@ bool read_float(const char* line, size_t& pos, float& result) {
         }
     }
     // Return if no digits have been read.
-    if (!ndigit) {
+    if (!has_digit) {
         return false;
     }
 

@@ -52,6 +52,17 @@ TEST(ReadNumberTest, LeadingDecimal) {
     EXPECT_TRUE(approx_equal(result, 0.5f));
 }
 
+TEST(ReadNumberTest, LeadingZerosDoNotConsumePrecision) {
+    float  result;
+    size_t pos = 0;
+    ASSERT_TRUE(read_number("00000000.5", pos, result));
+    EXPECT_FLOAT_EQ(result, 0.5f);
+
+    pos = 0;
+    ASSERT_TRUE(read_number("0.00000001", pos, result));
+    EXPECT_FLOAT_EQ(result, 0.00000001f);
+}
+
 TEST(ReadNumberTest, NegativeLeadingDecimal) {
     float  result;
     size_t pos = 0;
